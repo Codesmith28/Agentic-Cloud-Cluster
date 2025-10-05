@@ -1,0 +1,212 @@
+syntax = "proto3";
+
+package scheduler;
+
+// IMPORTANT:
+// Replace the go_package option with your real module path before generating Go code.
+// Example: option go_package = "github.com/yourorg/ai-scheduler/proto;proto";
+option go_package = "github.com/yourorg/ai-scheduler/proto;proto";
+option java_multiple_files = true;
+option java_package = "com.yourorg.aischeduler.proto";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+/////////////////////////////////////////////////////////////////
+// Core resource / domain messages
+/////////////////////////////////////////////////////////////////
+
+message Task {
+  string id = 1;
+  double cpu_req = 2;             // number of cores (can be fractional)
+  int32 mem_mb = 3;               // memory requirement in MB
+  int32 gpu_req = 4;              // number of GPUs required
+  int32 disk_mb = 20;             // optional disk requirement in MB
+  int32 network_mbps = 21;        // optional network bandwidth requirement
+  string task_type = 5;           // semantic type (for predictor / grouping)
+  int64 estimated_sec = 6;        // estimated runtime in seconds (optional)
+  int32 priority = 7;             // higher = more urgent
+  int64 deadline_unix = 8;        // unix seconds; 0 = no deadline
+  map<string,string> meta = 9;    // free-form metadata
+  string container_image = 10;    // image for container execution
+  repeated string command = 11;   // command and args
+  ExecPreference exec_pref = 12;  // prefer CONTAINER, VM, or ANY
+  bool checkpointable = 13;       // whether the task supports checkpoint/resume
+  string tenant = 14;             // multi-tenant identifier
+  repeated string labels = 15;    // free-form labels used for affinity
+  google.protobuf.Struct extra = 16; // extensible structured metadata (JSON-like)
+}
+
+enum ExecPreference {
+  EXEC_ANY = 0;
+  EXEC_CONTAINER = 1;
+  EXEC_VM = 2;
+}
+
+message Worker {
+  string id = 1;
+  double total_cpu = 2;           // total cores
+  int32 total_mem = 3;            // MB
+  int32 gpus = 4;
+  int32 total_disk_mb = 22;
+  repeated string labels = 5;     // e.g. ["gpu","arm","zone-a"]
+  double free_cpu = 6;            // snapshot free
+  int32 free_mem = 7;             // snapshot free
+  int32 free_gpus = 8;            // snapshot free
+  int64 last_seen_unix = 9;       // timestamp of last heartbeat
+  repeated ExecutionMode exec_modes = 10; // supported execution types (VM/CONTAINER)
+  string architecture = 11;       // e.g. "x86_64", "aarch64"
+  repeated string accelerators = 12; // e.g., ["nvidia-tesla-v100"]
+  string zone = 13;               // availability zone or rack id
+  map<string,string> meta = 14;   // extra data (capacity classes etc.)
+  google.protobuf.Struct extra = 15;
+}
+
+enum ExecutionMode {
+  MODE_UNKNOWN = 0;
+  MODE_CONTAINER = 1;
+  MODE_VM = 2;
+}
+
+/////////////////////////////////////////////////////////////////
+// Heartbeat and other operational messages
+/////////////////////////////////////////////////////////////////
+
+message Heartbeat {
+  string worker_id = 1;
+  double free_cpu = 2;
+  int32 free_mem = 3;
+  int32 free_gpus = 4;
+  int32 running_tasks = 5;
+  repeated string labels = 6;
+  google.protobuf.Struct extra = 7;
+  google.protobuf.Timestamp ts = 8;
+}
+
+message AssignRequest {
+  string task_id = 1;
+  string worker_id = 2;
+  int64 start_unix = 3;            // start time in unix seconds (0 => ASAP)
+  int64 est_duration_sec = 4;
+  ExecutionMode exec_mode = 5;
+  string container_image = 6;
+  map<string,string> meta = 7;
+}
+
+message AssignAck {
+  string task_id = 1;
+  string worker_id = 2;
+  bool accepted = 3;
+  string reason = 4;               // if not accepted
+  string container_id = 5;         // optional
+  string vm_id = 6;                // optional
+}
+
+/////////////////////////////////////////////////////////////////
+// Planner request/response model
+/////////////////////////////////////////////////////////////////
+
+message PlanRequest {
+  repeated Task tasks = 1;         // pending tasks to schedule (batch)
+  repeated Worker workers = 2;     // current worker snapshots (capacity)
+  // objectives & constraints
+  repeated Objective objectives = 3;
+  repeated Constraint constraints = 4;
+  // planning options / knobs
+  double planning_time_budget_sec = 10; // planner should attempt to respect this
+  string previous_plan_id = 11;    // optional: planner can reuse previous plan
+  PlanOptions options = 12;
+}
+
+message Objective {
+  enum Type {
+    MIN_MAKESPAN = 0;
+    MIN_ENERGY = 1;
+    MIN_COST = 2;
+    MIN_LATENCY = 3;
+    MIN_DEADLINE_MISSES = 4;
+    MAX_UTILIZATION = 5;
+    CUSTOM = 6;
+  }
+  Type type = 1;
+  double weight = 2;               // relative importance among objectives
+  string description = 3;          // optional human-readable description
+}
+
+message Constraint {
+  // generic key/value for extensibility; planner interprets specific keys.
+  string key = 1;                  // e.g. "max_tasks_per_worker", "require_gpu"
+  string value = 2;                // e.g. "4", "true"
+}
+
+message PlanOptions {
+  bool allow_preemption = 1;
+  bool prefer_locality = 2;
+  int32 max_assignments = 3;       // limit number of assignments returned
+  // other knobs can be passed in 'extra'
+  google.protobuf.Struct extra = 10;
+}
+
+message Assignment {
+  string task_id = 1;
+  string worker_id = 2;
+  int64 start_unix = 3;
+  int64 est_duration_sec = 4;
+  ExecutionMode exec_mode = 5;
+  string container_image = 6;
+  string vm_spec = 7;
+  map<string,string> meta = 8;
+  double score = 9;                // planner's score contribution for the assignment
+}
+
+message PlanResponse {
+  string plan_id = 1;
+  repeated Assignment assignments = 2;
+  double cost = 3;
+  string status_message = 4;
+  google.protobuf.Timestamp generated_ts = 5;
+  repeated string warnings = 6;
+  google.protobuf.Struct extra = 7; // planner-specific metadata (like stats)
+}
+
+/////////////////////////////////////////////////////////////////
+// Replanning / repair
+/////////////////////////////////////////////////////////////////
+
+message ReplanRequest {
+  string previous_plan_id = 1;
+  repeated Task tasks = 2;
+  repeated Worker workers = 3;
+  repeated PlannerEvent events = 4; // e.g. worker down, assignment failed
+  double planning_time_budget_sec = 5;
+  PlanOptions options = 6;
+}
+
+message PlannerEvent {
+  enum Type {
+    WORKER_DOWN = 0;
+    ASSIGNMENT_FAILED = 1;
+    TASK_CANCELLED = 2;
+    WORKER_ADDED = 3;
+    WORKER_UPDATED = 4;
+    CUSTOM = 5;
+  }
+  Type type = 1;
+  string subject_id = 2;            // worker id or task id
+  string description = 3;
+  google.protobuf.Timestamp ts = 4;
+  google.protobuf.Struct extra = 5;
+}
+
+/////////////////////////////////////////////////////////////////
+// Planner service
+/////////////////////////////////////////////////////////////////
+
+service Planner {
+  // Compute a plan for the provided tasks and workers. Planner should
+  // attempt to respect planning_time_budget_sec and objectives.
+  rpc Plan(PlanRequest) returns (PlanResponse);
+
+  // Replan based on events and optional previous plan id.
+  rpc Replan(ReplanRequest) returns (PlanResponse);
+}
