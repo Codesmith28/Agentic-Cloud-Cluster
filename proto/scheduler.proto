@@ -5,7 +5,7 @@ package scheduler;
 // IMPORTANT:
 // Replace the go_package option with your real module path before generating Go code.
 // Example: option go_package = "github.com/yourorg/ai-scheduler/proto;proto";
-option go_package = "github.com/yourorg/ai-scheduler/proto;proto";
+option go_package = "github.com/Codesmith28/CloudAI/proto;proto";
 option java_multiple_files = true;
 option java_package = "com.yourorg.aischeduler.proto";
 
