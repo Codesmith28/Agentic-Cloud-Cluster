@@ -2266,14 +2266,1278 @@ func cleanupLoop(registry *workerregistry.Registry) {
 
 ---
 
-### Sprint 2 — Greedy Scheduler + Worker Stub + Basic Execution (2 weeks)
-**Sprint Goal:** Implement end-to-end task execution with a simple greedy scheduler
+#### Sprint 1 Acceptance Criteria
+- [ ] Worker registry tracks workers and manages resources
+- [ ] Task queue orders tasks by priority and deadline
+- [ ] Master accepts task submissions via gRPC
+- [ ] Master accepts worker heartbeats
+- [ ] All components have >70% test coverage
+- [ ] Integration test: submit task -> appears in queue
 
-This sprint will be detailed in the next section...
+#### Sprint 1 Demo
+- Start master server
+- Submit tasks via grpcurl
+- Register workers via grpcurl
+- Show tasks in queue (logs)
+- Show workers in registry (ListWorkers API)
 
 ---
 
-*[Sprint 2-13 will continue with similar level of detail. Would you like me to continue with the remaining sprints?]*
+### Sprint 2 — Greedy Scheduler + Worker Stub + Basic Execution (2 weeks)
+**Sprint Goal:** Build a complete end-to-end task execution pipeline with greedy scheduling algorithm and worker stubs. Establish baseline performance metrics.
+
+#### User Stories
+- **US-2.1:** As a master node, I need a greedy scheduler to assign pending tasks to available workers
+- **US-2.2:** As a worker node, I need to execute assigned tasks and report completion
+- **US-2.3:** As a developer, I need a testbench to measure system performance metrics
+- **US-2.4:** As a master node, I need to persist task assignments and execution history to CouchDB
+
+#### Detailed Tasks
+
+##### Task 2.1: Greedy Scheduler Implementation (4 days)
+**Assignee:** Backend Developer 1
+
+**File:** `go-master/pkg/scheduler/scheduler.go`
+
+**Algorithm:** Greedy Best-Fit Scheduling
+- **Strategy:** For each task, select the worker with:
+  1. Sufficient resources (CPU, memory, GPU)
+  2. Maximum free CPU (to reduce fragmentation)
+  3. Active status (last heartbeat within threshold)
+- **Fallback:** If no worker fits, task remains in queue
+
+**Implementation:**
+
+```go
+package scheduler
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+	
+	pb "github.com/Codesmith28/CloudAI/pkg/api"
+	"github.com/Codesmith28/CloudAI/go-master/pkg/execution"
+	"github.com/Codesmith28/CloudAI/go-master/pkg/persistence"
+	"github.com/Codesmith28/CloudAI/go-master/pkg/taskqueue"
+	"github.com/Codesmith28/CloudAI/go-master/pkg/workerregistry"
+)
+
+// Scheduler coordinates task scheduling
+type Scheduler struct {
+	taskQueue  *taskqueue.TaskQueue
+	registry   *workerregistry.Registry
+	executor   *execution.Executor
+	db         *persistence.CouchDBClient
+	batchSize  int
+	interval   time.Duration
+}
+
+// NewScheduler creates a new scheduler instance
+func NewScheduler(
+	tq *taskqueue.TaskQueue,
+	reg *workerregistry.Registry,
+	exec *execution.Executor,
+	db *persistence.CouchDBClient,
+) *Scheduler {
+	return &Scheduler{
+		taskQueue: tq,
+		registry:  reg,
+		executor:  exec,
+		db:        db,
+		batchSize: 10,            // Schedule up to 10 tasks per cycle
+		interval:  5 * time.Second, // Run every 5 seconds
+	}
+}
+
+// Start begins the main scheduling loop
+func (s *Scheduler) Start(ctx context.Context) error {
+	log.Println("Starting greedy scheduler...")
+	
+	ticker := time.NewTicker(s.interval)
+	defer ticker.Stop()
+	
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("Scheduler stopped")
+			return ctx.Err()
+			
+		case <-ticker.C:
+			if err := s.scheduleLoop(ctx); err != nil {
+				log.Printf("Scheduling error: %v", err)
+			}
+		}
+	}
+}
+
+// scheduleLoop processes one batch of pending tasks
+func (s *Scheduler) scheduleLoop(ctx context.Context) error {
+	// Get pending tasks
+	pendingTasks := s.taskQueue.PeekPending()
+	if len(pendingTasks) == 0 {
+		return nil
+	}
+	
+	log.Printf("Scheduling batch: %d pending tasks", len(pendingTasks))
+	
+	// Get current worker snapshot
+	workers := s.registry.GetSnapshot()
+	if len(workers) == 0 {
+		log.Println("No active workers available")
+		return nil
+	}
+	
+	// Schedule each task using greedy algorithm
+	scheduled := 0
+	for i := 0; i < len(pendingTasks) && i < s.batchSize; i++ {
+		task := pendingTasks[i]
+		
+		workerID, err := s.scheduleOne(task, workers)
+		if err != nil {
+			log.Printf("Failed to schedule task %s: %v", task.Id, err)
+			continue
+		}
+		
+		// Assign task to worker
+		if err := s.executor.AssignTaskToWorker(ctx, task, workerID); err != nil {
+			log.Printf("Failed to assign task %s to worker %s: %v", 
+				task.Id, workerID, err)
+			// Release reservation
+			s.registry.Release(task.Id)
+			continue
+		}
+		
+		// Update task status
+		s.taskQueue.UpdateStatus(task.Id, pb.TaskStatus_SCHEDULED)
+		
+		// Dequeue the task
+		s.taskQueue.DequeueBatch(1)
+		
+		// Persist assignment to CouchDB
+		assignment := map[string]interface{}{
+			"_id":               fmt.Sprintf("assignment:%s", task.Id),
+			"type":              "assignment",
+			"task_id":           task.Id,
+			"worker_id":         workerID,
+			"status":            "scheduled",
+			"assigned_at":       time.Now().Format(time.RFC3339),
+			"expected_duration": task.EstimatedSec,
+		}
+		
+		if err := s.db.PutDocument(ctx, assignment["_id"].(string), assignment); err != nil {
+			log.Printf("Failed to persist assignment: %v", err)
+		}
+		
+		scheduled++
+		log.Printf("Scheduled task %s to worker %s", task.Id, workerID)
+	}
+	
+	log.Printf("Scheduled %d tasks in this cycle", scheduled)
+	return nil
+}
+
+// scheduleOne selects the best worker for a task using greedy best-fit
+func (s *Scheduler) scheduleOne(task *pb.Task, workers []*pb.Worker) (string, error) {
+	var bestWorker *pb.Worker
+	var maxFreeCPU float64 = -1
+	
+	for _, worker := range workers {
+		// Check if worker has sufficient resources
+		if !s.canFit(task, worker) {
+			continue
+		}
+		
+		// Select worker with maximum free CPU (reduces fragmentation)
+		if worker.FreeCpu > maxFreeCPU {
+			maxFreeCPU = worker.FreeCpu
+			bestWorker = worker
+		}
+	}
+	
+	if bestWorker == nil {
+		return "", fmt.Errorf("no suitable worker found for task %s (cpu=%.2f, mem=%d, gpu=%d)",
+			task.Id, task.CpuReq, task.MemMb, task.GpuReq)
+	}
+	
+	// Reserve resources
+	err := s.registry.Reserve(
+		task.Id,
+		bestWorker.Id,
+		task.CpuReq,
+		task.MemMb,
+		task.GpuReq,
+		5*time.Minute, // Reservation TTL
+	)
+	
+	if err != nil {
+		return "", fmt.Errorf("failed to reserve resources: %w", err)
+	}
+	
+	return bestWorker.Id, nil
+}
+
+// canFit checks if a task can fit on a worker
+func (s *Scheduler) canFit(task *pb.Task, worker *pb.Worker) bool {
+	return worker.FreeCpu >= task.CpuReq &&
+		worker.FreeMem >= task.MemMb &&
+		worker.FreeGpus >= task.GpuReq &&
+		worker.Status == "active"
+}
+
+// FallbackGreedy provides a simple greedy fallback for planner failures
+func (s *Scheduler) FallbackGreedy(ctx context.Context, tasks []*pb.Task) error {
+	log.Println("Using greedy fallback scheduler")
+	
+	workers := s.registry.GetSnapshot()
+	
+	for _, task := range tasks {
+		workerID, err := s.scheduleOne(task, workers)
+		if err != nil {
+			log.Printf("Fallback: Failed to schedule task %s: %v", task.Id, err)
+			continue
+		}
+		
+		if err := s.executor.AssignTaskToWorker(ctx, task, workerID); err != nil {
+			log.Printf("Fallback: Failed to assign task %s: %v", task.Id, err)
+			s.registry.Release(task.Id)
+		}
+	}
+	
+	return nil
+}
+```
+
+**Test File:** `go-master/pkg/scheduler/scheduler_test.go`
+
+```go
+package scheduler
+
+import (
+	"context"
+	"testing"
+	"time"
+	
+	pb "github.com/Codesmith28/CloudAI/pkg/api"
+	"github.com/Codesmith28/CloudAI/go-master/pkg/execution"
+	"github.com/Codesmith28/CloudAI/go-master/pkg/taskqueue"
+	"github.com/Codesmith28/CloudAI/go-master/pkg/workerregistry"
+)
+
+func TestScheduleOne(t *testing.T) {
+	registry := workerregistry.NewRegistry()
+	
+	// Add workers with different capacities
+	worker1 := &pb.Worker{
+		Id: "worker-1", TotalCpu: 4.0, TotalMem: 8192,
+		FreeCpu: 2.0, FreeMem: 4096, Status: "active",
+	}
+	worker2 := &pb.Worker{
+		Id: "worker-2", TotalCpu: 8.0, TotalMem: 16384,
+		FreeCpu: 6.0, FreeMem: 12288, Status: "active",
+	}
+	
+	registry.UpdateHeartbeat(worker1)
+	registry.UpdateHeartbeat(worker2)
+	
+	scheduler := &Scheduler{
+		registry: registry,
+	}
+	
+	task := &pb.Task{
+		Id: "task-1", CpuReq: 2.0, MemMb: 4096, GpuReq: 0,
+	}
+	
+	workers := registry.GetSnapshot()
+	workerID, err := scheduler.scheduleOne(task, workers)
+	
+	if err != nil {
+		t.Fatalf("scheduleOne failed: %v", err)
+	}
+	
+	// Should select worker-2 (has more free CPU)
+	if workerID != "worker-2" {
+		t.Errorf("Expected worker-2, got %s", workerID)
+	}
+}
+
+func TestCanFit(t *testing.T) {
+	scheduler := &Scheduler{}
+	
+	worker := &pb.Worker{
+		FreeCpu: 4.0, FreeMem: 8192, FreeGpus: 1, Status: "active",
+	}
+	
+	// Task that fits
+	task1 := &pb.Task{CpuReq: 2.0, MemMb: 4096, GpuReq: 0}
+	if !scheduler.canFit(task1, worker) {
+		t.Error("Task should fit on worker")
+	}
+	
+	// Task that doesn't fit (too much CPU)
+	task2 := &pb.Task{CpuReq: 8.0, MemMb: 4096, GpuReq: 0}
+	if scheduler.canFit(task2, worker) {
+		t.Error("Task should not fit on worker")
+	}
+	
+	// Task that doesn't fit (inactive worker)
+	worker.Status = "draining"
+	if scheduler.canFit(task1, worker) {
+		t.Error("Should not schedule on inactive worker")
+	}
+}
+```
+
+**Deliverables:**
+- ✅ Greedy best-fit scheduling algorithm
+- ✅ Main scheduling loop with configurable interval
+- ✅ Resource reservation integration
+- ✅ CouchDB persistence for assignments
+- ✅ Unit tests for scheduling logic
+
+---
+
+##### Task 2.2: Execution Engine Implementation (4 days)
+**Assignee:** Backend Developer 2
+
+**File:** `go-master/pkg/execution/executor.go`
+
+**Implementation:**
+
+```go
+package execution
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+	
+	pb "github.com/Codesmith28/CloudAI/pkg/api"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+// Executor handles task assignment to workers
+type Executor struct {
+	workerClients map[string]pb.WorkerServiceClient
+	timeout       time.Duration
+}
+
+// NewExecutor creates a new executor
+func NewExecutor() *Executor {
+	return &Executor{
+		workerClients: make(map[string]pb.WorkerServiceClient),
+		timeout:       30 * time.Second,
+	}
+}
+
+// AssignTaskToWorker sends a task to a specific worker
+func (e *Executor) AssignTaskToWorker(ctx context.Context, task *pb.Task, workerID string) error {
+	log.Printf("Assigning task %s to worker %s", task.Id, workerID)
+	
+	// Get or create gRPC client for worker
+	client, err := e.getWorkerClient(workerID)
+	if err != nil {
+		return fmt.Errorf("failed to get worker client: %w", err)
+	}
+	
+	// Create assignment request
+	req := &pb.AssignTaskRequest{
+		Task:      task,
+		StartUnix: time.Now().Unix(),
+	}
+	
+	// Set timeout for assignment
+	assignCtx, cancel := context.WithTimeout(ctx, e.timeout)
+	defer cancel()
+	
+	// Send assignment to worker
+	resp, err := client.AssignTask(assignCtx, req)
+	if err != nil {
+		return fmt.Errorf("failed to assign task to worker: %w", err)
+	}
+	
+	if !resp.Accepted {
+		return fmt.Errorf("worker rejected task: %s", resp.Message)
+	}
+	
+	log.Printf("Task %s accepted by worker %s", task.Id, workerID)
+	return nil
+}
+
+// CancelTask requests cancellation of a task on a worker
+func (e *Executor) CancelTask(ctx context.Context, taskID, workerID string) error {
+	log.Printf("Cancelling task %s on worker %s", taskID, workerID)
+	
+	client, err := e.getWorkerClient(workerID)
+	if err != nil {
+		return fmt.Errorf("failed to get worker client: %w", err)
+	}
+	
+	req := &pb.CancelTaskRequest{
+		TaskId: taskID,
+	}
+	
+	cancelCtx, cancel := context.WithTimeout(ctx, e.timeout)
+	defer cancel()
+	
+	resp, err := client.CancelTask(cancelCtx, req)
+	if err != nil {
+		return fmt.Errorf("failed to cancel task: %w", err)
+	}
+	
+	if !resp.Success {
+		return fmt.Errorf("cancellation failed: %s", resp.Message)
+	}
+	
+	return nil
+}
+
+// getWorkerClient gets or creates a gRPC client for a worker
+func (e *Executor) getWorkerClient(workerID string) (pb.WorkerServiceClient, error) {
+	if client, exists := e.workerClients[workerID]; exists {
+		return client, nil
+	}
+	
+	// TODO: Get worker address from registry or service discovery
+	// For now, use localhost with worker ID as port offset
+	address := fmt.Sprintf("localhost:%d", 60000+len(e.workerClients))
+	
+	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to worker: %w", err)
+	}
+	
+	client := pb.NewWorkerServiceClient(conn)
+	e.workerClients[workerID] = client
+	
+	return client, nil
+}
+
+// Close closes all worker connections
+func (e *Executor) Close() {
+	for workerID := range e.workerClients {
+		delete(e.workerClients, workerID)
+	}
+}
+```
+
+**Test File:** `go-master/pkg/execution/executor_test.go`
+
+```go
+package execution
+
+import (
+	"context"
+	"testing"
+	
+	pb "github.com/Codesmith28/CloudAI/pkg/api"
+)
+
+func TestExecutorCreation(t *testing.T) {
+	executor := NewExecutor()
+	
+	if executor == nil {
+		t.Fatal("Executor creation failed")
+	}
+	
+	if executor.workerClients == nil {
+		t.Error("Worker clients map not initialized")
+	}
+	
+	if executor.timeout == 0 {
+		t.Error("Timeout not set")
+	}
+}
+
+func TestCanFit(t *testing.T) {
+	// Unit tests for resource checking logic
+	// Integration tests will be added with worker stub
+}
+```
+
+**Deliverables:**
+- ✅ Task assignment with gRPC
+- ✅ Worker client management
+- ✅ Timeout handling for assignments
+- ✅ Cancellation support
+- ✅ Unit tests
+
+---
+
+##### Task 2.3: Worker Stub Implementation (3 days)
+**Assignee:** Backend Developer 3
+
+**File:** `go-master/cmd/worker/main.go`
+
+**Implementation:**
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net"
+	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
+	
+	pb "github.com/Codesmith28/CloudAI/pkg/api"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+type WorkerServer struct {
+	pb.UnimplementedWorkerServiceServer
+	workerID       string
+	totalCPU       float64
+	totalMem       int32
+	freeCPU        float64
+	freeMem        int32
+	masterAddress  string
+	runningTasks   map[string]*pb.Task
+	masterClient   pb.SchedulerServiceClient
+}
+
+func main() {
+	workerID := os.Getenv("WORKER_ID")
+	if workerID == "" {
+		workerID = "worker-1"
+	}
+	
+	totalCPU, _ := strconv.ParseFloat(os.Getenv("TOTAL_CPU"), 64)
+	if totalCPU == 0 {
+		totalCPU = 4.0
+	}
+	
+	totalMem64, _ := strconv.ParseInt(os.Getenv("TOTAL_MEM"), 10, 32)
+	totalMem := int32(totalMem64)
+	if totalMem == 0 {
+		totalMem = 8192
+	}
+	
+	masterAddress := os.Getenv("MASTER_ADDRESS")
+	if masterAddress == "" {
+		masterAddress = "localhost:50051"
+	}
+	
+	log.Printf("Starting Worker: %s (CPU=%.1f, Mem=%dMB)", workerID, totalCPU, totalMem)
+	
+	// Create worker server
+	worker := &WorkerServer{
+		workerID:      workerID,
+		totalCPU:      totalCPU,
+		totalMem:      totalMem,
+		freeCPU:       totalCPU,
+		freeMem:       totalMem,
+		masterAddress: masterAddress,
+		runningTasks:  make(map[string]*pb.Task),
+	}
+	
+	// Connect to master
+	if err := worker.connectToMaster(); err != nil {
+		log.Fatalf("Failed to connect to master: %v", err)
+	}
+	
+	// Register with master
+	if err := worker.registerWithMaster(); err != nil {
+		log.Fatalf("Failed to register with master: %v", err)
+	}
+	
+	// Start heartbeat goroutine
+	go worker.heartbeatLoop()
+	
+	// Start gRPC server
+	port := 60000 + len(workerID) // Simple port assignment
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+	
+	grpcServer := grpc.NewServer()
+	pb.RegisterWorkerServiceServer(grpcServer, worker)
+	
+	// Handle graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	
+	go func() {
+		<-sigChan
+		log.Println("Shutting down worker...")
+		grpcServer.GracefulStop()
+	}()
+	
+	log.Printf("Worker listening on port %d", port)
+	if err := grpcServer.Serve(listener); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
+}
+
+func (w *WorkerServer) connectToMaster() error {
+	conn, err := grpc.Dial(w.masterAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	
+	w.masterClient = pb.NewSchedulerServiceClient(conn)
+	return nil
+}
+
+func (w *WorkerServer) registerWithMaster() error {
+	ctx := context.Background()
+	
+	req := &pb.RegisterWorkerRequest{
+		Worker: &pb.Worker{
+			Id:       w.workerID,
+			TotalCpu: w.totalCPU,
+			TotalMem: w.totalMem,
+			FreeCpu:  w.freeCPU,
+			FreeMem:  w.freeMem,
+			Status:   "active",
+		},
+	}
+	
+	resp, err := w.masterClient.RegisterWorker(ctx, req)
+	if err != nil {
+		return err
+	}
+	
+	if !resp.Success {
+		return fmt.Errorf("registration failed: %s", resp.Message)
+	}
+	
+	log.Printf("Successfully registered with master: %s", resp.Message)
+	return nil
+}
+
+func (w *WorkerServer) heartbeatLoop() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	
+	for range ticker.C {
+		runningTaskIDs := make([]string, 0, len(w.runningTasks))
+		for taskID := range w.runningTasks {
+			runningTaskIDs = append(runningTaskIDs, taskID)
+		}
+		
+		req := &pb.HeartbeatRequest{
+			Worker: &pb.Worker{
+				Id:       w.workerID,
+				TotalCpu: w.totalCPU,
+				TotalMem: w.totalMem,
+				FreeCpu:  w.freeCPU,
+				FreeMem:  w.freeMem,
+				Status:   "active",
+			},
+			RunningTaskIds: runningTaskIDs,
+		}
+		
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		resp, err := w.masterClient.Heartbeat(ctx, req)
+		cancel()
+		
+		if err != nil {
+			log.Printf("Heartbeat failed: %v", err)
+			continue
+		}
+		
+		if !resp.Success {
+			log.Printf("Heartbeat rejected")
+		}
+		
+		// Handle cancellation requests from master
+		for _, taskID := range resp.TasksToCancel {
+			log.Printf("Master requested cancellation of task %s", taskID)
+			// TODO: Implement task cancellation
+		}
+	}
+}
+
+// AssignTask handles task assignment from master (stub implementation)
+func (w *WorkerServer) AssignTask(ctx context.Context, req *pb.AssignTaskRequest) (*pb.AssignTaskResponse, error) {
+	task := req.Task
+	
+	log.Printf("Received task assignment: %s (CPU=%.2f, Mem=%dMB, EstTime=%ds)",
+		task.Id, task.CpuReq, task.MemMb, task.EstimatedSec)
+	
+	// Check if we have resources
+	if w.freeCPU < task.CpuReq || w.freeMem < task.MemMb {
+		return &pb.AssignTaskResponse{
+			Accepted: false,
+			Message:  "Insufficient resources",
+		}, nil
+	}
+	
+	// Reserve resources
+	w.freeCPU -= task.CpuReq
+	w.freeMem -= task.MemMb
+	w.runningTasks[task.Id] = task
+	
+	// Execute task in background
+	go w.executeTask(task)
+	
+	return &pb.AssignTaskResponse{
+		Accepted: true,
+		Message:  fmt.Sprintf("Task %s accepted", task.Id),
+	}, nil
+}
+
+// executeTask simulates task execution (stub)
+func (w *WorkerServer) executeTask(task *pb.Task) {
+	startTime := time.Now()
+	
+	log.Printf("Starting execution of task %s", task.Id)
+	
+	// Simulate work by sleeping for estimated time
+	duration := time.Duration(task.EstimatedSec) * time.Second
+	if duration == 0 {
+		duration = 10 * time.Second // Default duration
+	}
+	
+	time.Sleep(duration)
+	
+	actualDuration := time.Since(startTime)
+	
+	log.Printf("Task %s completed in %v", task.Id, actualDuration)
+	
+	// Release resources
+	w.freeCPU += task.CpuReq
+	w.freeMem += task.MemMb
+	delete(w.runningTasks, task.Id)
+	
+	// Report completion to master
+	w.reportCompletion(task, actualDuration)
+}
+
+func (w *WorkerServer) reportCompletion(task *pb.Task, duration time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
+	req := &pb.TaskCompletionRequest{
+		TaskId:            task.Id,
+		WorkerId:          w.workerID,
+		Status:            pb.TaskStatus_COMPLETED,
+		ActualDurationSec: int64(duration.Seconds()),
+		ResourceUsage: map[string]float64{
+			"cpu": task.CpuReq,
+			"mem": float64(task.MemMb),
+		},
+	}
+	
+	resp, err := w.masterClient.ReportTaskCompletion(ctx, req)
+	if err != nil {
+		log.Printf("Failed to report completion: %v", err)
+		return
+	}
+	
+	if !resp.Acknowledged {
+		log.Printf("Completion report not acknowledged")
+	} else {
+		log.Printf("Completion reported for task %s", task.Id)
+	}
+}
+
+// CancelTask handles task cancellation requests
+func (w *WorkerServer) CancelTask(ctx context.Context, req *pb.CancelTaskRequest) (*pb.CancelTaskResponse, error) {
+	log.Printf("Cancellation requested for task %s", req.TaskId)
+	
+	task, exists := w.runningTasks[req.TaskId]
+	if !exists {
+		return &pb.CancelTaskResponse{
+			Success: false,
+			Message: "Task not found",
+		}, nil
+	}
+	
+	// TODO: Implement actual cancellation (kill process/container)
+	// For now, just remove from running tasks and release resources
+	w.freeCPU += task.CpuReq
+	w.freeMem += task.MemMb
+	delete(w.runningTasks, req.TaskId)
+	
+	return &pb.CancelTaskResponse{
+		Success: true,
+		Message: fmt.Sprintf("Task %s cancelled", req.TaskId),
+	}, nil
+}
+```
+
+**Deliverables:**
+- ✅ Worker stub with gRPC server
+- ✅ Task assignment handler
+- ✅ Simulated task execution (sleep)
+- ✅ Heartbeat reporting
+- ✅ Completion reporting to master
+- ✅ Resource tracking
+
+---
+
+##### Task 2.4: Testbench Implementation (3 days)
+**Assignee:** Backend Developer 3 / QA
+
+**File:** `go-master/pkg/testbench/testbench.go`
+
+**Implementation:**
+
+```go
+package testbench
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"math/rand"
+	"sync"
+	"time"
+	
+	pb "github.com/Codesmith28/CloudAI/pkg/api"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+// Testbench provides tools for performance testing
+type Testbench struct {
+	masterAddress string
+	client        pb.SchedulerServiceClient
+	metrics       *Metrics
+}
+
+// Metrics collects performance data
+type Metrics struct {
+	mu                sync.Mutex
+	tasksSubmitted    int
+	tasksCompleted    int
+	tasksFailed       int
+	totalLatency      time.Duration
+	makespan          time.Duration
+	startTime         time.Time
+	endTime           time.Time
+	deadlineMisses    int
+	avgUtilization    float64
+}
+
+// NewTestbench creates a new testbench instance
+func NewTestbench(masterAddress string) (*Testbench, error) {
+	conn, err := grpc.Dial(masterAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, err
+	}
+	
+	return &Testbench{
+		masterAddress: masterAddress,
+		client:        pb.NewSchedulerServiceClient(conn),
+		metrics:       &Metrics{},
+	}, nil
+}
+
+// GenerateTasks creates N tasks with varied characteristics
+func (tb *Testbench) GenerateTasks(n int) []*pb.Task {
+	tasks := make([]*pb.Task, n)
+	
+	taskTypes := []string{"cpu_intensive", "memory_intensive", "balanced", "short", "long"}
+	
+	for i := 0; i < n; i++ {
+		taskType := taskTypes[rand.Intn(len(taskTypes))]
+		
+		var cpuReq float64
+		var memMB int32
+		var estimatedSec int64
+		var priority int32
+		
+		switch taskType {
+		case "cpu_intensive":
+			cpuReq = 2.0 + rand.Float64()*2.0 // 2-4 cores
+			memMB = 2048 + rand.Int31n(2048)   // 2-4 GB
+			estimatedSec = 30 + rand.Int63n(90) // 30-120 sec
+			priority = rand.Int31n(5)
+			
+		case "memory_intensive":
+			cpuReq = 0.5 + rand.Float64()*1.5 // 0.5-2 cores
+			memMB = 4096 + rand.Int31n(4096)   // 4-8 GB
+			estimatedSec = 20 + rand.Int63n(60) // 20-80 sec
+			priority = rand.Int31n(5)
+			
+		case "balanced":
+			cpuReq = 1.0 + rand.Float64()*2.0 // 1-3 cores
+			memMB = 2048 + rand.Int31n(4096)   // 2-6 GB
+			estimatedSec = 40 + rand.Int63n(80) // 40-120 sec
+			priority = rand.Int31n(5)
+			
+		case "short":
+			cpuReq = 0.5 + rand.Float64()       // 0.5-1.5 cores
+			memMB = 1024 + rand.Int31n(1024)    // 1-2 GB
+			estimatedSec = 5 + rand.Int63n(15)  // 5-20 sec
+			priority = 5 + rand.Int31n(5)       // Higher priority
+			
+		case "long":
+			cpuReq = 2.0 + rand.Float64()*2.0  // 2-4 cores
+			memMB = 4096 + rand.Int31n(4096)   // 4-8 GB
+			estimatedSec = 180 + rand.Int63n(300) // 3-8 minutes
+			priority = rand.Int31n(3)           // Lower priority
+		}
+		
+		// 20% of tasks have deadlines
+		var deadlineUnix int64
+		if rand.Float32() < 0.2 {
+			deadlineUnix = time.Now().Add(time.Duration(estimatedSec*2) * time.Second).Unix()
+		}
+		
+		tasks[i] = &pb.Task{
+			Id:           fmt.Sprintf("bench-task-%d", i+1),
+			CpuReq:       cpuReq,
+			MemMb:        memMB,
+			GpuReq:       0,
+			TaskType:     taskType,
+			EstimatedSec: estimatedSec,
+			Priority:     priority,
+			DeadlineUnix: deadlineUnix,
+			Meta: map[string]string{
+				"benchmark": "true",
+				"batch_id":  time.Now().Format("20060102-150405"),
+			},
+		}
+	}
+	
+	return tasks
+}
+
+// RunBenchmark executes a performance test
+func (tb *Testbench) RunBenchmark(ctx context.Context, numTasks int) error {
+	log.Printf("Starting benchmark: %d tasks", numTasks)
+	
+	tb.metrics.startTime = time.Now()
+	
+	// Generate tasks
+	tasks := tb.GenerateTasks(numTasks)
+	
+	// Submit all tasks
+	for _, task := range tasks {
+		req := &pb.SubmitTaskRequest{Task: task}
+		
+		resp, err := tb.client.SubmitTask(ctx, req)
+		if err != nil {
+			log.Printf("Failed to submit task %s: %v", task.Id, err)
+			tb.metrics.mu.Lock()
+			tb.metrics.tasksFailed++
+			tb.metrics.mu.Unlock()
+			continue
+		}
+		
+		log.Printf("Submitted: %s - %s", resp.TaskId, resp.Message)
+		tb.metrics.mu.Lock()
+		tb.metrics.tasksSubmitted++
+		tb.metrics.mu.Unlock()
+	}
+	
+	log.Printf("All tasks submitted. Waiting for completion...")
+	
+	// Poll for completion
+	completed := tb.waitForCompletion(ctx, tasks)
+	
+	tb.metrics.endTime = time.Now()
+	tb.metrics.makespan = tb.metrics.endTime.Sub(tb.metrics.startTime)
+	
+	// Print results
+	tb.printResults()
+	
+	return nil
+}
+
+func (tb *Testbench) waitForCompletion(ctx context.Context, tasks []*pb.Task) int {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	
+	timeout := time.NewTimer(10 * time.Minute)
+	defer timeout.Stop()
+	
+	taskMap := make(map[string]*pb.Task)
+	for _, task := range tasks {
+		taskMap[task.Id] = task
+	}
+	
+	completed := 0
+	
+	for {
+		select {
+		case <-ctx.Done():
+			return completed
+			
+		case <-timeout.C:
+			log.Println("Benchmark timeout reached")
+			return completed
+			
+		case <-ticker.C:
+			// Check status of all tasks
+			for taskID, task := range taskMap {
+				req := &pb.GetTaskStatusRequest{TaskId: taskID}
+				resp, err := tb.client.GetTaskStatus(ctx, req)
+				
+				if err != nil {
+					continue
+				}
+				
+				if resp.Status == pb.TaskStatus_COMPLETED {
+					completed++
+					delete(taskMap, taskID)
+					
+					tb.metrics.mu.Lock()
+					tb.metrics.tasksCompleted++
+					
+					// Check deadline miss
+					if task.DeadlineUnix > 0 && time.Now().Unix() > task.DeadlineUnix {
+						tb.metrics.deadlineMisses++
+					}
+					tb.metrics.mu.Unlock()
+					
+				} else if resp.Status == pb.TaskStatus_FAILED || 
+				          resp.Status == pb.TaskStatus_CANCELLED {
+					completed++
+					delete(taskMap, taskID)
+					
+					tb.metrics.mu.Lock()
+					tb.metrics.tasksFailed++
+					tb.metrics.mu.Unlock()
+				}
+			}
+			
+			if len(taskMap) == 0 {
+				log.Println("All tasks completed")
+				return completed
+			}
+			
+			log.Printf("Progress: %d/%d tasks completed", completed, len(tasks))
+		}
+	}
+}
+
+func (tb *Testbench) printResults() {
+	tb.metrics.mu.Lock()
+	defer tb.metrics.mu.Unlock()
+	
+	fmt.Println("\n========== Benchmark Results ==========")
+	fmt.Printf("Tasks Submitted:    %d\n", tb.metrics.tasksSubmitted)
+	fmt.Printf("Tasks Completed:    %d\n", tb.metrics.tasksCompleted)
+	fmt.Printf("Tasks Failed:       %d\n", tb.metrics.tasksFailed)
+	fmt.Printf("Deadline Misses:    %d\n", tb.metrics.deadlineMisses)
+	fmt.Printf("Makespan:           %v\n", tb.metrics.makespan)
+	
+	if tb.metrics.tasksCompleted > 0 {
+		avgLatency := tb.metrics.makespan / time.Duration(tb.metrics.tasksCompleted)
+		fmt.Printf("Avg Task Latency:   %v\n", avgLatency)
+		
+		successRate := float64(tb.metrics.tasksCompleted) / float64(tb.metrics.tasksSubmitted) * 100
+		fmt.Printf("Success Rate:       %.2f%%\n", successRate)
+		
+		if tb.metrics.deadlineMisses > 0 {
+			deadlineMissRate := float64(tb.metrics.deadlineMisses) / float64(tb.metrics.tasksCompleted) * 100
+			fmt.Printf("Deadline Miss Rate: %.2f%%\n", deadlineMissRate)
+		}
+	}
+	
+	fmt.Println("======================================\n")
+}
+
+// GetMetrics returns the collected metrics
+func (tb *Testbench) GetMetrics() *Metrics {
+	return tb.metrics
+}
+```
+
+**Test Script:** `go-master/cmd/testbench/main.go`
+
+```go
+package main
+
+import (
+	"context"
+	"flag"
+	"log"
+	"os"
+	
+	"github.com/Codesmith28/CloudAI/go-master/pkg/testbench"
+)
+
+func main() {
+	masterAddr := flag.String("master", "localhost:50051", "Master address")
+	numTasks := flag.Int("tasks", 20, "Number of tasks to generate")
+	
+	flag.Parse()
+	
+	log.Printf("CloudAI Testbench")
+	log.Printf("Master: %s", *masterAddr)
+	log.Printf("Tasks: %d", *numTasks)
+	
+	bench, err := testbench.NewTestbench(*masterAddr)
+	if err != nil {
+		log.Fatalf("Failed to create testbench: %v", err)
+	}
+	
+	ctx := context.Background()
+	
+	if err := bench.RunBenchmark(ctx, *numTasks); err != nil {
+		log.Fatalf("Benchmark failed: %v", err)
+	}
+	
+	os.Exit(0)
+}
+```
+
+**Deliverables:**
+- ✅ Task generator with varied workloads
+- ✅ Benchmark runner
+- ✅ Metrics collection (makespan, latency, deadline misses)
+- ✅ Progress monitoring
+- ✅ Results reporting
+
+---
+
+##### Task 2.5: CouchDB Integration for Task History (2 days)
+**Assignee:** Backend Developer 1
+
+**File:** `go-master/pkg/persistence/task_persistence.go`
+
+**Implementation:**
+
+```go
+package persistence
+
+import (
+	"context"
+	"fmt"
+	"time"
+	
+	pb "github.com/Codesmith28/CloudAI/pkg/api"
+)
+
+// SaveTask persists a task to CouchDB
+func SaveTask(ctx context.Context, db *CouchDBClient, task *pb.Task) error {
+	doc := map[string]interface{}{
+		"_id":           fmt.Sprintf("task:%s", task.Id),
+		"type":          "task",
+		"id":            task.Id,
+		"cpu_req":       task.CpuReq,
+		"mem_mb":        task.MemMb,
+		"gpu_req":       task.GpuReq,
+		"task_type":     task.TaskType,
+		"estimated_sec": task.EstimatedSec,
+		"priority":      task.Priority,
+		"deadline_unix": task.DeadlineUnix,
+		"status":        "pending",
+		"created_at":    time.Now().Format(time.RFC3339),
+		"meta":          task.Meta,
+	}
+	
+	return db.PutDocument(ctx, doc["_id"].(string), doc)
+}
+
+// UpdateTaskStatus updates task status in CouchDB
+func UpdateTaskStatus(ctx context.Context, db *CouchDBClient, taskID string, status string) error {
+	// Get existing document
+	var doc map[string]interface{}
+	docID := fmt.Sprintf("task:%s", taskID)
+	
+	if err := db.GetDocument(ctx, docID, &doc); err != nil {
+		return err
+	}
+	
+	// Update status
+	doc["status"] = status
+	doc["updated_at"] = time.Now().Format(time.RFC3339)
+	
+	return db.PutDocument(ctx, docID, doc)
+}
+
+// SaveAssignment persists a task assignment
+func SaveAssignment(ctx context.Context, db *CouchDBClient, taskID, workerID string, estimatedDuration int64) error {
+	doc := map[string]interface{}{
+		"_id":                fmt.Sprintf("assignment:%s", taskID),
+		"type":               "assignment",
+		"task_id":            taskID,
+		"worker_id":          workerID,
+		"status":             "scheduled",
+		"assigned_at":        time.Now().Format(time.RFC3339),
+		"expected_duration":  estimatedDuration,
+		"actual_duration":    nil,
+	}
+	
+	return db.PutDocument(ctx, doc["_id"].(string), doc)
+}
+
+// UpdateAssignmentCompletion updates assignment with completion info
+func UpdateAssignmentCompletion(ctx context.Context, db *CouchDBClient, taskID string, actualDuration int64, status string) error {
+	var doc map[string]interface{}
+	docID := fmt.Sprintf("assignment:%s", taskID)
+	
+	if err := db.GetDocument(ctx, docID, &doc); err != nil {
+		return err
+	}
+	
+	doc["status"] = status
+	doc["completed_at"] = time.Now().Format(time.RFC3339)
+	doc["actual_duration"] = actualDuration
+	
+	return db.PutDocument(ctx, docID, doc)
+}
+```
+
+**Deliverables:**
+- ✅ Task persistence functions
+- ✅ Assignment persistence
+- ✅ Status update functions
+- ✅ Integration with scheduler and executor
+
+---
+
+#### Sprint 2 Acceptance Criteria
+- [ ] Greedy scheduler successfully assigns tasks to workers
+- [ ] Worker stubs execute tasks and report completion
+- [ ] End-to-end flow works: submit → schedule → execute → complete
+- [ ] Testbench generates varied workloads and collects metrics
+- [ ] Baseline metrics captured: makespan, latency, deadline miss rate
+- [ ] Task and assignment data persisted to CouchDB
+- [ ] All components have >70% test coverage
+- [ ] Integration tests pass with multiple workers and tasks
+
+#### Sprint 2 Demo
+1. **Setup:**
+   - Start CouchDB: `docker-compose up -d couchdb`
+   - Start Master: `go run ./cmd/master`
+   - Start 3 Workers: `WORKER_ID=worker-1 go run ./cmd/worker` (repeat for worker-2, worker-3)
+
+2. **Run Testbench:**
+   - `go run ./cmd/testbench -tasks 50`
+   
+3. **Show Results:**
+   - Display testbench metrics output
+   - Show CouchDB UI with tasks and assignments: http://localhost:5984/_utils
+   - Query completed tasks: `curl http://admin:password@localhost:5984/cloudai/_design/tasks/_view/by_status?key="completed"`
+
+4. **Performance Metrics:**
+   - Makespan for 50 tasks
+   - Average task latency
+   - Deadline miss rate
+   - Worker utilization
+
+#### Sprint 2 Testing Checklist
+- [ ] Unit tests for greedy scheduler logic
+- [ ] Unit tests for executor assignment
+- [ ] Integration test: 1 worker, 5 tasks
+- [ ] Integration test: 3 workers, 20 tasks with priorities
+- [ ] Integration test: Task with deadline (should complete on time)
+- [ ] Integration test: Overload scenario (more tasks than capacity)
+- [ ] CouchDB persistence verified
+- [ ] Worker heartbeat mechanism tested
+- [ ] Task cancellation flow tested
+
+---
+
+*[Sprint 3-13 will continue with similar level of detail]*
 
 ---
 
