@@ -3,7 +3,9 @@
 * explicit **task derivation** from jobs.
 
 ---
+
 # Updated Schema Design
+
 ## 1. **Node Schema**
 
 Tracks worker nodes, their capabilities, and health.
@@ -47,6 +49,7 @@ CREATE TABLE Nodes (
 | created\_at       | TIMESTAMP | When node was registered.                            |
 
 ---
+
 ## 2. **Job Schema**
 
 Jobs are high-level workloads submitted by clients.
@@ -76,8 +79,8 @@ CREATE TABLE Jobs (
 | status           | TEXT      | Current status: `Pending`, `Running`, `Completed`, `Failed`. |
 | metadata         | JSON      | Job-specific parameters (e.g., files, epochs, type).         |
 
-
 ---
+
 ## 3. **Task Schema**
 
 Atomic units of work derived from a job.
@@ -125,8 +128,8 @@ CREATE TABLE Tasks (
 | latency\_ms         | INTEGER   | Task completion latency (ms).                          |
 | logs\_path          | TEXT      | Path to logs or output files.                          |
 
-
 ---
+
 ## 4. **Resource Usage Schema**
 
 Periodic reports from worker nodes.
@@ -162,8 +165,8 @@ CREATE TABLE ResourceUsage (
 | net\_used      | INTEGER   | Network bandwidth used (Mbps).            |
 | anomaly\_flag  | BOOLEAN   | `1` if anomaly detected (e.g., overload). |
 
-
 ---
+
 ## 5. **Replication Metadata Schema**
 
 Manages redundancy of task data across nodes.
@@ -191,8 +194,8 @@ CREATE TABLE Replication (
 | replica\_node (FK) | INTEGER | Node storing replica.                            |
 | status             | TEXT    | Replica status: `Active`, `OutOfSync`, `Failed`. |
 
-
 ---
+
 ## 6. **AI Model State Schema**
 
 Tracks reinforcement learning parameters.
@@ -222,8 +225,8 @@ CREATE TABLE AIState (
 | epsilon        | REAL      | Exploration rate (0–1).              |
 | reward\_avg    | REAL      | Rolling average of observed rewards. |
 
-
 ---
+
 # Workflow Recap
 
 1. **Nodes** register with full resource capacities.
@@ -239,7 +242,9 @@ CREATE TABLE AIState (
 8. **AI Model** updates Q-table/weights using `AIState`.
 
 ---
+
 # **ER diagram (Entity-Relationship)** for this schema
+
 ```mermaid
 erDiagram
     NODES {
