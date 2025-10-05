@@ -12,3 +12,11 @@ In the `python-planner` directory run:
 python -m venv venv
 pip install -r requirements.txt
 ```
+
+Turn on couchDB:
+
+```bash
+docker-compose up -d couchdb
+```
+
+Access couchdb on : `http://localhost:5984/_utils`
