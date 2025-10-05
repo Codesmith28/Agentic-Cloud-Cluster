@@ -199,9 +199,95 @@ message PlannerEvent {
 }
 
 /////////////////////////////////////////////////////////////////
-// Planner service
+// Master API Messages (Client-facing and Worker-facing)
 /////////////////////////////////////////////////////////////////
 
+message SubmitTaskRequest {
+  Task task = 1;
+}
+
+message SubmitTaskResponse {
+  string task_id = 1;
+  string message = 2;
+}
+
+message GetTaskStatusRequest {
+  string task_id = 1;
+}
+
+message GetTaskStatusResponse {
+  string task_id = 1;
+  string status = 2;
+  string worker_id = 3;
+  string message = 4;
+}
+
+message CancelTaskRequest {
+  string task_id = 1;
+}
+
+message CancelTaskResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RegisterWorkerRequest {
+  Worker worker = 1;
+}
+
+message RegisterWorkerResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message HeartbeatRequest {
+  Worker worker = 1;
+  repeated string running_task_ids = 2;
+}
+
+message HeartbeatResponse {
+  bool success = 1;
+  repeated string tasks_to_cancel = 2;
+}
+
+message ListWorkersRequest {}
+
+message ListWorkersResponse {
+  repeated Worker workers = 1;
+}
+
+message TaskCompletionRequest {
+  string task_id = 1;
+  string worker_id = 2;
+  bool success = 3;
+  string error_message = 4;
+  int64 actual_duration_sec = 5;
+  map<string,double> resource_usage = 6;
+}
+
+message TaskCompletionResponse {
+  bool acknowledged = 1;
+}
+
+/////////////////////////////////////////////////////////////////
+// Services
+/////////////////////////////////////////////////////////////////
+
+// SchedulerService - Master node API for clients and workers
+service SchedulerService {
+  // Client-facing APIs
+  rpc SubmitTask(SubmitTaskRequest) returns (SubmitTaskResponse);
+  rpc GetTaskStatus(GetTaskStatusRequest) returns (GetTaskStatusResponse);
+  rpc CancelTask(CancelTaskRequest) returns (CancelTaskResponse);
+  
+  // Worker-facing APIs
+  rpc RegisterWorker(RegisterWorkerRequest) returns (RegisterWorkerResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  rpc ListWorkers(ListWorkersRequest) returns (ListWorkersResponse);
+  rpc ReportTaskCompletion(TaskCompletionRequest) returns (TaskCompletionResponse);
+}
+
+// Planner service - Master calls this for planning
 service Planner {
   // Compute a plan for the provided tasks and workers. Planner should
   // attempt to respect planning_time_budget_sec and objectives.

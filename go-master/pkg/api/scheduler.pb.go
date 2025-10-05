@@ -1496,6 +1496,718 @@ func (x *PlannerEvent) GetExtra() *structpb.Struct {
 	return nil
 }
 
+type SubmitTaskRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Task          *Task                  `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmitTaskRequest) Reset() {
+	*x = SubmitTaskRequest{}
+	mi := &file_scheduler_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitTaskRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitTaskRequest) ProtoMessage() {}
+
+func (x *SubmitTaskRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitTaskRequest.ProtoReflect.Descriptor instead.
+func (*SubmitTaskRequest) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SubmitTaskRequest) GetTask() *Task {
+	if x != nil {
+		return x.Task
+	}
+	return nil
+}
+
+type SubmitTaskResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmitTaskResponse) Reset() {
+	*x = SubmitTaskResponse{}
+	mi := &file_scheduler_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitTaskResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitTaskResponse) ProtoMessage() {}
+
+func (x *SubmitTaskResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitTaskResponse.ProtoReflect.Descriptor instead.
+func (*SubmitTaskResponse) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SubmitTaskResponse) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *SubmitTaskResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type GetTaskStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTaskStatusRequest) Reset() {
+	*x = GetTaskStatusRequest{}
+	mi := &file_scheduler_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTaskStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTaskStatusRequest) ProtoMessage() {}
+
+func (x *GetTaskStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTaskStatusRequest.ProtoReflect.Descriptor instead.
+func (*GetTaskStatusRequest) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetTaskStatusRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+type GetTaskStatusResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	WorkerId      string                 `protobuf:"bytes,3,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
+	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTaskStatusResponse) Reset() {
+	*x = GetTaskStatusResponse{}
+	mi := &file_scheduler_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTaskStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTaskStatusResponse) ProtoMessage() {}
+
+func (x *GetTaskStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTaskStatusResponse.ProtoReflect.Descriptor instead.
+func (*GetTaskStatusResponse) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetTaskStatusResponse) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *GetTaskStatusResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *GetTaskStatusResponse) GetWorkerId() string {
+	if x != nil {
+		return x.WorkerId
+	}
+	return ""
+}
+
+func (x *GetTaskStatusResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type CancelTaskRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelTaskRequest) Reset() {
+	*x = CancelTaskRequest{}
+	mi := &file_scheduler_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelTaskRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelTaskRequest) ProtoMessage() {}
+
+func (x *CancelTaskRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelTaskRequest.ProtoReflect.Descriptor instead.
+func (*CancelTaskRequest) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *CancelTaskRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+type CancelTaskResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelTaskResponse) Reset() {
+	*x = CancelTaskResponse{}
+	mi := &file_scheduler_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelTaskResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelTaskResponse) ProtoMessage() {}
+
+func (x *CancelTaskResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelTaskResponse.ProtoReflect.Descriptor instead.
+func (*CancelTaskResponse) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *CancelTaskResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *CancelTaskResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type RegisterWorkerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Worker        *Worker                `protobuf:"bytes,1,opt,name=worker,proto3" json:"worker,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegisterWorkerRequest) Reset() {
+	*x = RegisterWorkerRequest{}
+	mi := &file_scheduler_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterWorkerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterWorkerRequest) ProtoMessage() {}
+
+func (x *RegisterWorkerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterWorkerRequest.ProtoReflect.Descriptor instead.
+func (*RegisterWorkerRequest) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *RegisterWorkerRequest) GetWorker() *Worker {
+	if x != nil {
+		return x.Worker
+	}
+	return nil
+}
+
+type RegisterWorkerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegisterWorkerResponse) Reset() {
+	*x = RegisterWorkerResponse{}
+	mi := &file_scheduler_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterWorkerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterWorkerResponse) ProtoMessage() {}
+
+func (x *RegisterWorkerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterWorkerResponse.ProtoReflect.Descriptor instead.
+func (*RegisterWorkerResponse) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *RegisterWorkerResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *RegisterWorkerResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type HeartbeatRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Worker         *Worker                `protobuf:"bytes,1,opt,name=worker,proto3" json:"worker,omitempty"`
+	RunningTaskIds []string               `protobuf:"bytes,2,rep,name=running_task_ids,json=runningTaskIds,proto3" json:"running_task_ids,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *HeartbeatRequest) Reset() {
+	*x = HeartbeatRequest{}
+	mi := &file_scheduler_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeartbeatRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeartbeatRequest) ProtoMessage() {}
+
+func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeartbeatRequest.ProtoReflect.Descriptor instead.
+func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *HeartbeatRequest) GetWorker() *Worker {
+	if x != nil {
+		return x.Worker
+	}
+	return nil
+}
+
+func (x *HeartbeatRequest) GetRunningTaskIds() []string {
+	if x != nil {
+		return x.RunningTaskIds
+	}
+	return nil
+}
+
+type HeartbeatResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	TasksToCancel []string               `protobuf:"bytes,2,rep,name=tasks_to_cancel,json=tasksToCancel,proto3" json:"tasks_to_cancel,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HeartbeatResponse) Reset() {
+	*x = HeartbeatResponse{}
+	mi := &file_scheduler_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeartbeatResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeartbeatResponse) ProtoMessage() {}
+
+func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeartbeatResponse.ProtoReflect.Descriptor instead.
+func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *HeartbeatResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *HeartbeatResponse) GetTasksToCancel() []string {
+	if x != nil {
+		return x.TasksToCancel
+	}
+	return nil
+}
+
+type ListWorkersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkersRequest) Reset() {
+	*x = ListWorkersRequest{}
+	mi := &file_scheduler_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkersRequest) ProtoMessage() {}
+
+func (x *ListWorkersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkersRequest.ProtoReflect.Descriptor instead.
+func (*ListWorkersRequest) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{23}
+}
+
+type ListWorkersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Workers       []*Worker              `protobuf:"bytes,1,rep,name=workers,proto3" json:"workers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkersResponse) Reset() {
+	*x = ListWorkersResponse{}
+	mi := &file_scheduler_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkersResponse) ProtoMessage() {}
+
+func (x *ListWorkersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkersResponse.ProtoReflect.Descriptor instead.
+func (*ListWorkersResponse) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ListWorkersResponse) GetWorkers() []*Worker {
+	if x != nil {
+		return x.Workers
+	}
+	return nil
+}
+
+type TaskCompletionRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	TaskId            string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	WorkerId          string                 `protobuf:"bytes,2,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
+	Success           bool                   `protobuf:"varint,3,opt,name=success,proto3" json:"success,omitempty"`
+	ErrorMessage      string                 `protobuf:"bytes,4,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	ActualDurationSec int64                  `protobuf:"varint,5,opt,name=actual_duration_sec,json=actualDurationSec,proto3" json:"actual_duration_sec,omitempty"`
+	ResourceUsage     map[string]float64     `protobuf:"bytes,6,rep,name=resource_usage,json=resourceUsage,proto3" json:"resource_usage,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *TaskCompletionRequest) Reset() {
+	*x = TaskCompletionRequest{}
+	mi := &file_scheduler_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskCompletionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskCompletionRequest) ProtoMessage() {}
+
+func (x *TaskCompletionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskCompletionRequest.ProtoReflect.Descriptor instead.
+func (*TaskCompletionRequest) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *TaskCompletionRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *TaskCompletionRequest) GetWorkerId() string {
+	if x != nil {
+		return x.WorkerId
+	}
+	return ""
+}
+
+func (x *TaskCompletionRequest) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *TaskCompletionRequest) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *TaskCompletionRequest) GetActualDurationSec() int64 {
+	if x != nil {
+		return x.ActualDurationSec
+	}
+	return 0
+}
+
+func (x *TaskCompletionRequest) GetResourceUsage() map[string]float64 {
+	if x != nil {
+		return x.ResourceUsage
+	}
+	return nil
+}
+
+type TaskCompletionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Acknowledged  bool                   `protobuf:"varint,1,opt,name=acknowledged,proto3" json:"acknowledged,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TaskCompletionResponse) Reset() {
+	*x = TaskCompletionResponse{}
+	mi := &file_scheduler_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskCompletionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskCompletionResponse) ProtoMessage() {}
+
+func (x *TaskCompletionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scheduler_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskCompletionResponse.ProtoReflect.Descriptor instead.
+func (*TaskCompletionResponse) Descriptor() ([]byte, []int) {
+	return file_scheduler_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *TaskCompletionResponse) GetAcknowledged() bool {
+	if x != nil {
+		return x.Acknowledged
+	}
+	return false
+}
+
 var File_scheduler_proto protoreflect.FileDescriptor
 
 const file_scheduler_proto_rawDesc = "" +
@@ -1653,7 +2365,50 @@ const file_scheduler_proto_rawDesc = "" +
 	"\fWORKER_ADDED\x10\x03\x12\x12\n" +
 	"\x0eWORKER_UPDATED\x10\x04\x12\n" +
 	"\n" +
-	"\x06CUSTOM\x10\x05*?\n" +
+	"\x06CUSTOM\x10\x05\"8\n" +
+	"\x11SubmitTaskRequest\x12#\n" +
+	"\x04task\x18\x01 \x01(\v2\x0f.scheduler.TaskR\x04task\"G\n" +
+	"\x12SubmitTaskResponse\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"/\n" +
+	"\x14GetTaskStatusRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\"\x7f\n" +
+	"\x15GetTaskStatusResponse\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1b\n" +
+	"\tworker_id\x18\x03 \x01(\tR\bworkerId\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\",\n" +
+	"\x11CancelTaskRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\"H\n" +
+	"\x12CancelTaskResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"B\n" +
+	"\x15RegisterWorkerRequest\x12)\n" +
+	"\x06worker\x18\x01 \x01(\v2\x11.scheduler.WorkerR\x06worker\"L\n" +
+	"\x16RegisterWorkerResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"g\n" +
+	"\x10HeartbeatRequest\x12)\n" +
+	"\x06worker\x18\x01 \x01(\v2\x11.scheduler.WorkerR\x06worker\x12(\n" +
+	"\x10running_task_ids\x18\x02 \x03(\tR\x0erunningTaskIds\"U\n" +
+	"\x11HeartbeatResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12&\n" +
+	"\x0ftasks_to_cancel\x18\x02 \x03(\tR\rtasksToCancel\"\x14\n" +
+	"\x12ListWorkersRequest\"B\n" +
+	"\x13ListWorkersResponse\x12+\n" +
+	"\aworkers\x18\x01 \x03(\v2\x11.scheduler.WorkerR\aworkers\"\xda\x02\n" +
+	"\x15TaskCompletionRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1b\n" +
+	"\tworker_id\x18\x02 \x01(\tR\bworkerId\x12\x18\n" +
+	"\asuccess\x18\x03 \x01(\bR\asuccess\x12#\n" +
+	"\rerror_message\x18\x04 \x01(\tR\ferrorMessage\x12.\n" +
+	"\x13actual_duration_sec\x18\x05 \x01(\x03R\x11actualDurationSec\x12Z\n" +
+	"\x0eresource_usage\x18\x06 \x03(\v23.scheduler.TaskCompletionRequest.ResourceUsageEntryR\rresourceUsage\x1a@\n" +
+	"\x12ResourceUsageEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\"<\n" +
+	"\x16TaskCompletionResponse\x12\"\n" +
+	"\facknowledged\x18\x01 \x01(\bR\facknowledged*?\n" +
 	"\x0eExecPreference\x12\f\n" +
 	"\bEXEC_ANY\x10\x00\x12\x12\n" +
 	"\x0eEXEC_CONTAINER\x10\x01\x12\v\n" +
@@ -1661,7 +2416,17 @@ const file_scheduler_proto_rawDesc = "" +
 	"\rExecutionMode\x12\x10\n" +
 	"\fMODE_UNKNOWN\x10\x00\x12\x12\n" +
 	"\x0eMODE_CONTAINER\x10\x01\x12\v\n" +
-	"\aMODE_VM\x10\x022\x7f\n" +
+	"\aMODE_VM\x10\x022\xc6\x04\n" +
+	"\x10SchedulerService\x12I\n" +
+	"\n" +
+	"SubmitTask\x12\x1c.scheduler.SubmitTaskRequest\x1a\x1d.scheduler.SubmitTaskResponse\x12R\n" +
+	"\rGetTaskStatus\x12\x1f.scheduler.GetTaskStatusRequest\x1a .scheduler.GetTaskStatusResponse\x12I\n" +
+	"\n" +
+	"CancelTask\x12\x1c.scheduler.CancelTaskRequest\x1a\x1d.scheduler.CancelTaskResponse\x12U\n" +
+	"\x0eRegisterWorker\x12 .scheduler.RegisterWorkerRequest\x1a!.scheduler.RegisterWorkerResponse\x12F\n" +
+	"\tHeartbeat\x12\x1b.scheduler.HeartbeatRequest\x1a\x1c.scheduler.HeartbeatResponse\x12L\n" +
+	"\vListWorkers\x12\x1d.scheduler.ListWorkersRequest\x1a\x1e.scheduler.ListWorkersResponse\x12[\n" +
+	"\x14ReportTaskCompletion\x12 .scheduler.TaskCompletionRequest\x1a!.scheduler.TaskCompletionResponse2\x7f\n" +
 	"\aPlanner\x127\n" +
 	"\x04Plan\x12\x16.scheduler.PlanRequest\x1a\x17.scheduler.PlanResponse\x12;\n" +
 	"\x06Replan\x12\x18.scheduler.ReplanRequest\x1a\x17.scheduler.PlanResponseBM\n" +
@@ -1680,71 +2445,105 @@ func file_scheduler_proto_rawDescGZIP() []byte {
 }
 
 var file_scheduler_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_scheduler_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_scheduler_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
 var file_scheduler_proto_goTypes = []any{
-	(ExecPreference)(0),           // 0: scheduler.ExecPreference
-	(ExecutionMode)(0),            // 1: scheduler.ExecutionMode
-	(Objective_Type)(0),           // 2: scheduler.Objective.Type
-	(PlannerEvent_Type)(0),        // 3: scheduler.PlannerEvent.Type
-	(*Task)(nil),                  // 4: scheduler.Task
-	(*Worker)(nil),                // 5: scheduler.Worker
-	(*Heartbeat)(nil),             // 6: scheduler.Heartbeat
-	(*AssignRequest)(nil),         // 7: scheduler.AssignRequest
-	(*AssignAck)(nil),             // 8: scheduler.AssignAck
-	(*PlanRequest)(nil),           // 9: scheduler.PlanRequest
-	(*Objective)(nil),             // 10: scheduler.Objective
-	(*Constraint)(nil),            // 11: scheduler.Constraint
-	(*PlanOptions)(nil),           // 12: scheduler.PlanOptions
-	(*Assignment)(nil),            // 13: scheduler.Assignment
-	(*PlanResponse)(nil),          // 14: scheduler.PlanResponse
-	(*ReplanRequest)(nil),         // 15: scheduler.ReplanRequest
-	(*PlannerEvent)(nil),          // 16: scheduler.PlannerEvent
-	nil,                           // 17: scheduler.Task.MetaEntry
-	nil,                           // 18: scheduler.Worker.MetaEntry
-	nil,                           // 19: scheduler.AssignRequest.MetaEntry
-	nil,                           // 20: scheduler.Assignment.MetaEntry
-	(*structpb.Struct)(nil),       // 21: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil), // 22: google.protobuf.Timestamp
+	(ExecPreference)(0),            // 0: scheduler.ExecPreference
+	(ExecutionMode)(0),             // 1: scheduler.ExecutionMode
+	(Objective_Type)(0),            // 2: scheduler.Objective.Type
+	(PlannerEvent_Type)(0),         // 3: scheduler.PlannerEvent.Type
+	(*Task)(nil),                   // 4: scheduler.Task
+	(*Worker)(nil),                 // 5: scheduler.Worker
+	(*Heartbeat)(nil),              // 6: scheduler.Heartbeat
+	(*AssignRequest)(nil),          // 7: scheduler.AssignRequest
+	(*AssignAck)(nil),              // 8: scheduler.AssignAck
+	(*PlanRequest)(nil),            // 9: scheduler.PlanRequest
+	(*Objective)(nil),              // 10: scheduler.Objective
+	(*Constraint)(nil),             // 11: scheduler.Constraint
+	(*PlanOptions)(nil),            // 12: scheduler.PlanOptions
+	(*Assignment)(nil),             // 13: scheduler.Assignment
+	(*PlanResponse)(nil),           // 14: scheduler.PlanResponse
+	(*ReplanRequest)(nil),          // 15: scheduler.ReplanRequest
+	(*PlannerEvent)(nil),           // 16: scheduler.PlannerEvent
+	(*SubmitTaskRequest)(nil),      // 17: scheduler.SubmitTaskRequest
+	(*SubmitTaskResponse)(nil),     // 18: scheduler.SubmitTaskResponse
+	(*GetTaskStatusRequest)(nil),   // 19: scheduler.GetTaskStatusRequest
+	(*GetTaskStatusResponse)(nil),  // 20: scheduler.GetTaskStatusResponse
+	(*CancelTaskRequest)(nil),      // 21: scheduler.CancelTaskRequest
+	(*CancelTaskResponse)(nil),     // 22: scheduler.CancelTaskResponse
+	(*RegisterWorkerRequest)(nil),  // 23: scheduler.RegisterWorkerRequest
+	(*RegisterWorkerResponse)(nil), // 24: scheduler.RegisterWorkerResponse
+	(*HeartbeatRequest)(nil),       // 25: scheduler.HeartbeatRequest
+	(*HeartbeatResponse)(nil),      // 26: scheduler.HeartbeatResponse
+	(*ListWorkersRequest)(nil),     // 27: scheduler.ListWorkersRequest
+	(*ListWorkersResponse)(nil),    // 28: scheduler.ListWorkersResponse
+	(*TaskCompletionRequest)(nil),  // 29: scheduler.TaskCompletionRequest
+	(*TaskCompletionResponse)(nil), // 30: scheduler.TaskCompletionResponse
+	nil,                            // 31: scheduler.Task.MetaEntry
+	nil,                            // 32: scheduler.Worker.MetaEntry
+	nil,                            // 33: scheduler.AssignRequest.MetaEntry
+	nil,                            // 34: scheduler.Assignment.MetaEntry
+	nil,                            // 35: scheduler.TaskCompletionRequest.ResourceUsageEntry
+	(*structpb.Struct)(nil),        // 36: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),  // 37: google.protobuf.Timestamp
 }
 var file_scheduler_proto_depIdxs = []int32{
-	17, // 0: scheduler.Task.meta:type_name -> scheduler.Task.MetaEntry
+	31, // 0: scheduler.Task.meta:type_name -> scheduler.Task.MetaEntry
 	0,  // 1: scheduler.Task.exec_pref:type_name -> scheduler.ExecPreference
-	21, // 2: scheduler.Task.extra:type_name -> google.protobuf.Struct
+	36, // 2: scheduler.Task.extra:type_name -> google.protobuf.Struct
 	1,  // 3: scheduler.Worker.exec_modes:type_name -> scheduler.ExecutionMode
-	18, // 4: scheduler.Worker.meta:type_name -> scheduler.Worker.MetaEntry
-	21, // 5: scheduler.Worker.extra:type_name -> google.protobuf.Struct
-	21, // 6: scheduler.Heartbeat.extra:type_name -> google.protobuf.Struct
-	22, // 7: scheduler.Heartbeat.ts:type_name -> google.protobuf.Timestamp
+	32, // 4: scheduler.Worker.meta:type_name -> scheduler.Worker.MetaEntry
+	36, // 5: scheduler.Worker.extra:type_name -> google.protobuf.Struct
+	36, // 6: scheduler.Heartbeat.extra:type_name -> google.protobuf.Struct
+	37, // 7: scheduler.Heartbeat.ts:type_name -> google.protobuf.Timestamp
 	1,  // 8: scheduler.AssignRequest.exec_mode:type_name -> scheduler.ExecutionMode
-	19, // 9: scheduler.AssignRequest.meta:type_name -> scheduler.AssignRequest.MetaEntry
+	33, // 9: scheduler.AssignRequest.meta:type_name -> scheduler.AssignRequest.MetaEntry
 	4,  // 10: scheduler.PlanRequest.tasks:type_name -> scheduler.Task
 	5,  // 11: scheduler.PlanRequest.workers:type_name -> scheduler.Worker
 	10, // 12: scheduler.PlanRequest.objectives:type_name -> scheduler.Objective
 	11, // 13: scheduler.PlanRequest.constraints:type_name -> scheduler.Constraint
 	12, // 14: scheduler.PlanRequest.options:type_name -> scheduler.PlanOptions
 	2,  // 15: scheduler.Objective.type:type_name -> scheduler.Objective.Type
-	21, // 16: scheduler.PlanOptions.extra:type_name -> google.protobuf.Struct
+	36, // 16: scheduler.PlanOptions.extra:type_name -> google.protobuf.Struct
 	1,  // 17: scheduler.Assignment.exec_mode:type_name -> scheduler.ExecutionMode
-	20, // 18: scheduler.Assignment.meta:type_name -> scheduler.Assignment.MetaEntry
+	34, // 18: scheduler.Assignment.meta:type_name -> scheduler.Assignment.MetaEntry
 	13, // 19: scheduler.PlanResponse.assignments:type_name -> scheduler.Assignment
-	22, // 20: scheduler.PlanResponse.generated_ts:type_name -> google.protobuf.Timestamp
-	21, // 21: scheduler.PlanResponse.extra:type_name -> google.protobuf.Struct
+	37, // 20: scheduler.PlanResponse.generated_ts:type_name -> google.protobuf.Timestamp
+	36, // 21: scheduler.PlanResponse.extra:type_name -> google.protobuf.Struct
 	4,  // 22: scheduler.ReplanRequest.tasks:type_name -> scheduler.Task
 	5,  // 23: scheduler.ReplanRequest.workers:type_name -> scheduler.Worker
 	16, // 24: scheduler.ReplanRequest.events:type_name -> scheduler.PlannerEvent
 	12, // 25: scheduler.ReplanRequest.options:type_name -> scheduler.PlanOptions
 	3,  // 26: scheduler.PlannerEvent.type:type_name -> scheduler.PlannerEvent.Type
-	22, // 27: scheduler.PlannerEvent.ts:type_name -> google.protobuf.Timestamp
-	21, // 28: scheduler.PlannerEvent.extra:type_name -> google.protobuf.Struct
-	9,  // 29: scheduler.Planner.Plan:input_type -> scheduler.PlanRequest
-	15, // 30: scheduler.Planner.Replan:input_type -> scheduler.ReplanRequest
-	14, // 31: scheduler.Planner.Plan:output_type -> scheduler.PlanResponse
-	14, // 32: scheduler.Planner.Replan:output_type -> scheduler.PlanResponse
-	31, // [31:33] is the sub-list for method output_type
-	29, // [29:31] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	37, // 27: scheduler.PlannerEvent.ts:type_name -> google.protobuf.Timestamp
+	36, // 28: scheduler.PlannerEvent.extra:type_name -> google.protobuf.Struct
+	4,  // 29: scheduler.SubmitTaskRequest.task:type_name -> scheduler.Task
+	5,  // 30: scheduler.RegisterWorkerRequest.worker:type_name -> scheduler.Worker
+	5,  // 31: scheduler.HeartbeatRequest.worker:type_name -> scheduler.Worker
+	5,  // 32: scheduler.ListWorkersResponse.workers:type_name -> scheduler.Worker
+	35, // 33: scheduler.TaskCompletionRequest.resource_usage:type_name -> scheduler.TaskCompletionRequest.ResourceUsageEntry
+	17, // 34: scheduler.SchedulerService.SubmitTask:input_type -> scheduler.SubmitTaskRequest
+	19, // 35: scheduler.SchedulerService.GetTaskStatus:input_type -> scheduler.GetTaskStatusRequest
+	21, // 36: scheduler.SchedulerService.CancelTask:input_type -> scheduler.CancelTaskRequest
+	23, // 37: scheduler.SchedulerService.RegisterWorker:input_type -> scheduler.RegisterWorkerRequest
+	25, // 38: scheduler.SchedulerService.Heartbeat:input_type -> scheduler.HeartbeatRequest
+	27, // 39: scheduler.SchedulerService.ListWorkers:input_type -> scheduler.ListWorkersRequest
+	29, // 40: scheduler.SchedulerService.ReportTaskCompletion:input_type -> scheduler.TaskCompletionRequest
+	9,  // 41: scheduler.Planner.Plan:input_type -> scheduler.PlanRequest
+	15, // 42: scheduler.Planner.Replan:input_type -> scheduler.ReplanRequest
+	18, // 43: scheduler.SchedulerService.SubmitTask:output_type -> scheduler.SubmitTaskResponse
+	20, // 44: scheduler.SchedulerService.GetTaskStatus:output_type -> scheduler.GetTaskStatusResponse
+	22, // 45: scheduler.SchedulerService.CancelTask:output_type -> scheduler.CancelTaskResponse
+	24, // 46: scheduler.SchedulerService.RegisterWorker:output_type -> scheduler.RegisterWorkerResponse
+	26, // 47: scheduler.SchedulerService.Heartbeat:output_type -> scheduler.HeartbeatResponse
+	28, // 48: scheduler.SchedulerService.ListWorkers:output_type -> scheduler.ListWorkersResponse
+	30, // 49: scheduler.SchedulerService.ReportTaskCompletion:output_type -> scheduler.TaskCompletionResponse
+	14, // 50: scheduler.Planner.Plan:output_type -> scheduler.PlanResponse
+	14, // 51: scheduler.Planner.Replan:output_type -> scheduler.PlanResponse
+	43, // [43:52] is the sub-list for method output_type
+	34, // [34:43] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_scheduler_proto_init() }
@@ -1758,9 +2557,9 @@ func file_scheduler_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scheduler_proto_rawDesc), len(file_scheduler_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   17,
+			NumMessages:   32,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_scheduler_proto_goTypes,
 		DependencyIndexes: file_scheduler_proto_depIdxs,
