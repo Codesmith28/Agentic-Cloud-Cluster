@@ -67,7 +67,7 @@ CloudAI/
 │       │   └── queue.go
 │       ├── execution/              # Task execution coordination
 │       │   └── executor.go
-│       ├── persistence/            # Data persistence (BoltDB)
+│       ├── persistence/            # Data persistence (CouchDB)
 │       │   └── persistence.go
 │       ├── monitor/                # Health monitoring and fault detection
 │       │   └── monitor.go
@@ -110,7 +110,7 @@ CloudAI/
 - **Go 1.23+** - System programming language
 - **gRPC** - Communication protocol
 - **Protocol Buffers** - Data serialization
-- **BoltDB** - Embedded key-value database
+- **CouchDB** - Document-oriented NoSQL database
 - **Docker SDK** - Container management
 - **libvirt-go** - VM management (optional)
 
@@ -145,9 +145,9 @@ CloudAI/
 
 ### Technical Decisions
 * **Communication Protocol:** gRPC with Protocol Buffers for all inter-service communication
-* **Persistence:** BoltDB for master state (lightweight, embedded)
+* **Persistence:** CouchDB for master state (distributed, document-oriented, RESTful)
 * **Task Execution:** Docker containers (primary), KVM VMs (optional for isolation)
-* **Planner State:** Ephemeral (stateless service) with optional logging to disk
+* **Planner State:** Ephemeral (stateless service) with optional logging to CouchDB
 * **Development Environment:** Docker Compose for local development and testing
 * **Production Deployment:** Kubernetes with Helm charts (Sprint 12+)
 
@@ -745,6 +745,24 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 version: '3.8'
 
 services:
+  couchdb:
+    image: couchdb:3.3
+    ports:
+      - "5984:5984"  # CouchDB HTTP port
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=password
+    volumes:
+      - couchdb-data:/opt/couchdb/data
+      - couchdb-config:/opt/couchdb/etc/local.d
+    networks:
+      - cloudai
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/_up"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   master:
     build:
       context: ./go-master
@@ -754,11 +772,15 @@ services:
       - "9090:9090"    # Metrics port
     environment:
       - PLANNER_ADDRESS=planner:50052
-      - DB_PATH=/data/master.db
-    volumes:
-      - master-data:/data
+      - COUCHDB_URL=http://couchdb:5984
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=password
+      - COUCHDB_DATABASE=cloudai
     depends_on:
-      - planner
+      couchdb:
+        condition: service_healthy
+      planner:
+        condition: service_started
     networks:
       - cloudai
 
@@ -770,6 +792,13 @@ services:
       - "50052:50052"  # gRPC port
     environment:
       - GRPC_PORT=50052
+      - COUCHDB_URL=http://couchdb:5984
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=password
+      - COUCHDB_DATABASE=cloudai_planner
+    depends_on:
+      couchdb:
+        condition: service_healthy
     networks:
       - cloudai
 
@@ -806,7 +835,8 @@ services:
       - cloudai
 
 volumes:
-  master-data:
+  couchdb-data:
+  couchdb-config:
 
 networks:
   cloudai:
@@ -827,7 +857,7 @@ COPY . .
 RUN go build -o master ./cmd/master
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates curl
 WORKDIR /root/
 COPY --from=builder /app/master .
 
@@ -869,9 +899,463 @@ CMD ["python", "planner_server.py"]
 ```
 
 **Deliverables:**
-- ✅ Docker Compose configuration
+- ✅ Docker Compose configuration with CouchDB
 - ✅ Dockerfiles for all services
+- ✅ CouchDB container configured and accessible
 - ✅ Services can be started with `docker-compose up`
+
+---
+
+##### Task 0.6: CouchDB Setup & Configuration (2 days)
+**Assignee:** Backend Developer / DevOps
+
+**Purpose:** Set up CouchDB as the primary persistence layer for the CloudAI system.
+
+**CouchDB Benefits for CloudAI:**
+- **Document-Oriented:** Perfect for storing tasks, workers, and plans as JSON documents
+- **RESTful API:** Easy HTTP-based access from both Go and Python
+- **Distributed:** Built-in replication and clustering for high availability
+- **ACID Compliant:** Ensures data consistency
+- **Conflict Resolution:** Multi-version concurrency control (MVCC)
+- **Views & Queries:** MapReduce for complex queries
+- **Real-time Changes Feed:** Monitor document changes in real-time
+
+**Database Schema Design:**
+
+1. **`cloudai` database** (Master Node):
+   - **tasks/** - Task documents
+   - **workers/** - Worker documents
+   - **plans/** - Plan documents
+   - **assignments/** - Task-to-worker assignments
+   - **reservations/** - Resource reservations
+
+2. **`cloudai_planner` database** (Planner Service):
+   - **training_data/** - Runtime prediction training data
+   - **plans_history/** - Historical plans for analysis
+
+**Document Structure Examples:**
+
+```json
+// Task Document (_id: "task:task-123")
+{
+  "_id": "task:task-123",
+  "_rev": "1-abc...",
+  "type": "task",
+  "id": "task-123",
+  "cpu_req": 2.0,
+  "mem_mb": 4096,
+  "gpu_req": 0,
+  "task_type": "ml_training",
+  "priority": 5,
+  "deadline_unix": 1696512000,
+  "status": "pending",
+  "created_at": "2025-10-05T10:00:00Z",
+  "updated_at": "2025-10-05T10:00:00Z",
+  "container_image": "python:3.12",
+  "command": ["python", "train.py"],
+  "meta": {
+    "user": "user123",
+    "project": "ml-pipeline"
+  }
+}
+
+// Worker Document (_id: "worker:worker-1")
+{
+  "_id": "worker:worker-1",
+  "_rev": "3-def...",
+  "type": "worker",
+  "id": "worker-1",
+  "total_cpu": 8.0,
+  "total_mem": 16384,
+  "gpus": 2,
+  "free_cpu": 4.0,
+  "free_mem": 8192,
+  "free_gpus": 1,
+  "status": "active",
+  "labels": ["gpu", "high-mem"],
+  "last_seen_unix": 1696512345,
+  "heartbeat_count": 1523,
+  "capabilities": {
+    "docker": "true",
+    "kvm": "true"
+  }
+}
+
+// Assignment Document (_id: "assignment:task-123")
+{
+  "_id": "assignment:task-123",
+  "_rev": "1-ghi...",
+  "type": "assignment",
+  "task_id": "task-123",
+  "worker_id": "worker-1",
+  "plan_id": "plan-456",
+  "status": "running",
+  "assigned_at": "2025-10-05T10:05:00Z",
+  "started_at": "2025-10-05T10:05:30Z",
+  "expected_duration_sec": 3600,
+  "actual_duration_sec": null
+}
+```
+
+**Create CouchDB Design Documents (Views):**
+
+`_design/tasks`:
+```json
+{
+  "_id": "_design/tasks",
+  "views": {
+    "by_status": {
+      "map": "function(doc) { if (doc.type === 'task') { emit(doc.status, doc); } }"
+    },
+    "by_priority": {
+      "map": "function(doc) { if (doc.type === 'task' && doc.status === 'pending') { emit(doc.priority, doc); } }"
+    },
+    "by_deadline": {
+      "map": "function(doc) { if (doc.type === 'task' && doc.deadline_unix > 0) { emit(doc.deadline_unix, doc); } }"
+    }
+  }
+}
+```
+
+`_design/workers`:
+```json
+{
+  "_id": "_design/workers",
+  "views": {
+    "active": {
+      "map": "function(doc) { if (doc.type === 'worker' && doc.status === 'active') { emit(doc.last_seen_unix, doc); } }"
+    },
+    "by_capacity": {
+      "map": "function(doc) { if (doc.type === 'worker') { emit([doc.free_cpu, doc.free_mem], doc); } }"
+    }
+  }
+}
+```
+
+**Go CouchDB Client Setup:**
+
+Create `go-master/pkg/persistence/couchdb.go`:
+
+```go
+package persistence
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"time"
+)
+
+// CouchDBClient handles all CouchDB operations
+type CouchDBClient struct {
+	baseURL  string
+	username string
+	password string
+	database string
+	client   *http.Client
+}
+
+// NewCouchDBClient creates a new CouchDB client
+func NewCouchDBClient() (*CouchDBClient, error) {
+	baseURL := os.Getenv("COUCHDB_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:5984"
+	}
+	
+	username := os.Getenv("COUCHDB_USER")
+	password := os.Getenv("COUCHDB_PASSWORD")
+	database := os.Getenv("COUCHDB_DATABASE")
+	if database == "" {
+		database = "cloudai"
+	}
+	
+	client := &CouchDBClient{
+		baseURL:  baseURL,
+		username: username,
+		password: password,
+		database: database,
+		client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+	}
+	
+	// Create database if it doesn't exist
+	if err := client.CreateDatabase(); err != nil {
+		return nil, fmt.Errorf("failed to create database: %w", err)
+	}
+	
+	// Create design documents
+	if err := client.SetupViews(); err != nil {
+		return nil, fmt.Errorf("failed to setup views: %w", err)
+	}
+	
+	return client, nil
+}
+
+// CreateDatabase creates the database if it doesn't exist
+func (c *CouchDBClient) CreateDatabase() error {
+	url := fmt.Sprintf("%s/%s", c.baseURL, c.database)
+	req, err := http.NewRequest("PUT", url, nil)
+	if err != nil {
+		return err
+	}
+	
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
+	
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	
+	// 201 = created, 412 = already exists (both are OK)
+	if resp.StatusCode != 201 && resp.StatusCode != 412 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to create database: %s - %s", resp.Status, body)
+	}
+	
+	return nil
+}
+
+// PutDocument inserts or updates a document
+func (c *CouchDBClient) PutDocument(ctx context.Context, docID string, doc interface{}) error {
+	data, err := json.Marshal(doc)
+	if err != nil {
+		return err
+	}
+	
+	url := fmt.Sprintf("%s/%s/%s", c.baseURL, c.database, docID)
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+	
+	req.Header.Set("Content-Type", "application/json")
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
+	
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != 201 && resp.StatusCode != 202 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to put document: %s - %s", resp.Status, body)
+	}
+	
+	return nil
+}
+
+// GetDocument retrieves a document
+func (c *CouchDBClient) GetDocument(ctx context.Context, docID string, result interface{}) error {
+	url := fmt.Sprintf("%s/%s/%s", c.baseURL, c.database, docID)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return err
+	}
+	
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
+	
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != 200 {
+		if resp.StatusCode == 404 {
+			return fmt.Errorf("document not found")
+		}
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to get document: %s - %s", resp.Status, body)
+	}
+	
+	return json.NewDecoder(resp.Body).Decode(result)
+}
+
+// DeleteDocument deletes a document
+func (c *CouchDBClient) DeleteDocument(ctx context.Context, docID, rev string) error {
+	url := fmt.Sprintf("%s/%s/%s?rev=%s", c.baseURL, c.database, docID, rev)
+	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	if err != nil {
+		return err
+	}
+	
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
+	
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != 200 && resp.StatusCode != 202 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to delete document: %s - %s", resp.Status, body)
+	}
+	
+	return nil
+}
+
+// QueryView queries a CouchDB view
+func (c *CouchDBClient) QueryView(ctx context.Context, designDoc, viewName string, params map[string]string, result interface{}) error {
+	url := fmt.Sprintf("%s/%s/_design/%s/_view/%s", c.baseURL, c.database, designDoc, viewName)
+	
+	// Add query parameters
+	if len(params) > 0 {
+		url += "?"
+		first := true
+		for k, v := range params {
+			if !first {
+				url += "&"
+			}
+			url += fmt.Sprintf("%s=%s", k, v)
+			first = false
+		}
+	}
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return err
+	}
+	
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
+	
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to query view: %s - %s", resp.Status, body)
+	}
+	
+	return json.NewDecoder(resp.Body).Decode(result)
+}
+
+// SetupViews creates the design documents with views
+func (c *CouchDBClient) SetupViews() error {
+	// Task views
+	taskViews := map[string]interface{}{
+		"_id": "_design/tasks",
+		"views": map[string]interface{}{
+			"by_status": map[string]string{
+				"map": "function(doc) { if (doc.type === 'task') { emit(doc.status, doc); } }",
+			},
+			"by_priority": map[string]string{
+				"map": "function(doc) { if (doc.type === 'task' && doc.status === 'pending') { emit(doc.priority, doc); } }",
+			},
+			"by_deadline": map[string]string{
+				"map": "function(doc) { if (doc.type === 'task' && doc.deadline_unix > 0) { emit(doc.deadline_unix, doc); } }",
+			},
+		},
+	}
+	
+	if err := c.PutDocument(context.Background(), "_design/tasks", taskViews); err != nil {
+		return err
+	}
+	
+	// Worker views
+	workerViews := map[string]interface{}{
+		"_id": "_design/workers",
+		"views": map[string]interface{}{
+			"active": map[string]string{
+				"map": "function(doc) { if (doc.type === 'worker' && doc.status === 'active') { emit(doc.last_seen_unix, doc); } }",
+			},
+			"by_capacity": map[string]string{
+				"map": "function(doc) { if (doc.type === 'worker') { emit([doc.free_cpu, doc.free_mem], doc); } }",
+			},
+		},
+	}
+	
+	return c.PutDocument(context.Background(), "_design/workers", workerViews)
+}
+```
+
+**Python CouchDB Client Setup:**
+
+Update `planner_py/requirements.txt`:
+```
+grpcio==1.60.0
+grpcio-tools==1.60.0
+ortools==9.8.3296
+scikit-learn==1.3.2
+couchdb==1.2
+requests==2.31.0
+```
+
+**Test CouchDB Connection:**
+
+Create `go-master/pkg/persistence/couchdb_test.go`:
+
+```go
+package persistence
+
+import (
+	"context"
+	"os"
+	"testing"
+)
+
+func TestCouchDBConnection(t *testing.T) {
+	// Set test environment variables
+	os.Setenv("COUCHDB_URL", "http://localhost:5984")
+	os.Setenv("COUCHDB_USER", "admin")
+	os.Setenv("COUCHDB_PASSWORD", "password")
+	os.Setenv("COUCHDB_DATABASE", "cloudai_test")
+	
+	client, err := NewCouchDBClient()
+	if err != nil {
+		t.Skipf("CouchDB not available: %v", err)
+	}
+	
+	// Test document operations
+	ctx := context.Background()
+	testDoc := map[string]interface{}{
+		"type": "test",
+		"message": "Hello CouchDB",
+	}
+	
+	err = client.PutDocument(ctx, "test:1", testDoc)
+	if err != nil {
+		t.Fatalf("Failed to put document: %v", err)
+	}
+	
+	var result map[string]interface{}
+	err = client.GetDocument(ctx, "test:1", &result)
+	if err != nil {
+		t.Fatalf("Failed to get document: %v", err)
+	}
+	
+	if result["message"] != "Hello CouchDB" {
+		t.Errorf("Expected 'Hello CouchDB', got %v", result["message"])
+	}
+}
+```
+
+**Deliverables:**
+- ✅ CouchDB container running in Docker Compose
+- ✅ Go CouchDB client library implemented
+- ✅ Python CouchDB client configured
+- ✅ Database schema and views created
+- ✅ Connection tests passing
 
 ---
 
@@ -879,7 +1363,8 @@ CMD ["python", "planner_server.py"]
 - [ ] Repository structure is complete and documented
 - [ ] Protocol buffers generate successfully for Go and Python
 - [ ] CI pipeline runs and passes (even with minimal tests)
-- [ ] Docker Compose brings up skeleton services
+- [ ] Docker Compose brings up all services including CouchDB
+- [ ] CouchDB is accessible and design documents are created
 - [ ] All developers can clone repo and run `make test` successfully
 - [ ] Documentation is complete and clear
 
@@ -887,7 +1372,9 @@ CMD ["python", "planner_server.py"]
 - Show repository structure
 - Run `make proto` to generate code
 - Run `make test` to show CI passing
-- Run `docker-compose up` to show skeleton services starting
+- Run `docker-compose up` to show all services starting (including CouchDB)
+- Access CouchDB UI at http://localhost:5984/_utils
+- Show test data in CouchDB
 
 ---
 
@@ -1936,7 +2423,7 @@ Each sprint shows: **goal**, **user stories**, **detailed subtasks** (code files
   * `func NewRegistry() *Registry`
   * `func (r *Registry) UpdateHeartbeat(ctx, hb *pb.Heartbeat)` (accepts Worker message)
   * `func (r *Registry) GetSnapshot() map[string]Worker`
-  * Persist last-seen & capability in BoltDB (`pkg/persistence/registry.go`)
+  * Persist worker state to CouchDB (`pkg/persistence/registry.go`)
 * Implement `pkg/taskqueue`:
 
   * `Enqueue(task models.Task) error`
