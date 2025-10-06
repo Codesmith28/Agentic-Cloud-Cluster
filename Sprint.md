@@ -3494,6 +3494,622 @@ func UpdateAssignmentCompletion(ctx context.Context, db *CouchDBClient, taskID s
 
 ---
 
+##### Task 2.6: Worker Deployment Setup (3 days)
+**Assignee:** DevOps Lead / Backend Developer
+
+**Purpose:** Enable workers to run both as Docker containers (for testing) and on bare metal servers (for production).
+
+---
+
+###### 2.6.1: Docker Compose Setup (Development/Testing)
+
+**File:** `docker-compose.yml`
+
+**Implementation:**
+
+```yaml
+version: '3.8'
+
+services:
+  # CouchDB Database
+  couchdb:
+    image: couchdb:3.3
+    container_name: cloudai-couchdb
+    ports:
+      - "5984:5984"
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=password
+    volumes:
+      - couchdb-data:/opt/couchdb/data
+      - couchdb-config:/opt/couchdb/etc/local.d
+    networks:
+      - cloudai-network
+
+  # Master Node
+  master:
+    build:
+      context: .
+      dockerfile: Dockerfile.master
+    container_name: cloudai-master
+    depends_on:
+      - couchdb
+    ports:
+      - "50051:50051"  # gRPC API
+      - "8080:8080"    # HTTP metrics (optional)
+    environment:
+      - MASTER_PORT=50051
+      - COUCHDB_URL=http://admin:password@couchdb:5984
+      - LOG_LEVEL=info
+    volumes:
+      - ./logs/master:/var/log/cloudai
+    networks:
+      - cloudai-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "50051"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Worker Node 1 - CPU worker
+  worker-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: cloudai-worker-1
+    depends_on:
+      - master
+    ports:
+      - "60001:60001"
+    environment:
+      - WORKER_ID=worker-1
+      - WORKER_PORT=60001
+      - MASTER_ADDRESS=master:50051
+      - TOTAL_CPU=4.0
+      - TOTAL_MEM=4096
+      - TOTAL_GPU=0
+      - LOG_LEVEL=info
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker-in-Docker
+      - ./logs/worker-1:/var/log/cloudai
+    networks:
+      - cloudai-network
+    privileged: true
+
+  # Worker Node 2 - CPU worker
+  worker-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: cloudai-worker-2
+    depends_on:
+      - master
+    ports:
+      - "60002:60002"
+    environment:
+      - WORKER_ID=worker-2
+      - WORKER_PORT=60002
+      - MASTER_ADDRESS=master:50051
+      - TOTAL_CPU=8.0
+      - TOTAL_MEM=8192
+      - TOTAL_GPU=0
+      - LOG_LEVEL=info
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./logs/worker-2:/var/log/cloudai
+    networks:
+      - cloudai-network
+    privileged: true
+
+  # Worker Node 3 - GPU worker (optional)
+  worker-3:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: cloudai-worker-3
+    depends_on:
+      - master
+    ports:
+      - "60003:60003"
+    environment:
+      - WORKER_ID=worker-3
+      - WORKER_PORT=60003
+      - MASTER_ADDRESS=master:50051
+      - TOTAL_CPU=16.0
+      - TOTAL_MEM=16384
+      - TOTAL_GPU=1
+      - LOG_LEVEL=info
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./logs/worker-3:/var/log/cloudai
+    networks:
+      - cloudai-network
+    privileged: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+networks:
+  cloudai-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  couchdb-data:
+  couchdb-config:
+```
+
+**File:** `Dockerfile.master`
+
+```dockerfile
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /build
+
+# Install dependencies
+RUN apk add --no-cache git make protobuf-dev
+
+# Copy go mod files
+COPY go-master/go.mod go-master/go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY go-master/ ./
+COPY proto/ ../proto/
+COPY pkg/ ../pkg/
+
+# Build master binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o master ./cmd/master
+
+# Final stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates tzdata netcat-openbsd curl
+
+WORKDIR /app
+
+COPY --from=builder /build/master .
+
+RUN mkdir -p /var/log/cloudai
+
+EXPOSE 50051 8080
+
+CMD ["./master"]
+```
+
+**File:** `Dockerfile.worker`
+
+```dockerfile
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /build
+
+# Install dependencies
+RUN apk add --no-cache git make protobuf-dev
+
+# Copy go mod files
+COPY go-master/go.mod go-master/go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY go-master/ ./
+COPY proto/ ../proto/
+COPY pkg/ ../pkg/
+
+# Build worker binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o worker ./cmd/worker
+
+# Final stage - includes Docker CLI for Docker-in-Docker
+FROM docker:24-dind
+
+# Install necessary packages
+RUN apk --no-cache add ca-certificates tzdata curl bash netcat-openbsd
+
+WORKDIR /app
+
+COPY --from=builder /build/worker .
+
+# Copy entrypoint script
+COPY scripts/worker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+RUN mkdir -p /var/log/cloudai
+
+EXPOSE 60001
+
+ENTRYPOINT ["/entrypoint.sh"]
+```
+
+**File:** `scripts/worker-entrypoint.sh`
+
+```bash
+#!/bin/bash
+
+set -e
+
+echo "Starting CloudAI Worker: $WORKER_ID"
+
+# Start Docker daemon in background
+dockerd &
+
+# Wait for Docker daemon to be ready
+echo "Waiting for Docker daemon..."
+timeout=30
+while [ $timeout -gt 0 ]; do
+    if docker info >/dev/null 2>&1; then
+        echo "Docker daemon is ready!"
+        break
+    fi
+    sleep 1
+    timeout=$((timeout-1))
+done
+
+if [ $timeout -eq 0 ]; then
+    echo "ERROR: Docker daemon failed to start"
+    exit 1
+fi
+
+# Wait for master to be available
+echo "Waiting for master at $MASTER_ADDRESS..."
+MASTER_HOST=$(echo $MASTER_ADDRESS | cut -d: -f1)
+MASTER_PORT=$(echo $MASTER_ADDRESS | cut -d: -f2)
+
+timeout=30
+while [ $timeout -gt 0 ]; do
+    if nc -z $MASTER_HOST $MASTER_PORT >/dev/null 2>&1; then
+        echo "Master is ready!"
+        break
+    fi
+    sleep 1
+    timeout=$((timeout-1))
+done
+
+# Start worker
+echo "Starting worker service..."
+exec ./worker
+```
+
+**File:** `scripts/start-cluster.sh`
+
+```bash
+#!/bin/bash
+
+set -e
+
+echo "======================================"
+echo "Starting CloudAI Docker Cluster"
+echo "======================================"
+
+# Build images
+echo "Building Docker images..."
+docker-compose build
+
+# Start services
+echo "Starting services..."
+docker-compose up -d
+
+# Wait for services to be ready
+echo "Waiting for services to start..."
+sleep 10
+
+# Check status
+echo ""
+echo "Cluster Status:"
+docker-compose ps
+
+echo ""
+echo "======================================"
+echo "✅ Cluster started successfully!"
+echo "======================================"
+echo ""
+echo "Services:"
+echo "  Master:   localhost:50051 (gRPC)"
+echo "  CouchDB:  localhost:5984"
+echo "  Worker-1: localhost:60001"
+echo "  Worker-2: localhost:60002"
+echo "  Worker-3: localhost:60003"
+echo ""
+echo "Commands:"
+echo "  View logs:    docker-compose logs -f [service]"
+echo "  Stop cluster: docker-compose down"
+echo "  Restart:      docker-compose restart [service]"
+echo "  Run tests:    ./scripts/test-cluster.sh"
+```
+
+**File:** `scripts/test-cluster.sh`
+
+```bash
+#!/bin/bash
+
+set -e
+
+echo "======================================"
+echo "Testing CloudAI Cluster"
+echo "======================================"
+
+# Check if cluster is running
+if ! docker ps | grep -q cloudai-master; then
+    echo "❌ Cluster is not running. Start with: ./scripts/start-cluster.sh"
+    exit 1
+fi
+
+echo ""
+echo "1. Submitting test tasks..."
+cd go-master
+go run ./cmd/testbench -tasks 10 -workers 3
+
+echo ""
+echo "2. Checking worker status..."
+docker-compose logs --tail=20 worker-1
+docker-compose logs --tail=20 worker-2
+
+echo ""
+echo "3. Viewing CouchDB data..."
+curl -s http://admin:password@localhost:5984/cloudai/_design/tasks/_view/by_status | jq '.'
+
+echo ""
+echo "======================================"
+echo "✅ Cluster test completed!"
+echo "======================================"
+```
+
+---
+
+###### 2.6.2: Ansible Playbook (Production Deployment)
+
+**File:** `ansible/inventory/production.yml`
+
+```yaml
+all:
+  children:
+    masters:
+      hosts:
+        master-1:
+          ansible_host: 192.168.1.100
+          
+    workers:
+      hosts:
+        worker-1:
+          ansible_host: 192.168.1.101
+          worker_id: worker-1
+          worker_cpu: 8.0
+          worker_mem: 16384
+          worker_gpu: 1
+          worker_port: 60001
+          
+        worker-2:
+          ansible_host: 192.168.1.102
+          worker_id: worker-2
+          worker_cpu: 16.0
+          worker_mem: 32768
+          worker_gpu: 2
+          worker_port: 60002
+          
+        worker-3:
+          ansible_host: 192.168.1.103
+          worker_id: worker-3
+          worker_cpu: 4.0
+          worker_mem: 8192
+          worker_gpu: 0
+          worker_port: 60003
+      
+      vars:
+        ansible_user: ubuntu
+        ansible_ssh_private_key_file: ~/.ssh/cloudai-workers.pem
+        ansible_become: yes
+        ansible_become_method: sudo
+        master_host: "192.168.1.100"
+        master_port: 50051
+```
+
+**File:** `ansible/playbooks/setup-workers.yml`
+
+```yaml
+---
+- name: Setup CloudAI Worker Nodes
+  hosts: workers
+  become: yes
+  
+  vars:
+    worker_binary_url: "https://github.com/Codesmith28/CloudAI/releases/download/v0.1.0/worker-linux-amd64"
+    worker_binary_path: "/usr/local/bin/cloudai-worker"
+    worker_config_path: "/etc/cloudai/worker-config.yml"
+    docker_version: "24.0.7"
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - curl
+          - wget
+          - git
+          - net-tools
+          - python3-pip
+        state: present
+
+    # Docker installation
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: yes
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    # GPU support (conditional)
+    - name: Install NVIDIA Docker runtime
+      block:
+        - name: Add NVIDIA Docker repository
+          apt_repository:
+            repo: "deb https://nvidia.github.io/nvidia-docker/ubuntu{{ ansible_distribution_version }}/amd64 /"
+            state: present
+        
+        - name: Install nvidia-docker2
+          apt:
+            name: nvidia-docker2
+            state: present
+            update_cache: yes
+        
+        - name: Restart Docker
+          systemd:
+            name: docker
+            state: restarted
+      when: worker_gpu | int > 0
+
+    # Worker setup
+    - name: Create CloudAI directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /etc/cloudai
+        - /var/log/cloudai
+
+    - name: Download worker binary
+      get_url:
+        url: "{{ worker_binary_url }}"
+        dest: "{{ worker_binary_path }}"
+        mode: '0755'
+
+    - name: Create worker configuration
+      template:
+        src: ../templates/worker-config.yml.j2
+        dest: "{{ worker_config_path }}"
+        mode: '0644'
+
+    - name: Create systemd service
+      template:
+        src: ../templates/worker.service.j2
+        dest: /etc/systemd/system/cloudai-worker.service
+        mode: '0644'
+
+    - name: Enable and start worker service
+      systemd:
+        name: cloudai-worker
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    - name: Configure firewall
+      ufw:
+        rule: allow
+        port: "{{ worker_port }}"
+        proto: tcp
+
+    - name: Display worker status
+      debug:
+        msg: |
+          Worker {{ worker_id }} configured successfully!
+          - IP: {{ ansible_host }}
+          - Port: {{ worker_port }}
+          - CPU: {{ worker_cpu }}
+          - Memory: {{ worker_mem }} MB
+          - GPU: {{ worker_gpu }}
+```
+
+**File:** `ansible/templates/worker.service.j2`
+
+```ini
+[Unit]
+Description=CloudAI Worker Node
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User={{ ansible_user }}
+Group=docker
+ExecStartPre=/usr/bin/docker info
+ExecStart={{ worker_binary_path }} --config {{ worker_config_path }}
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=30s
+
+Environment="WORKER_ID={{ worker_id }}"
+Environment="MASTER_ADDRESS={{ master_host }}:{{ master_port }}"
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**File:** `ansible/templates/worker-config.yml.j2`
+
+```yaml
+# CloudAI Worker Configuration
+worker:
+  id: "{{ worker_id }}"
+  port: {{ worker_port }}
+  
+  master:
+    host: "{{ master_host }}"
+    port: {{ master_port }}
+  
+  resources:
+    cpu: {{ worker_cpu }}
+    memory_mb: {{ worker_mem }}
+    gpu: {{ worker_gpu }}
+  
+  heartbeat_interval: 10
+  max_concurrent_tasks: 10
+  
+  log_level: info
+  log_file: "/var/log/cloudai/worker.log"
+```
+
+---
+
+**Deliverables:**
+- ✅ Docker Compose setup for local testing
+- ✅ Dockerfiles for master and worker
+- ✅ Worker entrypoint script with Docker-in-Docker support
+- ✅ Ansible playbook for bare metal deployment
+- ✅ Systemd service configuration
+- ✅ GPU worker support (conditional)
+- ✅ Scripts for starting/testing cluster
+
+**Testing:**
+
+```bash
+# Test Docker deployment
+./scripts/start-cluster.sh
+./scripts/test-cluster.sh
+
+# Test Ansible deployment (requires servers)
+ansible-playbook -i ansible/inventory/production.yml ansible/playbooks/setup-workers.yml
+```
+
+---
+
 #### Sprint 2 Acceptance Criteria
 - [ ] Greedy scheduler successfully assigns tasks to workers
 - [ ] Worker stubs execute tasks and report completion
@@ -3501,10 +4117,39 @@ func UpdateAssignmentCompletion(ctx context.Context, db *CouchDBClient, taskID s
 - [ ] Testbench generates varied workloads and collects metrics
 - [ ] Baseline metrics captured: makespan, latency, deadline miss rate
 - [ ] Task and assignment data persisted to CouchDB
+- [ ] **Docker Compose deployment works for local testing**
+- [ ] **Workers can run as Docker containers with Docker-in-Docker**
+- [ ] **Ansible playbook configures workers on bare metal servers**
 - [ ] All components have >70% test coverage
 - [ ] Integration tests pass with multiple workers and tasks
 
 #### Sprint 2 Demo
+
+**Option 1: Docker Compose (Recommended for Demo)**
+
+1. **Start Cluster:**
+   ```bash
+   ./scripts/start-cluster.sh
+   ```
+
+2. **Run Testbench:**
+   ```bash
+   docker exec cloudai-master ./testbench -tasks 50 -workers 3
+   ```
+
+3. **Show Results:**
+   - Display metrics: `docker-compose logs master | grep "Metrics"`
+   - Show CouchDB data: http://localhost:5984/_utils
+   - View worker logs: `docker-compose logs worker-1 worker-2 worker-3`
+
+4. **Performance Metrics:**
+   - Makespan for 50 tasks
+   - Average task latency
+   - Worker utilization
+   - Task distribution across workers
+
+**Option 2: Manual Startup (Development)**
+
 1. **Setup:**
    - Start CouchDB: `docker-compose up -d couchdb`
    - Start Master: `go run ./cmd/master`
@@ -3525,14 +4170,31 @@ func UpdateAssignmentCompletion(ctx context.Context, db *CouchDBClient, taskID s
    - Worker utilization
 
 #### Sprint 2 Testing Checklist
+
+**Unit Tests:**
 - [ ] Unit tests for greedy scheduler logic
 - [ ] Unit tests for executor assignment
+- [ ] Unit tests for worker task execution
+
+**Integration Tests:**
 - [ ] Integration test: 1 worker, 5 tasks
 - [ ] Integration test: 3 workers, 20 tasks with priorities
 - [ ] Integration test: Task with deadline (should complete on time)
 - [ ] Integration test: Overload scenario (more tasks than capacity)
 - [ ] CouchDB persistence verified
 - [ ] Worker heartbeat mechanism tested
+- [ ] Task cancellation flow tested
+
+**Deployment Tests:**
+- [ ] Docker Compose cluster starts successfully
+- [ ] All services healthy (master, workers, CouchDB)
+- [ ] Workers register with master on startup
+- [ ] Master can assign tasks to Docker-based workers
+- [ ] Tasks execute in Docker containers (Docker-in-Docker)
+- [ ] Worker logs are accessible via `docker-compose logs`
+- [ ] Cluster can be stopped and restarted without data loss
+- [ ] Ansible playbook runs without errors (if bare metal available)
+- [ ] Workers auto-start on server reboot (systemd)
 - [ ] Task cancellation flow tested
 
 ---
