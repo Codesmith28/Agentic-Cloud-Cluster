@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package agent;
+
+service MasterAgent {
+    // Agent requests cluster state
+    rpc FetchClusterState(Empty) returns (ClusterState);
+
+    // Agent sends AI-based task assignments
+    rpc SubmitAssignments(TaskAssignments) returns (Ack);
+}
+
+message Empty {}
+
+message ClusterState {
+    repeated WorkerInfo workers = 1;
+    repeated TaskInfo pending_tasks = 2;
+}
+
+message WorkerInfo {
+    string worker_id = 1;
+    double cpu_available = 2;
+    double memory_available = 3;
+    double gpu_available = 4;
+    string status = 5; // active/inactive
+}
+
+message TaskInfo {
+    string task_id = 1;
+    double req_cpu = 2;
+    double req_memory = 3;
+    double req_gpu = 4;
+}
+
+message TaskAssignments {
+    repeated Assignment assignments = 1;
+}
+
+message Assignment {
+    string task_id = 1;
+    string worker_id = 2;
+}
