@@ -12,6 +12,11 @@ service MasterAgent {
 
 message Empty {}
 
+message Ack {
+    bool success = 1;
+    string message = 2;
+}
+
 message ClusterState {
     repeated WorkerInfo workers = 1;
     repeated TaskInfo pending_tasks = 2;
