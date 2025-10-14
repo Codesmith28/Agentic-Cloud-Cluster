@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
-	pb "master/proto/pb"
+	pb "master/proto"
 )
 
 // MasterServer handles gRPC requests from workers
@@ -71,7 +72,7 @@ func (s *MasterServer) SendHeartbeat(ctx context.Context, hb *pb.Heartbeat) (*pb
 		return &pb.HeartbeatAck{Success: false}, fmt.Errorf("worker %s not registered", hb.WorkerId)
 	}
 
-	worker.LastHeartbeat = ctx.Value("timestamp").(int64)
+	worker.LastHeartbeat = time.Now().Unix()
 	worker.IsActive = true
 
 	log.Printf("Heartbeat from %s: CPU=%.2f%%, Memory=%.2f%%, Running Tasks=%d",

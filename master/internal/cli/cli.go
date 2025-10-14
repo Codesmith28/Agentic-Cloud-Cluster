@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"master/internal/server"
-	pb "master/proto/pb"
+	pb "master/proto"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
