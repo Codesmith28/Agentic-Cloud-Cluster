@@ -12,7 +12,7 @@ import (
 
 	"worker/internal/server"
 	"worker/internal/telemetry"
-	pb "worker/proto/pb"
+	pb "worker/proto"
 
 	"google.golang.org/grpc"
 )

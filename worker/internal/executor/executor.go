@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 )
 
@@ -109,8 +108,8 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage stri
 }
 
 // pullImage pulls a Docker image from registry
-func (e *TaskExecutor) pullImage(ctx context.Context, image string) error {
-	out, err := e.dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
+func (e *TaskExecutor) pullImage(ctx context.Context, imageName string) error {
+	out, err := e.dockerClient.ImagePull(ctx, imageName, image.PullOptions{})
 	if err != nil {
 		return err
 	}
@@ -170,30 +169,14 @@ func (e *TaskExecutor) collectLogs(ctx context.Context, containerID string) (str
 
 // cleanup removes the container
 func (e *TaskExecutor) cleanup(ctx context.Context, containerID string) {
-	timeout := 5 * time.Second
-	if err := e.dockerClient.ContainerStop(ctx, containerID, container.StopOptions{Timeout: &timeout}); err != nil {
+	timeoutSecs := 5
+	if err := e.dockerClient.ContainerStop(ctx, containerID, container.StopOptions{Timeout: &timeoutSecs}); err != nil {
 		log.Printf("Warning: failed to stop container %s: %v", containerID[:12], err)
 	}
 
 	if err := e.dockerClient.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true}); err != nil {
 		log.Printf("Warning: failed to remove container %s: %v", containerID[:12], err)
 	}
-}
-
-// GetStats retrieves container resource stats (for monitoring)
-func (e *TaskExecutor) GetStats(ctx context.Context, containerID string) (*types.StatsJSON, error) {
-	stats, err := e.dockerClient.ContainerStats(ctx, containerID, false)
-	if err != nil {
-		return nil, err
-	}
-	defer stats.Body.Close()
-
-	var statsJSON types.StatsJSON
-	if err := stats.Body.Read(&statsJSON); err != nil {
-		return nil, err
-	}
-
-	return &statsJSON, nil
 }
 
 // Close closes the Docker client

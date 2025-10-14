@@ -7,7 +7,7 @@ import (
 
 	"worker/internal/executor"
 	"worker/internal/telemetry"
-	pb "worker/proto/pb"
+	pb "worker/proto"
 )
 
 // WorkerServer handles incoming gRPC requests from master

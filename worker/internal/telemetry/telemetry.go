@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"time"
 
-	pb "worker/proto/pb"
+	pb "worker/proto"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
