@@ -36,23 +36,29 @@ setup: proto
 # Build master node
 master:
 	@echo "🏗️  Building master node..."
-	cd master && go build -o master-node .
-	@echo "✅ Master built: master/master-node"
+	cd master && go build -o masterNode .
+	@echo "✅ Master built: master/masterNode"
 
 # Build worker node
 worker:
 	@echo "🏗️  Building worker node..."
-	cd worker && go build -o worker-node .
-	@echo "✅ Worker built: worker/worker-node"
+	cd worker && go build -o workerNode .
+	@echo "✅ Worker built: worker/workerNode"
 
 # Build sample task Docker image
 sample-task:
-	@echo "🐳 Building sample task Docker image..."
+	@echo "🐳 Building sample task Docker images..."
 	@read -p "Enter your Docker Hub username: " username; \
-	cd sample_task && \
-	docker build -t $$username/cloudai-sample-task:latest . && \
-	echo "✅ Sample task built: $$username/cloudai-sample-task:latest" && \
-	echo "To push: docker push $$username/cloudai-sample-task:latest"
+	for task_dir in sample_tasks/*/; do \
+		task_name=$$(basename $$task_dir); \
+		echo "Building $$task_name..."; \
+		cd $$task_dir && \
+		docker build -t $$username/cloudai-$$task_name:latest . && \
+		echo "✅ $$task_name built: $$username/cloudai-$$task_name:latest"; \
+		cd ../..; \
+	done && \
+	echo "✅ All sample tasks built successfully!" && \
+	echo "To push: docker push $$username/cloudai-<task_name>:latest"
 
 # Clean generated files
 clean:
