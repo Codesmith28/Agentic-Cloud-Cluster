@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package cluster;
 
+option go_package = "github.com/Codesmith28/CloudAI/proto/pb";
+
 service MasterWorker {
     // Worker -> Master
     rpc RegisterWorker(WorkerInfo) returns (RegisterAck);

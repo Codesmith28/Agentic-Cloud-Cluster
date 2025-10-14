@@ -2,27 +2,29 @@ syntax = "proto3";
 
 package agent;
 
+option go_package = "github.com/Codesmith28/CloudAI/proto/pb";
+
 service MasterAgent {
     // Agent requests cluster state
     rpc FetchClusterState(Empty) returns (ClusterState);
 
     // Agent sends AI-based task assignments
-    rpc SubmitAssignments(TaskAssignments) returns (Ack);
+    rpc SubmitAssignments(TaskAssignments) returns (AgentAck);
 }
 
 message Empty {}
 
-message Ack {
+message AgentAck {
     bool success = 1;
     string message = 2;
 }
 
 message ClusterState {
-    repeated WorkerInfo workers = 1;
+    repeated AgentWorkerInfo workers = 1;
     repeated TaskInfo pending_tasks = 2;
 }
 
-message WorkerInfo {
+message AgentWorkerInfo {
     string worker_id = 1;
     double cpu_available = 2;
     double memory_available = 3;
