@@ -11,7 +11,7 @@ print("\n[Step 1/3] Initializing task environment...")
 time.sleep(1)
 
 print("[Step 2/3] Processing data...")
-data_points = random.randint(50, 150)
+data_points = 10000000000000
 print(f"  → Processing {data_points} data points...")
 
 total = 0
