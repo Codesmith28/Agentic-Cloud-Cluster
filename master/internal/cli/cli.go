@@ -57,6 +57,18 @@ func (c *CLI) Run() {
 			c.showStatus()
 		case "workers":
 			c.listWorkers()
+		case "register":
+			if len(parts) < 3 {
+				fmt.Println("Usage: register <worker_id> <worker_ip>")
+				continue
+			}
+			c.registerWorker(parts[1], parts[2])
+		case "unregister":
+			if len(parts) < 2 {
+				fmt.Println("Usage: unregister <worker_id>")
+				continue
+			}
+			c.unregisterWorker(parts[1])
 		case "task":
 			if len(parts) < 3 {
 				fmt.Println("Usage: task <worker_id> <docker_image>")
@@ -84,9 +96,12 @@ func (c *CLI) printHelp() {
 	fmt.Println("  help                           - Show this help message")
 	fmt.Println("  status                         - Show cluster status")
 	fmt.Println("  workers                        - List all registered workers")
+	fmt.Println("  register <id> <ip>             - Manually register a worker")
+	fmt.Println("  unregister <id>                - Unregister a worker")
 	fmt.Println("  task <worker_id> <docker_img>  - Assign task to a worker")
 	fmt.Println("  exit/quit                      - Shutdown master node")
-	fmt.Println("\nExample:")
+	fmt.Println("\nExamples:")
+	fmt.Println("  register worker-2 192.168.1.100")
 	fmt.Println("  task worker-1 docker.io/user/sample-task:latest")
 }
 
@@ -196,4 +211,31 @@ func (c *CLI) sendTaskToWorker(workerAddr string, task *pb.Task) error {
 	}
 
 	return nil
+}
+
+func (c *CLI) registerWorker(workerID, workerIP string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := c.masterServer.ManualRegisterWorker(ctx, workerID, workerIP)
+	if err != nil {
+		fmt.Printf("❌ Failed to register worker: %v\n", err)
+		return
+	}
+
+	fmt.Printf("✅ Worker %s registered with IP %s\n", workerID, workerIP)
+	fmt.Println("   Note: Worker will send full specs when it connects")
+}
+
+func (c *CLI) unregisterWorker(workerID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := c.masterServer.UnregisterWorker(ctx, workerID)
+	if err != nil {
+		fmt.Printf("❌ Failed to unregister worker: %v\n", err)
+		return
+	}
+
+	fmt.Printf("✅ Worker %s has been unregistered\n", workerID)
 }

@@ -23,15 +23,36 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// Initialize database
+	var workerDB *db.WorkerDB
 	if err := db.EnsureCollections(ctx); err != nil {
 		log.Printf("Warning: MongoDB initialization failed: %v", err)
-		log.Println("Continuing without database...")
+		log.Println("Continuing without database persistence...")
 	} else {
 		log.Println("✓ MongoDB collections ensured")
+
+		// Create worker database handler
+		var err error
+		workerDB, err = db.NewWorkerDB(ctx)
+		if err != nil {
+			log.Printf("Warning: Failed to create WorkerDB: %v", err)
+			log.Println("Continuing without database persistence...")
+			workerDB = nil
+		} else {
+			log.Println("✓ WorkerDB initialized")
+			defer workerDB.Close(context.Background())
+		}
 	}
 
 	// Create master server
-	masterServer := server.NewMasterServer()
+	masterServer := server.NewMasterServer(workerDB)
+
+	// Load workers from database
+	if workerDB != nil {
+		if err := masterServer.LoadWorkersFromDB(ctx); err != nil {
+			log.Printf("Warning: Failed to load workers from DB: %v", err)
+		}
+	}
 
 	// Start gRPC server in background
 	go startGRPCServer(masterServer)
