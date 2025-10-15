@@ -179,7 +179,7 @@ cd worker && ./workerNode
 
 ```bash
 # Register worker
-master> register worker-2 192.168.1.100
+master> register worker-2 192.168.1.100:50052
 
 # Check MongoDB
 mongosh -u cloudai -p secret123 cluster_db

@@ -41,20 +41,22 @@ Manual registration allows you to:
 #### Register a Worker
 
 ```bash
-master> register <worker_id> <worker_ip>
+master> register <worker_id> <worker_address>
 ```
+
+**Format:** `worker_address` must include port (e.g., `192.168.1.100:50052`)
 
 **Example:**
 
 ```bash
-master> register worker-2 192.168.1.100
-✅ Worker worker-2 registered with IP 192.168.1.100
+master> register worker-2 192.168.1.100:50052:50052
+✅ Worker worker-2 registered with address 192.168.1.100:50052
    Note: Worker will send full specs when it connects
 ```
 
 **What happens:**
 
-1. Worker is added to the in-memory registry
+1. Worker is added to the in-memory registry with address `ip:port`
 2. Worker is persisted to MongoDB (if connected)
 3. Worker status is marked as `inactive`
 4. Resource specs (CPU, Memory, GPU) are initialized to 0
@@ -97,7 +99,7 @@ Use the `workers` command to see all registered workers:
 ```bash
 master> workers
 
-╔═══ Registered Workers ═══
+╔═══ Registered Workers 
 ║ worker-1
 ║   Status: 🟢 Active
 ║   IP: localhost
@@ -154,7 +156,7 @@ master> register worker-unauthorized 192.168.1.50
 1. **Admin registers first**:
 
    ```bash
-   master> register worker-1 192.168.1.10
+   master> register worker-1 192.168.1.10:50052
    ```
 
 2. **Then worker can start**:
@@ -256,7 +258,7 @@ Worker Node          Master Server         MongoDB
 ### Worker Not Appearing After Registration
 
 ```bash
-master> register worker-2 192.168.1.100
+master> register worker-2 192.168.1.100:50052
 ✅ Worker worker-2 registered with IP 192.168.1.100
 
 master> workers
@@ -283,7 +285,7 @@ Worker log: rpc error: code = Unknown desc = worker worker-2 not authorized - mu
 
 **Solution:**
 
-- Register the worker first: `master> register worker-2 192.168.1.100`
+- Register the worker first: `master> register worker-2 192.168.1.100:50052`
 - Then start the worker
 
 ### Duplicate Registration Error
@@ -347,7 +349,7 @@ Retrieves all registered workers.
 ./masterNode
 
 # Register three workers
-master> register worker-1 192.168.1.10
+master> register worker-1 192.168.1.10:50052
 master> register worker-2 192.168.1.11
 master> register worker-3 192.168.1.12
 
@@ -381,7 +383,7 @@ master> workers
 
 ```bash
 # Day 1: Register workers
-master> register worker-1 192.168.1.10
+master> register worker-1 192.168.1.10:50052
 master> register worker-2 192.168.1.11
 master> exit
 

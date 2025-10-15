@@ -59,7 +59,8 @@ func (c *CLI) Run() {
 			c.listWorkers()
 		case "register":
 			if len(parts) < 3 {
-				fmt.Println("Usage: register <worker_id> <worker_ip>")
+				fmt.Println("Usage: register <worker_id> <worker_ip:port>")
+				fmt.Println("Example: register worker-1 192.168.1.100:50052")
 				continue
 			}
 			c.registerWorker(parts[1], parts[2])
@@ -96,12 +97,12 @@ func (c *CLI) printHelp() {
 	fmt.Println("  help                           - Show this help message")
 	fmt.Println("  status                         - Show cluster status")
 	fmt.Println("  workers                        - List all registered workers")
-	fmt.Println("  register <id> <ip>             - Manually register a worker")
+	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
 	fmt.Println("  task <worker_id> <docker_img>  - Assign task to a worker")
 	fmt.Println("  exit/quit                      - Shutdown master node")
 	fmt.Println("\nExamples:")
-	fmt.Println("  register worker-2 192.168.1.100")
+	fmt.Println("  register worker-2 192.168.1.100:50052")
 	fmt.Println("  task worker-1 docker.io/user/sample-task:latest")
 }
 
@@ -177,7 +178,7 @@ func (c *CLI) assignTask(workerID, dockerImage string) {
 
 	// Get worker's address and send task
 	worker := workers[workerID]
-	workerAddr := fmt.Sprintf("%s:50052", worker.Info.WorkerIp) // Worker listens on 50052
+	workerAddr := worker.Info.WorkerIp // Already includes port (e.g., "192.168.1.100:50052")
 
 	err := c.sendTaskToWorker(workerAddr, task)
 	if err != nil {
@@ -223,7 +224,7 @@ func (c *CLI) registerWorker(workerID, workerIP string) {
 		return
 	}
 
-	fmt.Printf("✅ Worker %s registered with IP %s\n", workerID, workerIP)
+	fmt.Printf("✅ Worker %s registered with address %s\n", workerID, workerIP)
 	fmt.Println("   Note: Worker will send full specs when it connects")
 }
 

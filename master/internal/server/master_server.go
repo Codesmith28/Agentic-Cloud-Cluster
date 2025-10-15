@@ -108,14 +108,14 @@ func (s *MasterServer) ManualRegisterWorker(ctx context.Context, workerID, worke
 	s.workers[workerID] = &WorkerState{
 		Info: &pb.WorkerInfo{
 			WorkerId: workerID,
-			WorkerIp: workerIP,
+			WorkerIp: workerIP, // Format: "ip:port"
 			// Resource info will be filled when worker connects
 		},
 		IsActive:     false, // Not active until worker connects
 		RunningTasks: make(map[string]bool),
 	}
 
-	log.Printf("Manually registered worker: %s (IP: %s)", workerID, workerIP)
+	log.Printf("Manually registered worker: %s (Address: %s)", workerID, workerIP)
 	return nil
 }
 
@@ -153,17 +153,17 @@ func (s *MasterServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) 
 	existingWorker, exists := s.workers[info.WorkerId]
 	if !exists {
 		// Worker NOT pre-registered - reject the connection
-		log.Printf("❌ Rejected unauthorized worker registration attempt: %s (IP: %s)",
+		log.Printf("❌ Rejected unauthorized worker registration attempt: %s (Address: %s)",
 			info.WorkerId, info.WorkerIp)
 		return &pb.RegisterAck{
 			Success: false,
-			Message: fmt.Sprintf("Worker %s is not authorized. Admin must register it first using: register %s <ip>",
+			Message: fmt.Sprintf("Worker %s is not authorized. Admin must register it first using: register %s <ip:port>",
 				info.WorkerId, info.WorkerId),
 		}, fmt.Errorf("worker %s not authorized - must be pre-registered by admin", info.WorkerId)
 	}
 
 	// Worker IS pre-registered - update with full specs
-	log.Printf("✓ Pre-registered worker connecting: %s (IP: %s, CPU: %.2f, Memory: %.2f GB)",
+	log.Printf("✓ Pre-registered worker connecting: %s (Address: %s, CPU: %.2f, Memory: %.2f GB)",
 		info.WorkerId, info.WorkerIp, info.TotalCpu, info.TotalMemory)
 
 	existingWorker.Info = info

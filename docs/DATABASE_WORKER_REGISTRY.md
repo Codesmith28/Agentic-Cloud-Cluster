@@ -15,7 +15,7 @@ The `WORKER_REGISTRY` collection in MongoDB stores all registered workers with t
 ```javascript
 {
   worker_id: "worker-1",              // String - Unique worker identifier
-  worker_ip: "192.168.1.10",          // String - Worker IP address
+  worker_ip: "192.168.1.10:50052",    // String - Worker address (ip:port format)
   total_cpu: 8.0,                     // Float64 - Total CPU cores
   total_memory: 16.0,                 // Float64 - Total memory in GB
   total_storage: 500.0,               // Float64 - Total storage in GB
@@ -29,18 +29,18 @@ The `WORKER_REGISTRY` collection in MongoDB stores all registered workers with t
 
 ## Field Descriptions
 
-| Field            | Type    | Description                      | Initial Value            |
-| ---------------- | ------- | -------------------------------- | ------------------------ |
-| `worker_id`      | String  | Unique identifier for the worker | Set by admin             |
-| `worker_ip`      | String  | IP address or hostname           | Set by admin             |
-| `total_cpu`      | Float64 | Total CPU cores available        | 0.0 (updated on connect) |
-| `total_memory`   | Float64 | Total RAM in gigabytes           | 0.0 (updated on connect) |
-| `total_storage`  | Float64 | Total storage in gigabytes       | 0.0 (updated on connect) |
-| `total_gpu`      | Float64 | Number of GPU devices            | 0.0 (updated on connect) |
-| `is_active`      | Boolean | Worker currently connected?      | false (true on connect)  |
-| `last_heartbeat` | Int64   | Unix timestamp of last heartbeat | 0 (updated on connect)   |
-| `registered_at`  | Date    | When admin registered the worker | Set on registration      |
-| `updated_at`     | Date    | Last modification timestamp      | Updated on any change    |
+| Field            | Type    | Description                        | Initial Value            |
+| ---------------- | ------- | ---------------------------------- | ------------------------ |
+| `worker_id`      | String  | Unique identifier for the worker   | Set by admin             |
+| `worker_ip`      | String  | Worker address in `ip:port` format | Set by admin             |
+| `total_cpu`      | Float64 | Total CPU cores available          | 0.0 (updated on connect) |
+| `total_memory`   | Float64 | Total RAM in gigabytes             | 0.0 (updated on connect) |
+| `total_storage`  | Float64 | Total storage in gigabytes         | 0.0 (updated on connect) |
+| `total_gpu`      | Float64 | Number of GPU devices              | 0.0 (updated on connect) |
+| `is_active`      | Boolean | Worker currently connected?        | false (true on connect)  |
+| `last_heartbeat` | Int64   | Unix timestamp of last heartbeat   | 0 (updated on connect)   |
+| `registered_at`  | Date    | When admin registered the worker   | Set on registration      |
+| `updated_at`     | Date    | Last modification timestamp        | Updated on any change    |
 
 ## Lifecycle States
 

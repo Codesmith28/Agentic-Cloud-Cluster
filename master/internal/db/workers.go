@@ -21,7 +21,7 @@ type WorkerDB struct {
 
 type WorkerDocument struct {
 	WorkerID      string    `bson:"worker_id"`
-	WorkerIP      string    `bson:"worker_ip"`
+	WorkerIP      string    `bson:"worker_ip"` // Format: "ip:port" (e.g., "192.168.1.100:50052")
 	TotalCPU      float64   `bson:"total_cpu"`
 	TotalMemory   float64   `bson:"total_memory"`
 	TotalStorage  float64   `bson:"total_storage"`
@@ -70,12 +70,13 @@ func (db *WorkerDB) Close(ctx context.Context) error {
 	return nil
 }
 
-// RegisterWorker registers a new worker (manual registration with just ID and IP)
+// RegisterWorker registers a new worker (manual registration with just ID and address)
+// workerIP should be in format "ip:port" (e.g., "192.168.1.100:50052")
 func (db *WorkerDB) RegisterWorker(ctx context.Context, workerID, workerIP string) error {
 	doc := WorkerDocument{
 		WorkerID:     workerID,
-		WorkerIP:     workerIP,
-		TotalCPU:     0.0, // Will be updated when worker connects
+		WorkerIP:     workerIP, // Format: "ip:port"
+		TotalCPU:     0.0,      // Will be updated when worker connects
 		TotalMemory:  0.0,
 		TotalStorage: 0.0,
 		TotalGPU:     0.0,

@@ -45,7 +45,7 @@
 1. **Admin MUST register worker first:**
 
    ```bash
-   master> register worker-2 192.168.1.100
+   master> register worker-2 192.168.1.100:50052
    ```
 
 2. **Master stores minimal info:**
@@ -88,7 +88,7 @@
 ### Register a Worker
 
 ```bash
-master> register worker-2 192.168.1.100
+master> register worker-2 192.168.1.100:50052
 ✅ Worker worker-2 registered with IP 192.168.1.100
    Note: Worker will send full specs when it connects
 ```
