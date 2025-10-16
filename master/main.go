@@ -59,7 +59,7 @@ func main() {
 
 	// Start CLI interface
 	log.Println("\n✓ Master node started successfully")
-	log.Printf("✓ gRPC server listening on %s\n", cfg.GRPCPort)
+	log.Printf("✓ Starting gRPC server on %s\n", cfg.GRPCPort)
 
 	cliInterface := cli.NewCLI(masterServer)
 	cliInterface.Run()
@@ -74,7 +74,6 @@ func startGRPCServer(masterServer *server.MasterServer, grpcPort string) {
 	grpcServer := grpc.NewServer()
 	pb.RegisterMasterWorkerServer(grpcServer, masterServer)
 
-	log.Printf("Starting gRPC server on %s...", grpcPort)
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
