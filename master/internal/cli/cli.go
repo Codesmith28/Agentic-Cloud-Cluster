@@ -237,7 +237,7 @@ func (c *CLI) assignTask(parts []string) {
 
 func (c *CLI) buildDockerCommand(dockerImage string, cpu, memory, storage, gpu float64) string {
 	// Build Docker run command with resource constraints
-	cmd := fmt.Sprintf("docker run --rm")
+	cmd := "docker run --rm"
 
 	// Add CPU limit
 	if cpu > 0 {

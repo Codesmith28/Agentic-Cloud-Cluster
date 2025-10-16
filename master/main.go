@@ -10,6 +10,7 @@ import (
 	"master/internal/config"
 	"master/internal/db"
 	"master/internal/server"
+	"master/internal/system"
 	pb "master/proto"
 
 	"google.golang.org/grpc"
@@ -18,6 +19,13 @@ import (
 func main() {
 	// Load configuration
 	cfg := config.LoadConfig()
+
+	// Collect system information
+	sysInfo, err := system.CollectSystemInfo()
+	if err != nil {
+		log.Fatalf("Failed to collect system information: %v", err)
+	}
+	sysInfo.LogSystemInfo()
 
 	// Initialize MongoDB
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -55,20 +63,21 @@ func main() {
 	}
 
 	// Start gRPC server in background
-	go startGRPCServer(masterServer, cfg.GRPCPort)
+	masterAddress := sysInfo.GetMasterAddress() + cfg.GRPCPort
+	go startGRPCServer(masterServer, masterAddress)
 
 	// Start CLI interface
 	log.Println("\n✓ Master node started successfully")
-	log.Printf("✓ Starting gRPC server on %s\n", cfg.GRPCPort)
+	log.Printf("✓ Starting gRPC server on %s\n", masterAddress)
 
 	cliInterface := cli.NewCLI(masterServer)
 	cliInterface.Run()
 }
 
-func startGRPCServer(masterServer *server.MasterServer, grpcPort string) {
-	lis, err := net.Listen("tcp", grpcPort)
+func startGRPCServer(masterServer *server.MasterServer, address string) {
+	lis, err := net.Listen("tcp", address)
 	if err != nil {
-		log.Fatalf("Failed to listen on %s: %v", grpcPort, err)
+		log.Fatalf("Failed to listen on %s: %v", address, err)
 	}
 
 	grpcServer := grpc.NewServer()
