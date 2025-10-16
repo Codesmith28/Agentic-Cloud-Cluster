@@ -59,6 +59,7 @@ message Task {
     double req_memory = 5;
     double req_storage = 6;
     double req_gpu = 7;
+    string target_worker_id = 8; // Optional: if specified, assign to this worker only
 }
 
 message TaskAck {

@@ -6,14 +6,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"master/internal/server"
 	pb "master/proto"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // CLI handles the command-line interface for the master
@@ -71,11 +69,20 @@ func (c *CLI) Run() {
 			}
 			c.unregisterWorker(parts[1])
 		case "task":
-			if len(parts) < 3 {
-				fmt.Println("Usage: task <worker_id> <docker_image>")
+			if len(parts) < 2 {
+				fmt.Println("Usage: task <worker_id/auto> <docker_image> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]")
+				fmt.Println("  worker_id: specific worker ID or 'auto' for automatic selection")
+				fmt.Println("  docker_image: Docker image to run")
+				fmt.Println("  -cpu_cores: CPU cores to allocate (default: 1.0)")
+				fmt.Println("  -mem: Memory in GB (default: 0.5)")
+				fmt.Println("  -storage: Storage in GB (default: 1.0)")
+				fmt.Println("  -gpu_cores: GPU cores to allocate (default: 0.0)")
+				fmt.Println("Examples:")
+				fmt.Println("  task worker-1 docker.io/user/sample-task:latest")
+				fmt.Println("  task auto docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
 				continue
 			}
-			c.assignTask(parts[1], parts[2])
+			c.assignTask(parts)
 		case "exit", "quit":
 			fmt.Println("Shutting down master...")
 			return
@@ -99,11 +106,12 @@ func (c *CLI) printHelp() {
 	fmt.Println("  workers                        - List all registered workers")
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
-	fmt.Println("  task <worker_id> <docker_img>  - Assign task to a worker")
+	fmt.Println("  task <worker_id/auto> <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Assign task to worker")
 	fmt.Println("  exit/quit                      - Shutdown master node")
 	fmt.Println("\nExamples:")
 	fmt.Println("  register worker-2 192.168.1.100:50052")
 	fmt.Println("  task worker-1 docker.io/user/sample-task:latest")
+	fmt.Println("  task auto docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
 }
 
 func (c *CLI) showStatus() {
@@ -152,35 +160,87 @@ func (c *CLI) listWorkers() {
 	fmt.Println("╚═══════════════════════")
 }
 
-func (c *CLI) assignTask(workerID, dockerImage string) {
-	workers := c.masterServer.GetWorkers()
-
-	if _, exists := workers[workerID]; !exists {
-		fmt.Printf("❌ Error: Worker '%s' not found. Use 'workers' command to see registered workers.\n", workerID)
+func (c *CLI) assignTask(parts []string) {
+	if len(parts) < 3 {
+		fmt.Println("❌ Error: Insufficient arguments. Use 'task' for help.")
 		return
+	}
+
+	workerID := parts[1]
+	dockerImage := parts[2]
+
+	// Default resource requirements
+	reqCPU := 1.0
+	reqMemory := 0.5
+	reqStorage := 1.0
+	reqGPU := 0.0
+
+	// Parse flags
+	for i := 3; i < len(parts); i++ {
+		switch parts[i] {
+		case "-cpu_cores":
+			if i+1 < len(parts) {
+				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+					reqCPU = val
+					i++ // Skip the value
+				}
+			}
+		case "-mem":
+			if i+1 < len(parts) {
+				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+					reqMemory = val
+					i++ // Skip the value
+				}
+			}
+		case "-storage":
+			if i+1 < len(parts) {
+				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+					reqStorage = val
+					i++ // Skip the value
+				}
+			}
+		case "-gpu_cores":
+			if i+1 < len(parts) {
+				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+					reqGPU = val
+					i++ // Skip the value
+				}
+			}
+		}
 	}
 
 	fmt.Printf("Assigning task to worker %s...\n", workerID)
 	fmt.Printf("Docker Image: %s\n", dockerImage)
+	fmt.Printf("Resources: CPU=%.1f cores, Memory=%.1fGB, Storage=%.1fGB, GPU=%.1f cores\n",
+		reqCPU, reqMemory, reqStorage, reqGPU)
 
 	// Generate task ID
 	taskID := fmt.Sprintf("task-%d", time.Now().Unix())
 
+	// Construct Docker run command with resource limits
+	command := c.buildDockerCommand(dockerImage, reqCPU, reqMemory, reqStorage, reqGPU)
+
 	task := &pb.Task{
 		TaskId:      taskID,
 		DockerImage: dockerImage,
-		Command:     "", // Empty for now
-		ReqCpu:      1.0,
-		ReqMemory:   0.5,
-		ReqStorage:  1.0,
-		ReqGpu:      0.0,
+		Command:     command,
+		ReqCpu:      reqCPU,
+		ReqMemory:   reqMemory,
+		ReqStorage:  reqStorage,
+		ReqGpu:      reqGPU,
 	}
 
-	// Get worker's address and send task
-	worker := workers[workerID]
-	workerAddr := worker.Info.WorkerIp // Already includes port (e.g., "192.168.1.100:50052")
+	var err error
+	if workerID == "auto" {
+		// Automatic worker selection - leave TargetWorkerId empty
+		task.TargetWorkerId = ""
+		err = c.assignTaskViaMaster(task)
+	} else {
+		// Manual assignment to specific worker
+		task.TargetWorkerId = workerID
+		err = c.assignTaskViaMaster(task)
+	}
 
-	err := c.sendTaskToWorker(workerAddr, task)
 	if err != nil {
 		fmt.Printf("❌ Failed to assign task: %v\n", err)
 		return
@@ -189,26 +249,42 @@ func (c *CLI) assignTask(workerID, dockerImage string) {
 	fmt.Printf("✅ Task %s assigned successfully!\n", taskID)
 }
 
-func (c *CLI) sendTaskToWorker(workerAddr string, task *pb.Task) error {
+func (c *CLI) buildDockerCommand(dockerImage string, cpu, memory, storage, gpu float64) string {
+	// Build Docker run command with resource constraints
+	cmd := fmt.Sprintf("docker run --rm")
+
+	// Add CPU limit
+	if cpu > 0 {
+		cmd += fmt.Sprintf(" --cpus=%.1f", cpu)
+	}
+
+	// Add memory limit
+	if memory > 0 {
+		cmd += fmt.Sprintf(" --memory=%.1fg", memory)
+	}
+
+	// Add GPU support if requested
+	if gpu > 0 {
+		cmd += fmt.Sprintf(" --gpus=%.1f", gpu)
+	}
+
+	// Add the image
+	cmd += fmt.Sprintf(" %s", dockerImage)
+
+	return cmd
+}
+
+func (c *CLI) assignTaskViaMaster(task *pb.Task) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, err := grpc.DialContext(ctx, workerAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock())
-	if err != nil {
-		return fmt.Errorf("failed to connect to worker: %w", err)
-	}
-	defer conn.Close()
-
-	client := pb.NewMasterWorkerClient(conn)
-	ack, err := client.AssignTask(ctx, task)
+	ack, err := c.masterServer.AssignTask(ctx, task)
 	if err != nil {
 		return fmt.Errorf("failed to assign task: %w", err)
 	}
 
 	if !ack.Success {
-		return fmt.Errorf("task assignment rejected: %s", ack.Message)
+		return fmt.Errorf("task assignment failed: %s", ack.Message)
 	}
 
 	return nil

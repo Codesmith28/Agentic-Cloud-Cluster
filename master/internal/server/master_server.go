@@ -9,6 +9,9 @@ import (
 
 	"master/internal/db"
 	pb "master/proto"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // MasterServer handles gRPC requests from workers
@@ -247,9 +250,59 @@ func (s *MasterServer) GetWorkers() map[string]*WorkerState {
 	return workers
 }
 
-// NotImplemented RPCs (for future implementation)
+// AssignTask assigns a task to a worker (called by CLI or external clients)
 func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
-	return &pb.TaskAck{Success: false, Message: "Not implemented"}, nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var selectedWorker *WorkerState
+
+	// Check if a specific worker is requested
+	if task.TargetWorkerId != "" {
+		// Manual assignment to specific worker
+		worker, exists := s.workers[task.TargetWorkerId]
+		if !exists {
+			return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s not found", task.TargetWorkerId)}, nil
+		}
+		if !worker.IsActive {
+			return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s is not active", task.TargetWorkerId)}, nil
+		}
+		selectedWorker = worker
+		log.Printf("Manual assignment: task %s to worker %s", task.TaskId, task.TargetWorkerId)
+	} else {
+		// Automatic worker selection (basic algorithm - can be enhanced)
+		for _, worker := range s.workers {
+			if worker.IsActive && len(worker.RunningTasks) < 10 { // Arbitrary limit
+				selectedWorker = worker
+				break
+			}
+		}
+		if selectedWorker == nil {
+			return &pb.TaskAck{Success: false, Message: "No available workers"}, nil
+		}
+		log.Printf("Auto assignment: task %s to worker %s", task.TaskId, selectedWorker.Info.WorkerId)
+	}
+
+	// Connect to worker and assign task
+	conn, err := grpc.Dial(selectedWorker.Info.WorkerIp, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to connect to worker: %v", err)}, nil
+	}
+	defer conn.Close()
+
+	client := pb.NewMasterWorkerClient(conn)
+	ack, err := client.AssignTask(ctx, task)
+	if err != nil {
+		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to assign task: %v", err)}, nil
+	}
+
+	if ack.Success {
+		// Mark task as running on worker
+		selectedWorker.RunningTasks[task.TaskId] = true
+		log.Printf("Successfully assigned task %s to worker %s", task.TaskId, selectedWorker.Info.WorkerId)
+	}
+
+	return ack, nil
 }
 
 func (s *MasterServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.TaskAck, error) {
