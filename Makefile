@@ -1,10 +1,11 @@
-.PHONY: help proto master worker sample-task clean setup test
+.PHONY: help all proto master worker sample-task clean setup test
 
 # Default target
 help:
 	@echo "CloudAI Build System"
 	@echo ""
 	@echo "Available targets:"
+	@echo "  make all          - Build everything (setup + master + worker)"
 	@echo "  make proto        - Generate gRPC code from proto files"
 	@echo "  make master       - Build master node"
 	@echo "  make worker       - Build worker node"
@@ -15,8 +16,12 @@ help:
 	@echo ""
 	@echo "Quick start:"
 	@echo "  make setup        # One-time setup"
+	@echo "  make all          # Build everything"
 	@echo "  make master       # Build master"
 	@echo "  make worker       # Build worker"
+
+# Build everything
+all: setup master worker
 
 # Generate gRPC code
 proto:

@@ -4,39 +4,118 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"runtime"
+	"time"
 
 	"worker/internal/executor"
 	"worker/internal/telemetry"
 	pb "worker/proto"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // WorkerServer handles incoming gRPC requests from master
 type WorkerServer struct {
 	pb.UnimplementedMasterWorkerServer
 
-	workerID   string
-	executor   *executor.TaskExecutor
-	monitor    *telemetry.Monitor
-	masterAddr string
+	workerID         string
+	executor         *executor.TaskExecutor
+	monitor          *telemetry.Monitor
+	masterAddr       string
+	masterRegistered bool
 }
 
 // NewWorkerServer creates a new worker server instance
-func NewWorkerServer(workerID, masterAddr string, monitor *telemetry.Monitor) (*WorkerServer, error) {
+func NewWorkerServer(workerID string, monitor *telemetry.Monitor) (*WorkerServer, error) {
 	exec, err := executor.NewTaskExecutor()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create executor: %w", err)
 	}
 
 	return &WorkerServer{
-		workerID:   workerID,
-		executor:   exec,
-		monitor:    monitor,
-		masterAddr: masterAddr,
+		workerID:         workerID,
+		executor:         exec,
+		monitor:          monitor,
+		masterAddr:       "", // Will be set when master registers
+		masterRegistered: false,
 	}, nil
+}
+
+// MasterRegister handles master registration from master node
+func (s *WorkerServer) MasterRegister(ctx context.Context, masterInfo *pb.MasterInfo) (*pb.RegisterAck, error) {
+	log.Printf("Master registration request from: %s (%s)", masterInfo.MasterId, masterInfo.MasterAddress)
+
+	s.masterAddr = masterInfo.MasterAddress
+	s.masterRegistered = true
+
+	// Update monitor with master address
+	s.monitor.SetMasterAddress(s.masterAddr)
+
+	// Now that we know the master, start the registration process
+	go s.registerWithMaster()
+
+	return &pb.RegisterAck{
+		Success: true,
+		Message: fmt.Sprintf("Worker %s registered with master %s", s.workerID, masterInfo.MasterId),
+	}, nil
+}
+
+// registerWithMaster registers this worker with the master (called after master registers with us)
+func (s *WorkerServer) registerWithMaster() {
+	if s.masterAddr == "" {
+		log.Printf("Cannot register with master: no master address set")
+		return
+	}
+
+	log.Printf("Registering worker %s with master at %s", s.workerID, s.masterAddr)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, s.masterAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock())
+	if err != nil {
+		log.Printf("Failed to connect to master for registration: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	client := pb.NewMasterWorkerClient(conn)
+
+	// Get system resources
+	workerInfo := &pb.WorkerInfo{
+		WorkerId:     s.workerID,
+		WorkerIp:     "", // Will be filled by master based on connection
+		TotalCpu:     float64(runtime.NumCPU()),
+		TotalMemory:  8.0,   // Simplified - in real implementation, get actual memory
+		TotalStorage: 100.0, // Simplified
+		TotalGpu:     0.0,   // Simplified
+	}
+
+	ack, err := client.RegisterWorker(ctx, workerInfo)
+	if err != nil {
+		log.Printf("Failed to register with master: %v", err)
+		return
+	}
+
+	if ack.Success {
+		log.Printf("✓ Successfully registered with master: %s", ack.Message)
+	} else {
+		log.Printf("❌ Master rejected registration: %s", ack.Message)
+	}
 }
 
 // AssignTask handles task assignment from master
 func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
+	if !s.masterRegistered {
+		return &pb.TaskAck{
+			Success: false,
+			Message: "Master not registered yet",
+		}, nil
+	}
+
 	log.Printf("Received task assignment: %s (Image: %s)", task.TaskId, task.DockerImage)
 
 	// Add task to monitoring

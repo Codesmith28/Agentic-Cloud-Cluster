@@ -22,14 +22,20 @@ type Monitor struct {
 }
 
 // NewMonitor creates a new telemetry monitor
-func NewMonitor(workerID, masterAddr string, interval time.Duration) *Monitor {
+func NewMonitor(workerID string, interval time.Duration) *Monitor {
 	return &Monitor{
 		workerID:     workerID,
-		masterAddr:   masterAddr,
+		masterAddr:   "", // Will be set when master registers
 		interval:     interval,
 		runningTasks: make(map[string]*pb.RunningTask),
 		stopChan:     make(chan struct{}),
 	}
+}
+
+// SetMasterAddress updates the master address (used when master registers)
+func (m *Monitor) SetMasterAddress(masterAddr string) {
+	m.masterAddr = masterAddr
+	log.Printf("Updated master address to: %s", masterAddr)
 }
 
 // Start begins sending periodic heartbeats to the master
