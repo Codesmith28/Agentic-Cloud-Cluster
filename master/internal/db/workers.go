@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"master/internal/config"
 	pb "master/proto"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -33,7 +34,7 @@ type WorkerDocument struct {
 }
 
 // NewWorkerDB creates a new WorkerDB instance
-func NewWorkerDB(ctx context.Context) (*WorkerDB, error) {
+func NewWorkerDB(ctx context.Context, cfg *config.Config) (*WorkerDB, error) {
 	loadDotEnv()
 
 	user := os.Getenv("MONGODB_USERNAME")
@@ -42,8 +43,7 @@ func NewWorkerDB(ctx context.Context) (*WorkerDB, error) {
 		return nil, errors.New("missing MongoDB credentials in environment")
 	}
 
-	uri := fmt.Sprintf("mongodb://%s:%s@localhost:27017", user, pass)
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri).SetServerSelectionTimeout(5*time.Second))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoDBURI).SetServerSelectionTimeout(5*time.Second))
 	if err != nil {
 		return nil, fmt.Errorf("connect mongo: %w", err)
 	}
@@ -53,7 +53,7 @@ func NewWorkerDB(ctx context.Context) (*WorkerDB, error) {
 		return nil, fmt.Errorf("ping mongo: %w", err)
 	}
 
-	database := client.Database("cluster_db")
+	database := client.Database(cfg.MongoDBDatabase)
 	collection := database.Collection("WORKER_REGISTRY")
 
 	return &WorkerDB{

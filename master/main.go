@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"master/internal/cli"
+	"master/internal/config"
 	"master/internal/db"
 	"master/internal/server"
 	pb "master/proto"
@@ -14,18 +15,17 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	grpcPort = ":50051"
-)
-
 func main() {
+	// Load configuration
+	cfg := config.LoadConfig()
+
 	// Initialize MongoDB
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// Initialize database
 	var workerDB *db.WorkerDB
-	if err := db.EnsureCollections(ctx); err != nil {
+	if err := db.EnsureCollections(ctx, cfg); err != nil {
 		log.Printf("Warning: MongoDB initialization failed: %v", err)
 		log.Println("Continuing without database persistence...")
 	} else {
@@ -33,7 +33,7 @@ func main() {
 
 		// Create worker database handler
 		var err error
-		workerDB, err = db.NewWorkerDB(ctx)
+		workerDB, err = db.NewWorkerDB(ctx, cfg)
 		if err != nil {
 			log.Printf("Warning: Failed to create WorkerDB: %v", err)
 			log.Println("Continuing without database persistence...")
@@ -55,17 +55,17 @@ func main() {
 	}
 
 	// Start gRPC server in background
-	go startGRPCServer(masterServer)
+	go startGRPCServer(masterServer, cfg.GRPCPort)
 
 	// Start CLI interface
 	log.Println("\n✓ Master node started successfully")
-	log.Printf("✓ gRPC server listening on %s\n", grpcPort)
+	log.Printf("✓ gRPC server listening on %s\n", cfg.GRPCPort)
 
 	cliInterface := cli.NewCLI(masterServer)
 	cliInterface.Run()
 }
 
-func startGRPCServer(masterServer *server.MasterServer) {
+func startGRPCServer(masterServer *server.MasterServer, grpcPort string) {
 	lis, err := net.Listen("tcp", grpcPort)
 	if err != nil {
 		log.Fatalf("Failed to listen on %s: %v", grpcPort, err)

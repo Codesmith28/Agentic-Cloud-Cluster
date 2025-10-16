@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"time"
+
+	"master/internal/config"
 
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson"
@@ -24,17 +25,14 @@ var collections = []string{
 // EnsureCollections connects to the MongoDB instance and makes sure the
 // collections required by the masternode exist. Idempotent-safe so repeat calls
 // are inexpensive and harmless.
-func EnsureCollections(ctx context.Context) error {
+func EnsureCollections(ctx context.Context, cfg *config.Config) error {
 	loadDotEnv()
 
-	user := os.Getenv("MONGODB_USERNAME")
-	pass := os.Getenv("MONGODB_PASSWORD")
-	if user == "" || pass == "" {
+	if cfg.MongoDBUsername == "" || cfg.MongoDBPassword == "" {
 		return errors.New("missing MongoDB credentials in environment")
 	}
 
-	uri := fmt.Sprintf("mongodb://%s:%s@localhost:27017", user, pass)
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri).SetServerSelectionTimeout(5*time.Second))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoDBURI).SetServerSelectionTimeout(5*time.Second))
 	if err != nil {
 		return fmt.Errorf("connect mongo: %w", err)
 	}
@@ -44,7 +42,7 @@ func EnsureCollections(ctx context.Context) error {
 		return fmt.Errorf("ping mongo: %w", err)
 	}
 
-	database := client.Database("cluster_db")
+	database := client.Database(cfg.MongoDBDatabase)
 
 	existing, err := database.ListCollectionNames(ctx, bson.D{})
 	if err != nil {

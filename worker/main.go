@@ -36,11 +36,6 @@ func main() {
 	// Create telemetry monitor
 	monitor := telemetry.NewMonitor(*workerID, *masterAddr, 5*time.Second)
 
-	// Register with master
-	if err := registerWithMaster(ctx); err != nil {
-		log.Fatalf("Failed to register with master: %v", err)
-	}
-
 	// Start telemetry monitoring
 	go monitor.Start(ctx)
 
@@ -79,21 +74,4 @@ func main() {
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
-}
-
-func registerWithMaster(ctx context.Context) error {
-	// Get system resources (simplified)
-	workerInfo := &pb.WorkerInfo{
-		WorkerId:     *workerID,
-		WorkerIp:     *workerIP,
-		TotalCpu:     4.0,   // Simplified
-		TotalMemory:  8.0,   // 8 GB
-		TotalStorage: 100.0, // 100 GB
-		TotalGpu:     0.0,
-	}
-
-	regCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	return telemetry.RegisterWorker(regCtx, *masterAddr, workerInfo)
 }
