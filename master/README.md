@@ -101,16 +101,30 @@ Output:
 
 ### task
 
-Assign a task to a specific worker.
+Assign a task to a specific worker. The target worker must be explicitly specified.
 
 ```bash
-master> task <worker_id> <docker_image>
+master> task <worker_id> <docker_image> [options]
 ```
 
-Example:
+**Parameters:**
+
+- `worker_id`: ID of the worker to assign the task to (required)
+- `docker_image`: Docker image to run
+- `options`: Resource allocation flags
+  - `-cpu_cores <num>`: CPU cores to allocate (default: 1.0)
+  - `-mem <gb>`: Memory in GB (default: 0.5)
+  - `-storage <gb>`: Storage in GB (default: 1.0)
+  - `-gpu_cores <num>`: GPU cores to allocate (default: 0.0)
+
+**Examples:**
 
 ```bash
+# Basic task assignment
 master> task worker-1 docker.io/username/sample-task:latest
+
+# Task with custom resource allocation
+master> task worker-2 docker.io/username/gpu-task:latest -cpu_cores 4.0 -mem 8.0 -gpu_cores 1.0
 ```
 
 ### exit / quit

@@ -69,9 +69,9 @@ func (c *CLI) Run() {
 			}
 			c.unregisterWorker(parts[1])
 		case "task":
-			if len(parts) < 2 {
-				fmt.Println("Usage: task <worker_id/auto> <docker_image> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]")
-				fmt.Println("  worker_id: specific worker ID or 'auto' for automatic selection")
+			if len(parts) < 3 {
+				fmt.Println("Usage: task <worker_id> <docker_image> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]")
+				fmt.Println("  worker_id: specific worker ID to assign the task to")
 				fmt.Println("  docker_image: Docker image to run")
 				fmt.Println("  -cpu_cores: CPU cores to allocate (default: 1.0)")
 				fmt.Println("  -mem: Memory in GB (default: 0.5)")
@@ -79,7 +79,7 @@ func (c *CLI) Run() {
 				fmt.Println("  -gpu_cores: GPU cores to allocate (default: 0.0)")
 				fmt.Println("Examples:")
 				fmt.Println("  task worker-1 docker.io/user/sample-task:latest")
-				fmt.Println("  task auto docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
+				fmt.Println("  task worker-2 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
 				continue
 			}
 			c.assignTask(parts)
@@ -106,12 +106,12 @@ func (c *CLI) printHelp() {
 	fmt.Println("  workers                        - List all registered workers")
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
-	fmt.Println("  task <worker_id/auto> <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Assign task to worker")
+	fmt.Println("  task <worker_id> <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Assign task to specific worker")
 	fmt.Println("  exit/quit                      - Shutdown master node")
 	fmt.Println("\nExamples:")
 	fmt.Println("  register worker-2 192.168.1.100:50052")
 	fmt.Println("  task worker-1 docker.io/user/sample-task:latest")
-	fmt.Println("  task auto docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
+	fmt.Println("  task worker-2 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
 }
 
 func (c *CLI) showStatus() {
@@ -161,11 +161,6 @@ func (c *CLI) listWorkers() {
 }
 
 func (c *CLI) assignTask(parts []string) {
-	if len(parts) < 3 {
-		fmt.Println("❌ Error: Insufficient arguments. Use 'task' for help.")
-		return
-	}
-
 	workerID := parts[1]
 	dockerImage := parts[2]
 
@@ -221,26 +216,17 @@ func (c *CLI) assignTask(parts []string) {
 	command := c.buildDockerCommand(dockerImage, reqCPU, reqMemory, reqStorage, reqGPU)
 
 	task := &pb.Task{
-		TaskId:      taskID,
-		DockerImage: dockerImage,
-		Command:     command,
-		ReqCpu:      reqCPU,
-		ReqMemory:   reqMemory,
-		ReqStorage:  reqStorage,
-		ReqGpu:      reqGPU,
+		TaskId:         taskID,
+		DockerImage:    dockerImage,
+		Command:        command,
+		ReqCpu:         reqCPU,
+		ReqMemory:      reqMemory,
+		ReqStorage:     reqStorage,
+		ReqGpu:         reqGPU,
+		TargetWorkerId: workerID, // Always required
 	}
 
-	var err error
-	if workerID == "auto" {
-		// Automatic worker selection - leave TargetWorkerId empty
-		task.TargetWorkerId = ""
-		err = c.assignTaskViaMaster(task)
-	} else {
-		// Manual assignment to specific worker
-		task.TargetWorkerId = workerID
-		err = c.assignTaskViaMaster(task)
-	}
-
+	err := c.assignTaskViaMaster(task)
 	if err != nil {
 		fmt.Printf("❌ Failed to assign task: %v\n", err)
 		return
