@@ -11,6 +11,7 @@ service MasterWorker {
     rpc ReportTaskCompletion(TaskResult) returns (Ack);
 
     // Master -> Worker
+    rpc MasterRegister(MasterInfo) returns (RegisterAck);
     rpc AssignTask(Task) returns (TaskAck);
     rpc CancelTask(TaskID) returns (TaskAck);
 }
@@ -23,6 +24,11 @@ message WorkerInfo {
     double total_memory = 4;
     double total_storage = 5;
     double total_gpu = 6;
+}
+
+message MasterInfo {
+    string master_id = 1;
+    string master_address = 2; // e.g., "192.168.1.100:50051"
 }
 
 message RegisterAck {
