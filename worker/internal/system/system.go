@@ -19,6 +19,7 @@ type SystemInfo struct {
 	PID         int
 	UID         int
 	GID         int
+	WorkerPort  int
 }
 
 // CollectSystemInfo collects system information using syscalls and Go runtime
@@ -82,5 +83,29 @@ func (s *SystemInfo) LogSystemInfo() {
 	log.Printf("User ID: %d", s.UID)
 	log.Printf("Group ID: %d", s.GID)
 	log.Printf("Worker Address: %s", s.GetWorkerAddress())
+	log.Printf("Worker Port: %s", s.GetWorkerPort())
 	log.Printf("===============================")
+}
+
+// SetWorkerPort sets the worker's communication port
+func (s *SystemInfo) SetWorkerPort(port int) {
+	s.WorkerPort = port
+}
+
+// GetWorkerPort returns the worker's communication port as a string
+func (s *SystemInfo) GetWorkerPort() string {
+	return fmt.Sprintf(":%d", s.WorkerPort)
+}
+
+// FindAvailablePort finds an available port starting from the given port number
+func FindAvailablePort(startPort int) (int, error) {
+	for port := startPort; port < startPort+100; port++ { // Try up to 100 ports
+		address := fmt.Sprintf(":%d", port)
+		listener, err := net.Listen("tcp", address)
+		if err == nil {
+			listener.Close()
+			return port, nil
+		}
+	}
+	return 0, fmt.Errorf("no available ports found starting from %d", startPort)
 }

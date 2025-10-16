@@ -25,6 +25,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to collect system information: %v", err)
 	}
+	sysInfo.SetMasterPort(cfg.GRPCPort)
 	sysInfo.LogSystemInfo()
 
 	// Initialize MongoDB

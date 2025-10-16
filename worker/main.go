@@ -34,6 +34,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to collect system information: %v", err)
 	}
+
+	// Find available port starting from default
+	defaultPort := 50052
+	availablePort, err := system.FindAvailablePort(defaultPort)
+	if err != nil {
+		log.Fatalf("Failed to find available port: %v", err)
+	}
+	sysInfo.SetWorkerPort(availablePort)
+
 	sysInfo.LogSystemInfo()
 
 	// Use detected IP if not specified via flag
@@ -44,6 +53,7 @@ func main() {
 
 	log.Printf("Starting Worker Node: %s", *workerID)
 	log.Printf("Worker IP: %s", workerIP)
+	log.Printf("Worker Port: %s", sysInfo.GetWorkerPort())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -62,7 +72,7 @@ func main() {
 	defer workerServer.Close()
 
 	// Start gRPC server
-	workerAddress := workerIP + *grpcPort
+	workerAddress := workerIP + sysInfo.GetWorkerPort()
 	lis, err := net.Listen("tcp", workerAddress)
 	if err != nil {
 		log.Fatalf("Failed to listen on %s: %v", workerAddress, err)

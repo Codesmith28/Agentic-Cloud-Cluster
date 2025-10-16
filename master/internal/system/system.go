@@ -19,6 +19,7 @@ type SystemInfo struct {
 	PID         int
 	UID         int
 	GID         int
+	MasterPort  string
 }
 
 // CollectSystemInfo collects system information using syscalls and Go runtime
@@ -82,5 +83,16 @@ func (s *SystemInfo) LogSystemInfo() {
 	log.Printf("User ID: %d", s.UID)
 	log.Printf("Group ID: %d", s.GID)
 	log.Printf("Master Address: %s", s.GetMasterAddress())
+	log.Printf("Master Port: %s", s.GetMasterPort())
 	log.Printf("==========================")
+}
+
+// SetMasterPort sets the master's communication port
+func (s *SystemInfo) SetMasterPort(port string) {
+	s.MasterPort = port
+}
+
+// GetMasterPort returns the master's communication port
+func (s *SystemInfo) GetMasterPort() string {
+	return s.MasterPort
 }
