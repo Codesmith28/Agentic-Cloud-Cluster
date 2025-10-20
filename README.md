@@ -68,6 +68,18 @@ CloudAI/
 - **Protocol Buffers** compiler (`protoc`)
 - **MongoDB** (via docker-compose)
 
+### Clone with Submodules
+
+For newcomers cloning this repository:
+
+```bash
+# Clone the repository with all submodules
+git clone --recurse-submodules git@github.com:Codesmith28/CloudAI.git
+
+# OR if already cloned without submodules:
+git submodule update --init --recursive
+```
+
 ### Installation
 
 ```bash
