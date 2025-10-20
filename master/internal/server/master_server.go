@@ -122,6 +122,41 @@ func (s *MasterServer) ManualRegisterWorker(ctx context.Context, workerID, worke
 	return nil
 }
 
+// ManualRegisterAndNotify registers a worker and immediately tries to notify it of the master's address
+func (s *MasterServer) ManualRegisterAndNotify(ctx context.Context, workerID, workerIP, masterID, masterAddress string) error {
+	if err := s.ManualRegisterWorker(ctx, workerID, workerIP); err != nil {
+		return err
+	}
+
+	// Attempt to contact worker and send MasterRegister
+	go func() {
+		cctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		conn, err := grpc.DialContext(cctx, workerIP, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+		if err != nil {
+			log.Printf("Failed to connect to worker %s (%s) for MasterRegister: %v", workerID, workerIP, err)
+			return
+		}
+		defer conn.Close()
+
+		client := pb.NewMasterWorkerClient(conn)
+		mi := &pb.MasterInfo{MasterId: masterID, MasterAddress: masterAddress}
+		ack, err := client.MasterRegister(cctx, mi)
+		if err != nil {
+			log.Printf("MasterRegister RPC to worker %s (%s) failed: %v", workerID, workerIP, err)
+			return
+		}
+		if ack != nil && ack.Success {
+			log.Printf("MasterRegister acknowledged by worker %s: %s", workerID, ack.Message)
+		} else if ack != nil {
+			log.Printf("MasterRegister rejected by worker %s: %s", workerID, ack.Message)
+		}
+	}()
+
+	return nil
+}
+
 // UnregisterWorker removes a worker from the system
 func (s *MasterServer) UnregisterWorker(ctx context.Context, workerID string) error {
 	s.mu.Lock()
@@ -289,6 +324,45 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	}
 
 	return ack, nil
+}
+
+// BroadcastMasterRegistration calls MasterRegister on all pre-registered workers
+// so the master can announce its address and allow workers to connect back.
+func (s *MasterServer) BroadcastMasterRegistration(masterID, masterAddress string) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for id, ws := range s.workers {
+		if ws == nil || ws.Info == nil || ws.Info.WorkerIp == "" {
+			continue
+		}
+
+		workerAddr := ws.Info.WorkerIp
+		go func(workerID, workerAddr string) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			conn, err := grpc.DialContext(ctx, workerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+			if err != nil {
+				log.Printf("Failed to connect to worker %s (%s) for MasterRegister: %v", workerID, workerAddr, err)
+				return
+			}
+			defer conn.Close()
+
+			client := pb.NewMasterWorkerClient(conn)
+			mi := &pb.MasterInfo{MasterId: masterID, MasterAddress: masterAddress}
+			ack, err := client.MasterRegister(ctx, mi)
+			if err != nil {
+				log.Printf("MasterRegister RPC to worker %s (%s) failed: %v", workerID, workerAddr, err)
+				return
+			}
+			if ack != nil && ack.Success {
+				log.Printf("MasterRegister acknowledged by worker %s: %s", workerID, ack.Message)
+			} else if ack != nil {
+				log.Printf("MasterRegister rejected by worker %s: %s", workerID, ack.Message)
+			}
+		}(id, workerAddr)
+	}
 }
 
 func (s *MasterServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.TaskAck, error) {

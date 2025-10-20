@@ -67,6 +67,12 @@ func main() {
 	masterAddress := sysInfo.GetMasterAddress() + cfg.GRPCPort
 	go startGRPCServer(masterServer, masterAddress)
 
+	// Wait briefly to ensure server is listening before contacting workers
+	time.Sleep(500 * time.Millisecond)
+
+	// Broadcast master registration to known workers so they can connect back
+	masterServer.BroadcastMasterRegistration("master-1", masterAddress)
+
 	// Start CLI interface
 	log.Println("\n✓ Master node started successfully")
 	log.Printf("✓ Starting gRPC server on %s\n", masterAddress)
