@@ -15,7 +15,7 @@ help:
 	@echo "  make test         - Run basic connectivity tests"
 	@echo ""
 	@echo "Quick start:"
-	@echo "  make setup        # One-time setup"
+	@echo "  make setup        # One-time setup (includes agentic_scheduler)"
 	@echo "  make all          # Build everything"
 	@echo "  make master       # Build master"
 	@echo "  make worker       # Build worker"
@@ -33,7 +33,9 @@ setup: proto
 	@echo "🔗 Creating symlinks..."
 	@cd master && (test -L proto || ln -s ../proto/pb proto)
 	@cd worker && (test -L proto || ln -s ../proto/pb proto)
-	@echo "📦 Installing Go dependencies..."
+	@echo "� Creating agentic_scheduler proto symlink..."
+	@cd agentic_scheduler && (test -L proto && rm proto || true) && ln -s ../proto/py proto
+	@echo "�📦 Installing Go dependencies..."
 	cd master && go mod tidy
 	cd worker && go mod tidy
 	@echo "✅ Setup complete!"
@@ -73,6 +75,7 @@ clean:
 	rm -f worker/worker-node
 	cd master && (test -L proto && rm proto || true)
 	cd worker && (test -L proto && rm proto || true)
+	cd agentic_scheduler && (test -L proto && rm proto || true)
 	@echo "✅ Clean complete"
 
 # Run basic tests

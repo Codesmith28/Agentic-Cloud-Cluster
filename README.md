@@ -41,19 +41,27 @@ CloudAI/
 ├── proto/              # gRPC protocol definitions
 │   ├── master_worker.proto
 │   ├── master_agent.proto
-│   └── generate.sh
+│   ├── generate.sh
+│   ├── pb/            # Generated Go code
+│   └── py/            # Generated Python code
 ├── master/             # Master node (Go)
 │   ├── main.go
+│   ├── proto -> ../proto/pb  # Symlink to Go protos
 │   └── internal/
 │       ├── server/     # gRPC handlers
 │       ├── cli/        # Interactive CLI
 │       └── db/         # MongoDB integration
 ├── worker/             # Worker node (Go)
 │   ├── main.go
+│   ├── proto -> ../proto/pb  # Symlink to Go protos
 │   └── internal/
 │       ├── server/     # gRPC server
 │       ├── executor/   # Docker execution
 │       └── telemetry/  # Monitoring
+├── agentic_scheduler/  # AI Scheduler (Python submodule)
+│   ├── proto -> ../proto/py  # Symlink to Python protos
+│   ├── main.py
+│   └── grpc_client.py
 ├── sample_task/        # Example Docker task
 ├── database/           # MongoDB setup
 └── docs/               # Documentation
@@ -67,6 +75,18 @@ CloudAI/
 - **Docker** with daemon running
 - **Protocol Buffers** compiler (`protoc`)
 - **MongoDB** (via docker-compose)
+
+### Clone with Submodules
+
+For newcomers cloning this repository:
+
+```bash
+# Clone the repository with all submodules
+git clone --recurse-submodules git@github.com:Codesmith28/CloudAI.git
+
+# OR if already cloned without submodules:
+git submodule update --init --recursive
+```
 
 ### Installation
 
