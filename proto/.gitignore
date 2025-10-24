@@ -1,0 +1,7 @@
+# Generated gRPC code
+pb/
+py/
+
+# Python cache
+__pycache__/
+*.pyc

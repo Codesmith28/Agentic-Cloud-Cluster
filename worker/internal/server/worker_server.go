@@ -1,0 +1,179 @@
+package server
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"runtime"
+	"time"
+
+	"worker/internal/executor"
+	"worker/internal/telemetry"
+	pb "worker/proto"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+// WorkerServer handles incoming gRPC requests from master
+type WorkerServer struct {
+	pb.UnimplementedMasterWorkerServer
+
+	workerID         string
+	executor         *executor.TaskExecutor
+	monitor          *telemetry.Monitor
+	masterAddr       string
+	masterRegistered bool
+}
+
+// NewWorkerServer creates a new worker server instance
+func NewWorkerServer(workerID string, monitor *telemetry.Monitor) (*WorkerServer, error) {
+	exec, err := executor.NewTaskExecutor()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create executor: %w", err)
+	}
+
+	return &WorkerServer{
+		workerID:         workerID,
+		executor:         exec,
+		monitor:          monitor,
+		masterAddr:       "", // Will be set when master registers
+		masterRegistered: false,
+	}, nil
+}
+
+// MasterRegister handles master registration from master node
+func (s *WorkerServer) MasterRegister(ctx context.Context, masterInfo *pb.MasterInfo) (*pb.RegisterAck, error) {
+	log.Printf("Master registration request from: %s (%s)", masterInfo.MasterId, masterInfo.MasterAddress)
+
+	s.masterAddr = masterInfo.MasterAddress
+	s.masterRegistered = true
+
+	// Update monitor with master address
+	s.monitor.SetMasterAddress(s.masterAddr)
+
+	// Now that we know the master, start the registration process
+	go s.registerWithMaster()
+
+	return &pb.RegisterAck{
+		Success: true,
+		Message: fmt.Sprintf("Worker %s registered with master %s", s.workerID, masterInfo.MasterId),
+	}, nil
+}
+
+// registerWithMaster registers this worker with the master (called after master registers with us)
+func (s *WorkerServer) registerWithMaster() {
+	if s.masterAddr == "" {
+		log.Printf("Cannot register with master: no master address set")
+		return
+	}
+
+	log.Printf("Registering worker %s with master at %s", s.workerID, s.masterAddr)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, s.masterAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock())
+	if err != nil {
+		log.Printf("Failed to connect to master for registration: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	client := pb.NewMasterWorkerClient(conn)
+
+	// Get system resources
+	workerInfo := &pb.WorkerInfo{
+		WorkerId:     s.workerID,
+		WorkerIp:     "", // Will be filled by master based on connection
+		TotalCpu:     float64(runtime.NumCPU()),
+		TotalMemory:  8.0,   // Simplified - in real implementation, get actual memory
+		TotalStorage: 100.0, // Simplified
+		TotalGpu:     0.0,   // Simplified
+	}
+
+	ack, err := client.RegisterWorker(ctx, workerInfo)
+	if err != nil {
+		log.Printf("Failed to register with master: %v", err)
+		return
+	}
+
+	if ack.Success {
+		log.Printf("✓ Successfully registered with master: %s", ack.Message)
+	} else {
+		log.Printf("❌ Master rejected registration: %s", ack.Message)
+	}
+}
+
+// AssignTask handles task assignment from master
+func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
+	if !s.masterRegistered {
+		return &pb.TaskAck{
+			Success: false,
+			Message: "Master not registered yet",
+		}, nil
+	}
+
+	log.Printf("Received task assignment: %s (Image: %s)", task.TaskId, task.DockerImage)
+
+	// Add task to monitoring
+	s.monitor.AddTask(task.TaskId, task.ReqCpu, task.ReqMemory)
+
+	// Execute task in background
+	go s.executeTask(ctx, task)
+
+	return &pb.TaskAck{
+		Success: true,
+		Message: "Task accepted",
+	}, nil
+}
+
+// executeTask runs the task and reports result
+func (s *WorkerServer) executeTask(ctx context.Context, task *pb.Task) {
+	// Execute the task
+	result := s.executor.ExecuteTask(ctx, task.TaskId, task.DockerImage)
+
+	// Remove from monitoring
+	s.monitor.RemoveTask(task.TaskId)
+
+	// Report result to master
+	taskResult := &pb.TaskResult{
+		TaskId:         task.TaskId,
+		WorkerId:       s.workerID,
+		Status:         result.Status,
+		Logs:           result.Logs,
+		ResultLocation: "", // Not implemented yet
+	}
+
+	if err := telemetry.ReportTaskResult(ctx, s.masterAddr, taskResult); err != nil {
+		log.Printf("Failed to report task result: %v", err)
+	}
+}
+
+// CancelTask handles task cancellation requests (not implemented)
+func (s *WorkerServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.TaskAck, error) {
+	return &pb.TaskAck{
+		Success: false,
+		Message: "Task cancellation not implemented",
+	}, nil
+}
+
+// Close cleans up resources
+func (s *WorkerServer) Close() error {
+	return s.executor.Close()
+}
+
+// Not implemented RPCs (worker doesn't receive these)
+func (s *WorkerServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) (*pb.RegisterAck, error) {
+	return &pb.RegisterAck{Success: false, Message: "Not applicable"}, nil
+}
+
+func (s *WorkerServer) SendHeartbeat(ctx context.Context, hb *pb.Heartbeat) (*pb.HeartbeatAck, error) {
+	return &pb.HeartbeatAck{Success: false}, nil
+}
+
+func (s *WorkerServer) ReportTaskCompletion(ctx context.Context, result *pb.TaskResult) (*pb.Ack, error) {
+	return &pb.Ack{Success: false, Message: "Not applicable"}, nil
+}
