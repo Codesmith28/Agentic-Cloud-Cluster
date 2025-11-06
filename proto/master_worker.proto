@@ -51,6 +51,7 @@ message RunningTask {
   double cpu_allocated = 2;
   double memory_allocated = 3;
   string status = 4; // running, paused, failed
+  double gpu_allocated = 5;
 }
 
 message HeartbeatAck { bool success = 1; }

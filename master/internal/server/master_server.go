@@ -35,7 +35,7 @@ type WorkerState struct {
 	RunningTasks  map[string]bool
 	LatestCPU     float64 // Latest CPU usage from heartbeat
 	LatestMemory  float64 // Latest memory usage from heartbeat
-	LatestStorage float64 // Latest storage usage from heartbeat
+	LatestGPU     float64 // Latest GPU usage from heartbeat
 	TaskCount     int     // Number of running tasks from latest heartbeat
 }
 
@@ -258,7 +258,7 @@ func (s *MasterServer) SendHeartbeat(ctx context.Context, hb *pb.Heartbeat) (*pb
 	// Store latest heartbeat metrics
 	worker.LatestCPU = hb.CpuUsage
 	worker.LatestMemory = hb.MemoryUsage
-	worker.LatestStorage = hb.StorageUsage
+	worker.LatestGPU = hb.GpuUsage
 	worker.TaskCount = len(hb.RunningTasks)
 
 	// Update heartbeat in database

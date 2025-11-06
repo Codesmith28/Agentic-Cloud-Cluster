@@ -259,12 +259,12 @@ func (c *CLI) showWorkerStats(workerID string) {
 	renderStats := func() {
 		worker, exists := c.masterServer.GetWorkerStats(workerID)
 		if !exists {
-			fmt.Print("\033[14A") // Move up
+			fmt.Print("\033[15A") // Move up
 			fmt.Print("\r")
-			for i := 0; i < 14; i++ {
+			for i := 0; i < 15; i++ {
 				fmt.Print(clearLine + "\r\n")
 			}
-			fmt.Print("\033[14A")
+			fmt.Print("\033[15A")
 			fmt.Println(clearLine + "\r❌ Worker disconnected or removed")
 			return
 		}
@@ -288,8 +288,8 @@ func (c *CLI) showWorkerStats(workerID string) {
 		}
 
 		// Move cursor up to the start of the stats box
-		// Box has 14 lines + 1 blank line + 1 instruction line = 16 lines total
-		fmt.Print("\033[16A")
+		// Box has 13 lines + 1 blank line + 1 instruction line = 15 lines total
+		fmt.Print("\033[15A")
 		fmt.Print("\r") // Move to beginning of line
 
 		// Clear and redraw stats box (no right border)
@@ -303,8 +303,7 @@ func (c *CLI) showWorkerStats(workerID string) {
 		fmt.Printf("%s║ Resources:\n", clearLine)
 		fmt.Printf("%s║   CPU:           %.2f cores (%.1f%% used)\n", clearLine, worker.Info.TotalCpu, worker.LatestCPU)
 		fmt.Printf("%s║   Memory:        %.2f GB (%.2f%% used)\n", clearLine, worker.Info.TotalMemory, worker.LatestMemory)
-		fmt.Printf("%s║   Storage:       %.2f GB (%.2f%% used)\n", clearLine, worker.Info.TotalStorage, worker.LatestStorage)
-		fmt.Printf("%s║   GPU:           %.2f cores\n", clearLine, worker.Info.TotalGpu)
+		fmt.Printf("%s║   GPU:           %.2f cores (%.1f%% used)\n", clearLine, worker.Info.TotalGpu, worker.LatestGPU)
 		fmt.Printf("%s║\n", clearLine)
 		fmt.Printf("%s║ Running Tasks:   %d\n", clearLine, worker.TaskCount)
 		fmt.Printf("%s╚═══════════════════════════════════════════════════", clearLine)

@@ -119,7 +119,7 @@ func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	log.Printf("Received task assignment: %s (Image: %s)", task.TaskId, task.DockerImage)
 
 	// Add task to monitoring
-	s.monitor.AddTask(task.TaskId, task.ReqCpu, task.ReqMemory)
+	s.monitor.AddTask(task.TaskId, task.ReqCpu, task.ReqMemory, task.ReqGpu)
 
 	// Execute task in background
 	go s.executeTask(ctx, task)

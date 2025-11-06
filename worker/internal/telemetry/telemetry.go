@@ -71,11 +71,12 @@ func (m *Monitor) Stop() {
 }
 
 // AddTask adds a task to the running tasks list
-func (m *Monitor) AddTask(taskID string, cpuAlloc, memAlloc float64) {
+func (m *Monitor) AddTask(taskID string, cpuAlloc, memAlloc, gpuAlloc float64) {
 	m.runningTasks[taskID] = &pb.RunningTask{
 		TaskId:          taskID,
 		CpuAllocated:    cpuAlloc,
 		MemoryAllocated: memAlloc,
+		GpuAllocated:    gpuAlloc,
 		Status:          "running",
 	}
 }
@@ -118,8 +119,7 @@ func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 		WorkerId:     m.workerID,
 		CpuUsage:     cpuUsage,
 		MemoryUsage:  memUsage,
-		StorageUsage: 0.0,      // TODO: Implement storage monitoring
-		GpuUsage:     gpuUsage, // GPU utilization percentage
+		GpuUsage:     gpuUsage,
 		RunningTasks: tasks,
 	}
 
