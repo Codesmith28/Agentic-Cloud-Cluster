@@ -41,7 +41,7 @@ type TelemetryManager struct {
 
 	// Timeout for marking workers as inactive
 	inactivityTimeout time.Duration
-	
+
 	// Quiet mode suppresses verbose logging
 	quietMode bool
 }
