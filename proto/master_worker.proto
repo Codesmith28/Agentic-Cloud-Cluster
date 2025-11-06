@@ -5,89 +5,86 @@ package cluster;
 option go_package = "github.com/Codesmith28/CloudAI/proto/pb";
 
 service MasterWorker {
-    // Worker -> Master
-    rpc RegisterWorker(WorkerInfo) returns (RegisterAck);
-    rpc SendHeartbeat(Heartbeat) returns (HeartbeatAck);
-    rpc ReportTaskCompletion(TaskResult) returns (Ack);
+  // Worker -> Master
+  rpc RegisterWorker(WorkerInfo) returns (RegisterAck);
+  rpc SendHeartbeat(Heartbeat) returns (HeartbeatAck);
+  rpc ReportTaskCompletion(TaskResult) returns (Ack);
 
-    // Master -> Worker
-    rpc MasterRegister(MasterInfo) returns (RegisterAck);
-    rpc AssignTask(Task) returns (TaskAck);
-    rpc CancelTask(TaskID) returns (TaskAck);
+  // Master -> Worker
+  rpc MasterRegister(MasterInfo) returns (RegisterAck);
+  rpc AssignTask(Task) returns (TaskAck);
+  rpc CancelTask(TaskID) returns (TaskAck);
 }
 
 // Worker registration
 message WorkerInfo {
-    string worker_id = 1;
-    string worker_ip = 2;
-    double total_cpu = 3;
-    double total_memory = 4;
-    double total_storage = 5;
-    double total_gpu = 6;
+  string worker_id = 1;
+  string worker_ip = 2;
+  double total_cpu = 3;
+  double total_memory = 4;
+  double total_storage = 5;
+  double total_gpu = 6;
 }
 
 message MasterInfo {
-    string master_id = 1;
-    string master_address = 2; // e.g., "192.168.1.100:50051"
+  string master_id = 1;
+  string master_address = 2; // e.g., "192.168.1.100:50051"
 }
 
 message RegisterAck {
-    bool success = 1;
-    string message = 2;
+  bool success = 1;
+  string message = 2;
 }
 
 // Heartbeat with resource stats
 message Heartbeat {
-    string worker_id = 1;
-    double cpu_usage = 2;
-    double memory_usage = 3;
-    double storage_usage = 4;
-    repeated RunningTask running_tasks = 5;
+  string worker_id = 1;
+  double cpu_usage = 2;
+  double memory_usage = 3;
+  double storage_usage = 4;
+  repeated RunningTask running_tasks = 5;
+  double gpu_usage = 6; // GPU utilization percentage
 }
 
 message RunningTask {
-    string task_id = 1;
-    double cpu_allocated = 2;
-    double memory_allocated = 3;
-    string status = 4; // running, paused, failed
+  string task_id = 1;
+  double cpu_allocated = 2;
+  double memory_allocated = 3;
+  string status = 4; // running, paused, failed
 }
 
-message HeartbeatAck {
-    bool success = 1;
-}
+message HeartbeatAck { bool success = 1; }
 
 // Task assignment
 message Task {
-    string task_id = 1;
-    string docker_image = 2;
-    string command = 3;
-    double req_cpu = 4;
-    double req_memory = 5;
-    double req_storage = 6;
-    double req_gpu = 7;
-    string target_worker_id = 8; 
+  string task_id = 1;
+  string docker_image = 2;
+  string command = 3;
+  double req_cpu = 4;
+  double req_memory = 5;
+  double req_storage = 6;
+  double req_gpu = 7;
+  string target_worker_id = 8;
 }
 
 message TaskAck {
-    bool success = 1;
-    string message = 2;
+  bool success = 1;
+  string message = 2;
 }
 
 // Task completion
 message TaskResult {
-    string task_id = 1;
-    string worker_id = 2;
-    string status = 3; // success/failure
-    string logs = 4;
-    string result_location = 5; // e.g., S3 or shared volume
+  string task_id = 1;
+  string worker_id = 2;
+  string status = 3; // success/failure
+  string logs = 4;
+  string result_location = 5; // e.g., S3 or shared volume
 }
 
 message Ack {
-    bool success = 1;
-    string message = 2;
+  bool success = 1;
+  string message = 2;
 }
 
 // TaskID helper
-message TaskID {
-    string task_id = 1;
-}
+message TaskID { string task_id = 1; }
