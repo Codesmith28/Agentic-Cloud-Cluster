@@ -124,23 +124,81 @@ func (c *CLI) printHelp() {
 }
 
 func (c *CLI) showStatus() {
-	workers := c.masterServer.GetWorkers()
+	// ANSI escape codes
+	const (
+		clearScreen = "\033[2J"
+		moveCursor  = "\033[H"
+		saveCursor  = "\0337"
+		restoreCursor = "\0338"
+		clearLine   = "\033[2K"
+	)
 
-	fmt.Println("\n╔═══ Cluster Status ═══")
-	fmt.Printf("║ Total Workers: %d\n", len(workers))
+	// Print initial view
+	fmt.Print("\n")
 
-	activeCount := 0
-	totalTasks := 0
-	for _, w := range workers {
-		if w.IsActive {
-			activeCount++
+	// Create a ticker for updates (refresh every 2 seconds)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	// Channel to detect user input (to exit the live view)
+	done := make(chan bool)
+
+	// Goroutine to listen for any key press
+	go func() {
+		reader := bufio.NewReader(os.Stdin)
+		reader.ReadByte() // Wait for any key press
+		done <- true
+	}()
+
+	// Print instructions
+	fmt.Println("╔═══════════════════════════════════════╗")
+	fmt.Println("║    Live Cluster Status Monitor        ║")
+	fmt.Println("║    Press any key to exit...           ║")
+	fmt.Println("╚═══════════════════════════════════════╝")
+	fmt.Println()
+
+	// Function to render the status
+	renderStatus := func() {
+		workers := c.masterServer.GetWorkers()
+
+		activeCount := 0
+		totalTasks := 0
+		for _, w := range workers {
+			if w.IsActive {
+				activeCount++
+			}
+			totalTasks += len(w.RunningTasks)
 		}
-		totalTasks += len(w.RunningTasks)
+
+		// Move cursor up to redraw (5 lines for the status box)
+		fmt.Print("\033[5A") // Move up 5 lines
+		fmt.Print("\r")      // Return to start of line
+
+		// Clear and redraw status box
+		fmt.Print(clearLine + "\r╔═══ Cluster Status ═══\n")
+		fmt.Printf(clearLine + "\r║ Total Workers: %d\n", len(workers))
+		fmt.Printf(clearLine + "\r║ Active Workers: %d\n", activeCount)
+		fmt.Printf(clearLine + "\r║ Running Tasks: %d\n", totalTasks)
+		fmt.Print(clearLine + "\r╚══════════════════════\n")
 	}
 
-	fmt.Printf("║ Active Workers: %d\n", activeCount)
-	fmt.Printf("║ Running Tasks: %d\n", totalTasks)
+	// Initial render
+	fmt.Println("╔═══ Cluster Status ═══")
+	fmt.Println("║ Total Workers: 0")
+	fmt.Println("║ Active Workers: 0")
+	fmt.Println("║ Running Tasks: 0")
 	fmt.Println("╚══════════════════════")
+
+	// Update loop
+	for {
+		select {
+		case <-ticker.C:
+			renderStatus()
+		case <-done:
+			fmt.Println("\nExiting status monitor...")
+			return
+		}
+	}
 }
 
 func (c *CLI) listWorkers() {
@@ -170,45 +228,104 @@ func (c *CLI) listWorkers() {
 }
 
 func (c *CLI) showWorkerStats(workerID string) {
-	worker, exists := c.masterServer.GetWorkerStats(workerID)
+	// First check if worker exists
+	_, exists := c.masterServer.GetWorkerStats(workerID)
 	if !exists {
 		fmt.Printf("❌ Worker '%s' not found\n", workerID)
 		return
 	}
 
-	status := "🟢 Active"
-	if !worker.IsActive {
-		status = "🔴 Inactive"
+	// ANSI escape codes
+	const clearLine = "\033[2K"
+
+	// Print initial view
+	fmt.Print("\n")
+
+	// Create a ticker for updates (refresh every 2 seconds)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	// Channel to detect user input (to exit the live view)
+	done := make(chan bool)
+
+	// Goroutine to listen for any key press
+	go func() {
+		reader := bufio.NewReader(os.Stdin)
+		reader.ReadByte() // Wait for any key press
+		done <- true
+	}()
+
+	// Function to render the worker stats
+	renderStats := func() {
+		worker, exists := c.masterServer.GetWorkerStats(workerID)
+		if !exists {
+			fmt.Print("\033[14A") // Move up
+			fmt.Print("\r")
+			for i := 0; i < 14; i++ {
+				fmt.Print(clearLine + "\r\n")
+			}
+			fmt.Print("\033[14A")
+			fmt.Println(clearLine + "\r❌ Worker disconnected or removed")
+			return
+		}
+
+		status := "🟢 Active"
+		if !worker.IsActive {
+			status = "🔴 Inactive"
+		}
+
+		// Calculate time since last heartbeat
+		lastSeen := "Never"
+		if worker.LastHeartbeat > 0 {
+			duration := time.Now().Unix() - worker.LastHeartbeat
+			if duration < 60 {
+				lastSeen = fmt.Sprintf("%d seconds ago", duration)
+			} else if duration < 3600 {
+				lastSeen = fmt.Sprintf("%d minutes ago", duration/60)
+			} else {
+				lastSeen = fmt.Sprintf("%d hours ago", duration/3600)
+			}
+		}
+
+		// Move cursor up to the start of the stats box
+		// Box has 14 lines + 1 blank line + 1 instruction line = 16 lines total
+		fmt.Print("\033[16A")
+		fmt.Print("\r") // Move to beginning of line
+		
+		// Clear and redraw stats box (no right border)
+		fmt.Printf("%s╔═══════════════════════════════════════════════════\n", clearLine)
+		fmt.Printf("%s║ Worker: %s\n", clearLine, workerID)
+		fmt.Printf("%s╠═══════════════════════════════════════════════════\n", clearLine)
+		fmt.Printf("%s║ Status:          %s\n", clearLine, status)
+		fmt.Printf("%s║ Address:         %s\n", clearLine, worker.Info.WorkerIp)
+		fmt.Printf("%s║ Last Seen:       %s\n", clearLine, lastSeen)
+		fmt.Printf("%s║\n", clearLine)
+		fmt.Printf("%s║ Resources:\n", clearLine)
+		fmt.Printf("%s║   CPU:           %.2f cores (%.1f%% used)\n", clearLine, worker.Info.TotalCpu, worker.LatestCPU)
+		fmt.Printf("%s║   Memory:        %.2f GB (%.2f%% used)\n", clearLine, worker.Info.TotalMemory, worker.LatestMemory)
+		fmt.Printf("%s║   Storage:       %.2f GB (%.2f%% used)\n", clearLine, worker.Info.TotalStorage, worker.LatestStorage)
+		fmt.Printf("%s║   GPU:           %.2f cores\n", clearLine, worker.Info.TotalGpu)
+		fmt.Printf("%s║\n", clearLine)
+		fmt.Printf("%s║ Running Tasks:   %d\n", clearLine, worker.TaskCount)
+		fmt.Printf("%s╚═══════════════════════════════════════════════════", clearLine)
+		// Print instruction on the line after the box (stays fixed)
+		fmt.Print("\n\n(Press any key to exit)")
 	}
 
-	// Calculate time since last heartbeat
-	lastSeen := "Never"
-	if worker.LastHeartbeat > 0 {
-		duration := time.Now().Unix() - worker.LastHeartbeat
-		if duration < 60 {
-			lastSeen = fmt.Sprintf("%d seconds ago", duration)
-		} else if duration < 3600 {
-			lastSeen = fmt.Sprintf("%d minutes ago", duration/60)
-		} else {
-			lastSeen = fmt.Sprintf("%d hours ago", duration/3600)
+	// Initial render - call renderStats immediately to avoid "Loading..." flash
+	renderStats()
+
+	// Update loop
+	for {
+		select {
+		case <-ticker.C:
+			renderStats()
+		case <-done:
+			fmt.Print("\033[2B") // Move down 2 lines past the instruction
+			fmt.Println("\nExiting worker stats monitor...")
+			return
 		}
 	}
-
-	fmt.Println("\n╔═══════════════════════════════════════════════════")
-	fmt.Printf("║ Worker: %s\n", workerID)
-	fmt.Println("╠═══════════════════════════════════════════════════")
-	fmt.Printf("║ Status:          %s\n", status)
-	fmt.Printf("║ Address:         %s\n", worker.Info.WorkerIp)
-	fmt.Printf("║ Last Seen:       %s\n", lastSeen)
-	fmt.Println("║")
-	fmt.Println("║ Resources:")
-	fmt.Printf("║   CPU:           %.2f cores (%.1f%% used)\n", worker.Info.TotalCpu, worker.LatestCPU)
-	fmt.Printf("║   Memory:        %.2f GB (%.2f%% used)\n", worker.Info.TotalMemory, worker.LatestMemory)
-	fmt.Printf("║   Storage:       %.2f GB (%.2f%% used)\n", worker.Info.TotalStorage, worker.LatestStorage)
-	fmt.Printf("║   GPU:           %.2f cores\n", worker.Info.TotalGpu)
-	fmt.Println("║")
-	fmt.Printf("║ Running Tasks:   %d\n", worker.TaskCount)
-	fmt.Println("╚═══════════════════════════════════════════════════")
 }
 
 func (c *CLI) assignTask(parts []string) {
