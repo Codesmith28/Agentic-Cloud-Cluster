@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"master/internal/db"
+	"master/internal/telemetry"
 	pb "master/proto"
 
 	"google.golang.org/grpc"
@@ -25,6 +26,9 @@ type MasterServer struct {
 	masterAddress string
 
 	taskChan chan *TaskAssignment
+
+	// Telemetry manager for handling worker telemetry in separate threads
+	telemetryManager *telemetry.TelemetryManager
 }
 
 // WorkerState tracks the current state of a worker
@@ -46,13 +50,14 @@ type TaskAssignment struct {
 }
 
 // NewMasterServer creates a new master server instance
-func NewMasterServer(workerDB *db.WorkerDB) *MasterServer {
+func NewMasterServer(workerDB *db.WorkerDB, telemetryMgr *telemetry.TelemetryManager) *MasterServer {
 	return &MasterServer{
-		workers:       make(map[string]*WorkerState),
-		workerDB:      workerDB,
-		masterID:      "",
-		masterAddress: "",
-		taskChan:      make(chan *TaskAssignment, 100),
+		workers:          make(map[string]*WorkerState),
+		workerDB:         workerDB,
+		masterID:         "",
+		masterAddress:    "",
+		taskChan:         make(chan *TaskAssignment, 100),
+		telemetryManager: telemetryMgr,
 	}
 }
 
@@ -197,6 +202,11 @@ func (s *MasterServer) UnregisterWorker(ctx context.Context, workerID string) er
 		}
 	}
 
+	// Unregister from telemetry manager
+	if s.telemetryManager != nil {
+		s.telemetryManager.UnregisterWorker(workerID)
+	}
+
 	// Remove from memory
 	delete(s.workers, workerID)
 
@@ -235,6 +245,11 @@ func (s *MasterServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) 
 		}
 	}
 
+	// Register worker with telemetry manager
+	if s.telemetryManager != nil {
+		s.telemetryManager.RegisterWorker(info.WorkerId)
+	}
+
 	return &pb.RegisterAck{
 		Success: true,
 		Message: "Worker registered successfully",
@@ -255,7 +270,7 @@ func (s *MasterServer) SendHeartbeat(ctx context.Context, hb *pb.Heartbeat) (*pb
 	worker.LastHeartbeat = timestamp
 	worker.IsActive = true
 
-	// Store latest heartbeat metrics
+	// Store latest heartbeat metrics (keep minimal data in main thread)
 	worker.LatestCPU = hb.CpuUsage
 	worker.LatestMemory = hb.MemoryUsage
 	worker.LatestGPU = hb.GpuUsage
@@ -268,8 +283,13 @@ func (s *MasterServer) SendHeartbeat(ctx context.Context, hb *pb.Heartbeat) (*pb
 		}
 	}
 
-	// Store heartbeat data silently (can be queried via CLI)
-	// Removed verbose logging to keep CLI clean
+	// Offload telemetry processing to dedicated thread
+	// This is non-blocking and won't slow down the RPC handler
+	if s.telemetryManager != nil {
+		if err := s.telemetryManager.ProcessHeartbeat(hb); err != nil {
+			log.Printf("Warning: failed to process telemetry: %v", err)
+		}
+	}
 
 	return &pb.HeartbeatAck{Success: true}, nil
 }
@@ -318,6 +338,23 @@ func (s *MasterServer) GetWorkerStats(workerID string) (*WorkerState, bool) {
 
 	worker, exists := s.workers[workerID]
 	return worker, exists
+}
+
+// GetWorkerTelemetry returns detailed telemetry data for a specific worker
+// This queries the telemetry manager's dedicated thread for the worker
+func (s *MasterServer) GetWorkerTelemetry(workerID string) (*telemetry.WorkerTelemetryData, bool) {
+	if s.telemetryManager == nil {
+		return nil, false
+	}
+	return s.telemetryManager.GetWorkerTelemetry(workerID)
+}
+
+// GetAllWorkerTelemetry returns telemetry data for all workers
+func (s *MasterServer) GetAllWorkerTelemetry() map[string]*telemetry.WorkerTelemetryData {
+	if s.telemetryManager == nil {
+		return make(map[string]*telemetry.WorkerTelemetryData)
+	}
+	return s.telemetryManager.GetAllWorkerTelemetry()
 }
 
 // AssignTask assigns a task to a specific worker (target_worker_id is required)
