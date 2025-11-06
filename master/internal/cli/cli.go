@@ -371,16 +371,27 @@ func (c *CLI) assignTask(parts []string) {
 		}
 	}
 
-	fmt.Printf("Assigning task to worker %s...\n", workerID)
-	fmt.Printf("Docker Image: %s\n", dockerImage)
-	fmt.Printf("Resources: CPU=%.1f cores, Memory=%.1fGB, Storage=%.1fGB, GPU=%.1f cores\n",
-		reqCPU, reqMemory, reqStorage, reqGPU)
-
 	// Generate task ID
 	taskID := fmt.Sprintf("task-%d", time.Now().Unix())
 
 	// Construct Docker run command with resource limits
-	command := c.buildDockerCommand(dockerImage, reqCPU, reqMemory, reqStorage, reqGPU)
+	command := c.buildDockerCommand(dockerImage, reqCPU, reqMemory, reqGPU)
+
+	// Display task details before sending
+	fmt.Println("\n═══════════════════════════════════════════════════════")
+	fmt.Println("  📤 SENDING TASK TO WORKER")
+	fmt.Println("═══════════════════════════════════════════════════════")
+	fmt.Printf("  Task ID:           %s\n", taskID)
+	fmt.Printf("  Target Worker:     %s\n", workerID)
+	fmt.Printf("  Docker Image:      %s\n", dockerImage)
+	fmt.Printf("  Command:           %s\n", command)
+	fmt.Println("───────────────────────────────────────────────────────")
+	fmt.Println("  Resource Requirements:")
+	fmt.Printf("    • CPU Cores:     %.2f cores\n", reqCPU)
+	fmt.Printf("    • Memory:        %.2f GB\n", reqMemory)
+	fmt.Printf("    • Storage:       %.2f GB\n", reqStorage)
+	fmt.Printf("    • GPU Cores:     %.2f cores\n", reqGPU)
+	fmt.Println("═══════════════════════════════════════════════════════")
 
 	task := &pb.Task{
 		TaskId:         taskID,
@@ -395,14 +406,14 @@ func (c *CLI) assignTask(parts []string) {
 
 	err := c.assignTaskViaMaster(task)
 	if err != nil {
-		fmt.Printf("❌ Failed to assign task: %v\n", err)
+		fmt.Printf("\n❌ Failed to assign task: %v\n", err)
 		return
 	}
 
-	fmt.Printf("✅ Task %s assigned successfully!\n", taskID)
+	fmt.Printf("\n✅ Task %s assigned successfully!\n", taskID)
 }
 
-func (c *CLI) buildDockerCommand(dockerImage string, cpu, memory, storage, gpu float64) string {
+func (c *CLI) buildDockerCommand(dockerImage string, cpu, memory, gpu float64) string {
 	// Build Docker run command with resource constraints
 	cmd := "docker run --rm"
 

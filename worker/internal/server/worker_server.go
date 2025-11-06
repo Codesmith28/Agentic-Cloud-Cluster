@@ -116,7 +116,24 @@ func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 		}, nil
 	}
 
-	log.Printf("Received task assignment: %s (Image: %s)", task.TaskId, task.DockerImage)
+	// Print comprehensive task details with all system requirements
+	log.Println("\n═══════════════════════════════════════════════════════")
+	log.Println("  📥 TASK RECEIVED FROM MASTER")
+	log.Println("═══════════════════════════════════════════════════════")
+	log.Printf("  Task ID:           %s", task.TaskId)
+	log.Printf("  Docker Image:      %s", task.DockerImage)
+	log.Printf("  Command:           %s", task.Command)
+	log.Printf("  Target Worker:     %s", task.TargetWorkerId)
+	log.Println("───────────────────────────────────────────────────────")
+	log.Println("  System Requirements:")
+	log.Printf("    • CPU Cores:     %.2f cores", task.ReqCpu)
+	log.Printf("    • Memory:        %.2f GB", task.ReqMemory)
+	log.Printf("    • Storage:       %.2f GB", task.ReqStorage)
+	log.Printf("    • GPU Cores:     %.2f cores", task.ReqGpu)
+	log.Println("═══════════════════════════════════════════════════════")
+	log.Printf("  ✓ Task accepted - Starting execution...")
+	log.Println("═══════════════════════════════════════════════════════")
+	log.Println("")
 
 	// Add task to monitoring
 	s.monitor.AddTask(task.TaskId, task.ReqCpu, task.ReqMemory, task.ReqGpu)

@@ -233,14 +233,22 @@ func (s *MasterServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) 
 		}, fmt.Errorf("worker %s not authorized - must be pre-registered by admin", info.WorkerId)
 	}
 
-	// Worker IS pre-registered - update with full specs
+	// Worker IS pre-registered - update with full specs but preserve the IP from manual registration
+	preservedIP := existingWorker.Info.WorkerIp
 	existingWorker.Info = info
+	
+	// If worker didn't provide IP or provided empty IP, use the one from manual registration
+	if existingWorker.Info.WorkerIp == "" {
+		existingWorker.Info.WorkerIp = preservedIP
+		log.Printf("✓ Worker %s registered - using pre-configured address: %s", info.WorkerId, preservedIP)
+	}
+	
 	existingWorker.IsActive = true
 	existingWorker.LastHeartbeat = time.Now().Unix()
 
 	// Update in database
 	if s.workerDB != nil {
-		if err := s.workerDB.UpdateWorkerInfo(ctx, info); err != nil {
+		if err := s.workerDB.UpdateWorkerInfo(ctx, existingWorker.Info); err != nil {
 			log.Printf("Warning: failed to update worker in db: %v", err)
 		}
 	}
@@ -376,6 +384,13 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s is not active", task.TargetWorkerId)}, nil
 	}
 
+	// Validate worker IP is set
+	if worker.Info.WorkerIp == "" {
+		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s has no IP address configured", task.TargetWorkerId)}, nil
+	}
+
+	log.Printf("Connecting to worker %s at %s", task.TargetWorkerId, worker.Info.WorkerIp)
+
 	// Connect to worker and assign task
 	conn, err := grpc.Dial(worker.Info.WorkerIp, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -392,7 +407,20 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	if ack.Success {
 		// Mark task as running on worker
 		worker.RunningTasks[task.TaskId] = true
-		log.Printf("Assigned task %s to worker %s", task.TaskId, task.TargetWorkerId)
+		log.Println("\n═══════════════════════════════════════════════════════")
+		log.Println("  📤 TASK ASSIGNED TO WORKER")
+		log.Println("═══════════════════════════════════════════════════════")
+		log.Printf("  Task ID:           %s", task.TaskId)
+		log.Printf("  Target Worker:     %s", task.TargetWorkerId)
+		log.Printf("  Docker Image:      %s", task.DockerImage)
+		log.Println("───────────────────────────────────────────────────────")
+		log.Println("  Resource Requirements:")
+		log.Printf("    • CPU Cores:     %.2f cores", task.ReqCpu)
+		log.Printf("    • Memory:        %.2f GB", task.ReqMemory)
+		log.Printf("    • Storage:       %.2f GB", task.ReqStorage)
+		log.Printf("    • GPU Cores:     %.2f cores", task.ReqGpu)
+		log.Println("═══════════════════════════════════════════════════════")
+		log.Println("")
 	}
 
 	return ack, nil
