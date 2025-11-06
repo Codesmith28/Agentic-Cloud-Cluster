@@ -236,13 +236,13 @@ func (s *MasterServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) 
 	// Worker IS pre-registered - update with full specs but preserve the IP from manual registration
 	preservedIP := existingWorker.Info.WorkerIp
 	existingWorker.Info = info
-	
+
 	// If worker didn't provide IP or provided empty IP, use the one from manual registration
 	if existingWorker.Info.WorkerIp == "" {
 		existingWorker.Info.WorkerIp = preservedIP
 		log.Printf("✓ Worker %s registered - using pre-configured address: %s", info.WorkerId, preservedIP)
 	}
-	
+
 	existingWorker.IsActive = true
 	existingWorker.LastHeartbeat = time.Now().Unix()
 
