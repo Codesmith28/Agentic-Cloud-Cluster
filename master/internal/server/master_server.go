@@ -18,9 +18,11 @@ import (
 type MasterServer struct {
 	pb.UnimplementedMasterWorkerServer
 
-	workers  map[string]*WorkerState
-	mu       sync.RWMutex
-	workerDB *db.WorkerDB
+	workers       map[string]*WorkerState
+	mu            sync.RWMutex
+	workerDB      *db.WorkerDB
+	masterID      string
+	masterAddress string
 
 	taskChan chan *TaskAssignment
 }
@@ -31,6 +33,10 @@ type WorkerState struct {
 	LastHeartbeat int64
 	IsActive      bool
 	RunningTasks  map[string]bool
+	LatestCPU     float64 // Latest CPU usage from heartbeat
+	LatestMemory  float64 // Latest memory usage from heartbeat
+	LatestStorage float64 // Latest storage usage from heartbeat
+	TaskCount     int     // Number of running tasks from latest heartbeat
 }
 
 // TaskAssignment represents a task to be sent to a worker
@@ -42,10 +48,28 @@ type TaskAssignment struct {
 // NewMasterServer creates a new master server instance
 func NewMasterServer(workerDB *db.WorkerDB) *MasterServer {
 	return &MasterServer{
-		workers:  make(map[string]*WorkerState),
-		workerDB: workerDB,
-		taskChan: make(chan *TaskAssignment, 100),
+		workers:       make(map[string]*WorkerState),
+		workerDB:      workerDB,
+		masterID:      "",
+		masterAddress: "",
+		taskChan:      make(chan *TaskAssignment, 100),
 	}
+}
+
+// SetMasterInfo sets the master ID and address
+func (s *MasterServer) SetMasterInfo(masterID, masterAddress string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.masterID = masterID
+	s.masterAddress = masterAddress
+	log.Printf("Master info set: ID=%s, Address=%s", masterID, masterAddress)
+}
+
+// GetMasterInfo returns the master ID and address
+func (s *MasterServer) GetMasterInfo() (string, string) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.masterID, s.masterAddress
 }
 
 // LoadWorkersFromDB loads registered workers from database into memory
@@ -147,11 +171,10 @@ func (s *MasterServer) ManualRegisterAndNotify(ctx context.Context, workerID, wo
 			log.Printf("MasterRegister RPC to worker %s (%s) failed: %v", workerID, workerIP, err)
 			return
 		}
-		if ack != nil && ack.Success {
-			log.Printf("MasterRegister acknowledged by worker %s: %s", workerID, ack.Message)
-		} else if ack != nil {
+		if ack != nil && !ack.Success {
 			log.Printf("MasterRegister rejected by worker %s: %s", workerID, ack.Message)
 		}
+		// Success case: no log to keep CLI clean
 	}()
 
 	return nil
@@ -201,9 +224,6 @@ func (s *MasterServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) 
 	}
 
 	// Worker IS pre-registered - update with full specs
-	log.Printf("✓ Pre-registered worker connecting: %s (Address: %s, CPU: %.2f, Memory: %.2f GB)",
-		info.WorkerId, info.WorkerIp, info.TotalCpu, info.TotalMemory)
-
 	existingWorker.Info = info
 	existingWorker.IsActive = true
 	existingWorker.LastHeartbeat = time.Now().Unix()
@@ -235,6 +255,12 @@ func (s *MasterServer) SendHeartbeat(ctx context.Context, hb *pb.Heartbeat) (*pb
 	worker.LastHeartbeat = timestamp
 	worker.IsActive = true
 
+	// Store latest heartbeat metrics
+	worker.LatestCPU = hb.CpuUsage
+	worker.LatestMemory = hb.MemoryUsage
+	worker.LatestStorage = hb.StorageUsage
+	worker.TaskCount = len(hb.RunningTasks)
+
 	// Update heartbeat in database
 	if s.workerDB != nil {
 		if err := s.workerDB.UpdateHeartbeat(ctx, hb.WorkerId, timestamp); err != nil {
@@ -242,8 +268,8 @@ func (s *MasterServer) SendHeartbeat(ctx context.Context, hb *pb.Heartbeat) (*pb
 		}
 	}
 
-	log.Printf("Heartbeat from %s: CPU=%.2f%%, Memory=%.2f%%, Running Tasks=%d",
-		hb.WorkerId, hb.CpuUsage, hb.MemoryUsage, len(hb.RunningTasks))
+	// Store heartbeat data silently (can be queried via CLI)
+	// Removed verbose logging to keep CLI clean
 
 	return &pb.HeartbeatAck{Success: true}, nil
 }
@@ -283,6 +309,15 @@ func (s *MasterServer) GetWorkers() map[string]*WorkerState {
 		workers[k] = v
 	}
 	return workers
+}
+
+// GetWorkerStats returns detailed stats for a specific worker
+func (s *MasterServer) GetWorkerStats(workerID string) (*WorkerState, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	worker, exists := s.workers[workerID]
+	return worker, exists
 }
 
 // AssignTask assigns a task to a specific worker (target_worker_id is required)

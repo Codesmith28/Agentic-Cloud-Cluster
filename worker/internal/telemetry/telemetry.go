@@ -82,6 +82,11 @@ func (m *Monitor) RemoveTask(taskID string) {
 
 // sendHeartbeat sends a heartbeat message to the master
 func (m *Monitor) sendHeartbeat(ctx context.Context) error {
+	// Skip heartbeat if master address is not set yet
+	if m.masterAddr == "" {
+		return nil // Silently skip, master hasn't registered yet
+	}
+
 	conn, err := grpc.DialContext(
 		ctx,
 		m.masterAddr,

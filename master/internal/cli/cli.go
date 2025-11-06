@@ -55,6 +55,13 @@ func (c *CLI) Run() {
 			c.showStatus()
 		case "workers":
 			c.listWorkers()
+		case "stats":
+			if len(parts) < 2 {
+				fmt.Println("Usage: stats <worker_id>")
+				fmt.Println("Example: stats worker-1")
+				continue
+			}
+			c.showWorkerStats(parts[1])
 		case "register":
 			if len(parts) < 3 {
 				fmt.Println("Usage: register <worker_id> <worker_ip:port>")
@@ -104,12 +111,14 @@ func (c *CLI) printHelp() {
 	fmt.Println("  help                           - Show this help message")
 	fmt.Println("  status                         - Show cluster status")
 	fmt.Println("  workers                        - List all registered workers")
+	fmt.Println("  stats <worker_id>              - Show detailed stats for a worker")
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
 	fmt.Println("  task <worker_id> <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Assign task to specific worker")
 	fmt.Println("  exit/quit                      - Shutdown master node")
 	fmt.Println("\nExamples:")
 	fmt.Println("  register worker-2 192.168.1.100:50052")
+	fmt.Println("  stats worker-1")
 	fmt.Println("  task worker-1 docker.io/user/sample-task:latest")
 	fmt.Println("  task worker-2 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
 }
@@ -158,6 +167,48 @@ func (c *CLI) listWorkers() {
 		fmt.Println("║")
 	}
 	fmt.Println("╚═══════════════════════")
+}
+
+func (c *CLI) showWorkerStats(workerID string) {
+	worker, exists := c.masterServer.GetWorkerStats(workerID)
+	if !exists {
+		fmt.Printf("❌ Worker '%s' not found\n", workerID)
+		return
+	}
+
+	status := "🟢 Active"
+	if !worker.IsActive {
+		status = "🔴 Inactive"
+	}
+
+	// Calculate time since last heartbeat
+	lastSeen := "Never"
+	if worker.LastHeartbeat > 0 {
+		duration := time.Now().Unix() - worker.LastHeartbeat
+		if duration < 60 {
+			lastSeen = fmt.Sprintf("%d seconds ago", duration)
+		} else if duration < 3600 {
+			lastSeen = fmt.Sprintf("%d minutes ago", duration/60)
+		} else {
+			lastSeen = fmt.Sprintf("%d hours ago", duration/3600)
+		}
+	}
+
+	fmt.Println("\n╔═══════════════════════════════════════════════════")
+	fmt.Printf("║ Worker: %s\n", workerID)
+	fmt.Println("╠═══════════════════════════════════════════════════")
+	fmt.Printf("║ Status:          %s\n", status)
+	fmt.Printf("║ Address:         %s\n", worker.Info.WorkerIp)
+	fmt.Printf("║ Last Seen:       %s\n", lastSeen)
+	fmt.Println("║")
+	fmt.Println("║ Resources:")
+	fmt.Printf("║   CPU:           %.2f cores (%.1f%% used)\n", worker.Info.TotalCpu, worker.LatestCPU)
+	fmt.Printf("║   Memory:        %.2f GB (%.2f%% used)\n", worker.Info.TotalMemory, worker.LatestMemory)
+	fmt.Printf("║   Storage:       %.2f GB (%.2f%% used)\n", worker.Info.TotalStorage, worker.LatestStorage)
+	fmt.Printf("║   GPU:           %.2f cores\n", worker.Info.TotalGpu)
+	fmt.Println("║")
+	fmt.Printf("║ Running Tasks:   %d\n", worker.TaskCount)
+	fmt.Println("╚═══════════════════════════════════════════════════")
 }
 
 func (c *CLI) assignTask(parts []string) {
@@ -280,14 +331,22 @@ func (c *CLI) registerWorker(workerID, workerIP string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := c.masterServer.ManualRegisterWorker(ctx, workerID, workerIP)
+	// Get master info
+	masterID, masterAddress := c.masterServer.GetMasterInfo()
+	if masterID == "" || masterAddress == "" {
+		fmt.Println("❌ Master info not set. Cannot register worker.")
+		return
+	}
+
+	// Use ManualRegisterAndNotify to both register and notify the worker
+	err := c.masterServer.ManualRegisterAndNotify(ctx, workerID, workerIP, masterID, masterAddress)
 	if err != nil {
 		fmt.Printf("❌ Failed to register worker: %v\n", err)
 		return
 	}
 
 	fmt.Printf("✅ Worker %s registered with address %s\n", workerID, workerIP)
-	fmt.Println("   Note: Worker will send full specs when it connects")
+	fmt.Println("   Master is notifying worker... Check logs for confirmation.")
 }
 
 func (c *CLI) unregisterWorker(workerID string) {

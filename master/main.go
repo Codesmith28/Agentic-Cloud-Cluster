@@ -56,6 +56,11 @@ func main() {
 	// Create master server
 	masterServer := server.NewMasterServer(workerDB)
 
+	// Set master info
+	masterID := "master-1"
+	masterAddress := sysInfo.GetMasterAddress() + cfg.GRPCPort
+	masterServer.SetMasterInfo(masterID, masterAddress)
+
 	// Load workers from database
 	if workerDB != nil {
 		if err := masterServer.LoadWorkersFromDB(ctx); err != nil {
@@ -64,14 +69,13 @@ func main() {
 	}
 
 	// Start gRPC server in background
-	masterAddress := sysInfo.GetMasterAddress() + cfg.GRPCPort
 	go startGRPCServer(masterServer, masterAddress)
 
 	// Wait briefly to ensure server is listening before contacting workers
 	time.Sleep(500 * time.Millisecond)
 
 	// Broadcast master registration to known workers so they can connect back
-	masterServer.BroadcastMasterRegistration("master-1", masterAddress)
+	masterServer.BroadcastMasterRegistration(masterID, masterAddress)
 
 	// Start CLI interface
 	log.Println("\n✓ Master node started successfully")
