@@ -90,6 +90,19 @@ func (c *CLI) Run() {
 				continue
 			}
 			c.assignTask(parts)
+		case "monitor":
+			if len(parts) < 2 {
+				fmt.Println("Usage: monitor <task_id> [user_id]")
+				fmt.Println("  task_id: ID of the task to monitor")
+				fmt.Println("  user_id: (optional) User ID for authorization (default: admin)")
+				fmt.Println("Example: monitor task-123 user-1")
+				continue
+			}
+			userID := "admin"
+			if len(parts) >= 3 {
+				userID = parts[2]
+			}
+			c.monitorTask(parts[1], userID)
 		case "exit", "quit":
 			fmt.Println("Shutting down master...")
 			return
@@ -115,12 +128,14 @@ func (c *CLI) printHelp() {
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
 	fmt.Println("  task <worker_id> <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Assign task to specific worker")
+	fmt.Println("  monitor <task_id> [user_id]    - Monitor live logs for a task (press any key to exit)")
 	fmt.Println("  exit/quit                      - Shutdown master node")
 	fmt.Println("\nExamples:")
 	fmt.Println("  register worker-2 192.168.1.100:50052")
 	fmt.Println("  stats worker-1")
 	fmt.Println("  task worker-1 docker.io/user/sample-task:latest")
 	fmt.Println("  task worker-2 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
+	fmt.Println("  monitor task-123 user-1")
 }
 
 func (c *CLI) showStatus() {
@@ -374,8 +389,9 @@ func (c *CLI) assignTask(parts []string) {
 	// Generate task ID
 	taskID := fmt.Sprintf("task-%d", time.Now().Unix())
 
-	// Construct Docker run command with resource limits
-	command := c.buildDockerCommand(dockerImage, reqCPU, reqMemory, reqGPU)
+	// Command is empty - the container will use its default CMD/ENTRYPOINT
+	// If user wants to override, they can pass -cmd flag (future feature)
+	command := ""
 
 	// Display task details before sending
 	fmt.Println("\n═══════════════════════════════════════════════════════")
@@ -384,7 +400,6 @@ func (c *CLI) assignTask(parts []string) {
 	fmt.Printf("  Task ID:           %s\n", taskID)
 	fmt.Printf("  Target Worker:     %s\n", workerID)
 	fmt.Printf("  Docker Image:      %s\n", dockerImage)
-	fmt.Printf("  Command:           %s\n", command)
 	fmt.Println("───────────────────────────────────────────────────────")
 	fmt.Println("  Resource Requirements:")
 	fmt.Printf("    • CPU Cores:     %.2f cores\n", reqCPU)
@@ -402,6 +417,7 @@ func (c *CLI) assignTask(parts []string) {
 		ReqStorage:     reqStorage,
 		ReqGpu:         reqGPU,
 		TargetWorkerId: workerID, // Always required
+		UserId:         "admin",  // Default user for CLI tasks (can be made configurable)
 	}
 
 	err := c.assignTaskViaMaster(task)
@@ -411,31 +427,6 @@ func (c *CLI) assignTask(parts []string) {
 	}
 
 	fmt.Printf("\n✅ Task %s assigned successfully!\n", taskID)
-}
-
-func (c *CLI) buildDockerCommand(dockerImage string, cpu, memory, gpu float64) string {
-	// Build Docker run command with resource constraints
-	cmd := "docker run --rm"
-
-	// Add CPU limit
-	if cpu > 0 {
-		cmd += fmt.Sprintf(" --cpus=%.1f", cpu)
-	}
-
-	// Add memory limit
-	if memory > 0 {
-		cmd += fmt.Sprintf(" --memory=%.1fg", memory)
-	}
-
-	// Add GPU support if requested
-	if gpu > 0 {
-		cmd += fmt.Sprintf(" --gpus=%.1f", gpu)
-	}
-
-	// Add the image
-	cmd += fmt.Sprintf(" %s", dockerImage)
-
-	return cmd
 }
 
 func (c *CLI) assignTaskViaMaster(task *pb.Task) error {
@@ -487,4 +478,79 @@ func (c *CLI) unregisterWorker(workerID string) {
 	}
 
 	fmt.Printf("✅ Worker %s has been unregistered\n", workerID)
+}
+
+func (c *CLI) monitorTask(taskID, userID string) {
+	// ANSI escape codes for terminal control
+	const (
+		clearScreen = "\033[2J"
+		moveCursor  = "\033[H"
+		bold        = "\033[1m"
+		reset       = "\033[0m"
+		cyan        = "\033[36m"
+		green       = "\033[32m"
+		yellow      = "\033[33m"
+		red         = "\033[31m"
+	)
+
+	// Clear screen and show header
+	fmt.Print(clearScreen + moveCursor)
+	fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, cyan, reset)
+	fmt.Printf("%s%s  TASK MONITOR - Live Logs%s\n", bold, cyan, reset)
+	fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, cyan, reset)
+	fmt.Printf("%sTask ID:%s %s\n", bold, reset, taskID)
+	fmt.Printf("%sUser ID:%s %s\n", bold, reset, userID)
+	fmt.Printf("%s%s───────────────────────────────────────────────────────%s\n", bold, cyan, reset)
+	fmt.Printf("%s%sPress any key to exit%s\n\n", yellow, bold, reset)
+
+	// Create context that can be cancelled
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Channel to detect user input (to exit the live view)
+	done := make(chan bool, 1)
+
+	// Goroutine to listen for any key press
+	go func() {
+		reader := bufio.NewReader(os.Stdin)
+		reader.ReadByte() // Wait for any key press
+		done <- true
+		cancel()
+	}()
+
+	// Channel to signal streaming completion
+	streamDone := make(chan error, 1)
+
+	// Start streaming logs in goroutine
+	go func() {
+		err := c.masterServer.StreamTaskLogsFromWorker(ctx, taskID, userID, func(logLine string, isComplete bool) {
+			if logLine != "" {
+				fmt.Println(logLine)
+			}
+			if isComplete {
+				fmt.Printf("\n%s%s═══════════════════════════════════════════════════════%s\n", bold, green, reset)
+				fmt.Printf("%s%s  Task Completed%s\n", bold, green, reset)
+				fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, green, reset)
+			}
+		})
+		streamDone <- err
+	}()
+
+	// Wait for either user input or stream completion
+	select {
+	case <-done:
+		fmt.Printf("\n%s%s═══════════════════════════════════════════════════════%s\n", bold, yellow, reset)
+		fmt.Printf("%s%s  Monitoring Stopped by User%s\n", bold, yellow, reset)
+		fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, yellow, reset)
+	case err := <-streamDone:
+		if err != nil {
+			fmt.Printf("\n%s%s═══════════════════════════════════════════════════════%s\n", bold, red, reset)
+			fmt.Printf("%s%s  Error: %v%s\n", bold, red, err, reset)
+			fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, red, reset)
+		}
+		// Wait for user to press a key before returning to CLI
+		fmt.Printf("\n%sPress any key to return to CLI...%s\n", yellow, reset)
+		reader := bufio.NewReader(os.Stdin)
+		reader.ReadByte()
+	}
 }

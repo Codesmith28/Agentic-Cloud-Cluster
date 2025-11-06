@@ -22,6 +22,8 @@ type MasterServer struct {
 	workers       map[string]*WorkerState
 	mu            sync.RWMutex
 	workerDB      *db.WorkerDB
+	taskDB        *db.TaskDB
+	assignmentDB  *db.AssignmentDB
 	masterID      string
 	masterAddress string
 
@@ -50,10 +52,12 @@ type TaskAssignment struct {
 }
 
 // NewMasterServer creates a new master server instance
-func NewMasterServer(workerDB *db.WorkerDB, telemetryMgr *telemetry.TelemetryManager) *MasterServer {
+func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, telemetryMgr *telemetry.TelemetryManager) *MasterServer {
 	return &MasterServer{
 		workers:          make(map[string]*WorkerState),
 		workerDB:         workerDB,
+		taskDB:           taskDB,
+		assignmentDB:     assignmentDB,
 		masterID:         "",
 		masterAddress:    "",
 		taskChan:         make(chan *TaskAssignment, 100),
@@ -389,6 +393,24 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s has no IP address configured", task.TargetWorkerId)}, nil
 	}
 
+	// Store task in database (if DB is available)
+	if s.taskDB != nil {
+		dbTask := &db.Task{
+			TaskID:      task.TaskId,
+			UserID:      task.UserId,
+			DockerImage: task.DockerImage,
+			Command:     task.Command,
+			ReqCPU:      task.ReqCpu,
+			ReqMemory:   task.ReqMemory,
+			ReqStorage:  task.ReqStorage,
+			ReqGPU:      task.ReqGpu,
+			Status:      "pending",
+		}
+		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
+			log.Printf("Warning: Failed to store task in database: %v", err)
+		}
+	}
+
 	log.Printf("Connecting to worker %s at %s", task.TargetWorkerId, worker.Info.WorkerIp)
 
 	// Connect to worker and assign task
@@ -401,16 +423,41 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	client := pb.NewMasterWorkerClient(conn)
 	ack, err := client.AssignTask(ctx, task)
 	if err != nil {
+		// Update task status to failed if assignment fails
+		if s.taskDB != nil {
+			s.taskDB.UpdateTaskStatus(ctx, task.TaskId, "failed")
+		}
 		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to assign task: %v", err)}, nil
 	}
 
 	if ack.Success {
 		// Mark task as running on worker
 		worker.RunningTasks[task.TaskId] = true
+
+		// Store assignment in database (if DB is available)
+		if s.assignmentDB != nil {
+			assignment := &db.Assignment{
+				AssignmentID: fmt.Sprintf("ass-%s", task.TaskId),
+				TaskID:       task.TaskId,
+				WorkerID:     task.TargetWorkerId,
+			}
+			if err := s.assignmentDB.CreateAssignment(ctx, assignment); err != nil {
+				log.Printf("Warning: Failed to store assignment in database: %v", err)
+			}
+		}
+
+		// Update task status to running (if DB is available)
+		if s.taskDB != nil {
+			if err := s.taskDB.UpdateTaskStatus(ctx, task.TaskId, "running"); err != nil {
+				log.Printf("Warning: Failed to update task status: %v", err)
+			}
+		}
+
 		log.Println("\n═══════════════════════════════════════════════════════")
 		log.Println("  📤 TASK ASSIGNED TO WORKER")
 		log.Println("═══════════════════════════════════════════════════════")
 		log.Printf("  Task ID:           %s", task.TaskId)
+		log.Printf("  User ID:           %s", task.UserId)
 		log.Printf("  Target Worker:     %s", task.TargetWorkerId)
 		log.Printf("  Docker Image:      %s", task.DockerImage)
 		log.Println("───────────────────────────────────────────────────────")
@@ -424,6 +471,83 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	}
 
 	return ack, nil
+}
+
+// StreamTaskLogs handles gRPC streaming of task logs (called by master CLI)
+func (s *MasterServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWorker_StreamTaskLogsServer) error {
+	// This is a stub - the master doesn't receive this call from workers
+	// The actual implementation is in worker
+	return fmt.Errorf("StreamTaskLogs should be called on worker, not master")
+}
+
+// StreamTaskLogsFromWorker streams logs for a task from the worker (helper method for CLI)
+func (s *MasterServer) StreamTaskLogsFromWorker(ctx context.Context, taskID, userID string, logHandler func(string, bool)) error {
+	s.mu.RLock()
+
+	// Get task from database to find the worker
+	var workerID string
+	if s.assignmentDB != nil {
+		assignment, err := s.assignmentDB.GetAssignmentByTaskID(ctx, taskID)
+		if err != nil {
+			s.mu.RUnlock()
+			return fmt.Errorf("failed to find assignment for task: %w", err)
+		}
+		workerID = assignment.WorkerID
+	} else {
+		s.mu.RUnlock()
+		return fmt.Errorf("database not available")
+	}
+
+	// Get worker info
+	worker, exists := s.workers[workerID]
+	if !exists {
+		s.mu.RUnlock()
+		return fmt.Errorf("worker %s not found", workerID)
+	}
+
+	workerIP := worker.Info.WorkerIp
+	s.mu.RUnlock()
+
+	// Connect to worker
+	conn, err := grpc.Dial(workerIP, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return fmt.Errorf("failed to connect to worker: %w", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewMasterWorkerClient(conn)
+
+	// Request log stream
+	stream, err := client.StreamTaskLogs(ctx, &pb.TaskLogRequest{
+		TaskId: taskID,
+		UserId: userID,
+		Follow: true,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to start log stream: %w", err)
+	}
+
+	// Stream logs
+	for {
+		chunk, err := stream.Recv()
+		if err != nil {
+			if err.Error() == "EOF" {
+				return nil
+			}
+			return fmt.Errorf("error receiving log chunk: %w", err)
+		}
+
+		// Pass log content to handler
+		logHandler(chunk.Content, chunk.IsComplete)
+
+		if chunk.IsComplete {
+			// Update task status in database if completed
+			if s.taskDB != nil && chunk.Status != "running" {
+				s.taskDB.UpdateTaskStatus(ctx, taskID, chunk.Status)
+			}
+			return nil
+		}
+	}
 }
 
 // BroadcastMasterRegistration calls MasterRegister on all pre-registered workers

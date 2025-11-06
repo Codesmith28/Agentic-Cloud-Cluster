@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	pb "worker/proto"
@@ -24,6 +25,7 @@ type Monitor struct {
 	interval     time.Duration
 	runningTasks map[string]*pb.RunningTask
 	stopChan     chan struct{}
+	mu           sync.RWMutex // Protects runningTasks and masterAddr
 }
 
 // NewMonitor creates a new telemetry monitor
@@ -39,6 +41,8 @@ func NewMonitor(workerID string, interval time.Duration) *Monitor {
 
 // SetMasterAddress updates the master address (used when master registers)
 func (m *Monitor) SetMasterAddress(masterAddr string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.masterAddr = masterAddr
 	log.Printf("Updated master address to: %s", masterAddr)
 }
@@ -72,6 +76,8 @@ func (m *Monitor) Stop() {
 
 // AddTask adds a task to the running tasks list
 func (m *Monitor) AddTask(taskID string, cpuAlloc, memAlloc, gpuAlloc float64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.runningTasks[taskID] = &pb.RunningTask{
 		TaskId:          taskID,
 		CpuAllocated:    cpuAlloc,
@@ -79,23 +85,31 @@ func (m *Monitor) AddTask(taskID string, cpuAlloc, memAlloc, gpuAlloc float64) {
 		GpuAllocated:    gpuAlloc,
 		Status:          "running",
 	}
+	log.Printf("Task %s added to monitoring (total tasks: %d)", taskID, len(m.runningTasks))
 }
 
 // RemoveTask removes a task from the running tasks list
 func (m *Monitor) RemoveTask(taskID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	delete(m.runningTasks, taskID)
+	log.Printf("Task %s removed from monitoring (total tasks: %d)", taskID, len(m.runningTasks))
 }
 
 // sendHeartbeat sends a heartbeat message to the master
 func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 	// Skip heartbeat if master address is not set yet
-	if m.masterAddr == "" {
+	m.mu.RLock()
+	masterAddr := m.masterAddr
+	m.mu.RUnlock()
+
+	if masterAddr == "" {
 		return nil // Silently skip, master hasn't registered yet
 	}
 
 	conn, err := grpc.DialContext(
 		ctx,
-		m.masterAddr,
+		masterAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 	)
@@ -109,11 +123,13 @@ func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 	// Get current resource usage
 	cpuUsage, memUsage, gpuUsage := m.getResourceUsage()
 
-	// Convert running tasks map to slice
+	// Convert running tasks map to slice (with lock)
+	m.mu.RLock()
 	tasks := make([]*pb.RunningTask, 0, len(m.runningTasks))
 	for _, task := range m.runningTasks {
 		tasks = append(tasks, task)
 	}
+	m.mu.RUnlock()
 
 	heartbeat := &pb.Heartbeat{
 		WorkerId:     m.workerID,

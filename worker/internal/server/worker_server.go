@@ -149,8 +149,9 @@ func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 
 // executeTask runs the task and reports result
 func (s *WorkerServer) executeTask(ctx context.Context, task *pb.Task) {
-	// Execute the task
-	result := s.executor.ExecuteTask(ctx, task.TaskId, task.DockerImage)
+	// Execute the task with resource constraints
+	result := s.executor.ExecuteTask(ctx, task.TaskId, task.DockerImage, task.Command,
+		task.ReqCpu, task.ReqMemory, task.ReqGpu)
 
 	// Remove from monitoring
 	s.monitor.RemoveTask(task.TaskId)
@@ -175,6 +176,78 @@ func (s *WorkerServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.T
 		Success: false,
 		Message: "Task cancellation not implemented",
 	}, nil
+}
+
+// StreamTaskLogs streams live logs for a task
+func (s *WorkerServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWorker_StreamTaskLogsServer) error {
+	log.Printf("Log stream request for task: %s (user: %s, follow: %v)", req.TaskId, req.UserId, req.Follow)
+
+	// Get container ID for this task
+	containerID, exists := s.executor.GetContainerID(req.TaskId)
+	if !exists {
+		// Task not running, send error
+		return stream.Send(&pb.LogChunk{
+			TaskId:     req.TaskId,
+			Content:    "Task not found or not running on this worker",
+			IsComplete: true,
+			Status:     "not_found",
+		})
+	}
+
+	// Get container status
+	status, err := s.executor.GetContainerStatus(stream.Context(), containerID)
+	if err != nil {
+		return stream.Send(&pb.LogChunk{
+			TaskId:     req.TaskId,
+			Content:    fmt.Sprintf("Error getting container status: %v", err),
+			IsComplete: true,
+			Status:     "error",
+		})
+	}
+
+	// Stream logs
+	logChan, errChan := s.executor.StreamLogs(stream.Context(), containerID)
+
+	for {
+		select {
+		case line, ok := <-logChan:
+			if !ok {
+				// Logs finished, check final status
+				finalStatus, _ := s.executor.GetContainerStatus(stream.Context(), containerID)
+				return stream.Send(&pb.LogChunk{
+					TaskId:     req.TaskId,
+					Content:    "",
+					IsComplete: true,
+					Status:     finalStatus,
+				})
+			}
+
+			// Send log line
+			if err := stream.Send(&pb.LogChunk{
+				TaskId:     req.TaskId,
+				Content:    line,
+				Timestamp:  "", // Could parse from Docker timestamp
+				IsComplete: false,
+				Status:     status,
+			}); err != nil {
+				return fmt.Errorf("failed to send log chunk: %w", err)
+			}
+
+		case err := <-errChan:
+			if err != nil {
+				return stream.Send(&pb.LogChunk{
+					TaskId:     req.TaskId,
+					Content:    fmt.Sprintf("Error streaming logs: %v", err),
+					IsComplete: true,
+					Status:     "error",
+				})
+			}
+
+		case <-stream.Context().Done():
+			log.Printf("Client disconnected from log stream for task: %s", req.TaskId)
+			return stream.Context().Err()
+		}
+	}
 }
 
 // Close cleans up resources

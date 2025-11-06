@@ -14,6 +14,7 @@ service MasterWorker {
   rpc MasterRegister(MasterInfo) returns (RegisterAck);
   rpc AssignTask(Task) returns (TaskAck);
   rpc CancelTask(TaskID) returns (TaskAck);
+  rpc StreamTaskLogs(TaskLogRequest) returns (stream LogChunk);
 }
 
 // Worker registration
@@ -66,6 +67,7 @@ message Task {
   double req_storage = 6;
   double req_gpu = 7;
   string target_worker_id = 8;
+  string user_id = 9; // User who submitted the task
 }
 
 message TaskAck {
@@ -89,3 +91,18 @@ message Ack {
 
 // TaskID helper
 message TaskID { string task_id = 1; }
+
+// Task log streaming
+message TaskLogRequest {
+  string task_id = 1;
+  string user_id = 2; // For authorization
+  bool follow = 3;    // If true, stream live logs; if false, return stored logs
+}
+
+message LogChunk {
+  string task_id = 1;
+  string content = 2;   // Log content
+  string timestamp = 3; // ISO 8601 timestamp
+  bool is_complete = 4; // True when task is finished and no more logs
+  string status = 5;    // Task status: running, completed, failed
+}

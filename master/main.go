@@ -41,6 +41,9 @@ func main() {
 
 	// Initialize database
 	var workerDB *db.WorkerDB
+	var taskDB *db.TaskDB
+	var assignmentDB *db.AssignmentDB
+
 	if err := db.EnsureCollections(ctx, cfg); err != nil {
 		log.Printf("Warning: MongoDB initialization failed: %v", err)
 		log.Println("Continuing without database persistence...")
@@ -58,6 +61,26 @@ func main() {
 			log.Println("✓ WorkerDB initialized")
 			defer workerDB.Close(context.Background())
 		}
+
+		// Create task database handler
+		taskDB, err = db.NewTaskDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create TaskDB: %v", err)
+			taskDB = nil
+		} else {
+			log.Println("✓ TaskDB initialized")
+			defer taskDB.Close(context.Background())
+		}
+
+		// Create assignment database handler
+		assignmentDB, err = db.NewAssignmentDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create AssignmentDB: %v", err)
+			assignmentDB = nil
+		} else {
+			log.Println("✓ AssignmentDB initialized")
+			defer assignmentDB.Close(context.Background())
+		}
 	}
 
 	// Create master server
@@ -66,7 +89,7 @@ func main() {
 	telemetryMgr.Start()
 	log.Println("✓ Telemetry manager started")
 
-	masterServer := server.NewMasterServer(workerDB, telemetryMgr)
+	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, telemetryMgr)
 
 	// Set master info
 	masterID := "master-1"
