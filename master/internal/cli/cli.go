@@ -126,11 +126,11 @@ func (c *CLI) printHelp() {
 func (c *CLI) showStatus() {
 	// ANSI escape codes
 	const (
-		clearScreen = "\033[2J"
-		moveCursor  = "\033[H"
-		saveCursor  = "\0337"
+		clearScreen   = "\033[2J"
+		moveCursor    = "\033[H"
+		saveCursor    = "\0337"
 		restoreCursor = "\0338"
-		clearLine   = "\033[2K"
+		clearLine     = "\033[2K"
 	)
 
 	// Print initial view
@@ -176,9 +176,9 @@ func (c *CLI) showStatus() {
 
 		// Clear and redraw status box
 		fmt.Print(clearLine + "\r╔═══ Cluster Status ═══\n")
-		fmt.Printf(clearLine + "\r║ Total Workers: %d\n", len(workers))
-		fmt.Printf(clearLine + "\r║ Active Workers: %d\n", activeCount)
-		fmt.Printf(clearLine + "\r║ Running Tasks: %d\n", totalTasks)
+		fmt.Printf(clearLine+"\r║ Total Workers: %d\n", len(workers))
+		fmt.Printf(clearLine+"\r║ Active Workers: %d\n", activeCount)
+		fmt.Printf(clearLine+"\r║ Running Tasks: %d\n", totalTasks)
 		fmt.Print(clearLine + "\r╚══════════════════════\n")
 	}
 
@@ -291,7 +291,7 @@ func (c *CLI) showWorkerStats(workerID string) {
 		// Box has 14 lines + 1 blank line + 1 instruction line = 16 lines total
 		fmt.Print("\033[16A")
 		fmt.Print("\r") // Move to beginning of line
-		
+
 		// Clear and redraw stats box (no right border)
 		fmt.Printf("%s╔═══════════════════════════════════════════════════\n", clearLine)
 		fmt.Printf("%s║ Worker: %s\n", clearLine, workerID)
