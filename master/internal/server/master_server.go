@@ -24,6 +24,7 @@ type MasterServer struct {
 	workerDB      *db.WorkerDB
 	taskDB        *db.TaskDB
 	assignmentDB  *db.AssignmentDB
+	resultDB      *db.ResultDB
 	masterID      string
 	masterAddress string
 
@@ -52,12 +53,13 @@ type TaskAssignment struct {
 }
 
 // NewMasterServer creates a new master server instance
-func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, telemetryMgr *telemetry.TelemetryManager) *MasterServer {
+func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB, telemetryMgr *telemetry.TelemetryManager) *MasterServer {
 	return &MasterServer{
 		workers:          make(map[string]*WorkerState),
 		workerDB:         workerDB,
 		taskDB:           taskDB,
 		assignmentDB:     assignmentDB,
+		resultDB:         resultDB,
 		masterID:         "",
 		masterAddress:    "",
 		taskChan:         make(chan *TaskAssignment, 100),
@@ -311,19 +313,34 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	log.Printf("Task completion: %s from worker %s [Status: %s]",
-		result.TaskId, result.WorkerId, result.Status)
-
-	if len(result.Logs) > 0 {
-		log.Printf("Task logs:\n%s", result.Logs)
-	}
-
 	// Remove task from worker's running tasks
 	if worker, exists := s.workers[result.WorkerId]; exists {
 		delete(worker.RunningTasks, result.TaskId)
 	}
 
-	// TODO: Store result in MongoDB
+	// Update task status in database
+	if s.taskDB != nil {
+		status := "completed"
+		if result.Status != "success" {
+			status = "failed"
+		}
+		if err := s.taskDB.UpdateTaskStatus(context.Background(), result.TaskId, status); err != nil {
+			log.Printf("Warning: Failed to update task status in database: %v", err)
+		}
+	}
+
+	// Store result with logs in RESULTS collection
+	if s.resultDB != nil {
+		taskResult := &db.TaskResult{
+			TaskID:   result.TaskId,
+			WorkerID: result.WorkerId,
+			Status:   result.Status,
+			Logs:     result.Logs,
+		}
+		if err := s.resultDB.CreateResult(context.Background(), taskResult); err != nil {
+			log.Printf("Warning: Failed to store task result: %v", err)
+		}
+	}
 
 	return &pb.Ack{
 		Success: true,
@@ -484,6 +501,18 @@ func (s *MasterServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWo
 func (s *MasterServer) StreamTaskLogsFromWorker(ctx context.Context, taskID, userID string, logHandler func(string, bool)) error {
 	s.mu.RLock()
 
+	// First, check if task is completed and logs are in database
+	if s.resultDB != nil {
+		result, err := s.resultDB.GetResult(ctx, taskID)
+		if err == nil && result != nil {
+			// Task is completed, return stored logs
+			s.mu.RUnlock()
+			logHandler(result.Logs, true)
+			return nil
+		}
+	}
+
+	// Task might be running, try to stream from worker
 	// Get task from database to find the worker
 	var workerID string
 	if s.assignmentDB != nil {

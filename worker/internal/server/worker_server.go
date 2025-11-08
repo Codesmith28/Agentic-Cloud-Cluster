@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"runtime"
+	"sync"
 	"time"
 
 	"worker/internal/executor"
@@ -24,6 +25,7 @@ type WorkerServer struct {
 	monitor          *telemetry.Monitor
 	masterAddr       string
 	masterRegistered bool
+	mu               sync.RWMutex
 }
 
 // NewWorkerServer creates a new worker server instance
@@ -39,6 +41,7 @@ func NewWorkerServer(workerID string, monitor *telemetry.Monitor) (*WorkerServer
 		monitor:          monitor,
 		masterAddr:       "", // Will be set when master registers
 		masterRegistered: false,
+		mu:               sync.RWMutex{},
 	}, nil
 }
 
@@ -46,8 +49,10 @@ func NewWorkerServer(workerID string, monitor *telemetry.Monitor) (*WorkerServer
 func (s *WorkerServer) MasterRegister(ctx context.Context, masterInfo *pb.MasterInfo) (*pb.RegisterAck, error) {
 	log.Printf("Master registration request from: %s (%s)", masterInfo.MasterId, masterInfo.MasterAddress)
 
+	s.mu.Lock()
 	s.masterAddr = masterInfo.MasterAddress
 	s.masterRegistered = true
+	s.mu.Unlock()
 
 	// Update monitor with master address
 	s.monitor.SetMasterAddress(s.masterAddr)
@@ -63,17 +68,21 @@ func (s *WorkerServer) MasterRegister(ctx context.Context, masterInfo *pb.Master
 
 // registerWithMaster registers this worker with the master (called after master registers with us)
 func (s *WorkerServer) registerWithMaster() {
-	if s.masterAddr == "" {
+	s.mu.RLock()
+	masterAddr := s.masterAddr
+	s.mu.RUnlock()
+
+	if masterAddr == "" {
 		log.Printf("Cannot register with master: no master address set")
 		return
 	}
 
-	log.Printf("Registering worker %s with master at %s", s.workerID, s.masterAddr)
+	log.Printf("Registering worker %s with master at %s", s.workerID, masterAddr)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	conn, err := grpc.DialContext(ctx, s.masterAddr,
+	conn, err := grpc.DialContext(ctx, masterAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock())
 	if err != nil {
@@ -109,7 +118,11 @@ func (s *WorkerServer) registerWithMaster() {
 
 // AssignTask handles task assignment from master
 func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
-	if !s.masterRegistered {
+	s.mu.RLock()
+	registered := s.masterRegistered
+	s.mu.RUnlock()
+
+	if !registered {
 		return &pb.TaskAck{
 			Success: false,
 			Message: "Master not registered yet",
@@ -138,8 +151,8 @@ func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	// Add task to monitoring
 	s.monitor.AddTask(task.TaskId, task.ReqCpu, task.ReqMemory, task.ReqGpu)
 
-	// Execute task in background
-	go s.executeTask(ctx, task)
+	// Execute task in background with a fresh context (not tied to RPC timeout)
+	go s.executeTask(task)
 
 	return &pb.TaskAck{
 		Success: true,
@@ -148,7 +161,10 @@ func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 }
 
 // executeTask runs the task and reports result
-func (s *WorkerServer) executeTask(ctx context.Context, task *pb.Task) {
+func (s *WorkerServer) executeTask(task *pb.Task) {
+	// Create a new context for task execution (not tied to RPC timeout)
+	ctx := context.Background()
+
 	// Execute the task with resource constraints
 	result := s.executor.ExecuteTask(ctx, task.TaskId, task.DockerImage, task.Command,
 		task.ReqCpu, task.ReqMemory, task.ReqGpu)
@@ -156,7 +172,10 @@ func (s *WorkerServer) executeTask(ctx context.Context, task *pb.Task) {
 	// Remove from monitoring
 	s.monitor.RemoveTask(task.TaskId)
 
-	// Report result to master
+	// Report result to master with a timeout
+	reportCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	taskResult := &pb.TaskResult{
 		TaskId:         task.TaskId,
 		WorkerId:       s.workerID,
@@ -165,7 +184,11 @@ func (s *WorkerServer) executeTask(ctx context.Context, task *pb.Task) {
 		ResultLocation: "", // Not implemented yet
 	}
 
-	if err := telemetry.ReportTaskResult(ctx, s.masterAddr, taskResult); err != nil {
+	s.mu.RLock()
+	masterAddr := s.masterAddr
+	s.mu.RUnlock()
+
+	if err := telemetry.ReportTaskResult(reportCtx, masterAddr, taskResult); err != nil {
 		log.Printf("Failed to report task result: %v", err)
 	}
 }
