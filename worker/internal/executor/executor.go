@@ -7,15 +7,19 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sync"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-units"
 )
 
 // TaskExecutor handles Docker container execution
 type TaskExecutor struct {
 	dockerClient *client.Client
+	mu           sync.RWMutex
+	containers   map[string]string // task_id -> container_id
 }
 
 // TaskResult contains the execution result
@@ -36,11 +40,12 @@ func NewTaskExecutor() (*TaskExecutor, error) {
 
 	return &TaskExecutor{
 		dockerClient: cli,
+		containers:   make(map[string]string),
 	}, nil
 }
 
-// ExecuteTask pulls and runs a Docker container for the task
-func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage string) *TaskResult {
+// ExecuteTask pulls and runs a Docker container for the task with resource constraints
+func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, command string, reqCPU, reqMemory, reqGPU float64) *TaskResult {
 	result := &TaskResult{
 		TaskID: taskID,
 		Status: "failed",
@@ -56,15 +61,27 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage stri
 		return result
 	}
 
-	// Create container
-	log.Printf("[Task %s] Creating container...", taskID)
-	containerID, err := e.createContainer(ctx, dockerImage, taskID)
+	// Create container with resource limits
+	log.Printf("[Task %s] Creating container with resource limits (CPU: %.2f, Memory: %.2fGB, GPU: %.2f)...",
+		taskID, reqCPU, reqMemory, reqGPU)
+	containerID, err := e.createContainer(ctx, dockerImage, command, taskID, reqCPU, reqMemory, reqGPU)
 	if err != nil {
 		result.Error = fmt.Errorf("failed to create container: %w", err)
 		result.Logs = fmt.Sprintf("Error creating container: %v", err)
 		return result
 	}
-	defer e.cleanup(ctx, containerID)
+
+	// Store container mapping
+	e.mu.Lock()
+	e.containers[taskID] = containerID
+	e.mu.Unlock()
+
+	defer func() {
+		e.cleanup(ctx, containerID)
+		e.mu.Lock()
+		delete(e.containers, taskID)
+		e.mu.Unlock()
+	}()
 
 	// Start container
 	log.Printf("[Task %s] Starting container: %s", taskID, containerID[:12])
@@ -120,14 +137,52 @@ func (e *TaskExecutor) pullImage(ctx context.Context, imageName string) error {
 	return err
 }
 
-// createContainer creates a Docker container
-func (e *TaskExecutor) createContainer(ctx context.Context, image, taskID string) (string, error) {
+// createContainer creates a Docker container with resource limits
+func (e *TaskExecutor) createContainer(ctx context.Context, image, command, taskID string, reqCPU, reqMemory, reqGPU float64) (string, error) {
+	// Prepare container config
+	containerConfig := &container.Config{
+		Image: image,
+	}
+
+	// Add command if provided
+	if command != "" {
+		containerConfig.Cmd = []string{"/bin/sh", "-c", command}
+	}
+
+	// Prepare host config with resource limits
+	hostConfig := &container.HostConfig{
+		Resources: container.Resources{},
+	}
+
+	// Set CPU limit (in nano CPUs: 1 CPU = 1e9 nano CPUs)
+	if reqCPU > 0 {
+		hostConfig.Resources.NanoCPUs = int64(reqCPU * 1e9)
+	}
+
+	// Set Memory limit (convert GB to bytes)
+	if reqMemory > 0 {
+		hostConfig.Resources.Memory = int64(reqMemory * units.GiB)
+	}
+
+	// Set GPU devices (if requested)
+	if reqGPU > 0 {
+		// Note: This is a simplified GPU allocation
+		// In production, you'd use nvidia-docker runtime and proper device requests
+		hostConfig.Runtime = "nvidia"
+		// For proper GPU support, you'd need:
+		// hostConfig.DeviceRequests = []container.DeviceRequest{
+		//     {
+		//         Count: int(reqGPU),
+		//         Capabilities: [][]string{{"gpu"}},
+		//     },
+		// }
+		log.Printf("[Task %s] GPU support requested but simplified implementation", taskID)
+	}
+
 	resp, err := e.dockerClient.ContainerCreate(
 		ctx,
-		&container.Config{
-			Image: image,
-		},
-		nil,
+		containerConfig,
+		hostConfig,
 		nil,
 		nil,
 		fmt.Sprintf("task-%s", taskID),
@@ -185,4 +240,76 @@ func (e *TaskExecutor) Close() error {
 		return e.dockerClient.Close()
 	}
 	return nil
+}
+
+// GetContainerID returns the container ID for a given task ID
+func (e *TaskExecutor) GetContainerID(taskID string) (string, bool) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	containerID, exists := e.containers[taskID]
+	return containerID, exists
+}
+
+// StreamLogs streams live logs from a container
+// Returns a channel that receives log lines and an error channel
+func (e *TaskExecutor) StreamLogs(ctx context.Context, containerID string) (<-chan string, <-chan error) {
+	logChan := make(chan string, 100)
+	errChan := make(chan error, 1)
+
+	go func() {
+		defer close(logChan)
+		defer close(errChan)
+
+		logReader, err := e.dockerClient.ContainerLogs(ctx, containerID, container.LogsOptions{
+			ShowStdout: true,
+			ShowStderr: true,
+			Follow:     true,
+			Timestamps: true,
+		})
+		if err != nil {
+			errChan <- fmt.Errorf("failed to get container logs: %w", err)
+			return
+		}
+		defer logReader.Close()
+
+		scanner := bufio.NewScanner(logReader)
+		for scanner.Scan() {
+			line := scanner.Text()
+			// Remove Docker log header (first 8 bytes)
+			if len(line) > 8 {
+				line = line[8:]
+			}
+
+			select {
+			case logChan <- line:
+			case <-ctx.Done():
+				return
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			errChan <- fmt.Errorf("error reading logs: %w", err)
+		}
+	}()
+
+	return logChan, errChan
+}
+
+// GetContainerStatus returns the status of a container
+func (e *TaskExecutor) GetContainerStatus(ctx context.Context, containerID string) (string, error) {
+	inspect, err := e.dockerClient.ContainerInspect(ctx, containerID)
+	if err != nil {
+		return "", fmt.Errorf("failed to inspect container: %w", err)
+	}
+
+	if inspect.State.Running {
+		return "running", nil
+	} else if inspect.State.Status == "exited" {
+		if inspect.State.ExitCode == 0 {
+			return "completed", nil
+		}
+		return "failed", nil
+	}
+
+	return inspect.State.Status, nil
 }

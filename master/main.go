@@ -2,15 +2,22 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"master/internal/cli"
 	"master/internal/config"
 	"master/internal/db"
+	httpserver "master/internal/http"
 	"master/internal/server"
 	"master/internal/system"
+	"master/internal/telemetry"
 	pb "master/proto"
 
 	"google.golang.org/grpc"
@@ -34,6 +41,10 @@ func main() {
 
 	// Initialize database
 	var workerDB *db.WorkerDB
+	var taskDB *db.TaskDB
+	var assignmentDB *db.AssignmentDB
+	var resultDB *db.ResultDB
+
 	if err := db.EnsureCollections(ctx, cfg); err != nil {
 		log.Printf("Warning: MongoDB initialization failed: %v", err)
 		log.Println("Continuing without database persistence...")
@@ -51,10 +62,50 @@ func main() {
 			log.Println("✓ WorkerDB initialized")
 			defer workerDB.Close(context.Background())
 		}
+
+		// Create task database handler
+		taskDB, err = db.NewTaskDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create TaskDB: %v", err)
+			taskDB = nil
+		} else {
+			log.Println("✓ TaskDB initialized")
+			defer taskDB.Close(context.Background())
+		}
+
+		// Create assignment database handler
+		assignmentDB, err = db.NewAssignmentDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create AssignmentDB: %v", err)
+			assignmentDB = nil
+		} else {
+			log.Println("✓ AssignmentDB initialized")
+			defer assignmentDB.Close(context.Background())
+		}
+
+		// Create result database handler
+		resultDB, err = db.NewResultDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create ResultDB: %v", err)
+			resultDB = nil
+		} else {
+			log.Println("✓ ResultDB initialized")
+			defer resultDB.Close(context.Background())
+		}
 	}
 
 	// Create master server
-	masterServer := server.NewMasterServer(workerDB)
+	// Initialize telemetry manager (30 second inactivity timeout)
+	telemetryMgr := telemetry.NewTelemetryManager(30 * time.Second)
+	telemetryMgr.Start()
+	log.Println("✓ Telemetry manager started")
+
+	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, resultDB, telemetryMgr)
+
+	// Set master info
+	masterID := "master-1"
+	masterAddress := sysInfo.GetMasterAddress() + cfg.GRPCPort
+	masterServer.SetMasterInfo(masterID, masterAddress)
 
 	// Load workers from database
 	if workerDB != nil {
@@ -64,14 +115,63 @@ func main() {
 	}
 
 	// Start gRPC server in background
-	masterAddress := sysInfo.GetMasterAddress() + cfg.GRPCPort
-	go startGRPCServer(masterServer, masterAddress)
+	grpcServer := grpc.NewServer()
+	pb.RegisterMasterWorkerServer(grpcServer, masterServer)
+	go startGRPCServer(grpcServer, masterAddress)
+
+	// Start HTTP telemetry server (optional, configurable via HTTP_PORT env var)
+	var httpTelemetryServer *httpserver.TelemetryServer
+	if cfg.HTTPPort != "" {
+		// Parse port number from config (e.g., ":8080" -> 8080)
+		port := 8080 // default
+		if len(cfg.HTTPPort) > 1 && cfg.HTTPPort[0] == ':' {
+			// Parse port from ":8080" format
+			fmt.Sscanf(cfg.HTTPPort, ":%d", &port)
+		}
+
+		httpTelemetryServer = httpserver.NewTelemetryServer(port, telemetryMgr)
+		go func() {
+			if err := httpTelemetryServer.Start(); err != nil && err != http.ErrServerClosed {
+				log.Printf("WebSocket telemetry server error: %v", err)
+			}
+		}()
+		log.Printf("✓ WebSocket telemetry server started on port %d", port)
+	}
+
+	// Setup graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Handle shutdown in background
+	go func() {
+		<-sigChan
+		log.Println("\n\nShutting down master node...")
+
+		// Shutdown HTTP server
+		if httpTelemetryServer != nil {
+			httpTelemetryServer.Shutdown()
+		}
+
+		// Shutdown telemetry manager
+		telemetryMgr.Shutdown()
+
+		// Shutdown gRPC server
+		grpcServer.GracefulStop()
+
+		// Close database
+		if workerDB != nil {
+			workerDB.Close(context.Background())
+		}
+
+		log.Println("✓ Master node shutdown complete")
+		os.Exit(0)
+	}()
 
 	// Wait briefly to ensure server is listening before contacting workers
 	time.Sleep(500 * time.Millisecond)
 
 	// Broadcast master registration to known workers so they can connect back
-	masterServer.BroadcastMasterRegistration("master-1", masterAddress)
+	masterServer.BroadcastMasterRegistration(masterID, masterAddress)
 
 	// Start CLI interface
 	log.Println("\n✓ Master node started successfully")
@@ -81,14 +181,11 @@ func main() {
 	cliInterface.Run()
 }
 
-func startGRPCServer(masterServer *server.MasterServer, address string) {
+func startGRPCServer(grpcServer *grpc.Server, address string) {
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		log.Fatalf("Failed to listen on %s: %v", address, err)
 	}
-
-	grpcServer := grpc.NewServer()
-	pb.RegisterMasterWorkerServer(grpcServer, masterServer)
 
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)

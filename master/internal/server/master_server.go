@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"master/internal/db"
+	"master/internal/telemetry"
 	pb "master/proto"
 
 	"google.golang.org/grpc"
@@ -18,11 +19,19 @@ import (
 type MasterServer struct {
 	pb.UnimplementedMasterWorkerServer
 
-	workers  map[string]*WorkerState
-	mu       sync.RWMutex
-	workerDB *db.WorkerDB
+	workers       map[string]*WorkerState
+	mu            sync.RWMutex
+	workerDB      *db.WorkerDB
+	taskDB        *db.TaskDB
+	assignmentDB  *db.AssignmentDB
+	resultDB      *db.ResultDB
+	masterID      string
+	masterAddress string
 
 	taskChan chan *TaskAssignment
+
+	// Telemetry manager for handling worker telemetry in separate threads
+	telemetryManager *telemetry.TelemetryManager
 }
 
 // WorkerState tracks the current state of a worker
@@ -31,6 +40,10 @@ type WorkerState struct {
 	LastHeartbeat int64
 	IsActive      bool
 	RunningTasks  map[string]bool
+	LatestCPU     float64 // Latest CPU usage from heartbeat
+	LatestMemory  float64 // Latest memory usage from heartbeat
+	LatestGPU     float64 // Latest GPU usage from heartbeat
+	TaskCount     int     // Number of running tasks from latest heartbeat
 }
 
 // TaskAssignment represents a task to be sent to a worker
@@ -40,12 +53,34 @@ type TaskAssignment struct {
 }
 
 // NewMasterServer creates a new master server instance
-func NewMasterServer(workerDB *db.WorkerDB) *MasterServer {
+func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB, telemetryMgr *telemetry.TelemetryManager) *MasterServer {
 	return &MasterServer{
-		workers:  make(map[string]*WorkerState),
-		workerDB: workerDB,
-		taskChan: make(chan *TaskAssignment, 100),
+		workers:          make(map[string]*WorkerState),
+		workerDB:         workerDB,
+		taskDB:           taskDB,
+		assignmentDB:     assignmentDB,
+		resultDB:         resultDB,
+		masterID:         "",
+		masterAddress:    "",
+		taskChan:         make(chan *TaskAssignment, 100),
+		telemetryManager: telemetryMgr,
 	}
+}
+
+// SetMasterInfo sets the master ID and address
+func (s *MasterServer) SetMasterInfo(masterID, masterAddress string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.masterID = masterID
+	s.masterAddress = masterAddress
+	log.Printf("Master info set: ID=%s, Address=%s", masterID, masterAddress)
+}
+
+// GetMasterInfo returns the master ID and address
+func (s *MasterServer) GetMasterInfo() (string, string) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.masterID, s.masterAddress
 }
 
 // LoadWorkersFromDB loads registered workers from database into memory
@@ -147,11 +182,10 @@ func (s *MasterServer) ManualRegisterAndNotify(ctx context.Context, workerID, wo
 			log.Printf("MasterRegister RPC to worker %s (%s) failed: %v", workerID, workerIP, err)
 			return
 		}
-		if ack != nil && ack.Success {
-			log.Printf("MasterRegister acknowledged by worker %s: %s", workerID, ack.Message)
-		} else if ack != nil {
+		if ack != nil && !ack.Success {
 			log.Printf("MasterRegister rejected by worker %s: %s", workerID, ack.Message)
 		}
+		// Success case: no log to keep CLI clean
 	}()
 
 	return nil
@@ -172,6 +206,11 @@ func (s *MasterServer) UnregisterWorker(ctx context.Context, workerID string) er
 		if err := s.workerDB.UnregisterWorker(ctx, workerID); err != nil {
 			return fmt.Errorf("unregister worker from db: %w", err)
 		}
+	}
+
+	// Unregister from telemetry manager
+	if s.telemetryManager != nil {
+		s.telemetryManager.UnregisterWorker(workerID)
 	}
 
 	// Remove from memory
@@ -200,19 +239,29 @@ func (s *MasterServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) 
 		}, fmt.Errorf("worker %s not authorized - must be pre-registered by admin", info.WorkerId)
 	}
 
-	// Worker IS pre-registered - update with full specs
-	log.Printf("✓ Pre-registered worker connecting: %s (Address: %s, CPU: %.2f, Memory: %.2f GB)",
-		info.WorkerId, info.WorkerIp, info.TotalCpu, info.TotalMemory)
-
+	// Worker IS pre-registered - update with full specs but preserve the IP from manual registration
+	preservedIP := existingWorker.Info.WorkerIp
 	existingWorker.Info = info
+
+	// If worker didn't provide IP or provided empty IP, use the one from manual registration
+	if existingWorker.Info.WorkerIp == "" {
+		existingWorker.Info.WorkerIp = preservedIP
+		log.Printf("✓ Worker %s registered - using pre-configured address: %s", info.WorkerId, preservedIP)
+	}
+
 	existingWorker.IsActive = true
 	existingWorker.LastHeartbeat = time.Now().Unix()
 
 	// Update in database
 	if s.workerDB != nil {
-		if err := s.workerDB.UpdateWorkerInfo(ctx, info); err != nil {
+		if err := s.workerDB.UpdateWorkerInfo(ctx, existingWorker.Info); err != nil {
 			log.Printf("Warning: failed to update worker in db: %v", err)
 		}
+	}
+
+	// Register worker with telemetry manager
+	if s.telemetryManager != nil {
+		s.telemetryManager.RegisterWorker(info.WorkerId)
 	}
 
 	return &pb.RegisterAck{
@@ -235,6 +284,12 @@ func (s *MasterServer) SendHeartbeat(ctx context.Context, hb *pb.Heartbeat) (*pb
 	worker.LastHeartbeat = timestamp
 	worker.IsActive = true
 
+	// Store latest heartbeat metrics (keep minimal data in main thread)
+	worker.LatestCPU = hb.CpuUsage
+	worker.LatestMemory = hb.MemoryUsage
+	worker.LatestGPU = hb.GpuUsage
+	worker.TaskCount = len(hb.RunningTasks)
+
 	// Update heartbeat in database
 	if s.workerDB != nil {
 		if err := s.workerDB.UpdateHeartbeat(ctx, hb.WorkerId, timestamp); err != nil {
@@ -242,8 +297,13 @@ func (s *MasterServer) SendHeartbeat(ctx context.Context, hb *pb.Heartbeat) (*pb
 		}
 	}
 
-	log.Printf("Heartbeat from %s: CPU=%.2f%%, Memory=%.2f%%, Running Tasks=%d",
-		hb.WorkerId, hb.CpuUsage, hb.MemoryUsage, len(hb.RunningTasks))
+	// Offload telemetry processing to dedicated thread
+	// This is non-blocking and won't slow down the RPC handler
+	if s.telemetryManager != nil {
+		if err := s.telemetryManager.ProcessHeartbeat(hb); err != nil {
+			log.Printf("Warning: failed to process telemetry: %v", err)
+		}
+	}
 
 	return &pb.HeartbeatAck{Success: true}, nil
 }
@@ -253,19 +313,34 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	log.Printf("Task completion: %s from worker %s [Status: %s]",
-		result.TaskId, result.WorkerId, result.Status)
-
-	if len(result.Logs) > 0 {
-		log.Printf("Task logs:\n%s", result.Logs)
-	}
-
 	// Remove task from worker's running tasks
 	if worker, exists := s.workers[result.WorkerId]; exists {
 		delete(worker.RunningTasks, result.TaskId)
 	}
 
-	// TODO: Store result in MongoDB
+	// Update task status in database
+	if s.taskDB != nil {
+		status := "completed"
+		if result.Status != "success" {
+			status = "failed"
+		}
+		if err := s.taskDB.UpdateTaskStatus(context.Background(), result.TaskId, status); err != nil {
+			log.Printf("Warning: Failed to update task status in database: %v", err)
+		}
+	}
+
+	// Store result with logs in RESULTS collection
+	if s.resultDB != nil {
+		taskResult := &db.TaskResult{
+			TaskID:   result.TaskId,
+			WorkerID: result.WorkerId,
+			Status:   result.Status,
+			Logs:     result.Logs,
+		}
+		if err := s.resultDB.CreateResult(context.Background(), taskResult); err != nil {
+			log.Printf("Warning: Failed to store task result: %v", err)
+		}
+	}
 
 	return &pb.Ack{
 		Success: true,
@@ -283,6 +358,32 @@ func (s *MasterServer) GetWorkers() map[string]*WorkerState {
 		workers[k] = v
 	}
 	return workers
+}
+
+// GetWorkerStats returns detailed stats for a specific worker
+func (s *MasterServer) GetWorkerStats(workerID string) (*WorkerState, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	worker, exists := s.workers[workerID]
+	return worker, exists
+}
+
+// GetWorkerTelemetry returns detailed telemetry data for a specific worker
+// This queries the telemetry manager's dedicated thread for the worker
+func (s *MasterServer) GetWorkerTelemetry(workerID string) (*telemetry.WorkerTelemetryData, bool) {
+	if s.telemetryManager == nil {
+		return nil, false
+	}
+	return s.telemetryManager.GetWorkerTelemetry(workerID)
+}
+
+// GetAllWorkerTelemetry returns telemetry data for all workers
+func (s *MasterServer) GetAllWorkerTelemetry() map[string]*telemetry.WorkerTelemetryData {
+	if s.telemetryManager == nil {
+		return make(map[string]*telemetry.WorkerTelemetryData)
+	}
+	return s.telemetryManager.GetAllWorkerTelemetry()
 }
 
 // AssignTask assigns a task to a specific worker (target_worker_id is required)
@@ -304,6 +405,31 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s is not active", task.TargetWorkerId)}, nil
 	}
 
+	// Validate worker IP is set
+	if worker.Info.WorkerIp == "" {
+		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s has no IP address configured", task.TargetWorkerId)}, nil
+	}
+
+	// Store task in database (if DB is available)
+	if s.taskDB != nil {
+		dbTask := &db.Task{
+			TaskID:      task.TaskId,
+			UserID:      task.UserId,
+			DockerImage: task.DockerImage,
+			Command:     task.Command,
+			ReqCPU:      task.ReqCpu,
+			ReqMemory:   task.ReqMemory,
+			ReqStorage:  task.ReqStorage,
+			ReqGPU:      task.ReqGpu,
+			Status:      "pending",
+		}
+		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
+			log.Printf("Warning: Failed to store task in database: %v", err)
+		}
+	}
+
+	log.Printf("Connecting to worker %s at %s", task.TargetWorkerId, worker.Info.WorkerIp)
+
 	// Connect to worker and assign task
 	conn, err := grpc.Dial(worker.Info.WorkerIp, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -314,16 +440,143 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	client := pb.NewMasterWorkerClient(conn)
 	ack, err := client.AssignTask(ctx, task)
 	if err != nil {
+		// Update task status to failed if assignment fails
+		if s.taskDB != nil {
+			s.taskDB.UpdateTaskStatus(ctx, task.TaskId, "failed")
+		}
 		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to assign task: %v", err)}, nil
 	}
 
 	if ack.Success {
 		// Mark task as running on worker
 		worker.RunningTasks[task.TaskId] = true
-		log.Printf("Assigned task %s to worker %s", task.TaskId, task.TargetWorkerId)
+
+		// Store assignment in database (if DB is available)
+		if s.assignmentDB != nil {
+			assignment := &db.Assignment{
+				AssignmentID: fmt.Sprintf("ass-%s", task.TaskId),
+				TaskID:       task.TaskId,
+				WorkerID:     task.TargetWorkerId,
+			}
+			if err := s.assignmentDB.CreateAssignment(ctx, assignment); err != nil {
+				log.Printf("Warning: Failed to store assignment in database: %v", err)
+			}
+		}
+
+		// Update task status to running (if DB is available)
+		if s.taskDB != nil {
+			if err := s.taskDB.UpdateTaskStatus(ctx, task.TaskId, "running"); err != nil {
+				log.Printf("Warning: Failed to update task status: %v", err)
+			}
+		}
+
+		log.Println("\n═══════════════════════════════════════════════════════")
+		log.Println("  📤 TASK ASSIGNED TO WORKER")
+		log.Println("═══════════════════════════════════════════════════════")
+		log.Printf("  Task ID:           %s", task.TaskId)
+		log.Printf("  User ID:           %s", task.UserId)
+		log.Printf("  Target Worker:     %s", task.TargetWorkerId)
+		log.Printf("  Docker Image:      %s", task.DockerImage)
+		log.Println("───────────────────────────────────────────────────────")
+		log.Println("  Resource Requirements:")
+		log.Printf("    • CPU Cores:     %.2f cores", task.ReqCpu)
+		log.Printf("    • Memory:        %.2f GB", task.ReqMemory)
+		log.Printf("    • Storage:       %.2f GB", task.ReqStorage)
+		log.Printf("    • GPU Cores:     %.2f cores", task.ReqGpu)
+		log.Println("═══════════════════════════════════════════════════════")
+		log.Println("")
 	}
 
 	return ack, nil
+}
+
+// StreamTaskLogs handles gRPC streaming of task logs (called by master CLI)
+func (s *MasterServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWorker_StreamTaskLogsServer) error {
+	// This is a stub - the master doesn't receive this call from workers
+	// The actual implementation is in worker
+	return fmt.Errorf("StreamTaskLogs should be called on worker, not master")
+}
+
+// StreamTaskLogsFromWorker streams logs for a task from the worker (helper method for CLI)
+func (s *MasterServer) StreamTaskLogsFromWorker(ctx context.Context, taskID, userID string, logHandler func(string, bool)) error {
+	s.mu.RLock()
+
+	// First, check if task is completed and logs are in database
+	if s.resultDB != nil {
+		result, err := s.resultDB.GetResult(ctx, taskID)
+		if err == nil && result != nil {
+			// Task is completed, return stored logs
+			s.mu.RUnlock()
+			logHandler(result.Logs, true)
+			return nil
+		}
+	}
+
+	// Task might be running, try to stream from worker
+	// Get task from database to find the worker
+	var workerID string
+	if s.assignmentDB != nil {
+		assignment, err := s.assignmentDB.GetAssignmentByTaskID(ctx, taskID)
+		if err != nil {
+			s.mu.RUnlock()
+			return fmt.Errorf("failed to find assignment for task: %w", err)
+		}
+		workerID = assignment.WorkerID
+	} else {
+		s.mu.RUnlock()
+		return fmt.Errorf("database not available")
+	}
+
+	// Get worker info
+	worker, exists := s.workers[workerID]
+	if !exists {
+		s.mu.RUnlock()
+		return fmt.Errorf("worker %s not found", workerID)
+	}
+
+	workerIP := worker.Info.WorkerIp
+	s.mu.RUnlock()
+
+	// Connect to worker
+	conn, err := grpc.Dial(workerIP, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return fmt.Errorf("failed to connect to worker: %w", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewMasterWorkerClient(conn)
+
+	// Request log stream
+	stream, err := client.StreamTaskLogs(ctx, &pb.TaskLogRequest{
+		TaskId: taskID,
+		UserId: userID,
+		Follow: true,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to start log stream: %w", err)
+	}
+
+	// Stream logs
+	for {
+		chunk, err := stream.Recv()
+		if err != nil {
+			if err.Error() == "EOF" {
+				return nil
+			}
+			return fmt.Errorf("error receiving log chunk: %w", err)
+		}
+
+		// Pass log content to handler
+		logHandler(chunk.Content, chunk.IsComplete)
+
+		if chunk.IsComplete {
+			// Update task status in database if completed
+			if s.taskDB != nil && chunk.Status != "running" {
+				s.taskDB.UpdateTaskStatus(ctx, taskID, chunk.Status)
+			}
+			return nil
+		}
+	}
 }
 
 // BroadcastMasterRegistration calls MasterRegister on all pre-registered workers

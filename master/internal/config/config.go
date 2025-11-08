@@ -14,6 +14,7 @@ type Config struct {
 	GRPCPort        string
 	MongoDBURI      string
 	MongoDBDatabase string
+	HTTPPort        string // HTTP port for telemetry API
 }
 
 // LoadConfig loads configuration from environment variables and .env file
@@ -25,6 +26,7 @@ func LoadConfig() *Config {
 	host := getEnv("MONGODB_HOST", "localhost:27017")
 	database := getEnv("MONGODB_DATABASE", "cluster_db")
 	port := getEnv("GRPC_PORT", ":50051")
+	httpPort := getEnv("HTTP_PORT", ":8080") // Default HTTP port for telemetry API
 
 	var mongoURI string
 	if username != "" && password != "" {
@@ -39,6 +41,7 @@ func LoadConfig() *Config {
 		GRPCPort:        port,
 		MongoDBURI:      mongoURI,
 		MongoDBDatabase: database,
+		HTTPPort:        httpPort,
 	}
 
 	return config

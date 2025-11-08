@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"runtime"
+	"sync"
 	"time"
 
 	"worker/internal/executor"
@@ -24,6 +25,7 @@ type WorkerServer struct {
 	monitor          *telemetry.Monitor
 	masterAddr       string
 	masterRegistered bool
+	mu               sync.RWMutex
 }
 
 // NewWorkerServer creates a new worker server instance
@@ -39,6 +41,7 @@ func NewWorkerServer(workerID string, monitor *telemetry.Monitor) (*WorkerServer
 		monitor:          monitor,
 		masterAddr:       "", // Will be set when master registers
 		masterRegistered: false,
+		mu:               sync.RWMutex{},
 	}, nil
 }
 
@@ -46,8 +49,10 @@ func NewWorkerServer(workerID string, monitor *telemetry.Monitor) (*WorkerServer
 func (s *WorkerServer) MasterRegister(ctx context.Context, masterInfo *pb.MasterInfo) (*pb.RegisterAck, error) {
 	log.Printf("Master registration request from: %s (%s)", masterInfo.MasterId, masterInfo.MasterAddress)
 
+	s.mu.Lock()
 	s.masterAddr = masterInfo.MasterAddress
 	s.masterRegistered = true
+	s.mu.Unlock()
 
 	// Update monitor with master address
 	s.monitor.SetMasterAddress(s.masterAddr)
@@ -63,17 +68,21 @@ func (s *WorkerServer) MasterRegister(ctx context.Context, masterInfo *pb.Master
 
 // registerWithMaster registers this worker with the master (called after master registers with us)
 func (s *WorkerServer) registerWithMaster() {
-	if s.masterAddr == "" {
+	s.mu.RLock()
+	masterAddr := s.masterAddr
+	s.mu.RUnlock()
+
+	if masterAddr == "" {
 		log.Printf("Cannot register with master: no master address set")
 		return
 	}
 
-	log.Printf("Registering worker %s with master at %s", s.workerID, s.masterAddr)
+	log.Printf("Registering worker %s with master at %s", s.workerID, masterAddr)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	conn, err := grpc.DialContext(ctx, s.masterAddr,
+	conn, err := grpc.DialContext(ctx, masterAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock())
 	if err != nil {
@@ -109,20 +118,41 @@ func (s *WorkerServer) registerWithMaster() {
 
 // AssignTask handles task assignment from master
 func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
-	if !s.masterRegistered {
+	s.mu.RLock()
+	registered := s.masterRegistered
+	s.mu.RUnlock()
+
+	if !registered {
 		return &pb.TaskAck{
 			Success: false,
 			Message: "Master not registered yet",
 		}, nil
 	}
 
-	log.Printf("Received task assignment: %s (Image: %s)", task.TaskId, task.DockerImage)
+	// Print comprehensive task details with all system requirements
+	log.Println("\n═══════════════════════════════════════════════════════")
+	log.Println("  📥 TASK RECEIVED FROM MASTER")
+	log.Println("═══════════════════════════════════════════════════════")
+	log.Printf("  Task ID:           %s", task.TaskId)
+	log.Printf("  Docker Image:      %s", task.DockerImage)
+	log.Printf("  Command:           %s", task.Command)
+	log.Printf("  Target Worker:     %s", task.TargetWorkerId)
+	log.Println("───────────────────────────────────────────────────────")
+	log.Println("  System Requirements:")
+	log.Printf("    • CPU Cores:     %.2f cores", task.ReqCpu)
+	log.Printf("    • Memory:        %.2f GB", task.ReqMemory)
+	log.Printf("    • Storage:       %.2f GB", task.ReqStorage)
+	log.Printf("    • GPU Cores:     %.2f cores", task.ReqGpu)
+	log.Println("═══════════════════════════════════════════════════════")
+	log.Printf("  ✓ Task accepted - Starting execution...")
+	log.Println("═══════════════════════════════════════════════════════")
+	log.Println("")
 
 	// Add task to monitoring
-	s.monitor.AddTask(task.TaskId, task.ReqCpu, task.ReqMemory)
+	s.monitor.AddTask(task.TaskId, task.ReqCpu, task.ReqMemory, task.ReqGpu)
 
-	// Execute task in background
-	go s.executeTask(ctx, task)
+	// Execute task in background with a fresh context (not tied to RPC timeout)
+	go s.executeTask(task)
 
 	return &pb.TaskAck{
 		Success: true,
@@ -131,14 +161,21 @@ func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 }
 
 // executeTask runs the task and reports result
-func (s *WorkerServer) executeTask(ctx context.Context, task *pb.Task) {
-	// Execute the task
-	result := s.executor.ExecuteTask(ctx, task.TaskId, task.DockerImage)
+func (s *WorkerServer) executeTask(task *pb.Task) {
+	// Create a new context for task execution (not tied to RPC timeout)
+	ctx := context.Background()
+
+	// Execute the task with resource constraints
+	result := s.executor.ExecuteTask(ctx, task.TaskId, task.DockerImage, task.Command,
+		task.ReqCpu, task.ReqMemory, task.ReqGpu)
 
 	// Remove from monitoring
 	s.monitor.RemoveTask(task.TaskId)
 
-	// Report result to master
+	// Report result to master with a timeout
+	reportCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	taskResult := &pb.TaskResult{
 		TaskId:         task.TaskId,
 		WorkerId:       s.workerID,
@@ -147,7 +184,11 @@ func (s *WorkerServer) executeTask(ctx context.Context, task *pb.Task) {
 		ResultLocation: "", // Not implemented yet
 	}
 
-	if err := telemetry.ReportTaskResult(ctx, s.masterAddr, taskResult); err != nil {
+	s.mu.RLock()
+	masterAddr := s.masterAddr
+	s.mu.RUnlock()
+
+	if err := telemetry.ReportTaskResult(reportCtx, masterAddr, taskResult); err != nil {
 		log.Printf("Failed to report task result: %v", err)
 	}
 }
@@ -158,6 +199,78 @@ func (s *WorkerServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.T
 		Success: false,
 		Message: "Task cancellation not implemented",
 	}, nil
+}
+
+// StreamTaskLogs streams live logs for a task
+func (s *WorkerServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWorker_StreamTaskLogsServer) error {
+	log.Printf("Log stream request for task: %s (user: %s, follow: %v)", req.TaskId, req.UserId, req.Follow)
+
+	// Get container ID for this task
+	containerID, exists := s.executor.GetContainerID(req.TaskId)
+	if !exists {
+		// Task not running, send error
+		return stream.Send(&pb.LogChunk{
+			TaskId:     req.TaskId,
+			Content:    "Task not found or not running on this worker",
+			IsComplete: true,
+			Status:     "not_found",
+		})
+	}
+
+	// Get container status
+	status, err := s.executor.GetContainerStatus(stream.Context(), containerID)
+	if err != nil {
+		return stream.Send(&pb.LogChunk{
+			TaskId:     req.TaskId,
+			Content:    fmt.Sprintf("Error getting container status: %v", err),
+			IsComplete: true,
+			Status:     "error",
+		})
+	}
+
+	// Stream logs
+	logChan, errChan := s.executor.StreamLogs(stream.Context(), containerID)
+
+	for {
+		select {
+		case line, ok := <-logChan:
+			if !ok {
+				// Logs finished, check final status
+				finalStatus, _ := s.executor.GetContainerStatus(stream.Context(), containerID)
+				return stream.Send(&pb.LogChunk{
+					TaskId:     req.TaskId,
+					Content:    "",
+					IsComplete: true,
+					Status:     finalStatus,
+				})
+			}
+
+			// Send log line
+			if err := stream.Send(&pb.LogChunk{
+				TaskId:     req.TaskId,
+				Content:    line,
+				Timestamp:  "", // Could parse from Docker timestamp
+				IsComplete: false,
+				Status:     status,
+			}); err != nil {
+				return fmt.Errorf("failed to send log chunk: %w", err)
+			}
+
+		case err := <-errChan:
+			if err != nil {
+				return stream.Send(&pb.LogChunk{
+					TaskId:     req.TaskId,
+					Content:    fmt.Sprintf("Error streaming logs: %v", err),
+					IsComplete: true,
+					Status:     "error",
+				})
+			}
+
+		case <-stream.Context().Done():
+			log.Printf("Client disconnected from log stream for task: %s", req.TaskId)
+			return stream.Context().Err()
+		}
+	}
 }
 
 // Close cleans up resources

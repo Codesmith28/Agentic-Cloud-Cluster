@@ -1,13 +1,19 @@
 package telemetry
 
 import (
+	"bytes"
 	"context"
 	"log"
-	"runtime"
+	"os/exec"
+	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	pb "worker/proto"
 
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -19,6 +25,7 @@ type Monitor struct {
 	interval     time.Duration
 	runningTasks map[string]*pb.RunningTask
 	stopChan     chan struct{}
+	mu           sync.RWMutex // Protects runningTasks and masterAddr
 }
 
 // NewMonitor creates a new telemetry monitor
@@ -34,6 +41,8 @@ func NewMonitor(workerID string, interval time.Duration) *Monitor {
 
 // SetMasterAddress updates the master address (used when master registers)
 func (m *Monitor) SetMasterAddress(masterAddr string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.masterAddr = masterAddr
 	log.Printf("Updated master address to: %s", masterAddr)
 }
@@ -66,25 +75,41 @@ func (m *Monitor) Stop() {
 }
 
 // AddTask adds a task to the running tasks list
-func (m *Monitor) AddTask(taskID string, cpuAlloc, memAlloc float64) {
+func (m *Monitor) AddTask(taskID string, cpuAlloc, memAlloc, gpuAlloc float64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.runningTasks[taskID] = &pb.RunningTask{
 		TaskId:          taskID,
 		CpuAllocated:    cpuAlloc,
 		MemoryAllocated: memAlloc,
+		GpuAllocated:    gpuAlloc,
 		Status:          "running",
 	}
+	log.Printf("Task %s added to monitoring (total tasks: %d)", taskID, len(m.runningTasks))
 }
 
 // RemoveTask removes a task from the running tasks list
 func (m *Monitor) RemoveTask(taskID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	delete(m.runningTasks, taskID)
+	log.Printf("Task %s removed from monitoring (total tasks: %d)", taskID, len(m.runningTasks))
 }
 
 // sendHeartbeat sends a heartbeat message to the master
 func (m *Monitor) sendHeartbeat(ctx context.Context) error {
+	// Skip heartbeat if master address is not set yet
+	m.mu.RLock()
+	masterAddr := m.masterAddr
+	m.mu.RUnlock()
+
+	if masterAddr == "" {
+		return nil // Silently skip, master hasn't registered yet
+	}
+
 	conn, err := grpc.DialContext(
 		ctx,
-		m.masterAddr,
+		masterAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 	)
@@ -96,19 +121,21 @@ func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 	client := pb.NewMasterWorkerClient(conn)
 
 	// Get current resource usage
-	cpuUsage, memUsage := m.getResourceUsage()
+	cpuUsage, memUsage, gpuUsage := m.getResourceUsage()
 
-	// Convert running tasks map to slice
+	// Convert running tasks map to slice (with lock)
+	m.mu.RLock()
 	tasks := make([]*pb.RunningTask, 0, len(m.runningTasks))
 	for _, task := range m.runningTasks {
 		tasks = append(tasks, task)
 	}
+	m.mu.RUnlock()
 
 	heartbeat := &pb.Heartbeat{
 		WorkerId:     m.workerID,
 		CpuUsage:     cpuUsage,
 		MemoryUsage:  memUsage,
-		StorageUsage: 0.0, // TODO: Implement storage monitoring
+		GpuUsage:     gpuUsage,
 		RunningTasks: tasks,
 	}
 
@@ -118,28 +145,53 @@ func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 	}
 
 	if ack.Success {
-		log.Printf("Heartbeat sent: CPU=%.1f%%, Memory=%.1fMB, Tasks=%d",
-			cpuUsage, memUsage, len(tasks))
+		log.Printf("Heartbeat sent: CPU=%.1f%%, Memory=%.1f%%, GPU=%.1f%%, Tasks=%d",
+			cpuUsage, memUsage, gpuUsage, len(tasks))
 	}
 
 	return nil
 }
 
-// getResourceUsage returns current CPU and memory usage
-func (m *Monitor) getResourceUsage() (cpu, memory float64) {
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-
-	// CPU usage (simplified - returns number of goroutines as proxy)
-	cpu = float64(runtime.NumGoroutine()) * 10.0 // Simplified metric
-	if cpu > 100 {
-		cpu = 100
+// getResourceUsage returns actual CPU, memory, and GPU usage of the machine
+func (m *Monitor) getResourceUsage() (cpuPercent, memoryPercent, gpuPercent float64) {
+	// CPU usage over a short sample interval
+	cpuPercents, err := cpu.Percent(time.Second, false)
+	if err == nil && len(cpuPercents) > 0 {
+		cpuPercent = cpuPercents[0]
 	}
 
-	// Memory usage in MB
-	memory = float64(memStats.Alloc) / 1024 / 1024
+	// Memory usage
+	vmStat, err := mem.VirtualMemory()
+	if err == nil {
+		memoryPercent = vmStat.UsedPercent
+	}
 
-	return cpu, memory
+	// GPU usage (NVIDIA only via nvidia-smi)
+	gpuPercent = m.getGPUUsage()
+
+	return cpuPercent, memoryPercent, gpuPercent
+}
+
+// getGPUUsage returns GPU utilization percentage using nvidia-smi
+func (m *Monitor) getGPUUsage() float64 {
+	// Run nvidia-smi to get GPU utilization
+	cmd := exec.Command("bash", "-c",
+		`nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits | head -n 1`)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	if err := cmd.Run(); err != nil {
+		// nvidia-smi not available or error - GPU not present
+		return 0.0
+	}
+
+	// Parse the output
+	output := strings.TrimSpace(out.String())
+	if gpuUtil, err := strconv.ParseFloat(output, 64); err == nil {
+		return gpuUtil
+	}
+
+	return 0.0
 }
 
 // RegisterWorker registers the worker with the master
