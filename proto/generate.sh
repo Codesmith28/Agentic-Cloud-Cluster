@@ -5,6 +5,8 @@
 
 set -e
 
+export PATH=$PATH:$(go env GOPATH)/bin
+
 echo "Generating gRPC code from proto files..."
 
 # Create output directories for generated code
