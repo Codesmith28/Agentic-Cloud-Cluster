@@ -1,0 +1,9 @@
+{
+  "process_type": "CPU-Intensive-1",
+  "matrices_multiplied": 140,
+  "total_flops_estimate": 10409031980230,
+  "peak_cpu_percent": 1173.9,
+  "peak_memory_mb": 1120.61328125,
+  "duration_seconds": 162.26708269119263,
+  "gflops": 64.14752645821105
+}

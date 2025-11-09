@@ -1,0 +1,1122 @@
+[
+  {
+    "operation": 1,
+    "matrix_size": 275,
+    "duration": 0.001832723617553711,
+    "flops": 41593750,
+    "eigenvalue_sum": 6867.9029268967215,
+    "determinant": 2.7827187887355065e+39
+  },
+  {
+    "operation": 2,
+    "matrix_size": 323,
+    "duration": 0.002885580062866211,
+    "flops": 67396534,
+    "eigenvalue_sum": 8051.924753461366,
+    "determinant": 3.401056986458353e+41
+  },
+  {
+    "operation": 3,
+    "matrix_size": 375,
+    "duration": 0.003386259078979492,
+    "flops": 105468750,
+    "eigenvalue_sum": 9283.892387509559,
+    "determinant": -1.580924392501008e+43
+  },
+  {
+    "operation": 4,
+    "matrix_size": 359,
+    "duration": 0.004042625427246094,
+    "flops": 92536558,
+    "eigenvalue_sum": 9044.850184821564,
+    "determinant": -1.2877515499698523e+43
+  },
+  {
+    "operation": 5,
+    "matrix_size": 431,
+    "duration": 0.006411314010620117,
+    "flops": 160125982,
+    "eigenvalue_sum": 10734.74001373879,
+    "determinant": 7.306664227154305e+45
+  },
+  {
+    "operation": 6,
+    "matrix_size": 355,
+    "duration": 0.003055095672607422,
+    "flops": 89477750,
+    "eigenvalue_sum": 8883.109536240036,
+    "determinant": 8.526706144709798e+41
+  },
+  {
+    "operation": 7,
+    "matrix_size": 491,
+    "duration": 0.004193305969238281,
+    "flops": 236741542,
+    "eigenvalue_sum": 12307.301925141315,
+    "determinant": 1.42031643910717e+47
+  },
+  {
+    "operation": 8,
+    "matrix_size": 611,
+    "duration": 0.010345935821533203,
+    "flops": 456198262,
+    "eigenvalue_sum": 15271.109421231706,
+    "determinant": -8.404369709406331e+49
+  },
+  {
+    "operation": 9,
+    "matrix_size": 563,
+    "duration": 0.009189128875732422,
+    "flops": 356907094,
+    "eigenvalue_sum": 14132.474728211762,
+    "determinant": -3.292838130826165e+48
+  },
+  {
+    "operation": 10,
+    "matrix_size": 473,
+    "duration": 0.007418632507324219,
+    "flops": 211647634,
+    "eigenvalue_sum": 11727.381828661197,
+    "determinant": 5.4020764496487943e+45
+  },
+  {
+    "operation": 11,
+    "matrix_size": 575,
+    "duration": 0.010195016860961914,
+    "flops": 380218750,
+    "eigenvalue_sum": 14254.69991246919,
+    "determinant": 3.2864471256572384e+48
+  },
+  {
+    "operation": 12,
+    "matrix_size": 462,
+    "duration": 0.00552821159362793,
+    "flops": 197222256,
+    "eigenvalue_sum": 11514.536118497615,
+    "determinant": -2.81045654946919e+42
+  },
+  {
+    "operation": 13,
+    "matrix_size": 743,
+    "duration": 0.01771855354309082,
+    "flops": 820344814,
+    "eigenvalue_sum": 18681.581358027383,
+    "determinant": 4.951768564525859e+51
+  },
+  {
+    "operation": 14,
+    "matrix_size": 470,
+    "duration": 0.0035898685455322266,
+    "flops": 207646000,
+    "eigenvalue_sum": 11760.841613919445,
+    "determinant": -7.473154022117098e+47
+  },
+  {
+    "operation": 15,
+    "matrix_size": 863,
+    "duration": 0.018879175186157227,
+    "flops": 1285471294,
+    "eigenvalue_sum": 21626.737342738856,
+    "determinant": 7.797628533081594e+53
+  },
+  {
+    "operation": 16,
+    "matrix_size": 785,
+    "duration": 0.018564939498901367,
+    "flops": 967473250,
+    "eigenvalue_sum": 19582.297283688138,
+    "determinant": 2.5170507607507125e+52
+  },
+  {
+    "operation": 17,
+    "matrix_size": 851,
+    "duration": 0.01097869873046875,
+    "flops": 1232590102,
+    "eigenvalue_sum": 21248.476356034826,
+    "determinant": 2.700047677555044e+53
+  },
+  {
+    "operation": 18,
+    "matrix_size": 853,
+    "duration": 0.011744022369384766,
+    "flops": 1241300954,
+    "eigenvalue_sum": 21246.711118187624,
+    "determinant": 1.2220499805918357e+54
+  },
+  {
+    "operation": 19,
+    "matrix_size": 581,
+    "duration": 0.005086421966552734,
+    "flops": 392245882,
+    "eigenvalue_sum": 14496.824111092656,
+    "determinant": 1.5368365560924889e+47
+  },
+  {
+    "operation": 20,
+    "matrix_size": 655,
+    "duration": 0.007352113723754883,
+    "flops": 562022750,
+    "eigenvalue_sum": 16386.62037132844,
+    "determinant": -1.2227686826671013e+51
+  },
+  {
+    "operation": 21,
+    "matrix_size": 1015,
+    "duration": 0.026899337768554688,
+    "flops": 2091356750,
+    "eigenvalue_sum": 25437.221468705982,
+    "determinant": 1.3156119357992856e+55
+  },
+  {
+    "operation": 22,
+    "matrix_size": 1157,
+    "duration": 0.05870795249938965,
+    "flops": 3097633786,
+    "eigenvalue_sum": 28884.24980463742,
+    "determinant": 2.3761720053171187e+57
+  },
+  {
+    "operation": 23,
+    "matrix_size": 1287,
+    "duration": 0.08987855911254883,
+    "flops": 4263493806,
+    "eigenvalue_sum": 32080.44843981402,
+    "determinant": 1.625256140042639e+58
+  },
+  {
+    "operation": 24,
+    "matrix_size": 735,
+    "duration": 0.010824203491210938,
+    "flops": 794130750,
+    "eigenvalue_sum": 18404.319084713527,
+    "determinant": -1.2812056962253786e+51
+  },
+  {
+    "operation": 25,
+    "matrix_size": 707,
+    "duration": 0.01190042495727539,
+    "flops": 706786486,
+    "eigenvalue_sum": 17724.36075402983,
+    "determinant": -4.771342690627835e+51
+  },
+  {
+    "operation": 26,
+    "matrix_size": 1475,
+    "duration": 0.08112907409667969,
+    "flops": 6418093750,
+    "eigenvalue_sum": 37032.17690373156,
+    "determinant": -8.124193035406692e+58
+  },
+  {
+    "operation": 27,
+    "matrix_size": 613,
+    "duration": 0.00582575798034668,
+    "flops": 460692794,
+    "eigenvalue_sum": 15289.709412557693,
+    "determinant": 2.3994229498095936e+50
+  },
+  {
+    "operation": 28,
+    "matrix_size": 1436,
+    "duration": 0.07934355735778809,
+    "flops": 5922339712,
+    "eigenvalue_sum": 35881.55764439201,
+    "determinant": -3.1945014441706126e+58
+  },
+  {
+    "operation": 29,
+    "matrix_size": 1479,
+    "duration": 0.10188412666320801,
+    "flops": 6470450478,
+    "eigenvalue_sum": 36989.88832796462,
+    "determinant": -4.173478883455871e+59
+  },
+  {
+    "operation": 30,
+    "matrix_size": 971,
+    "duration": 0.05086374282836914,
+    "flops": 1830997222,
+    "eigenvalue_sum": 24305.626967880453,
+    "determinant": -7.441624799962653e+53
+  },
+  {
+    "operation": 31,
+    "matrix_size": 1715,
+    "duration": 0.09249424934387207,
+    "flops": 10088401750,
+    "eigenvalue_sum": 42844.28912836584,
+    "determinant": 5.2082095689040266e+60
+  },
+  {
+    "operation": 32,
+    "matrix_size": 1763,
+    "duration": 0.11517548561096191,
+    "flops": 10959403894,
+    "eigenvalue_sum": 44140.11279968604,
+    "determinant": 1.798820187111592e+60
+  },
+  {
+    "operation": 33,
+    "matrix_size": 755,
+    "duration": 0.012822151184082031,
+    "flops": 860737750,
+    "eigenvalue_sum": 18937.033833870202,
+    "determinant": -2.622281209774117e+53
+  },
+  {
+    "operation": 34,
+    "matrix_size": 1199,
+    "duration": 0.07635307312011719,
+    "flops": 3447367198,
+    "eigenvalue_sum": 29980.97902881114,
+    "determinant": 4.783610259251242e+56
+  },
+  {
+    "operation": 35,
+    "matrix_size": 1771,
+    "duration": 0.12958860397338867,
+    "flops": 11109274022,
+    "eigenvalue_sum": 44247.270573582115,
+    "determinant": -1.6564064173608067e+60
+  },
+  {
+    "operation": 36,
+    "matrix_size": 1815,
+    "duration": 0.1493971347808838,
+    "flops": 11958036750,
+    "eigenvalue_sum": 45384.5025981046,
+    "determinant": 7.26022082818448e+61
+  },
+  {
+    "operation": 37,
+    "matrix_size": 1463,
+    "duration": 0.07841014862060547,
+    "flops": 6262719694,
+    "eigenvalue_sum": 36584.22000438812,
+    "determinant": 3.872074453959787e+59
+  },
+  {
+    "operation": 38,
+    "matrix_size": 1718,
+    "duration": 0.12604713439941406,
+    "flops": 10141436464,
+    "eigenvalue_sum": 42979.280930259716,
+    "determinant": 1.350992498809265e+61
+  },
+  {
+    "operation": 39,
+    "matrix_size": 1909,
+    "duration": 0.15303993225097656,
+    "flops": 13913864858,
+    "eigenvalue_sum": 47677.46426382915,
+    "determinant": 4.409401910648007e+63
+  },
+  {
+    "operation": 40,
+    "matrix_size": 1874,
+    "duration": 0.1455368995666504,
+    "flops": 13162511248,
+    "eigenvalue_sum": 46840.672695074616,
+    "determinant": 2.0878519263607513e+62
+  },
+  {
+    "operation": 41,
+    "matrix_size": 1155,
+    "duration": 0.05379033088684082,
+    "flops": 3081597750,
+    "eigenvalue_sum": 28818.31099942981,
+    "determinant": -2.642592069898346e+55
+  },
+  {
+    "operation": 42,
+    "matrix_size": 2284,
+    "duration": 0.25206494331359863,
+    "flops": 23829684608,
+    "eigenvalue_sum": 57123.4743182974,
+    "determinant": -6.866335683213051e+63
+  },
+  {
+    "operation": 43,
+    "matrix_size": 1787,
+    "duration": 0.14004921913146973,
+    "flops": 11413100806,
+    "eigenvalue_sum": 44696.89146366358,
+    "determinant": -4.0762064312696e+61
+  },
+  {
+    "operation": 44,
+    "matrix_size": 2382,
+    "duration": 0.37276649475097656,
+    "flops": 27030573936,
+    "eigenvalue_sum": 59461.21649907394,
+    "determinant": -3.3198622273813794e+64
+  },
+  {
+    "operation": 45,
+    "matrix_size": 2387,
+    "duration": 0.2808096408843994,
+    "flops": 27201149206,
+    "eigenvalue_sum": 59443.32956230751,
+    "determinant": 1.2628845938264837e+65
+  },
+  {
+    "operation": 46,
+    "matrix_size": 1085,
+    "duration": 0.03613781929016113,
+    "flops": 2554578250,
+    "eigenvalue_sum": 27029.709345874468,
+    "determinant": 5.848107417593704e+55
+  },
+  {
+    "operation": 47,
+    "matrix_size": 2575,
+    "duration": 0.7939150333404541,
+    "flops": 34147718750,
+    "eigenvalue_sum": 64359.16287591034,
+    "determinant": -2.0183287052540792e+65
+  },
+  {
+    "operation": 48,
+    "matrix_size": 1168,
+    "duration": 0.043146610260009766,
+    "flops": 3186827264,
+    "eigenvalue_sum": 29234.637782924736,
+    "determinant": -1.947279000328795e+57
+  },
+  {
+    "operation": 49,
+    "matrix_size": 2483,
+    "duration": 0.6018738746643066,
+    "flops": 30616825174,
+    "eigenvalue_sum": 62157.45251844526,
+    "determinant": 1.0148561142540104e+65
+  },
+  {
+    "operation": 50,
+    "matrix_size": 2382,
+    "duration": 0.4631929397583008,
+    "flops": 27030573936,
+    "eigenvalue_sum": 59738.75808958679,
+    "determinant": 3.639762083922545e+64
+  },
+  {
+    "operation": 51,
+    "matrix_size": 1925,
+    "duration": 0.2097935676574707,
+    "flops": 14266656250,
+    "eigenvalue_sum": 48225.95272987138,
+    "determinant": 2.4145759974469627e+63
+  },
+  {
+    "operation": 52,
+    "matrix_size": 2621,
+    "duration": 0.48337626457214355,
+    "flops": 36010658122,
+    "eigenvalue_sum": 65509.33273845526,
+    "determinant": -6.77124319666865e+65
+  },
+  {
+    "operation": 53,
+    "matrix_size": 2771,
+    "duration": 0.5826623439788818,
+    "flops": 42553920022,
+    "eigenvalue_sum": 69491.65823138882,
+    "determinant": -1.801364629186801e+65
+  },
+  {
+    "operation": 54,
+    "matrix_size": 1494,
+    "duration": 0.125410795211792,
+    "flops": 6669323568,
+    "eigenvalue_sum": 37422.65337547898,
+    "determinant": -5.2162989182994135e+59
+  },
+  {
+    "operation": 55,
+    "matrix_size": 2705,
+    "duration": 0.4533543586730957,
+    "flops": 39585105250,
+    "eigenvalue_sum": 67538.46446741954,
+    "determinant": -1.1030468718982254e+65
+  },
+  {
+    "operation": 56,
+    "matrix_size": 1870,
+    "duration": 0.187516450881958,
+    "flops": 13078406000,
+    "eigenvalue_sum": 46690.25386217185,
+    "determinant": 1.239751277597644e+62
+  },
+  {
+    "operation": 57,
+    "matrix_size": 2907,
+    "duration": 0.6438767910003662,
+    "flops": 49132073286,
+    "eigenvalue_sum": 72568.1132701166,
+    "determinant": -1.2989450180272728e+65
+  },
+  {
+    "operation": 58,
+    "matrix_size": 2612,
+    "duration": 0.48825597763061523,
+    "flops": 35640969856,
+    "eigenvalue_sum": 65244.84773959147,
+    "determinant": 1.247146010964324e+65
+  },
+  {
+    "operation": 59,
+    "matrix_size": 1319,
+    "duration": 0.08697342872619629,
+    "flops": 4589489518,
+    "eigenvalue_sum": 32903.997628222634,
+    "determinant": -2.5382175592237683e+56
+  },
+  {
+    "operation": 60,
+    "matrix_size": 2458,
+    "duration": 0.40424275398254395,
+    "flops": 29701311824,
+    "eigenvalue_sum": 61315.150369377385,
+    "determinant": -6.730905754818502e+64
+  },
+  {
+    "operation": 61,
+    "matrix_size": 2495,
+    "duration": 0.45177340507507324,
+    "flops": 31062874750,
+    "eigenvalue_sum": 62635.048429442875,
+    "determinant": 1.310101069547694e+65
+  },
+  {
+    "operation": 62,
+    "matrix_size": 2715,
+    "duration": 0.45221543312072754,
+    "flops": 40025751750,
+    "eigenvalue_sum": 67783.63236298822,
+    "determinant": -3.574117515272327e+66
+  },
+  {
+    "operation": 63,
+    "matrix_size": 2755,
+    "duration": 0.5222153663635254,
+    "flops": 41821037750,
+    "eigenvalue_sum": 68780.04915785955,
+    "determinant": 1.3790605120650697e+66
+  },
+  {
+    "operation": 64,
+    "matrix_size": 2984,
+    "duration": 0.632868766784668,
+    "flops": 53140599808,
+    "eigenvalue_sum": 74698.50459641161,
+    "determinant": 4.953303741109479e+65
+  },
+  {
+    "operation": 65,
+    "matrix_size": 3027,
+    "duration": 0.6294467449188232,
+    "flops": 55471161366,
+    "eigenvalue_sum": 75788.19245342098,
+    "determinant": -1.6225504812592692e+67
+  },
+  {
+    "operation": 66,
+    "matrix_size": 1705,
+    "duration": 0.14572405815124512,
+    "flops": 9912955250,
+    "eigenvalue_sum": 42628.130683002135,
+    "determinant": -6.185057646491338e+60
+  },
+  {
+    "operation": 67,
+    "matrix_size": 3443,
+    "duration": 0.9335594177246094,
+    "flops": 81628358614,
+    "eigenvalue_sum": 86044.66716479984,
+    "determinant": 2.252226554894334e+68
+  },
+  {
+    "operation": 68,
+    "matrix_size": 1414,
+    "duration": 0.09464216232299805,
+    "flops": 5654291888,
+    "eigenvalue_sum": 35454.753318263465,
+    "determinant": -2.220111938005628e+59
+  },
+  {
+    "operation": 69,
+    "matrix_size": 3063,
+    "duration": 0.6687748432159424,
+    "flops": 57473942094,
+    "eigenvalue_sum": 76671.29768372582,
+    "determinant": -2.326645514367794e+67
+  },
+  {
+    "operation": 70,
+    "matrix_size": 3449,
+    "duration": 1.1160025596618652,
+    "flops": 82055855698,
+    "eigenvalue_sum": 86197.626327737,
+    "determinant": 2.036343946406562e+69
+  },
+  {
+    "operation": 71,
+    "matrix_size": 2235,
+    "duration": 0.3234407901763916,
+    "flops": 22328655750,
+    "eigenvalue_sum": 56012.056881141405,
+    "determinant": -1.2424048213657559e+64
+  },
+  {
+    "operation": 72,
+    "matrix_size": 3825,
+    "duration": 1.5398244857788086,
+    "flops": 111924281250,
+    "eigenvalue_sum": 95533.45703586999,
+    "determinant": -1.7713770766877205e+69
+  },
+  {
+    "operation": 73,
+    "matrix_size": 1643,
+    "duration": 0.13855552673339844,
+    "flops": 8870389414,
+    "eigenvalue_sum": 41237.62155606508,
+    "determinant": -8.026033037026039e+59
+  },
+  {
+    "operation": 74,
+    "matrix_size": 1881,
+    "duration": 0.15878796577453613,
+    "flops": 13310561682,
+    "eigenvalue_sum": 46892.573983494,
+    "determinant": -9.133036200273357e+60
+  },
+  {
+    "operation": 75,
+    "matrix_size": 1015,
+    "duration": 0.07328152656555176,
+    "flops": 2091356750,
+    "eigenvalue_sum": 25416.660393765615,
+    "determinant": -3.23120569879479e+54
+  },
+  {
+    "operation": 76,
+    "matrix_size": 1325,
+    "duration": 0.1326923370361328,
+    "flops": 4652406250,
+    "eigenvalue_sum": 33090.77059675035,
+    "determinant": 1.5590919188899037e+56
+  },
+  {
+    "operation": 77,
+    "matrix_size": 1339,
+    "duration": 0.12206387519836426,
+    "flops": 4801442438,
+    "eigenvalue_sum": 33500.18969522298,
+    "determinant": 1.1033698105819437e+58
+  },
+  {
+    "operation": 78,
+    "matrix_size": 1430,
+    "duration": 0.08503270149230957,
+    "flops": 5848414000,
+    "eigenvalue_sum": 35576.26847616486,
+    "determinant": 5.228536702892677e+57
+  },
+  {
+    "operation": 79,
+    "matrix_size": 1679,
+    "duration": 0.13049030303955078,
+    "flops": 9466339678,
+    "eigenvalue_sum": 42145.96995210944,
+    "determinant": 1.7870712012116412e+60
+  },
+  {
+    "operation": 80,
+    "matrix_size": 2882,
+    "duration": 0.7093522548675537,
+    "flops": 47875345936,
+    "eigenvalue_sum": 71786.94202455391,
+    "determinant": -2.9575694686079026e+66
+  },
+  {
+    "operation": 81,
+    "matrix_size": 2595,
+    "duration": 0.47878527641296387,
+    "flops": 34949589750,
+    "eigenvalue_sum": 64747.37868022076,
+    "determinant": -1.635279524504178e+67
+  },
+  {
+    "operation": 82,
+    "matrix_size": 2705,
+    "duration": 0.598783016204834,
+    "flops": 39585105250,
+    "eigenvalue_sum": 67553.720343891,
+    "determinant": 1.2572664597414362e+66
+  },
+  {
+    "operation": 83,
+    "matrix_size": 2571,
+    "duration": 0.5214817523956299,
+    "flops": 33988830822,
+    "eigenvalue_sum": 64124.656383084395,
+    "determinant": 9.799901488932704e+65
+  },
+  {
+    "operation": 84,
+    "matrix_size": 3097,
+    "duration": 1.0238637924194336,
+    "flops": 59409187346,
+    "eigenvalue_sum": 77481.93489254879,
+    "determinant": 3.760967824612312e+66
+  },
+  {
+    "operation": 85,
+    "matrix_size": 2795,
+    "duration": 0.40239548683166504,
+    "flops": 43669219750,
+    "eigenvalue_sum": 69839.10012630456,
+    "determinant": -6.869897342564912e+65
+  },
+  {
+    "operation": 86,
+    "matrix_size": 2740,
+    "duration": 0.3943135738372803,
+    "flops": 41141648000,
+    "eigenvalue_sum": 68558.05187858257,
+    "determinant": -4.86602216242695e+66
+  },
+  {
+    "operation": 87,
+    "matrix_size": 1909,
+    "duration": 0.15291547775268555,
+    "flops": 13913864858,
+    "eigenvalue_sum": 47645.8767716048,
+    "determinant": 1.9139221738461973e+62
+  },
+  {
+    "operation": 88,
+    "matrix_size": 3929,
+    "duration": 1.6616411209106445,
+    "flops": 121304268178,
+    "eigenvalue_sum": 98038.16376787305,
+    "determinant": -4.013660998700334e+69
+  },
+  {
+    "operation": 89,
+    "matrix_size": 1419,
+    "duration": 0.17329049110412598,
+    "flops": 5714486118,
+    "eigenvalue_sum": 35426.36132692833,
+    "determinant": -1.623474551930152e+59
+  },
+  {
+    "operation": 90,
+    "matrix_size": 1966,
+    "duration": 0.21141839027404785,
+    "flops": 15197793392,
+    "eigenvalue_sum": 49215.36619227028,
+    "determinant": -2.608517094420882e+62
+  },
+  {
+    "operation": 91,
+    "matrix_size": 1895,
+    "duration": 0.16948533058166504,
+    "flops": 13609984750,
+    "eigenvalue_sum": 47287.70778706523,
+    "determinant": -6.094827743263048e+61
+  },
+  {
+    "operation": 92,
+    "matrix_size": 2368,
+    "duration": 0.37185072898864746,
+    "flops": 26556760064,
+    "eigenvalue_sum": 59097.20022858036,
+    "determinant": 1.1754274284165756e+64
+  },
+  {
+    "operation": 93,
+    "matrix_size": 4231,
+    "duration": 1.4765245914459229,
+    "flops": 151481316782,
+    "eigenvalue_sum": 105901.90330122251,
+    "determinant": 1.199617921094652e+71
+  },
+  {
+    "operation": 94,
+    "matrix_size": 2693,
+    "duration": 0.3646509647369385,
+    "flops": 39060613114,
+    "eigenvalue_sum": 67316.41598315707,
+    "determinant": 1.5293552019966247e+65
+  },
+  {
+    "operation": 95,
+    "matrix_size": 2531,
+    "duration": 0.30695557594299316,
+    "flops": 32426974582,
+    "eigenvalue_sum": 63214.58584078187,
+    "determinant": -6.420708676381949e+65
+  },
+  {
+    "operation": 96,
+    "matrix_size": 4265,
+    "duration": 1.6012482643127441,
+    "flops": 155162619250,
+    "eigenvalue_sum": 106847.3778471089,
+    "determinant": -2.2835009275761805e+71
+  },
+  {
+    "operation": 97,
+    "matrix_size": 4211,
+    "duration": 1.942359447479248,
+    "flops": 149343291862,
+    "eigenvalue_sum": 105533.85640611543,
+    "determinant": 5.712274749548228e+70
+  },
+  {
+    "operation": 98,
+    "matrix_size": 3573,
+    "duration": 1.0630578994750977,
+    "flops": 91228187034,
+    "eigenvalue_sum": 89362.64989841891,
+    "determinant": 1.7974116199005006e+70
+  },
+  {
+    "operation": 99,
+    "matrix_size": 2529,
+    "duration": 0.39928603172302246,
+    "flops": 32350163778,
+    "eigenvalue_sum": 63392.30121108223,
+    "determinant": -1.3717288209434045e+64
+  },
+  {
+    "operation": 100,
+    "matrix_size": 4037,
+    "duration": 1.509777307510376,
+    "flops": 131584957306,
+    "eigenvalue_sum": 100924.07727299692,
+    "determinant": -4.3620405126928127e+71
+  },
+  {
+    "operation": 101,
+    "matrix_size": 4275,
+    "duration": 2.0555193424224854,
+    "flops": 156256593750,
+    "eigenvalue_sum": 106824.08582589768,
+    "determinant": -2.504114568222655e+70
+  },
+  {
+    "operation": 102,
+    "matrix_size": 3103,
+    "duration": 0.9459807872772217,
+    "flops": 59755147454,
+    "eigenvalue_sum": 77493.17145366505,
+    "determinant": -8.149927772800665e+66
+  },
+  {
+    "operation": 103,
+    "matrix_size": 3539,
+    "duration": 1.4046955108642578,
+    "flops": 88648559638,
+    "eigenvalue_sum": 88480.91488594249,
+    "determinant": 1.3671067852910714e+70
+  },
+  {
+    "operation": 104,
+    "matrix_size": 1820,
+    "duration": 0.2256944179534912,
+    "flops": 12057136000,
+    "eigenvalue_sum": 45287.12006600455,
+    "determinant": 4.1294838081830376e+60
+  },
+  {
+    "operation": 105,
+    "matrix_size": 2667,
+    "duration": 0.6127524375915527,
+    "flops": 37940149926,
+    "eigenvalue_sum": 66670.47489832425,
+    "determinant": -1.418860117000967e+66
+  },
+  {
+    "operation": 106,
+    "matrix_size": 1325,
+    "duration": 0.12079596519470215,
+    "flops": 4652406250,
+    "eigenvalue_sum": 33202.696820978505,
+    "determinant": -5.2911996335194644e+57
+  },
+  {
+    "operation": 107,
+    "matrix_size": 2183,
+    "duration": 0.3907651901245117,
+    "flops": 20806124974,
+    "eigenvalue_sum": 54571.628614558416,
+    "determinant": -6.0362211069225e+62
+  },
+  {
+    "operation": 108,
+    "matrix_size": 1987,
+    "duration": 0.4013524055480957,
+    "flops": 15690023606,
+    "eigenvalue_sum": 49533.80246324566,
+    "determinant": -2.6585504955826306e+61
+  },
+  {
+    "operation": 109,
+    "matrix_size": 1787,
+    "duration": 0.1600637435913086,
+    "flops": 11413100806,
+    "eigenvalue_sum": 44486.936837986206,
+    "determinant": -1.1698124084278122e+62
+  },
+  {
+    "operation": 110,
+    "matrix_size": 2455,
+    "duration": 0.2476201057434082,
+    "flops": 29592692750,
+    "eigenvalue_sum": 61360.93338240317,
+    "determinant": 2.999430710664301e+66
+  },
+  {
+    "operation": 111,
+    "matrix_size": 3135,
+    "duration": 0.8873698711395264,
+    "flops": 61622970750,
+    "eigenvalue_sum": 78384.78084447302,
+    "determinant": -6.668573374085617e+67
+  },
+  {
+    "operation": 112,
+    "matrix_size": 5159,
+    "duration": 2.656588554382324,
+    "flops": 274616469358,
+    "eigenvalue_sum": 128925.95163809799,
+    "determinant": 5.80182918512611e+73
+  },
+  {
+    "operation": 113,
+    "matrix_size": 1507,
+    "duration": 0.2699899673461914,
+    "flops": 6844941686,
+    "eigenvalue_sum": 37627.46934256758,
+    "determinant": -2.0060614449589563e+60
+  },
+  {
+    "operation": 114,
+    "matrix_size": 5247,
+    "duration": 3.064650058746338,
+    "flops": 288910408446,
+    "eigenvalue_sum": 131290.24678915116,
+    "determinant": -1.0224788155601646e+74
+  },
+  {
+    "operation": 115,
+    "matrix_size": 5291,
+    "duration": 2.7428605556488037,
+    "flops": 296239714342,
+    "eigenvalue_sum": 132360.19072616514,
+    "determinant": 4.493989766268853e+73
+  },
+  {
+    "operation": 116,
+    "matrix_size": 5105,
+    "duration": 2.5123369693756104,
+    "flops": 266083065250,
+    "eigenvalue_sum": 127698.73671045396,
+    "determinant": -6.012274891911298e+73
+  },
+  {
+    "operation": 117,
+    "matrix_size": 2943,
+    "duration": 0.4772202968597412,
+    "flops": 50980111614,
+    "eigenvalue_sum": 73312.97259866823,
+    "determinant": 2.382743078131822e+68
+  },
+  {
+    "operation": 118,
+    "matrix_size": 2615,
+    "duration": 0.4298555850982666,
+    "flops": 35763916750,
+    "eigenvalue_sum": 65280.927630103804,
+    "determinant": -9.075532368302708e+65
+  },
+  {
+    "operation": 119,
+    "matrix_size": 3697,
+    "duration": 0.9061057567596436,
+    "flops": 101059779746,
+    "eigenvalue_sum": 92249.25817008114,
+    "determinant": -2.1677142141793725e+70
+  },
+  {
+    "operation": 120,
+    "matrix_size": 4559,
+    "duration": 1.7861874103546143,
+    "flops": 189512897758,
+    "eigenvalue_sum": 113971.26295726301,
+    "determinant": -1.6459289954617813e+72
+  },
+  {
+    "operation": 121,
+    "matrix_size": 4115,
+    "duration": 2.2983641624450684,
+    "flops": 139360441750,
+    "eigenvalue_sum": 102989.5190331207,
+    "determinant": -2.049951561533657e+70
+  },
+  {
+    "operation": 122,
+    "matrix_size": 3663,
+    "duration": 1.3746366500854492,
+    "flops": 98297110494,
+    "eigenvalue_sum": 91546.82561435488,
+    "determinant": 1.7588219594875607e+69
+  },
+  {
+    "operation": 123,
+    "matrix_size": 4789,
+    "duration": 2.791013479232788,
+    "flops": 219666842138,
+    "eigenvalue_sum": 119672.46648699354,
+    "determinant": 3.425181689921545e+73
+  },
+  {
+    "operation": 124,
+    "matrix_size": 2366,
+    "duration": 0.3494901657104492,
+    "flops": 26489527792,
+    "eigenvalue_sum": 59037.70916767192,
+    "determinant": -6.224557198030448e+63
+  },
+  {
+    "operation": 125,
+    "matrix_size": 3871,
+    "duration": 1.4436981678009033,
+    "flops": 116011090622,
+    "eigenvalue_sum": 96624.12685689634,
+    "determinant": 2.017139541503274e+69
+  },
+  {
+    "operation": 126,
+    "matrix_size": 6525,
+    "duration": 7.018661022186279,
+    "flops": 555611906250,
+    "eigenvalue_sum": 163080.57379837453,
+    "determinant": -2.4992688244049068e+75
+  },
+  {
+    "operation": 127,
+    "matrix_size": 3929,
+    "duration": 1.5655059814453125,
+    "flops": 121304268178,
+    "eigenvalue_sum": 98229.2253060245,
+    "determinant": -1.5821340536320642e+70
+  },
+  {
+    "operation": 128,
+    "matrix_size": 6498,
+    "duration": 6.638550519943237,
+    "flops": 548743155984,
+    "eigenvalue_sum": 162159.8597970925,
+    "determinant": -6.329063054750091e+74
+  },
+  {
+    "operation": 129,
+    "matrix_size": 6419,
+    "duration": 6.947000741958618,
+    "flops": 528971316118,
+    "eigenvalue_sum": 160709.40452840237,
+    "determinant": 1.4663946942815452e+72
+  },
+  {
+    "operation": 130,
+    "matrix_size": 6209,
+    "duration": 7.94262957572937,
+    "flops": 478734774658,
+    "eigenvalue_sum": 155079.71396135126,
+    "determinant": 1.601424934081119e+73
+  },
+  {
+    "operation": 131,
+    "matrix_size": 5865,
+    "duration": 5.992589950561523,
+    "flops": 403491179250,
+    "eigenvalue_sum": 146716.67254782296,
+    "determinant": 3.2982400995349844e+73
+  },
+  {
+    "operation": 132,
+    "matrix_size": 1978,
+    "duration": 0.22223782539367676,
+    "flops": 15477786704,
+    "eigenvalue_sum": 49366.24352928036,
+    "determinant": -2.697070765840494e+62
+  },
+  {
+    "operation": 133,
+    "matrix_size": 6083,
+    "duration": 7.252784729003906,
+    "flops": 450177147574,
+    "eigenvalue_sum": 152279.28100920966,
+    "determinant": 2.4036149922398675e+73
+  },
+  {
+    "operation": 134,
+    "matrix_size": 3600,
+    "duration": 1.2824370861053467,
+    "flops": 93312000000,
+    "eigenvalue_sum": 90079.21588310074,
+    "determinant": -8.635054564836168e+68
+  },
+  {
+    "operation": 135,
+    "matrix_size": 6439,
+    "duration": 9.393282175064087,
+    "flops": 533931165038,
+    "eigenvalue_sum": 160806.1635605612,
+    "determinant": -2.2880246036090433e+74
+  },
+  {
+    "operation": 136,
+    "matrix_size": 5135,
+    "duration": 3.350752592086792,
+    "flops": 270801670750,
+    "eigenvalue_sum": 127967.6496642668,
+    "determinant": -2.2794957366653035e+73
+  },
+  {
+    "operation": 137,
+    "matrix_size": 3947,
+    "duration": 1.3047795295715332,
+    "flops": 122979118246,
+    "eigenvalue_sum": 98890.54642495458,
+    "determinant": 3.6032253242264104e+70
+  },
+  {
+    "operation": 138,
+    "matrix_size": 6303,
+    "duration": 5.215001583099365,
+    "flops": 500808760254,
+    "eigenvalue_sum": 157401.86761116696,
+    "determinant": -1.5460612095180208e+75
+  },
+  {
+    "operation": 139,
+    "matrix_size": 6761,
+    "duration": 8.275550127029419,
+    "flops": 618105778162,
+    "eigenvalue_sum": 168807.25950921085,
+    "determinant": 1.0223814816450986e+76
+  },
+  {
+    "operation": 140,
+    "matrix_size": 2777,
+    "duration": 0.5838155746459961,
+    "flops": 42830942866,
+    "eigenvalue_sum": 69611.88664639802,
+    "determinant": 1.013686895814569e+66
+  }
+]
