@@ -103,6 +103,14 @@ func (c *CLI) Run() {
 				userID = parts[2]
 			}
 			c.monitorTask(parts[1], userID)
+		case "cancel":
+			if len(parts) < 2 {
+				fmt.Println("Usage: cancel <task_id>")
+				fmt.Println("  task_id: ID of the task to cancel")
+				fmt.Println("Example: cancel task-123")
+				continue
+			}
+			c.cancelTask(parts[1])
 		case "exit", "quit":
 			fmt.Println("Shutting down master...")
 			return
@@ -129,6 +137,7 @@ func (c *CLI) printHelp() {
 	fmt.Println("  unregister <id>                - Unregister a worker")
 	fmt.Println("  task <worker_id> <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Assign task to specific worker")
 	fmt.Println("  monitor <task_id> [user_id]    - Monitor live logs for a task (press any key to exit)")
+	fmt.Println("  cancel <task_id>               - Cancel a running task")
 	fmt.Println("  exit/quit                      - Shutdown master node")
 	fmt.Println("\nExamples:")
 	fmt.Println("  register worker-2 192.168.1.100:50052")
@@ -136,6 +145,7 @@ func (c *CLI) printHelp() {
 	fmt.Println("  task worker-1 docker.io/user/sample-task:latest")
 	fmt.Println("  task worker-2 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
 	fmt.Println("  monitor task-123 user-1")
+	fmt.Println("  cancel task-123")
 }
 
 func (c *CLI) showStatus() {
@@ -478,6 +488,41 @@ func (c *CLI) unregisterWorker(workerID string) {
 	}
 
 	fmt.Printf("✅ Worker %s has been unregistered\n", workerID)
+}
+
+func (c *CLI) cancelTask(taskID string) {
+	// ANSI escape codes
+	const (
+		bold   = "\033[1m"
+		reset  = "\033[0m"
+		red    = "\033[31m"
+		green  = "\033[32m"
+		yellow = "\033[33m"
+	)
+
+	fmt.Println()
+	fmt.Printf("%s%s━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%s\n", bold, red, reset)
+	fmt.Printf("%s%s  🛑 CANCELLING TASK%s\n", bold, red, reset)
+	fmt.Printf("%s%s━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%s\n", bold, red, reset)
+	fmt.Printf("%s  Task ID:%s %s\n", bold, reset, taskID)
+	fmt.Printf("%s%s━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%s\n", bold, red, reset)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ack, err := c.masterServer.CancelTask(ctx, &pb.TaskID{TaskId: taskID})
+	if err != nil {
+		fmt.Printf("\n%s❌ Error cancelling task:%s %v\n", red, reset, err)
+		return
+	}
+
+	if !ack.Success {
+		fmt.Printf("\n%s❌ Failed to cancel task:%s %s\n", red, reset, ack.Message)
+		return
+	}
+
+	fmt.Printf("\n%s✅ Task cancelled successfully!%s\n", green, reset)
+	fmt.Printf("%s   %s%s\n", yellow, ack.Message, reset)
 }
 
 func (c *CLI) monitorTask(taskID, userID string) {
