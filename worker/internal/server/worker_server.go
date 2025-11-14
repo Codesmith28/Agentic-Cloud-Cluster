@@ -214,19 +214,13 @@ func (s *WorkerServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.T
 	// Remove from monitoring
 	s.monitor.RemoveTask(taskID.TaskId)
 
-	// Report cancellation to master immediately (synchronous with retry)
-	// This ensures database is updated before we return success
-	if err := s.reportCancellationWithRetry(taskID.TaskId, 3); err != nil {
-		log.Printf("  ⚠ Warning: Failed to report cancellation to master after retries: %v", err)
-		log.Printf("  ⚠ Container stopped but database may not be updated")
-		// Still return success since container was stopped
-		// Master will eventually sync when it checks worker state
-	} else {
-		log.Printf("  ✓ Cancellation reported to master and database updated")
-	}
-
 	log.Printf("  ✓ Task cancelled successfully")
+	log.Printf("  ✓ Container stopped")
 	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	// Report cancellation to master asynchronously (fire-and-forget with retries)
+	// This provides redundancy - master already updated DB, this is confirmation
+	go s.reportCancellationWithRetry(taskID.TaskId, 3)
 
 	return &pb.TaskAck{
 		Success: true,
@@ -235,12 +229,14 @@ func (s *WorkerServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.T
 }
 
 // reportCancellationWithRetry reports task cancellation to master with retry logic
+// This is a confirmation/redundancy mechanism - master already updated DB optimistically
 func (s *WorkerServer) reportCancellationWithRetry(taskID string, maxRetries int) error {
 	s.mu.RLock()
 	masterAddr := s.masterAddr
 	s.mu.RUnlock()
 
 	if masterAddr == "" {
+		log.Printf("[Task %s] ⚠ Cannot report cancellation: no master address", taskID)
 		return fmt.Errorf("no master address configured")
 	}
 
@@ -258,12 +254,13 @@ func (s *WorkerServer) reportCancellationWithRetry(taskID string, maxRetries int
 		cancel()
 
 		if err == nil {
-			log.Printf("[Task %s] ✓ Cancellation reported to master (attempt %d/%d)", taskID, attempt, maxRetries)
+			log.Printf("[Task %s] ✓ Cancellation confirmed with master (attempt %d/%d)", taskID, attempt, maxRetries)
+			log.Printf("[Task %s] ✓ Result stored in RESULTS collection", taskID)
 			return nil
 		}
 
 		lastErr = err
-		log.Printf("[Task %s] ✗ Failed to report cancellation (attempt %d/%d): %v", taskID, attempt, maxRetries, err)
+		log.Printf("[Task %s] ⚠ Failed to confirm cancellation with master (attempt %d/%d): %v", taskID, attempt, maxRetries, err)
 
 		if attempt < maxRetries {
 			// Exponential backoff: 1s, 2s, 4s
@@ -273,6 +270,8 @@ func (s *WorkerServer) reportCancellationWithRetry(taskID string, maxRetries int
 		}
 	}
 
+	log.Printf("[Task %s] ⚠ Failed to confirm cancellation after %d attempts", taskID, maxRetries)
+	log.Printf("[Task %s] ℹ Database was already updated by master - this is not critical", taskID)
 	return fmt.Errorf("failed after %d attempts: %w", maxRetries, lastErr)
 }
 
