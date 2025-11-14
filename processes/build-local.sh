@@ -24,7 +24,7 @@ done
 
 # Build CPU-intensive images
 echo "Building CPU-intensive images..."
-for i in {1..7}; do
+for i in {1..12}; do
     echo "  Building cpu-intensive process $i..."
     docker build -t "${DOCKER_USERNAME}/${IMAGE_PREFIX}-cpu-intensive:$i" \
         -f cpu-intensive/Dockerfile \

@@ -30,7 +30,7 @@ docker push "${DOCKER_USERNAME}/${IMAGE_PREFIX}-io-intensive:latest" || true
 
 # Push CPU-intensive images
 echo "Pushing CPU-intensive images..."
-for i in {1..7}; do
+for i in {1..12}; do
     echo "  Pushing cpu-intensive process $i..."
     docker push "${DOCKER_USERNAME}/${IMAGE_PREFIX}-cpu-intensive:$i"
 done
