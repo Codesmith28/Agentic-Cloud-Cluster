@@ -488,6 +488,177 @@ func (s *MasterServer) GetAllWorkerTelemetry() map[string]*telemetry.WorkerTelem
 	return s.telemetryManager.GetAllWorkerTelemetry()
 }
 
+// DumpInMemoryState returns a formatted string of the complete in-memory state
+func (s *MasterServer) DumpInMemoryState() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var output string
+	output += "\n╔═══════════════════════════════════════════════════════════════════════════╗\n"
+	output += "║                    MASTER IN-MEMORY STATE DUMP                            ║\n"
+	output += "╚═══════════════════════════════════════════════════════════════════════════╝\n\n"
+
+	if len(s.workers) == 0 {
+		output += "  No workers registered in memory.\n\n"
+		return output
+	}
+
+	for workerID, worker := range s.workers {
+		output += "┌───────────────────────────────────────────────────────────────────────────┐\n"
+		output += fmt.Sprintf("│ Worker ID: %-63s │\n", workerID)
+		output += "├───────────────────────────────────────────────────────────────────────────┤\n"
+
+		// Basic Info
+		output += "│ BASIC INFORMATION                                                         │\n"
+		output += "├───────────────────────────────────────────────────────────────────────────┤\n"
+		if worker.Info != nil {
+			output += fmt.Sprintf("│   IP Address:        %-52s │\n", worker.Info.WorkerIp)
+		} else {
+			output += "│   IP Address:        NOT SET                                              │\n"
+		}
+		output += fmt.Sprintf("│   Active:            %-52t │\n", worker.IsActive)
+		output += fmt.Sprintf("│   Last Heartbeat:    %-52d │\n", worker.LastHeartbeat)
+		if worker.LastHeartbeat > 0 {
+			lastHB := time.Unix(worker.LastHeartbeat, 0)
+			timeSince := time.Since(lastHB)
+			output += fmt.Sprintf("│   Time Since HB:     %-52s │\n", timeSince.Round(time.Second).String())
+		}
+		output += "│                                                                           │\n"
+
+		// Total Resources
+		output += "│ TOTAL RESOURCES (Worker Capacity)                                         │\n"
+		output += "├───────────────────────────────────────────────────────────────────────────┤\n"
+		if worker.Info != nil {
+			output += fmt.Sprintf("│   CPU:               %-56.2f cores │\n", worker.Info.TotalCpu)
+			output += fmt.Sprintf("│   Memory:            %-59.2f GB │\n", worker.Info.TotalMemory)
+			output += fmt.Sprintf("│   Storage:           %-59.2f GB │\n", worker.Info.TotalStorage)
+			output += fmt.Sprintf("│   GPU:               %-56.2f cores │\n", worker.Info.TotalGpu)
+		} else {
+			output += "│   No resource info available                                              │\n"
+		}
+		output += "│                                                                           │\n"
+
+		// Allocated Resources (Reserved by Tasks)
+		output += "│ ALLOCATED RESOURCES (Reserved by Running Tasks)                           │\n"
+		output += "├───────────────────────────────────────────────────────────────────────────┤\n"
+		cpuPct := safePercent(worker.AllocatedCPU, worker.Info)
+		memPct := safePercent(worker.AllocatedMemory, worker.Info)
+		storagePct := safePercent(worker.AllocatedStorage, worker.Info)
+		gpuPct := safePercent(worker.AllocatedGPU, worker.Info)
+
+		output += fmt.Sprintf("│   CPU:               %.2f cores (%.1f%% of total)%27s│\n", worker.AllocatedCPU, cpuPct, "")
+		output += fmt.Sprintf("│   Memory:            %.2f GB (%.1f%% of total)%30s│\n", worker.AllocatedMemory, memPct, "")
+		output += fmt.Sprintf("│   Storage:           %.2f GB (%.1f%% of total)%30s│\n", worker.AllocatedStorage, storagePct, "")
+		output += fmt.Sprintf("│   GPU:               %.2f cores (%.1f%% of total)%27s│\n", worker.AllocatedGPU, gpuPct, "")
+		output += "│                                                                           │\n"
+
+		// Available Resources (Free for New Tasks)
+		output += "│ AVAILABLE RESOURCES (Free for New Tasks)                                  │\n"
+		output += "├───────────────────────────────────────────────────────────────────────────┤\n"
+		availCpuPct := safePercentAvail(worker.AvailableCPU, worker.Info)
+		availMemPct := safePercentAvail(worker.AvailableMemory, worker.Info)
+		availStoragePct := safePercentAvail(worker.AvailableStorage, worker.Info)
+		availGpuPct := safePercentAvail(worker.AvailableGPU, worker.Info)
+
+		output += fmt.Sprintf("│   CPU:               %.2f cores (%.1f%% of total)%27s│\n", worker.AvailableCPU, availCpuPct, "")
+		output += fmt.Sprintf("│   Memory:            %.2f GB (%.1f%% of total)%30s│\n", worker.AvailableMemory, availMemPct, "")
+		output += fmt.Sprintf("│   Storage:           %.2f GB (%.1f%% of total)%30s│\n", worker.AvailableStorage, availStoragePct, "")
+		output += fmt.Sprintf("│   GPU:               %.2f cores (%.1f%% of total)%27s│\n", worker.AvailableGPU, availGpuPct, "")
+		output += "│                                                                           │\n"
+
+		// Latest Heartbeat Metrics (Actual Usage)
+		output += "│ LATEST HEARTBEAT METRICS (Actual Live Usage)                              │\n"
+		output += "├───────────────────────────────────────────────────────────────────────────┤\n"
+		output += fmt.Sprintf("│   CPU Usage:         %.2f%%%58s│\n", worker.LatestCPU, "")
+		output += fmt.Sprintf("│   Memory Usage:      %.2f%%%58s│\n", worker.LatestMemory, "")
+		output += fmt.Sprintf("│   GPU Usage:         %.2f%%%58s│\n", worker.LatestGPU, "")
+		output += "│                                                                           │\n"
+
+		// Running Tasks
+		output += "│ RUNNING TASKS                                                             │\n"
+		output += "├───────────────────────────────────────────────────────────────────────────┤\n"
+		if len(worker.RunningTasks) == 0 {
+			output += "│   No tasks currently running                                              │\n"
+		} else {
+			output += fmt.Sprintf("│   Task Count:        %-52d │\n", len(worker.RunningTasks))
+			output += "│   Task IDs:                                                               │\n"
+			for taskID := range worker.RunningTasks {
+				if len(taskID) > 67 {
+					output += fmt.Sprintf("│     • %-67s │\n", taskID[:67])
+				} else {
+					output += fmt.Sprintf("│     • %-67s │\n", taskID)
+				}
+			}
+		}
+
+		output += "└───────────────────────────────────────────────────────────────────────────┘\n\n"
+	}
+
+	// Summary
+	output += "╔═══════════════════════════════════════════════════════════════════════════╗\n"
+	output += "║                           CLUSTER SUMMARY                                 ║\n"
+	output += "╚═══════════════════════════════════════════════════════════════════════════╝\n"
+
+	totalWorkers := len(s.workers)
+	activeWorkers := 0
+	totalRunningTasks := 0
+	var totalCPU, allocatedCPU, totalMem, allocatedMem float64
+
+	for _, worker := range s.workers {
+		if worker.IsActive {
+			activeWorkers++
+		}
+		totalRunningTasks += len(worker.RunningTasks)
+		if worker.Info != nil {
+			totalCPU += worker.Info.TotalCpu
+			totalMem += worker.Info.TotalMemory
+		}
+		allocatedCPU += worker.AllocatedCPU
+		allocatedMem += worker.AllocatedMemory
+	}
+
+	output += fmt.Sprintf("  Total Workers:       %d\n", totalWorkers)
+	output += fmt.Sprintf("  Active Workers:      %d\n", activeWorkers)
+	output += fmt.Sprintf("  Running Tasks:       %d\n", totalRunningTasks)
+	output += fmt.Sprintf("  Total CPU:           %.2f cores (%.2f allocated, %.1f%% used)\n",
+		totalCPU, allocatedCPU, safePercentDirect(allocatedCPU, totalCPU))
+	output += fmt.Sprintf("  Total Memory:        %.2f GB (%.2f allocated, %.1f%% used)\n",
+		totalMem, allocatedMem, safePercentDirect(allocatedMem, totalMem))
+	output += "\n"
+
+	return output
+}
+
+// safePercent calculates percentage of allocated resources
+func safePercent(allocated float64, info *pb.WorkerInfo) float64 {
+	if info == nil {
+		return 0
+	}
+	if info.TotalCpu == 0 {
+		return 0
+	}
+	return (allocated / info.TotalCpu) * 100
+}
+
+// safePercentAvail calculates percentage of available resources
+func safePercentAvail(available float64, info *pb.WorkerInfo) float64 {
+	if info == nil {
+		return 0
+	}
+	if info.TotalCpu == 0 {
+		return 0
+	}
+	return (available / info.TotalCpu) * 100
+}
+
+// safePercentDirect calculates percentage safely
+func safePercentDirect(part, total float64) float64 {
+	if total == 0 {
+		return 0
+	}
+	return (part / total) * 100
+}
+
 // AssignTask assigns a task to a specific worker (target_worker_id is required)
 func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
 	s.mu.Lock()

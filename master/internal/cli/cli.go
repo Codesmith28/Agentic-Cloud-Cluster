@@ -62,6 +62,13 @@ func (c *CLI) Run() {
 				continue
 			}
 			c.showWorkerStats(parts[1])
+		case "internal-state":
+			if len(parts) != 1 {
+				fmt.Println("Usage: internal-state")
+				continue
+			}
+			output := c.masterServer.DumpInMemoryState()
+			fmt.Print(output)
 		case "register":
 			if len(parts) < 3 {
 				fmt.Println("Usage: register <worker_id> <worker_ip:port>")
@@ -133,6 +140,7 @@ func (c *CLI) printHelp() {
 	fmt.Println("  status                         - Show cluster status")
 	fmt.Println("  workers                        - List all registered workers")
 	fmt.Println("  stats <worker_id>              - Show detailed stats for a worker")
+	fmt.Println("  internal-state                 - Dump complete in-memory state of all workers")
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
 	fmt.Println("  task <worker_id> <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Assign task to specific worker")
@@ -142,6 +150,7 @@ func (c *CLI) printHelp() {
 	fmt.Println("\nExamples:")
 	fmt.Println("  register worker-2 192.168.1.100:50052")
 	fmt.Println("  stats worker-1")
+	fmt.Println("  internal-state")
 	fmt.Println("  task worker-1 docker.io/user/sample-task:latest")
 	fmt.Println("  task worker-2 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
 	fmt.Println("  monitor task-123 user-1")
