@@ -44,6 +44,15 @@ type WorkerState struct {
 	LatestMemory  float64 // Latest memory usage from heartbeat
 	LatestGPU     float64 // Latest GPU usage from heartbeat
 	TaskCount     int     // Number of running tasks from latest heartbeat
+	// Resource tracking
+	AllocatedCPU     float64
+	AllocatedMemory  float64
+	AllocatedStorage float64
+	AllocatedGPU     float64
+	AvailableCPU     float64
+	AvailableMemory  float64
+	AvailableStorage float64
+	AvailableGPU     float64
 }
 
 // TaskAssignment represents a task to be sent to a worker
@@ -107,9 +116,17 @@ func (s *MasterServer) LoadWorkersFromDB(ctx context.Context) error {
 				TotalStorage: w.TotalStorage,
 				TotalGpu:     w.TotalGPU,
 			},
-			LastHeartbeat: w.LastHeartbeat,
-			IsActive:      w.IsActive,
-			RunningTasks:  make(map[string]bool),
+			LastHeartbeat:    w.LastHeartbeat,
+			IsActive:         w.IsActive,
+			RunningTasks:     make(map[string]bool),
+			AllocatedCPU:     w.AllocatedCPU,
+			AllocatedMemory:  w.AllocatedMemory,
+			AllocatedStorage: w.AllocatedStorage,
+			AllocatedGPU:     w.AllocatedGPU,
+			AvailableCPU:     w.AvailableCPU,
+			AvailableMemory:  w.AvailableMemory,
+			AvailableStorage: w.AvailableStorage,
+			AvailableGPU:     w.AvailableGPU,
 		}
 	}
 
@@ -151,6 +168,15 @@ func (s *MasterServer) ManualRegisterWorker(ctx context.Context, workerID, worke
 		},
 		IsActive:     false, // Not active until worker connects
 		RunningTasks: make(map[string]bool),
+		// Initialize resource tracking to 0
+		AllocatedCPU:     0.0,
+		AllocatedMemory:  0.0,
+		AllocatedStorage: 0.0,
+		AllocatedGPU:     0.0,
+		AvailableCPU:     0.0,
+		AvailableMemory:  0.0,
+		AvailableStorage: 0.0,
+		AvailableGPU:     0.0,
 	}
 
 	log.Printf("Manually registered worker: %s (Address: %s)", workerID, workerIP)
@@ -252,6 +278,12 @@ func (s *MasterServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) 
 	existingWorker.IsActive = true
 	existingWorker.LastHeartbeat = time.Now().Unix()
 
+	// Initialize available resources (total - already allocated)
+	existingWorker.AvailableCPU = info.TotalCpu - existingWorker.AllocatedCPU
+	existingWorker.AvailableMemory = info.TotalMemory - existingWorker.AllocatedMemory
+	existingWorker.AvailableStorage = info.TotalStorage - existingWorker.AllocatedStorage
+	existingWorker.AvailableGPU = info.TotalGpu - existingWorker.AllocatedGPU
+
 	// Update in database
 	if s.workerDB != nil {
 		if err := s.workerDB.UpdateWorkerInfo(ctx, existingWorker.Info); err != nil {
@@ -315,9 +347,58 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 
 	log.Printf("📥 Task completion report received: %s from %s [Status: %s]", result.TaskId, result.WorkerId, result.Status)
 
-	// Remove task from worker's running tasks
+	// Get task info to retrieve resource requirements
+	var taskResources *db.Task
+	if s.taskDB != nil {
+		task, err := s.taskDB.GetTask(context.Background(), result.TaskId)
+		if err != nil {
+			log.Printf("  ⚠ Warning: Failed to get task info for resource release: %v", err)
+		} else {
+			taskResources = task
+		}
+	}
+
+	// Remove task from worker's running tasks and release resources
 	if worker, exists := s.workers[result.WorkerId]; exists {
 		delete(worker.RunningTasks, result.TaskId)
+
+		// 🚨 RELEASE RESOURCES - Update both in-memory and database
+		if taskResources != nil {
+			worker.AllocatedCPU -= taskResources.ReqCPU
+			worker.AllocatedMemory -= taskResources.ReqMemory
+			worker.AllocatedStorage -= taskResources.ReqStorage
+			worker.AllocatedGPU -= taskResources.ReqGPU
+			worker.AvailableCPU += taskResources.ReqCPU
+			worker.AvailableMemory += taskResources.ReqMemory
+			worker.AvailableStorage += taskResources.ReqStorage
+			worker.AvailableGPU += taskResources.ReqGPU
+
+			// Ensure non-negative values (safety check)
+			if worker.AllocatedCPU < 0 {
+				worker.AllocatedCPU = 0
+			}
+			if worker.AllocatedMemory < 0 {
+				worker.AllocatedMemory = 0
+			}
+			if worker.AllocatedStorage < 0 {
+				worker.AllocatedStorage = 0
+			}
+			if worker.AllocatedGPU < 0 {
+				worker.AllocatedGPU = 0
+			}
+
+			// Update database
+			if s.workerDB != nil {
+				if err := s.workerDB.ReleaseResources(ctx, result.WorkerId,
+					taskResources.ReqCPU, taskResources.ReqMemory,
+					taskResources.ReqStorage, taskResources.ReqGPU); err != nil {
+					log.Printf("  ⚠ Warning: Failed to release resources in database: %v", err)
+				} else {
+					log.Printf("  ✓ Released resources: CPU=%.2f, Memory=%.2f, Storage=%.2f, GPU=%.2f",
+						taskResources.ReqCPU, taskResources.ReqMemory, taskResources.ReqStorage, taskResources.ReqGPU)
+				}
+			}
+		}
 	}
 
 	// Update task status in database (idempotent - safe if already updated)
@@ -431,6 +512,36 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s has no IP address configured", task.TargetWorkerId)}, nil
 	}
 
+	// CHECK RESOURCE AVAILABILITY - Prevent Oversubscription
+	if worker.AvailableCPU < task.ReqCpu {
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Insufficient CPU: worker has %.2f available, task requires %.2f",
+				worker.AvailableCPU, task.ReqCpu),
+		}, nil
+	}
+	if worker.AvailableMemory < task.ReqMemory {
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Insufficient Memory: worker has %.2f GB available, task requires %.2f GB",
+				worker.AvailableMemory, task.ReqMemory),
+		}, nil
+	}
+	if worker.AvailableStorage < task.ReqStorage {
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Insufficient Storage: worker has %.2f GB available, task requires %.2f GB",
+				worker.AvailableStorage, task.ReqStorage),
+		}, nil
+	}
+	if worker.AvailableGPU < task.ReqGpu {
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Insufficient GPU: worker has %.2f available, task requires %.2f",
+				worker.AvailableGPU, task.ReqGpu),
+		}, nil
+	}
+
 	// Store task in database (if DB is available)
 	if s.taskDB != nil {
 		dbTask := &db.Task{
@@ -471,6 +582,24 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	if ack.Success {
 		// Mark task as running on worker
 		worker.RunningTasks[task.TaskId] = true
+
+		// 🚨 ALLOCATE RESOURCES - Update both in-memory and database
+		worker.AllocatedCPU += task.ReqCpu
+		worker.AllocatedMemory += task.ReqMemory
+		worker.AllocatedStorage += task.ReqStorage
+		worker.AllocatedGPU += task.ReqGpu
+		worker.AvailableCPU -= task.ReqCpu
+		worker.AvailableMemory -= task.ReqMemory
+		worker.AvailableStorage -= task.ReqStorage
+		worker.AvailableGPU -= task.ReqGpu
+
+		// Update database
+		if s.workerDB != nil {
+			if err := s.workerDB.AllocateResources(ctx, task.TargetWorkerId,
+				task.ReqCpu, task.ReqMemory, task.ReqStorage, task.ReqGpu); err != nil {
+				log.Printf("Warning: Failed to allocate resources in database: %v", err)
+			}
+		}
 
 		// Store assignment in database (if DB is available)
 		if s.assignmentDB != nil {
