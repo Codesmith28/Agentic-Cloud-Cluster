@@ -130,7 +130,8 @@ func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	}
 
 	// Print comprehensive task details with all system requirements
-	log.Println("\n═══════════════════════════════════════════════════════")
+	log.Println(" ")
+	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("  📥 TASK RECEIVED FROM MASTER")
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Printf("  Task ID:           %s", task.TaskId)
@@ -193,12 +194,86 @@ func (s *WorkerServer) executeTask(task *pb.Task) {
 	}
 }
 
-// CancelTask handles task cancellation requests (not implemented)
+// CancelTask handles task cancellation requests
 func (s *WorkerServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.TaskAck, error) {
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Printf("  🛑 TASK CANCELLATION REQUEST")
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Printf("  Task ID: %s", taskID.TaskId)
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	// Cancel the task using executor
+	if err := s.executor.CancelTask(ctx, taskID.TaskId); err != nil {
+		log.Printf("  ✗ Failed to cancel task: %v", err)
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Failed to cancel task: %v", err),
+		}, nil
+	}
+
+	// Remove from monitoring
+	s.monitor.RemoveTask(taskID.TaskId)
+
+	// Report cancellation to master immediately (synchronous with retry)
+	// This ensures database is updated before we return success
+	if err := s.reportCancellationWithRetry(taskID.TaskId, 3); err != nil {
+		log.Printf("  ⚠ Warning: Failed to report cancellation to master after retries: %v", err)
+		log.Printf("  ⚠ Container stopped but database may not be updated")
+		// Still return success since container was stopped
+		// Master will eventually sync when it checks worker state
+	} else {
+		log.Printf("  ✓ Cancellation reported to master and database updated")
+	}
+
+	log.Printf("  ✓ Task cancelled successfully")
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
 	return &pb.TaskAck{
-		Success: false,
-		Message: "Task cancellation not implemented",
+		Success: true,
+		Message: "Task cancelled",
 	}, nil
+}
+
+// reportCancellationWithRetry reports task cancellation to master with retry logic
+func (s *WorkerServer) reportCancellationWithRetry(taskID string, maxRetries int) error {
+	s.mu.RLock()
+	masterAddr := s.masterAddr
+	s.mu.RUnlock()
+
+	if masterAddr == "" {
+		return fmt.Errorf("no master address configured")
+	}
+
+	taskResult := &pb.TaskResult{
+		TaskId:   taskID,
+		WorkerId: s.workerID,
+		Status:   "cancelled",
+		Logs:     "Task was cancelled by user request",
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err := telemetry.ReportTaskResult(ctx, masterAddr, taskResult)
+		cancel()
+
+		if err == nil {
+			log.Printf("[Task %s] ✓ Cancellation reported to master (attempt %d/%d)", taskID, attempt, maxRetries)
+			return nil
+		}
+
+		lastErr = err
+		log.Printf("[Task %s] ✗ Failed to report cancellation (attempt %d/%d): %v", taskID, attempt, maxRetries, err)
+
+		if attempt < maxRetries {
+			// Exponential backoff: 1s, 2s, 4s
+			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
+			log.Printf("[Task %s] Retrying in %v...", taskID, backoff)
+			time.Sleep(backoff)
+		}
+	}
+
+	return fmt.Errorf("failed after %d attempts: %w", maxRetries, lastErr)
 }
 
 // StreamTaskLogs streams live logs for a task

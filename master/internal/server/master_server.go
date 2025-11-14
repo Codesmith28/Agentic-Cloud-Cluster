@@ -313,19 +313,30 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	log.Printf("📥 Task completion report received: %s from %s [Status: %s]", result.TaskId, result.WorkerId, result.Status)
+
 	// Remove task from worker's running tasks
 	if worker, exists := s.workers[result.WorkerId]; exists {
 		delete(worker.RunningTasks, result.TaskId)
 	}
 
-	// Update task status in database
+	// Update task status in database - CRITICAL for cancelled tasks
 	if s.taskDB != nil {
 		status := "completed"
-		if result.Status != "success" {
+		if result.Status == "cancelled" {
+			status = "cancelled"
+			log.Printf("  ✓ Updating task %s to 'cancelled' status in database", result.TaskId)
+		} else if result.Status != "success" {
 			status = "failed"
 		}
 		if err := s.taskDB.UpdateTaskStatus(context.Background(), result.TaskId, status); err != nil {
-			log.Printf("Warning: Failed to update task status in database: %v", err)
+			log.Printf("  ✗ CRITICAL: Failed to update task status in database: %v", err)
+			return &pb.Ack{
+				Success: false,
+				Message: fmt.Sprintf("Failed to update task status: %v", err),
+			}, nil
+		} else {
+			log.Printf("  ✓ Task status updated to '%s' in database", status)
 		}
 	}
 
@@ -338,13 +349,16 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 			Logs:     result.Logs,
 		}
 		if err := s.resultDB.CreateResult(context.Background(), taskResult); err != nil {
-			log.Printf("Warning: Failed to store task result: %v", err)
+			log.Printf("  ⚠ Warning: Failed to store task result: %v", err)
+			// Don't fail here - status update is more critical
+		} else {
+			log.Printf("  ✓ Task result stored in RESULTS collection")
 		}
 	}
 
 	return &pb.Ack{
 		Success: true,
-		Message: "Task result received",
+		Message: "Task result received and database updated",
 	}, nil
 }
 
@@ -619,5 +633,110 @@ func (s *MasterServer) BroadcastMasterRegistration(masterID, masterAddress strin
 }
 
 func (s *MasterServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.TaskAck, error) {
-	return &pb.TaskAck{Success: false, Message: "Not implemented"}, nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Printf("  🛑 CANCELLING TASK")
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Printf("  Task ID: %s", taskID.TaskId)
+
+	// Find which worker has this task
+	var targetWorkerID string
+	var targetWorker *WorkerState
+
+	// First check in-memory running tasks
+	for workerID, worker := range s.workers {
+		if worker.RunningTasks[taskID.TaskId] {
+			targetWorkerID = workerID
+			targetWorker = worker
+			break
+		}
+	}
+
+	// If not found in memory, check database
+	if targetWorkerID == "" && s.assignmentDB != nil {
+		workerID, err := s.assignmentDB.GetWorkerForTask(ctx, taskID.TaskId)
+		if err != nil {
+			log.Printf("  ✗ Task %s not found on any worker", taskID.TaskId)
+			return &pb.TaskAck{
+				Success: false,
+				Message: fmt.Sprintf("Task not found or not assigned to any worker: %v", err),
+			}, nil
+		}
+		targetWorkerID = workerID
+		targetWorker = s.workers[workerID]
+		if targetWorker == nil {
+			log.Printf("  ✗ Worker %s not found", workerID)
+			return &pb.TaskAck{
+				Success: false,
+				Message: fmt.Sprintf("Worker %s not found", workerID),
+			}, nil
+		}
+	}
+
+	if targetWorkerID == "" {
+		log.Printf("  ✗ Task not found")
+		return &pb.TaskAck{
+			Success: false,
+			Message: "Task not found or not running",
+		}, nil
+	}
+
+	log.Printf("  Target Worker: %s (%s)", targetWorkerID, targetWorker.Info.WorkerIp)
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	// Connect to worker and send cancel request
+	conn, err := grpc.Dial(targetWorker.Info.WorkerIp, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Printf("  ✗ Failed to connect to worker: %v", err)
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Failed to connect to worker: %v", err),
+		}, nil
+	}
+	defer conn.Close()
+
+	client := pb.NewMasterWorkerClient(conn)
+	ack, err := client.CancelTask(ctx, taskID)
+	if err != nil {
+		log.Printf("  ✗ Failed to cancel task on worker: %v", err)
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Failed to cancel task: %v", err),
+		}, nil
+	}
+
+	if !ack.Success {
+		log.Printf("  ✗ Worker rejected cancellation: %s", ack.Message)
+		return ack, nil
+	}
+
+	// Update task status in database - CRITICAL OPERATION
+	if s.taskDB != nil {
+		if err := s.taskDB.UpdateTaskStatus(ctx, taskID.TaskId, "cancelled"); err != nil {
+			log.Printf("  ✗ CRITICAL: Failed to update task status in database: %v", err)
+			log.Printf("  ⚠ Task stopped on worker but database not updated!")
+			// Return error to user so they know there's an issue
+			return &pb.TaskAck{
+				Success: false,
+				Message: fmt.Sprintf("Task stopped on worker but database update failed: %v", err),
+			}, nil
+		} else {
+			log.Printf("  ✓ Task status updated to 'cancelled' in database")
+		}
+	} else {
+		log.Printf("  ⚠ Warning: No database configured, task status not persisted")
+	}
+
+	// Remove task from worker's running tasks
+	delete(targetWorker.RunningTasks, taskID.TaskId)
+
+	log.Printf("  ✓ Task cancelled successfully")
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	return &pb.TaskAck{
+		Success: true,
+		Message: "Task cancelled successfully",
+	}, nil
 }
