@@ -68,6 +68,8 @@ func (c *CLI) Run() {
 				continue
 			}
 			c.liveInternalState()
+		case "fix-resources":
+			c.reconcileResources()
 		case "register":
 			if len(parts) < 3 {
 				fmt.Println("Usage: register <worker_id> <worker_ip:port>")
@@ -153,6 +155,7 @@ func (c *CLI) printHelp() {
 	fmt.Println("  workers                        - List all registered workers")
 	fmt.Println("  stats <worker_id>              - Show detailed stats for a worker")
 	fmt.Println("  internal-state                 - Dump complete in-memory state of all workers")
+	fmt.Println("  fix-resources                  - Fix stale resource allocations")
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
 	fmt.Println("  task <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Submit task (scheduler selects worker)")
@@ -791,15 +794,16 @@ func (c *CLI) monitorTask(taskID string) {
 
 	// Start streaming logs in goroutine
 	go func() {
-		err := c.masterServer.StreamTaskLogsFromWorker(streamCtx, taskID, userID, func(logLine string, isComplete bool) {
+		err := c.masterServer.StreamTaskLogsUnified(streamCtx, taskID, userID, func(logLine string, isComplete bool, status string) error {
 			if logLine != "" {
 				fmt.Println(logLine)
 			}
 			if isComplete {
 				fmt.Printf("\n%s%s═══════════════════════════════════════════════════════%s\n", bold, green, reset)
-				fmt.Printf("%s%s  Task Completed%s\n", bold, green, reset)
+				fmt.Printf("%s%s  Task Completed - Status: %s%s\n", bold, green, status, reset)
 				fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, green, reset)
 			}
+			return nil
 		})
 		streamDone <- err
 	}()
@@ -868,6 +872,21 @@ func (c *CLI) showQueue() {
 	fmt.Println("  Note: Scheduler checks queue every 5s and assigns")
 	fmt.Println("  tasks to workers with available resources")
 	fmt.Println("═══════════════════════════════════════════════════════")
+}
+
+// reconcileResources triggers resource reconciliation to fix stale allocations
+func (c *CLI) reconcileResources() {
+	fmt.Println("\n🔄 Reconciling worker resources...")
+	fmt.Println("   This will fix any stale resource allocations from completed tasks.\n")
+
+	ctx := context.Background()
+	if err := c.masterServer.ReconcileWorkerResourcesPublic(ctx); err != nil {
+		fmt.Printf("❌ Failed to reconcile resources: %v\n", err)
+		return
+	}
+
+	fmt.Println("\n✓ Resource reconciliation complete!")
+	fmt.Println("   Run 'workers' to see updated resource allocations.")
 }
 
 // formatDuration formats a duration in a human-readable way

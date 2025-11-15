@@ -279,7 +279,7 @@ func (s *WorkerServer) reportCancellationWithRetry(taskID string, maxRetries int
 func (s *WorkerServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWorker_StreamTaskLogsServer) error {
 	log.Printf("Log stream request for task: %s (user: %s, follow: %v)", req.TaskId, req.UserId, req.Follow)
 
-	// Get container ID for this task
+	// Verify task exists on this worker
 	containerID, exists := s.executor.GetContainerID(req.TaskId)
 	if !exists {
 		// Task not running, send error
@@ -302,8 +302,8 @@ func (s *WorkerServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWo
 		})
 	}
 
-	// Stream logs
-	logChan, errChan := s.executor.StreamLogs(stream.Context(), containerID)
+	// Stream logs using taskID (the broadcaster will handle multiple subscribers)
+	logChan, errChan := s.executor.StreamLogs(stream.Context(), req.TaskId)
 
 	for {
 		select {
@@ -323,7 +323,7 @@ func (s *WorkerServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWo
 			if err := stream.Send(&pb.LogChunk{
 				TaskId:     req.TaskId,
 				Content:    line,
-				Timestamp:  "", // Could parse from Docker timestamp
+				Timestamp:  "", // Could add timestamp from LogLine
 				IsComplete: false,
 				Status:     status,
 			}); err != nil {

@@ -158,6 +158,9 @@ func (s *MasterServer) LoadWorkersFromDB(ctx context.Context) error {
 		}
 	}
 
+	// Reconcile resources based on actual running tasks
+	s.ReconcileWorkerResources(ctx)
+
 	log.Printf("Loaded %d workers from database", len(workers))
 	return nil
 }
@@ -209,6 +212,125 @@ func (s *MasterServer) ManualRegisterWorker(ctx context.Context, workerID, worke
 
 	log.Printf("Manually registered worker: %s (Address: %s)", workerID, workerIP)
 	return nil
+}
+
+// ReconcileWorkerResources reconciles allocated resources based on actual running tasks
+// This fixes stale resource allocations from completed tasks
+// Should be called: 1) On startup after loading workers, 2) Periodically, 3) After crashes
+func (s *MasterServer) ReconcileWorkerResources(ctx context.Context) error {
+	// This function assumes s.mu is already locked by the caller
+
+	if s.taskDB == nil || s.assignmentDB == nil {
+		log.Printf("⚠ Resource reconciliation skipped: databases not available")
+		return nil
+	}
+
+	log.Printf("🔄 Starting resource reconciliation...")
+
+	// Get all running tasks from database
+	tasks, err := s.taskDB.GetTasksByStatus(ctx, "running")
+	if err != nil {
+		log.Printf("⚠ Failed to get running tasks for reconciliation: %v", err)
+		return err
+	}
+
+	// Build map of actual allocations per worker
+	actualAllocations := make(map[string]struct {
+		CPU, Memory, Storage, GPU float64
+		TaskIDs                   map[string]bool
+	})
+
+	for _, task := range tasks {
+		// Get assignment to find which worker
+		assignment, err := s.assignmentDB.GetAssignmentByTaskID(ctx, task.TaskID)
+		if err != nil {
+			log.Printf("⚠ Task %s has no assignment, skipping", task.TaskID)
+			continue
+		}
+
+		workerID := assignment.WorkerID
+		if _, exists := actualAllocations[workerID]; !exists {
+			actualAllocations[workerID] = struct {
+				CPU, Memory, Storage, GPU float64
+				TaskIDs                   map[string]bool
+			}{TaskIDs: make(map[string]bool)}
+		}
+
+		alloc := actualAllocations[workerID]
+		alloc.CPU += task.ReqCPU
+		alloc.Memory += task.ReqMemory
+		alloc.Storage += task.ReqStorage
+		alloc.GPU += task.ReqGPU
+		alloc.TaskIDs[task.TaskID] = true
+		actualAllocations[workerID] = alloc
+	}
+
+	// Now reconcile each worker
+	fixedCount := 0
+	for workerID, worker := range s.workers {
+		actual := actualAllocations[workerID]
+
+		// Check if resources are out of sync
+		if worker.AllocatedCPU != actual.CPU ||
+			worker.AllocatedMemory != actual.Memory ||
+			worker.AllocatedStorage != actual.Storage ||
+			worker.AllocatedGPU != actual.GPU {
+
+			oldCPU := worker.AllocatedCPU
+			oldMem := worker.AllocatedMemory
+
+			// Fix the allocations
+			worker.AllocatedCPU = actual.CPU
+			worker.AllocatedMemory = actual.Memory
+			worker.AllocatedStorage = actual.Storage
+			worker.AllocatedGPU = actual.GPU
+
+			// Recalculate available resources
+			worker.AvailableCPU = worker.Info.TotalCpu - actual.CPU
+			worker.AvailableMemory = worker.Info.TotalMemory - actual.Memory
+			worker.AvailableStorage = worker.Info.TotalStorage - actual.Storage
+			worker.AvailableGPU = worker.Info.TotalGpu - actual.GPU
+
+			// Update running tasks map
+			worker.RunningTasks = actual.TaskIDs
+
+			// Update in database
+			// First release all old allocations, then allocate the correct amount
+			if s.workerDB != nil && oldCPU > 0 {
+				if err := s.workerDB.ReleaseResources(ctx, workerID,
+					oldCPU, oldMem, worker.AllocatedStorage, worker.AllocatedGPU); err != nil {
+					log.Printf("⚠ Failed to release old resources for %s in DB: %v", workerID, err)
+				}
+			}
+
+			// Now allocate the correct amount
+			if s.workerDB != nil && actual.CPU > 0 {
+				if err := s.workerDB.AllocateResources(ctx, workerID,
+					actual.CPU, actual.Memory, actual.Storage, actual.GPU); err != nil {
+					log.Printf("⚠ Failed to allocate resources for %s in DB: %v", workerID, err)
+				}
+			}
+
+			log.Printf("  ✓ Fixed %s: CPU %.1f→%.1f, Memory %.1f→%.1f, Tasks: %d",
+				workerID, oldCPU, actual.CPU, oldMem, actual.Memory, len(actual.TaskIDs))
+			fixedCount++
+		}
+	}
+
+	if fixedCount > 0 {
+		log.Printf("✓ Resource reconciliation complete: fixed %d workers", fixedCount)
+	} else {
+		log.Printf("✓ Resource reconciliation complete: all workers correct")
+	}
+
+	return nil
+}
+
+// ReconcileWorkerResourcesPublic is a public wrapper that acquires the lock
+func (s *MasterServer) ReconcileWorkerResourcesPublic(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ReconcileWorkerResources(ctx)
 }
 
 // ManualRegisterAndNotify registers a worker and immediately tries to notify it of the master's address
