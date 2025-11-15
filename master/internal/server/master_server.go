@@ -15,6 +15,22 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// QueuedTask represents a task waiting to be scheduled and assigned
+type QueuedTask struct {
+	Task      *pb.Task
+	QueuedAt  time.Time
+	Retries   int
+	LastError string
+}
+
+// TaskSubmission represents the result of submitting a task to the system
+type TaskSubmission struct {
+	TaskID    string
+	Queued    bool
+	Position  int
+	Message   string
+}
+
 // MasterServer handles gRPC requests from workers
 type MasterServer struct {
 	pb.UnimplementedMasterWorkerServer
@@ -29,6 +45,11 @@ type MasterServer struct {
 	masterAddress string
 
 	taskChan chan *TaskAssignment
+
+	// Task queue for tasks waiting for resources
+	taskQueue   []*QueuedTask
+	queueMu     sync.RWMutex
+	queueTicker *time.Ticker
 
 	// Telemetry manager for handling worker telemetry in separate threads
 	telemetryManager *telemetry.TelemetryManager
@@ -72,6 +93,7 @@ func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.
 		masterID:         "",
 		masterAddress:    "",
 		taskChan:         make(chan *TaskAssignment, 100),
+		taskQueue:        make([]*QueuedTask, 0),
 		telemetryManager: telemetryMgr,
 	}
 }
@@ -724,61 +746,10 @@ func joinTasks(tasks []string) string {
 	return result
 }
 
-// AssignTask assigns a task to a specific worker (target_worker_id is required)
-func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Validate that target_worker_id is specified
-	if task.TargetWorkerId == "" {
-		return &pb.TaskAck{Success: false, Message: "target_worker_id is required"}, nil
-	}
-
-	// Find the specified worker
-	worker, exists := s.workers[task.TargetWorkerId]
-	if !exists {
-		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s not found", task.TargetWorkerId)}, nil
-	}
-	if !worker.IsActive {
-		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s is not active", task.TargetWorkerId)}, nil
-	}
-
-	// Validate worker IP is set
-	if worker.Info.WorkerIp == "" {
-		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s has no IP address configured", task.TargetWorkerId)}, nil
-	}
-
-	// CHECK RESOURCE AVAILABILITY - Prevent Oversubscription
-	if worker.AvailableCPU < task.ReqCpu {
-		return &pb.TaskAck{
-			Success: false,
-			Message: fmt.Sprintf("Insufficient CPU: worker has %.2f available, task requires %.2f",
-				worker.AvailableCPU, task.ReqCpu),
-		}, nil
-	}
-	if worker.AvailableMemory < task.ReqMemory {
-		return &pb.TaskAck{
-			Success: false,
-			Message: fmt.Sprintf("Insufficient Memory: worker has %.2f GB available, task requires %.2f GB",
-				worker.AvailableMemory, task.ReqMemory),
-		}, nil
-	}
-	if worker.AvailableStorage < task.ReqStorage {
-		return &pb.TaskAck{
-			Success: false,
-			Message: fmt.Sprintf("Insufficient Storage: worker has %.2f GB available, task requires %.2f GB",
-				worker.AvailableStorage, task.ReqStorage),
-		}, nil
-	}
-	if worker.AvailableGPU < task.ReqGpu {
-		return &pb.TaskAck{
-			Success: false,
-			Message: fmt.Sprintf("Insufficient GPU: worker has %.2f available, task requires %.2f",
-				worker.AvailableGPU, task.ReqGpu),
-		}, nil
-	}
-
-	// Store task in database (if DB is available)
+// SubmitTask submits a task to the system for scheduling
+// ALL tasks go through the queue first, then the scheduler assigns them to workers
+func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
+	// Store task in database as queued
 	if s.taskDB != nil {
 		dbTask := &db.Task{
 			TaskID:      task.TaskId,
@@ -789,91 +760,33 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 			ReqMemory:   task.ReqMemory,
 			ReqStorage:  task.ReqStorage,
 			ReqGPU:      task.ReqGpu,
-			Status:      "pending",
+			Status:      "queued",
 		}
 		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
 			log.Printf("Warning: Failed to store task in database: %v", err)
 		}
 	}
 
-	log.Printf("Connecting to worker %s at %s", task.TargetWorkerId, worker.Info.WorkerIp)
+	// Enqueue the task for scheduling
+	s.EnqueueTask(task, "Task submitted to queue for scheduling")
 
-	// Connect to worker and assign task
-	conn, err := grpc.Dial(worker.Info.WorkerIp, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to connect to worker: %v", err)}, nil
-	}
-	defer conn.Close()
+	// Get queue position
+	s.queueMu.RLock()
+	position := len(s.taskQueue)
+	s.queueMu.RUnlock()
 
-	client := pb.NewMasterWorkerClient(conn)
-	ack, err := client.AssignTask(ctx, task)
-	if err != nil {
-		// Update task status to failed if assignment fails
-		if s.taskDB != nil {
-			s.taskDB.UpdateTaskStatus(ctx, task.TaskId, "failed")
-		}
-		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to assign task: %v", err)}, nil
-	}
+	log.Printf("📋 Task %s submitted and queued (position: %d)", task.TaskId, position)
 
-	if ack.Success {
-		// Mark task as running on worker
-		worker.RunningTasks[task.TaskId] = true
+	return &pb.TaskAck{
+		Success: true,
+		Message: fmt.Sprintf("Task submitted successfully. Queue position: %d. Scheduler will assign it to an available worker.", position),
+	}, nil
+}
 
-		// 🚨 ALLOCATE RESOURCES - Update both in-memory and database
-		worker.AllocatedCPU += task.ReqCpu
-		worker.AllocatedMemory += task.ReqMemory
-		worker.AllocatedStorage += task.ReqStorage
-		worker.AllocatedGPU += task.ReqGpu
-		worker.AvailableCPU -= task.ReqCpu
-		worker.AvailableMemory -= task.ReqMemory
-		worker.AvailableStorage -= task.ReqStorage
-		worker.AvailableGPU -= task.ReqGpu
-
-		// Update database
-		if s.workerDB != nil {
-			if err := s.workerDB.AllocateResources(ctx, task.TargetWorkerId,
-				task.ReqCpu, task.ReqMemory, task.ReqStorage, task.ReqGpu); err != nil {
-				log.Printf("Warning: Failed to allocate resources in database: %v", err)
-			}
-		}
-
-		// Store assignment in database (if DB is available)
-		if s.assignmentDB != nil {
-			assignment := &db.Assignment{
-				AssignmentID: fmt.Sprintf("ass-%s", task.TaskId),
-				TaskID:       task.TaskId,
-				WorkerID:     task.TargetWorkerId,
-			}
-			if err := s.assignmentDB.CreateAssignment(ctx, assignment); err != nil {
-				log.Printf("Warning: Failed to store assignment in database: %v", err)
-			}
-		}
-
-		// Update task status to running (if DB is available)
-		if s.taskDB != nil {
-			if err := s.taskDB.UpdateTaskStatus(ctx, task.TaskId, "running"); err != nil {
-				log.Printf("Warning: Failed to update task status: %v", err)
-			}
-		}
-
-		log.Println("\n═══════════════════════════════════════════════════════")
-		log.Println("  📤 TASK ASSIGNED TO WORKER")
-		log.Println("═══════════════════════════════════════════════════════")
-		log.Printf("  Task ID:           %s", task.TaskId)
-		log.Printf("  User ID:           %s", task.UserId)
-		log.Printf("  Target Worker:     %s", task.TargetWorkerId)
-		log.Printf("  Docker Image:      %s", task.DockerImage)
-		log.Println("───────────────────────────────────────────────────────")
-		log.Println("  Resource Requirements:")
-		log.Printf("    • CPU Cores:     %.2f cores", task.ReqCpu)
-		log.Printf("    • Memory:        %.2f GB", task.ReqMemory)
-		log.Printf("    • Storage:       %.2f GB", task.ReqStorage)
-		log.Printf("    • GPU Cores:     %.2f cores", task.ReqGpu)
-		log.Println("═══════════════════════════════════════════════════════")
-		log.Println("")
-	}
-
-	return ack, nil
+// AssignTask is kept for backward compatibility but now redirects to SubmitTask
+// This maintains the gRPC interface contract
+func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
+	return s.SubmitTask(ctx, task)
 }
 
 // StreamTaskLogs handles gRPC streaming of task logs (called by master CLI)
@@ -1114,4 +1027,290 @@ func (s *MasterServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.T
 		Success: true,
 		Message: "Task cancelled successfully",
 	}, nil
+}
+
+// StartQueueProcessor starts the background task queue processor
+func (s *MasterServer) StartQueueProcessor() {
+	s.queueTicker = time.NewTicker(5 * time.Second) // Check queue every 5 seconds
+	go s.processQueue()
+	log.Printf("✓ Task queue processor started (checking every 5s)")
+}
+
+// StopQueueProcessor stops the background task queue processor
+func (s *MasterServer) StopQueueProcessor() {
+	if s.queueTicker != nil {
+		s.queueTicker.Stop()
+		log.Printf("✓ Task queue processor stopped")
+	}
+}
+
+// processQueue continuously attempts to schedule and assign queued tasks
+// This is the main scheduler that selects workers for tasks
+func (s *MasterServer) processQueue() {
+	for range s.queueTicker.C {
+		s.queueMu.Lock()
+		if len(s.taskQueue) == 0 {
+			s.queueMu.Unlock()
+			continue
+		}
+
+		// Try to schedule and assign tasks from the queue
+		remainingTasks := make([]*QueuedTask, 0)
+		for _, qt := range s.taskQueue {
+			// Find the best worker for this task using the scheduler
+			selectedWorker := s.selectWorkerForTask(qt.Task)
+			
+			if selectedWorker == "" {
+				// No suitable worker available, keep in queue
+				qt.Retries++
+				qt.LastError = "No suitable worker available with sufficient resources"
+				remainingTasks = append(remainingTasks, qt)
+				
+				// Log only on first retry and every 10th retry to avoid spam
+				if qt.Retries == 1 || qt.Retries%10 == 0 {
+					log.Printf("📋 Queue: Task %s still waiting (attempt %d): %s",
+						qt.Task.TaskId, qt.Retries, qt.LastError)
+				}
+				continue
+			}
+
+			// Set the selected worker as the target
+			qt.Task.TargetWorkerId = selectedWorker
+			
+			// Try to assign the task to the selected worker
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ack, err := s.assignTaskToWorker(ctx, qt.Task, selectedWorker)
+			cancel()
+
+			if err != nil || !ack.Success {
+				// Assignment failed, keep in queue and try again later
+				qt.Retries++
+				if err != nil {
+					qt.LastError = err.Error()
+				} else {
+					qt.LastError = ack.Message
+				}
+				remainingTasks = append(remainingTasks, qt)
+				
+				if qt.Retries == 1 || qt.Retries%10 == 0 {
+					log.Printf("📋 Queue: Task %s assignment to %s failed (attempt %d): %s",
+						qt.Task.TaskId, selectedWorker, qt.Retries, qt.LastError)
+				}
+			} else {
+				log.Printf("✓ Queue: Task %s successfully assigned to %s after %d attempts",
+					qt.Task.TaskId, selectedWorker, qt.Retries)
+			}
+		}
+
+		s.taskQueue = remainingTasks
+		s.queueMu.Unlock()
+	}
+}
+
+// selectWorkerForTask implements a simple First-Fit scheduler
+// Returns the first worker that has sufficient resources, or empty string if none found
+func (s *MasterServer) selectWorkerForTask(task *pb.Task) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var bestWorker string
+	bestScore := -1.0 // Lower score is better (more available resources)
+
+	for workerID, worker := range s.workers {
+		// Skip inactive workers or workers without IP
+		if !worker.IsActive || worker.Info.WorkerIp == "" {
+			continue
+		}
+
+		// Check if worker has sufficient resources
+		if worker.AvailableCPU < task.ReqCpu ||
+			worker.AvailableMemory < task.ReqMemory ||
+			worker.AvailableStorage < task.ReqStorage ||
+			worker.AvailableGPU < task.ReqGpu {
+			continue
+		}
+
+		// Calculate utilization score (lower is better - means more resources available)
+		totalCapacity := worker.Info.TotalCpu + worker.Info.TotalMemory + worker.Info.TotalStorage + worker.Info.TotalGpu
+		if totalCapacity == 0 {
+			continue
+		}
+		
+		totalAllocated := worker.AllocatedCPU + worker.AllocatedMemory + worker.AllocatedStorage + worker.AllocatedGPU
+		utilizationScore := totalAllocated / totalCapacity
+
+		// Select worker with lowest utilization (most available resources)
+		if bestWorker == "" || utilizationScore < bestScore {
+			bestWorker = workerID
+			bestScore = utilizationScore
+		}
+	}
+
+	return bestWorker
+}
+
+// EnqueueTask adds a task to the queue
+func (s *MasterServer) EnqueueTask(task *pb.Task, reason string) {
+	s.queueMu.Lock()
+	defer s.queueMu.Unlock()
+
+	qt := &QueuedTask{
+		Task:      task,
+		QueuedAt:  time.Now(),
+		Retries:   0,
+		LastError: reason,
+	}
+	s.taskQueue = append(s.taskQueue, qt)
+
+	log.Printf("📋 Task %s queued: %s", task.TaskId, reason)
+}
+
+// GetQueuedTasks returns a copy of the current task queue
+func (s *MasterServer) GetQueuedTasks() []*QueuedTask {
+	s.queueMu.RLock()
+	defer s.queueMu.RUnlock()
+
+	// Return a copy to avoid race conditions
+	queueCopy := make([]*QueuedTask, len(s.taskQueue))
+	copy(queueCopy, s.taskQueue)
+	return queueCopy
+}
+
+// assignTaskToWorker assigns a task to a specific worker
+// This is called by the scheduler after selecting an appropriate worker
+func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, workerID string) (*pb.TaskAck, error) {
+	s.mu.Lock()
+
+	// Find the specified worker
+	worker, exists := s.workers[workerID]
+	if !exists {
+		s.mu.Unlock()
+		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s not found", workerID)}, nil
+	}
+	if !worker.IsActive {
+		s.mu.Unlock()
+		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s is not active", workerID)}, nil
+	}
+
+	// Validate worker IP is set
+	if worker.Info.WorkerIp == "" {
+		s.mu.Unlock()
+		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Worker %s has no IP address configured", workerID)}, nil
+	}
+
+	// CHECK RESOURCE AVAILABILITY - Prevent Oversubscription
+	if worker.AvailableCPU < task.ReqCpu {
+		s.mu.Unlock()
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Insufficient CPU: worker has %.2f available, task requires %.2f",
+				worker.AvailableCPU, task.ReqCpu),
+		}, nil
+	}
+	if worker.AvailableMemory < task.ReqMemory {
+		s.mu.Unlock()
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Insufficient Memory: worker has %.2f GB available, task requires %.2f GB",
+				worker.AvailableMemory, task.ReqMemory),
+		}, nil
+	}
+	if worker.AvailableStorage < task.ReqStorage {
+		s.mu.Unlock()
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Insufficient Storage: worker has %.2f GB available, task requires %.2f GB",
+				worker.AvailableStorage, task.ReqStorage),
+		}, nil
+	}
+	if worker.AvailableGPU < task.ReqGpu {
+		s.mu.Unlock()
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Insufficient GPU: worker has %.2f available, task requires %.2f",
+				worker.AvailableGPU, task.ReqGpu),
+		}, nil
+	}
+
+	workerIP := worker.Info.WorkerIp
+	s.mu.Unlock()
+
+	// Connect to worker and assign task
+	conn, err := grpc.Dial(workerIP, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to connect to worker: %v", err)}, nil
+	}
+	defer conn.Close()
+
+	client := pb.NewMasterWorkerClient(conn)
+	ack, err := client.AssignTask(ctx, task)
+	if err != nil {
+		// Update task status to failed if assignment fails
+		if s.taskDB != nil {
+			s.taskDB.UpdateTaskStatus(ctx, task.TaskId, "failed")
+		}
+		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to assign task: %v", err)}, nil
+	}
+
+	if ack.Success {
+		s.mu.Lock()
+		// Mark task as running on worker
+		worker.RunningTasks[task.TaskId] = true
+
+		// 🚨 ALLOCATE RESOURCES - Update both in-memory and database
+		worker.AllocatedCPU += task.ReqCpu
+		worker.AllocatedMemory += task.ReqMemory
+		worker.AllocatedStorage += task.ReqStorage
+		worker.AllocatedGPU += task.ReqGpu
+		worker.AvailableCPU -= task.ReqCpu
+		worker.AvailableMemory -= task.ReqMemory
+		worker.AvailableStorage -= task.ReqStorage
+		worker.AvailableGPU -= task.ReqGpu
+		s.mu.Unlock()
+
+		// Update database
+		if s.workerDB != nil {
+			if err := s.workerDB.AllocateResources(ctx, workerID,
+				task.ReqCpu, task.ReqMemory, task.ReqStorage, task.ReqGpu); err != nil {
+				log.Printf("Warning: Failed to allocate resources in database: %v", err)
+			}
+		}
+
+		// Update task status to running
+		if s.taskDB != nil {
+			if err := s.taskDB.UpdateTaskStatus(ctx, task.TaskId, "running"); err != nil {
+				log.Printf("Warning: Failed to update task status: %v", err)
+			}
+		}
+
+		// Store assignment in database
+		if s.assignmentDB != nil {
+			assignment := &db.Assignment{
+				AssignmentID: fmt.Sprintf("ass-%s", task.TaskId),
+				TaskID:       task.TaskId,
+				WorkerID:     workerID,
+			}
+			if err := s.assignmentDB.CreateAssignment(ctx, assignment); err != nil {
+				log.Printf("Warning: Failed to store assignment in database: %v", err)
+			}
+		}
+
+		log.Println("\n═══════════════════════════════════════════════════════")
+		log.Println("  📤 TASK ASSIGNED TO WORKER")
+		log.Println("═══════════════════════════════════════════════════════")
+		log.Printf("  Task ID:           %s", task.TaskId)
+		log.Printf("  User ID:           %s", task.UserId)
+		log.Printf("  Assigned Worker:   %s", workerID)
+		log.Printf("  Docker Image:      %s", task.DockerImage)
+		log.Println("───────────────────────────────────────────────────────")
+		log.Println("  Resource Requirements:")
+		log.Printf("    • CPU Cores:     %.2f cores", task.ReqCpu)
+		log.Printf("    • Memory:        %.2f GB", task.ReqMemory)
+		log.Printf("    • Storage:       %.2f GB", task.ReqStorage)
+		log.Printf("    • GPU Cores:     %.2f cores", task.ReqGpu)
+		log.Println("═══════════════════════════════════════════════════════")
+		log.Println("")
+	}
+
+	return ack, err
 }

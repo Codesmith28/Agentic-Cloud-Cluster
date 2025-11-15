@@ -107,6 +107,10 @@ func main() {
 	masterAddress := sysInfo.GetMasterAddress() + cfg.GRPCPort
 	masterServer.SetMasterInfo(masterID, masterAddress)
 
+	// Start task queue processor
+	masterServer.StartQueueProcessor()
+	log.Println("✓ Task queue processor started")
+
 	// Load workers from database
 	if workerDB != nil {
 		if err := masterServer.LoadWorkersFromDB(ctx); err != nil {
@@ -146,6 +150,9 @@ func main() {
 	go func() {
 		<-sigChan
 		log.Println("\n\nShutting down master node...")
+
+		// Stop queue processor
+		masterServer.StopQueueProcessor()
 
 		// Shutdown HTTP server
 		if httpTelemetryServer != nil {
