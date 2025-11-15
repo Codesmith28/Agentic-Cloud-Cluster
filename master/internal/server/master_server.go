@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -794,6 +795,50 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	return s.SubmitTask(ctx, task)
 }
 
+// DispatchTaskToWorker directly dispatches a task to a specific worker, bypassing the scheduler
+// This is useful for testing and debugging purposes
+func (s *MasterServer) DispatchTaskToWorker(ctx context.Context, task *pb.Task, workerID string) (*pb.TaskAck, error) {
+	log.Printf("🎯 Direct dispatch request: Task %s -> Worker %s", task.TaskId, workerID)
+
+	// Store task in database as queued first
+	if s.taskDB != nil {
+		dbTask := &db.Task{
+			TaskID:      task.TaskId,
+			UserID:      task.UserId,
+			DockerImage: task.DockerImage,
+			Command:     task.Command,
+			ReqCPU:      task.ReqCpu,
+			ReqMemory:   task.ReqMemory,
+			ReqStorage:  task.ReqStorage,
+			ReqGPU:      task.ReqGpu,
+			Status:      "queued",
+		}
+		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
+			log.Printf("Warning: Failed to store task in database: %v", err)
+		}
+	}
+
+	// Directly assign to the specified worker (bypassing queue and scheduler)
+	ack, err := s.assignTaskToWorker(ctx, task, workerID)
+	if err != nil {
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Failed to dispatch task to worker %s: %v", workerID, err),
+		}, nil
+	}
+
+	if !ack.Success {
+		return ack, nil
+	}
+
+	log.Printf("✅ Task %s dispatched directly to worker %s", task.TaskId, workerID)
+
+	return &pb.TaskAck{
+		Success: true,
+		Message: fmt.Sprintf("Task dispatched directly to worker %s (bypassed scheduler)", workerID),
+	}, nil
+}
+
 // StreamTaskLogs handles gRPC streaming of task logs (called by master CLI)
 func (s *MasterServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWorker_StreamTaskLogsServer) error {
 	// This is a stub - the master doesn't receive this call from workers
@@ -809,9 +854,17 @@ func (s *MasterServer) StreamTaskLogsFromWorker(ctx context.Context, taskID, use
 	if s.resultDB != nil {
 		result, err := s.resultDB.GetResult(ctx, taskID)
 		if err == nil && result != nil {
-			// Task is completed, return stored logs
+			// Task is completed, stream stored logs line by line
 			s.mu.RUnlock()
-			logHandler(result.Logs, true)
+
+			// Split logs by newlines and stream them
+			lines := strings.Split(result.Logs, "\n")
+			for i, line := range lines {
+				// Send each line with a small delay to simulate streaming
+				time.Sleep(10 * time.Millisecond)
+				isLastLine := i == len(lines)-1
+				logHandler(line, isLastLine)
+			}
 			return nil
 		}
 	}
@@ -881,6 +934,24 @@ func (s *MasterServer) StreamTaskLogsFromWorker(ctx context.Context, taskID, use
 			return nil
 		}
 	}
+}
+
+// GetUserIDForTask retrieves the user ID associated with a task from the database
+func (s *MasterServer) GetUserIDForTask(ctx context.Context, taskID string) (string, error) {
+	if s.taskDB == nil {
+		return "", fmt.Errorf("task database not available")
+	}
+
+	task, err := s.taskDB.GetTask(ctx, taskID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get task: %w", err)
+	}
+
+	if task == nil {
+		return "", fmt.Errorf("task not found")
+	}
+
+	return task.UserID, nil
 }
 
 // BroadcastMasterRegistration calls MasterRegister on all pre-registered workers

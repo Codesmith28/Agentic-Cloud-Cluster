@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-units"
 )
 
@@ -144,6 +146,12 @@ func (e *TaskExecutor) createContainer(ctx context.Context, image, command, task
 		Image: image,
 	}
 
+	// Use a TTY so many programs flush stdout line-by-line instead of block-buffering
+	// when their stdout is not a TTY. This improves live log streaming behavior.
+	containerConfig.Tty = true
+	containerConfig.AttachStdout = true
+	containerConfig.AttachStderr = true
+
 	// Add command if provided
 	if command != "" {
 		containerConfig.Cmd = []string{"/bin/sh", "-c", command}
@@ -259,12 +267,20 @@ func (e *TaskExecutor) StreamLogs(ctx context.Context, containerID string) (<-ch
 	go func() {
 		defer close(logChan)
 		defer close(errChan)
+		// Inspect container to determine if it was created with a TTY
+		inspect, inspectErr := e.dockerClient.ContainerInspect(ctx, containerID)
+		if inspectErr != nil {
+			errChan <- fmt.Errorf("failed to inspect container: %w", inspectErr)
+			return
+		}
 
+		// If container has TTY enabled, request logs without docker multiplexing/timestamps
+		// so we can stream raw output promptly. Otherwise use stdcopy demux for multiplexed streams.
 		logReader, err := e.dockerClient.ContainerLogs(ctx, containerID, container.LogsOptions{
 			ShowStdout: true,
 			ShowStderr: true,
 			Follow:     true,
-			Timestamps: true,
+			Timestamps: false,
 		})
 		if err != nil {
 			errChan <- fmt.Errorf("failed to get container logs: %w", err)
@@ -272,23 +288,82 @@ func (e *TaskExecutor) StreamLogs(ctx context.Context, containerID string) (<-ch
 		}
 		defer logReader.Close()
 
-		scanner := bufio.NewScanner(logReader)
-		for scanner.Scan() {
-			line := scanner.Text()
-			// Remove Docker log header (first 8 bytes)
-			if len(line) > 8 {
-				line = line[8:]
-			}
+		// If the container was created with a TTY, the logs are a raw stream (not multiplexed).
+		if inspect.Config != nil && inspect.Config.Tty {
+			// Stream raw bytes and forward promptly. Use a small buffer to avoid waiting for full lines.
+			reader := bufio.NewReader(logReader)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 
-			select {
-			case logChan <- line:
-			case <-ctx.Done():
-				return
+				// Read up to newline; if none, ReadString will block until some data arrives.
+				line, rerr := reader.ReadString('\n')
+				if len(line) > 0 {
+					select {
+					case logChan <- strings.TrimRight(line, "\n"):
+					case <-ctx.Done():
+						return
+					}
+				}
+
+				if rerr != nil {
+					if rerr == io.EOF {
+						return
+					}
+					errChan <- fmt.Errorf("error reading logs: %w", rerr)
+					return
+				}
 			}
 		}
 
-		if err := scanner.Err(); err != nil {
-			errChan <- fmt.Errorf("error reading logs: %w", err)
+		// Non-TTY container: logs are multiplexed (stdout/stderr). Demultiplex using stdcopy.
+		// Create pipes for stdout and stderr
+		stdoutReader, stdoutWriter := io.Pipe()
+		stderrReader, stderrWriter := io.Pipe()
+
+		// Start demultiplexing in background
+		demuxDone := make(chan error, 1)
+		go func() {
+			_, derr := stdcopy.StdCopy(stdoutWriter, stderrWriter, logReader)
+			stdoutWriter.Close()
+			stderrWriter.Close()
+			demuxDone <- derr
+		}()
+
+		// Helper function to read lines from a reader and forward
+		readLines := func(reader io.Reader, done chan struct{}) {
+			scanner := bufio.NewScanner(reader)
+			for scanner.Scan() {
+				line := scanner.Text()
+				select {
+				case logChan <- line:
+				case <-ctx.Done():
+					return
+				}
+			}
+			close(done)
+		}
+
+		stdoutDone := make(chan struct{})
+		stderrDone := make(chan struct{})
+
+		go readLines(stdoutReader, stdoutDone)
+		go readLines(stderrReader, stderrDone)
+
+		// Wait for either context cancellation or demux completion
+		select {
+		case <-ctx.Done():
+			return
+		case derr := <-demuxDone:
+			if derr != nil && derr != io.EOF {
+				errChan <- fmt.Errorf("error demultiplexing logs: %w", derr)
+			}
+			// Wait for both readers to finish
+			<-stdoutDone
+			<-stderrDone
 		}
 	}()
 

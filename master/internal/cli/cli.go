@@ -96,19 +96,30 @@ func (c *CLI) Run() {
 				continue
 			}
 			c.submitTask(parts)
-		case "monitor":
-			if len(parts) < 2 {
-				fmt.Println("Usage: monitor <task_id> [user_id]")
-				fmt.Println("  task_id: ID of the task to monitor")
-				fmt.Println("  user_id: (optional) User ID for authorization (default: admin)")
-				fmt.Println("Example: monitor task-123 user-1")
+		case "dispatch":
+			if len(parts) < 3 {
+				fmt.Println("Usage: dispatch <worker_id> <docker_image> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]")
+				fmt.Println("  worker_id: Specific worker to dispatch task to")
+				fmt.Println("  docker_image: Docker image to run")
+				fmt.Println("  -cpu_cores: CPU cores to allocate (default: 1.0)")
+				fmt.Println("  -mem: Memory in GB (default: 0.5)")
+				fmt.Println("  -storage: Storage in GB (default: 1.0)")
+				fmt.Println("  -gpu_cores: GPU cores to allocate (default: 0.0)")
+				fmt.Println("\nNote: This bypasses the scheduler and directly assigns to the specified worker.")
+				fmt.Println("\nExamples:")
+				fmt.Println("  dispatch worker-1 docker.io/user/sample-task:latest")
+				fmt.Println("  dispatch worker-2 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0")
 				continue
 			}
-			userID := "admin"
-			if len(parts) >= 3 {
-				userID = parts[2]
+			c.dispatchTask(parts)
+		case "monitor":
+			if len(parts) < 2 {
+				fmt.Println("Usage: monitor <task_id>")
+				fmt.Println("  task_id: ID of the task to monitor")
+				fmt.Println("Example: monitor task-123")
+				continue
 			}
-			c.monitorTask(parts[1], userID)
+			c.monitorTask(parts[1])
 		case "cancel":
 			if len(parts) < 2 {
 				fmt.Println("Usage: cancel <task_id>")
@@ -145,7 +156,8 @@ func (c *CLI) printHelp() {
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
 	fmt.Println("  task <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Submit task (scheduler selects worker)")
-	fmt.Println("  monitor <task_id> [user_id]    - Monitor live logs for a task (press any key to exit)")
+	fmt.Println("  dispatch <worker_id> <docker_img> [options]  - Dispatch task directly to specific worker (testing)")
+	fmt.Println("  monitor <task_id>              - Monitor live logs for a task (press any key to exit)")
 	fmt.Println("  cancel <task_id>               - Cancel a running task")
 	fmt.Println("  queue                          - Show pending tasks in the queue")
 	fmt.Println("  exit/quit                      - Shutdown master node")
@@ -155,7 +167,8 @@ func (c *CLI) printHelp() {
 	fmt.Println("  internal-state")
 	fmt.Println("  task docker.io/user/sample-task:latest")
 	fmt.Println("  task docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
-	fmt.Println("  monitor task-123 user-1")
+	fmt.Println("  dispatch worker-1 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0")
+	fmt.Println("  monitor task-123")
 	fmt.Println("  cancel task-123")
 	fmt.Println("  queue")
 }
@@ -548,6 +561,113 @@ func (c *CLI) submitTaskToMaster(task *pb.Task) error {
 	return nil
 }
 
+// dispatchTask directly dispatches a task to a specific worker, bypassing the scheduler
+func (c *CLI) dispatchTask(parts []string) {
+	workerID := parts[1]
+	dockerImage := parts[2]
+
+	// Default resource requirements
+	reqCPU := 1.0
+	reqMemory := 0.5
+	reqStorage := 1.0
+	reqGPU := 0.0
+
+	// Parse flags (starting from index 3 since we have worker_id and docker_image)
+	for i := 3; i < len(parts); i++ {
+		switch parts[i] {
+		case "-cpu_cores":
+			if i+1 < len(parts) {
+				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+					reqCPU = val
+					i++ // Skip the value
+				}
+			}
+		case "-mem":
+			if i+1 < len(parts) {
+				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+					reqMemory = val
+					i++ // Skip the value
+				}
+			}
+		case "-storage":
+			if i+1 < len(parts) {
+				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+					reqStorage = val
+					i++ // Skip the value
+				}
+			}
+		case "-gpu_cores":
+			if i+1 < len(parts) {
+				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+					reqGPU = val
+					i++ // Skip the value
+				}
+			}
+		}
+	}
+
+	// Generate task ID
+	taskID := fmt.Sprintf("task-%d", time.Now().Unix())
+
+	// Command is empty - the container will use its default CMD/ENTRYPOINT
+	command := ""
+
+	// Display task details before sending
+	fmt.Println("\n═══════════════════════════════════════════════════════")
+	fmt.Println("  🎯 DISPATCHING TASK DIRECTLY TO WORKER")
+	fmt.Println("═══════════════════════════════════════════════════════")
+	fmt.Printf("  Task ID:           %s\n", taskID)
+	fmt.Printf("  Target Worker:     %s\n", workerID)
+	fmt.Printf("  Docker Image:      %s\n", dockerImage)
+	fmt.Println("───────────────────────────────────────────────────────")
+	fmt.Println("  Resource Requirements:")
+	fmt.Printf("    • CPU Cores:     %.2f cores\n", reqCPU)
+	fmt.Printf("    • Memory:        %.2f GB\n", reqMemory)
+	fmt.Printf("    • Storage:       %.2f GB\n", reqStorage)
+	fmt.Printf("    • GPU Cores:     %.2f cores\n", reqGPU)
+	fmt.Println("───────────────────────────────────────────────────────")
+	fmt.Println("  ⚠️  NOTE: Bypassing scheduler - dispatching directly!")
+	fmt.Println("═══════════════════════════════════════════════════════")
+
+	task := &pb.Task{
+		TaskId:      taskID,
+		DockerImage: dockerImage,
+		Command:     command,
+		ReqCpu:      reqCPU,
+		ReqMemory:   reqMemory,
+		ReqStorage:  reqStorage,
+		ReqGpu:      reqGPU,
+		UserId:      "admin", // Default user for CLI tasks
+	}
+
+	err := c.dispatchTaskToWorker(task, workerID)
+	if err != nil {
+		fmt.Printf("\n❌ Failed to dispatch task: %v\n", err)
+		return
+	}
+
+	fmt.Printf("\n✅ Task %s dispatched directly to worker %s!\n", taskID, workerID)
+	fmt.Println("    Use 'monitor <task_id>' command to view task logs")
+}
+
+// dispatchTaskToWorker dispatches a task directly to a specific worker
+func (c *CLI) dispatchTaskToWorker(task *pb.Task, workerID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Call the master server's internal method to assign task to specific worker
+	ack, err := c.masterServer.DispatchTaskToWorker(ctx, task, workerID)
+	if err != nil {
+		return fmt.Errorf("failed to dispatch task: %w", err)
+	}
+
+	if !ack.Success {
+		return fmt.Errorf("task dispatch failed: %s", ack.Message)
+	}
+
+	return nil
+}
+
 func (c *CLI) registerWorker(workerID, workerIP string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -618,7 +738,7 @@ func (c *CLI) cancelTask(taskID string) {
 	fmt.Printf("%s   %s%s\n", yellow, ack.Message, reset)
 }
 
-func (c *CLI) monitorTask(taskID, userID string) {
+func (c *CLI) monitorTask(taskID string) {
 	// ANSI escape codes for terminal control
 	const (
 		clearScreen = "\033[2J"
@@ -631,6 +751,16 @@ func (c *CLI) monitorTask(taskID, userID string) {
 		red         = "\033[31m"
 	)
 
+	// Get userID from task in database
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	userID, err := c.masterServer.GetUserIDForTask(ctx, taskID)
+	if err != nil {
+		fmt.Printf("\n%s❌ Failed to get task information: %v%s\n", red, err, reset)
+		return
+	}
+
 	// Clear screen and show header
 	fmt.Print(clearScreen + moveCursor)
 	fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, cyan, reset)
@@ -642,8 +772,8 @@ func (c *CLI) monitorTask(taskID, userID string) {
 	fmt.Printf("%s%sPress any key to exit%s\n\n", yellow, bold, reset)
 
 	// Create context that can be cancelled
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	defer streamCancel()
 
 	// Channel to detect user input (to exit the live view)
 	done := make(chan bool, 1)
@@ -653,7 +783,7 @@ func (c *CLI) monitorTask(taskID, userID string) {
 		reader := bufio.NewReader(os.Stdin)
 		reader.ReadByte() // Wait for any key press
 		done <- true
-		cancel()
+		streamCancel()
 	}()
 
 	// Channel to signal streaming completion
@@ -661,7 +791,7 @@ func (c *CLI) monitorTask(taskID, userID string) {
 
 	// Start streaming logs in goroutine
 	go func() {
-		err := c.masterServer.StreamTaskLogsFromWorker(ctx, taskID, userID, func(logLine string, isComplete bool) {
+		err := c.masterServer.StreamTaskLogsFromWorker(streamCtx, taskID, userID, func(logLine string, isComplete bool) {
 			if logLine != "" {
 				fmt.Println(logLine)
 			}
