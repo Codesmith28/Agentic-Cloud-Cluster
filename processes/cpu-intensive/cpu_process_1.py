@@ -7,9 +7,14 @@ import os
 import time
 import random
 import psutil
+
 import json
+import warnings
 import numpy as np
 from datetime import datetime
+
+# Suppress complex casting warnings
+warnings.filterwarnings('ignore', category=np.ComplexWarning)
 
 def main():
     print(f"[{datetime.now()}] Starting CPU-Intensive Process 1: Matrix Operations")
@@ -73,7 +78,7 @@ def main():
                 'matrix_size': size,
                 'duration': op_duration,
                 'flops': flops,
-                'eigenvalue_sum': float(np.sum(eigenvalues)),
+                'eigenvalue_sum': float(np.sum(np.abs(eigenvalues))),
                 'determinant': float(determinant)
             })
             

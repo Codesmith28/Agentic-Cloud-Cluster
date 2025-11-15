@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/docker/docker/api/types/container"
@@ -273,11 +274,32 @@ func (e *TaskExecutor) StreamLogs(ctx context.Context, containerID string) (<-ch
 		defer logReader.Close()
 
 		scanner := bufio.NewScanner(logReader)
+		
 		for scanner.Scan() {
 			line := scanner.Text()
 			// Remove Docker log header (first 8 bytes)
 			if len(line) > 8 {
 				line = line[8:]
+			}
+
+			// Skip Docker-in-Docker initialization noise lines
+			if strings.Contains(line, "Certificate request") ||
+				strings.Contains(line, "can't open '/proc/net/") ||
+				strings.Contains(line, "can't find device") ||
+				strings.Contains(line, "can't change directory to '/lib/modules'") ||
+				strings.Contains(line, "modprobe:") ||
+				strings.Contains(line, "mount: permission denied") ||
+				strings.Contains(line, "Could not mount /sys/kernel/security") ||
+				strings.Contains(line, "AppArmor detection") ||
+				strings.Contains(line, "iptables v") ||
+				strings.Contains(line, "nf_tables") ||
+				strings.Contains(line, "nfnetlink") ||
+				strings.Contains(line, "x_tables") ||
+				strings.Contains(line, "/certs/server/cert.pem") ||
+				strings.Contains(line, "/certs/client/cert.pem") ||
+				strings.Contains(line, "subject=CN=docker:dind") ||
+				(strings.TrimSpace(line) == "") {
+				continue // Skip this noise line
 			}
 
 			select {
