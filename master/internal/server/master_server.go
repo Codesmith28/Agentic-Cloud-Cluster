@@ -488,16 +488,170 @@ func (s *MasterServer) GetAllWorkerTelemetry() map[string]*telemetry.WorkerTelem
 	return s.telemetryManager.GetAllWorkerTelemetry()
 }
 
-// DumpInMemoryState returns a formatted string of the complete in-memory state
-func (s *MasterServer) DumpInMemoryState() string {
+// WorkerStateSnapshot represents a point-in-time snapshot of a worker's state
+type WorkerStateSnapshot struct {
+	WorkerID         string
+	WorkerIP         string
+	Status           string // "active" or "inactive"
+	LastHeartbeat    int64
+	HeartbeatAgo     string // Human-readable: "5s ago", "2m ago"
+	CPUUsage         float64
+	MemoryUsage      float64
+	GPUUsage         float64
+	TotalCPU         float64
+	TotalMemory      float64
+	TotalStorage     float64
+	TotalGPU         float64
+	AllocatedCPU     float64
+	AllocatedMemory  float64
+	AllocatedStorage float64
+	AllocatedGPU     float64
+	AvailableCPU     float64
+	AvailableMemory  float64
+	AvailableStorage float64
+	AvailableGPU     float64
+	RunningTasks     []string
+	TaskCount        int
+}
+
+// ClusterSnapshot represents a point-in-time snapshot of the entire cluster
+type ClusterSnapshot struct {
+	Timestamp         time.Time
+	Workers           []WorkerStateSnapshot
+	TotalWorkers      int
+	ActiveWorkers     int
+	InactiveWorkers   int
+	TotalTasks        int
+	TotalCPU          float64
+	AllocatedCPU      float64
+	AvailableCPU      float64
+	CPUUtilization    float64 // Percentage
+	TotalMemory       float64
+	AllocatedMemory   float64
+	AvailableMemory   float64
+	MemoryUtilization float64 // Percentage
+	TotalGPU          float64
+	AllocatedGPU      float64
+	AvailableGPU      float64
+	GPUUtilization    float64 // Percentage
+}
+
+// GetClusterSnapshot returns a structured snapshot of the cluster state
+func (s *MasterServer) GetClusterSnapshot() *ClusterSnapshot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	snapshot := &ClusterSnapshot{
+		Timestamp: time.Now(),
+		Workers:   []WorkerStateSnapshot{},
+	}
+
+	for workerID, worker := range s.workers {
+		// Calculate heartbeat ago
+		heartbeatAgo := "never"
+		if worker.LastHeartbeat > 0 {
+			duration := time.Since(time.Unix(worker.LastHeartbeat, 0))
+			if duration < 60*time.Second {
+				heartbeatAgo = fmt.Sprintf("%ds ago", int(duration.Seconds()))
+			} else if duration < 60*time.Minute {
+				heartbeatAgo = fmt.Sprintf("%dm ago", int(duration.Minutes()))
+			} else {
+				heartbeatAgo = fmt.Sprintf("%dh ago", int(duration.Hours()))
+			}
+		}
+
+		// Status
+		status := "active"
+		if !worker.IsActive {
+			status = "inactive"
+		}
+
+		// Extract running tasks
+		runningTasks := []string{}
+		for taskID := range worker.RunningTasks {
+			runningTasks = append(runningTasks, taskID)
+		}
+
+		// Get resource totals
+		var totalCPU, totalMemory, totalStorage, totalGPU float64
+		var workerIP string
+		if worker.Info != nil {
+			totalCPU = worker.Info.TotalCpu
+			totalMemory = worker.Info.TotalMemory
+			totalStorage = worker.Info.TotalStorage
+			totalGPU = worker.Info.TotalGpu
+			workerIP = worker.Info.WorkerIp
+		}
+
+		workerSnapshot := WorkerStateSnapshot{
+			WorkerID:         workerID,
+			WorkerIP:         workerIP,
+			Status:           status,
+			LastHeartbeat:    worker.LastHeartbeat,
+			HeartbeatAgo:     heartbeatAgo,
+			CPUUsage:         worker.LatestCPU,
+			MemoryUsage:      worker.LatestMemory,
+			GPUUsage:         worker.LatestGPU,
+			TotalCPU:         totalCPU,
+			TotalMemory:      totalMemory,
+			TotalStorage:     totalStorage,
+			TotalGPU:         totalGPU,
+			AllocatedCPU:     worker.AllocatedCPU,
+			AllocatedMemory:  worker.AllocatedMemory,
+			AllocatedStorage: worker.AllocatedStorage,
+			AllocatedGPU:     worker.AllocatedGPU,
+			AvailableCPU:     worker.AvailableCPU,
+			AvailableMemory:  worker.AvailableMemory,
+			AvailableStorage: worker.AvailableStorage,
+			AvailableGPU:     worker.AvailableGPU,
+			RunningTasks:     runningTasks,
+			TaskCount:        len(runningTasks),
+		}
+
+		snapshot.Workers = append(snapshot.Workers, workerSnapshot)
+
+		// Aggregate cluster stats
+		snapshot.TotalWorkers++
+		if worker.IsActive {
+			snapshot.ActiveWorkers++
+		} 
+		snapshot.TotalTasks += len(worker.RunningTasks)
+		snapshot.TotalCPU += totalCPU
+		snapshot.TotalMemory += totalMemory
+		snapshot.TotalGPU += totalGPU
+		snapshot.AllocatedCPU += worker.AllocatedCPU
+		snapshot.AllocatedMemory += worker.AllocatedMemory
+		snapshot.AllocatedGPU += worker.AllocatedGPU
+		snapshot.AvailableCPU += worker.AvailableCPU
+		snapshot.AvailableMemory += worker.AvailableMemory
+		snapshot.AvailableGPU += worker.AvailableGPU
+	}
+
+	snapshot.InactiveWorkers = snapshot.TotalWorkers - snapshot.ActiveWorkers
+
+	// Calculate utilization percentages
+	if snapshot.TotalCPU > 0 {
+		snapshot.CPUUtilization = (snapshot.AllocatedCPU / snapshot.TotalCPU) * 100
+	}
+	if snapshot.TotalMemory > 0 {
+		snapshot.MemoryUtilization = (snapshot.AllocatedMemory / snapshot.TotalMemory) * 100
+	}
+	if snapshot.TotalGPU > 0 {
+		snapshot.GPUUtilization = (snapshot.AllocatedGPU / snapshot.TotalGPU) * 100
+	}
+
+	return snapshot
+}
+
+// DumpInMemoryState returns a formatted string of the complete in-memory state
+func (s *MasterServer) DumpInMemoryState() string {
+	snapshot := s.GetClusterSnapshot()
+
 	var output string
-	timestamp := time.Now().Format("2006/01/02 15:04:05")
+	timestamp := snapshot.Timestamp.Format("2006/01/02 15:04:05")
 	output += fmt.Sprintf("\n[%s] Master In-Memory State\n\n", timestamp)
 
-	if len(s.workers) == 0 {
+	if len(snapshot.Workers) == 0 {
 		output += "No workers registered.\n\n"
 		return output
 	}
@@ -506,30 +660,17 @@ func (s *MasterServer) DumpInMemoryState() string {
 	output += "WORKER         STATUS  HEARTBEAT    CPU%   MEM%   GPU%   ALLOC(C/M/G)         AVAIL(C/M/G)         TASKS\n"
 	output += "──────────────────────────────────────────────────────────────────────────────────────────────────────────────\n"
 
-	for workerID, worker := range s.workers {
+	for _, worker := range snapshot.Workers {
 		// Status
 		status := "ACT"
-		if !worker.IsActive {
+		if worker.Status == "inactive" {
 			status = "INA"
 		}
 
-		// Last heartbeat time
-		heartbeat := "never"
-		if worker.LastHeartbeat > 0 {
-			duration := time.Since(time.Unix(worker.LastHeartbeat, 0))
-			if duration < 60*time.Second {
-				heartbeat = fmt.Sprintf("%ds ago", int(duration.Seconds()))
-			} else if duration < 60*time.Minute {
-				heartbeat = fmt.Sprintf("%dm ago", int(duration.Minutes()))
-			} else {
-				heartbeat = fmt.Sprintf("%dh ago", int(duration.Hours()))
-			}
-		}
-
 		// Resource usage
-		cpuUsage := fmt.Sprintf("%.1f", worker.LatestCPU)
-		memUsage := fmt.Sprintf("%.1f", worker.LatestMemory)
-		gpuUsage := fmt.Sprintf("%.1f", worker.LatestGPU)
+		cpuUsage := fmt.Sprintf("%.1f", worker.CPUUsage)
+		memUsage := fmt.Sprintf("%.1f", worker.MemoryUsage)
+		gpuUsage := fmt.Sprintf("%.1f", worker.GPUUsage)
 
 		// Allocated resources
 		allocStr := fmt.Sprintf("%.1f/%.1f/%.1f",
@@ -542,53 +683,31 @@ func (s *MasterServer) DumpInMemoryState() string {
 		// Running tasks
 		taskStr := "-"
 		if len(worker.RunningTasks) > 0 {
-			tasks := []string{}
-			for taskID := range worker.RunningTasks {
-				tasks = append(tasks, taskID)
-			}
-			if len(tasks) <= 2 {
-				taskStr = fmt.Sprintf("%s", joinTasks(tasks))
+			if len(worker.RunningTasks) <= 2 {
+				taskStr = joinTasks(worker.RunningTasks)
 			} else {
-				taskStr = fmt.Sprintf("%s,+%d", joinTasks(tasks[:2]), len(tasks)-2)
+				taskStr = fmt.Sprintf("%s,+%d", joinTasks(worker.RunningTasks[:2]), len(worker.RunningTasks)-2)
 			}
 		}
 
 		// Truncate worker ID if too long
-		displayID := workerID
+		displayID := worker.WorkerID
 		if len(displayID) > 14 {
 			displayID = displayID[:14]
 		}
 
 		output += fmt.Sprintf("%-14s %-6s  %-11s  %-5s  %-5s  %-5s  %-19s  %-19s  %s\n",
-			displayID, status, heartbeat, cpuUsage, memUsage, gpuUsage,
+			displayID, status, worker.HeartbeatAgo, cpuUsage, memUsage, gpuUsage,
 			allocStr, availStr, taskStr)
 	}
 
 	output += "\n"
 
 	// Cluster summary
-	totalWorkers := len(s.workers)
-	activeWorkers := 0
-	totalTasks := 0
-	var totalCPU, allocCPU, totalMem, allocMem float64
-
-	for _, w := range s.workers {
-		if w.IsActive {
-			activeWorkers++
-		}
-		totalTasks += len(w.RunningTasks)
-		if w.Info != nil {
-			totalCPU += w.Info.TotalCpu
-			totalMem += w.Info.TotalMemory
-		}
-		allocCPU += w.AllocatedCPU
-		allocMem += w.AllocatedMemory
-	}
-
 	output += fmt.Sprintf("Cluster: %d workers (%d active) | %d tasks | CPU: %.1f/%.1f (%.0f%%) | Mem: %.1f/%.1f GB (%.0f%%)\n\n",
-		totalWorkers, activeWorkers, totalTasks,
-		allocCPU, totalCPU, safePercentDirect(allocCPU, totalCPU),
-		allocMem, totalMem, safePercentDirect(allocMem, totalMem))
+		snapshot.TotalWorkers, snapshot.ActiveWorkers, snapshot.TotalTasks,
+		snapshot.AllocatedCPU, snapshot.TotalCPU, snapshot.CPUUtilization,
+		snapshot.AllocatedMemory, snapshot.TotalMemory, snapshot.MemoryUtilization)
 
 	return output
 }
@@ -603,14 +722,6 @@ func joinTasks(tasks []string) string {
 		result += t
 	}
 	return result
-}
-
-// safePercentDirect calculates percentage safely
-func safePercentDirect(part, total float64) float64 {
-	if total == 0 {
-		return 0
-	}
-	return (part / total) * 100
 }
 
 // AssignTask assigns a task to a specific worker (target_worker_id is required)
