@@ -708,13 +708,13 @@ func (c *CLI) showQueue() {
 	for i, qt := range queuedTasks {
 		// Calculate time in queue
 		timeInQueue := time.Since(qt.QueuedAt)
-		
+
 		// Show assigned worker if available
 		workerStatus := "Waiting for scheduler"
 		if qt.Task.TargetWorkerId != "" {
 			workerStatus = qt.Task.TargetWorkerId
 		}
-		
+
 		fmt.Printf("\n[%d] Task ID: %s\n", i+1, qt.Task.TaskId)
 		fmt.Printf("    Assigned Worker: %s\n", workerStatus)
 		fmt.Printf("    Docker Image:    %s\n", qt.Task.DockerImage)

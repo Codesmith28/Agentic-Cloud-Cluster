@@ -25,10 +25,10 @@ type QueuedTask struct {
 
 // TaskSubmission represents the result of submitting a task to the system
 type TaskSubmission struct {
-	TaskID    string
-	Queued    bool
-	Position  int
-	Message   string
+	TaskID   string
+	Queued   bool
+	Position int
+	Message  string
 }
 
 // MasterServer handles gRPC requests from workers
@@ -636,7 +636,7 @@ func (s *MasterServer) GetClusterSnapshot() *ClusterSnapshot {
 		snapshot.TotalWorkers++
 		if worker.IsActive {
 			snapshot.ActiveWorkers++
-		} 
+		}
 		snapshot.TotalTasks += len(worker.RunningTasks)
 		snapshot.TotalCPU += totalCPU
 		snapshot.TotalMemory += totalMemory
@@ -1059,13 +1059,13 @@ func (s *MasterServer) processQueue() {
 		for _, qt := range s.taskQueue {
 			// Find the best worker for this task using the scheduler
 			selectedWorker := s.selectWorkerForTask(qt.Task)
-			
+
 			if selectedWorker == "" {
 				// No suitable worker available, keep in queue
 				qt.Retries++
 				qt.LastError = "No suitable worker available with sufficient resources"
 				remainingTasks = append(remainingTasks, qt)
-				
+
 				// Log only on first retry and every 10th retry to avoid spam
 				if qt.Retries == 1 || qt.Retries%10 == 0 {
 					log.Printf("📋 Queue: Task %s still waiting (attempt %d): %s",
@@ -1076,7 +1076,7 @@ func (s *MasterServer) processQueue() {
 
 			// Set the selected worker as the target
 			qt.Task.TargetWorkerId = selectedWorker
-			
+
 			// Try to assign the task to the selected worker
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			ack, err := s.assignTaskToWorker(ctx, qt.Task, selectedWorker)
@@ -1091,7 +1091,7 @@ func (s *MasterServer) processQueue() {
 					qt.LastError = ack.Message
 				}
 				remainingTasks = append(remainingTasks, qt)
-				
+
 				if qt.Retries == 1 || qt.Retries%10 == 0 {
 					log.Printf("📋 Queue: Task %s assignment to %s failed (attempt %d): %s",
 						qt.Task.TaskId, selectedWorker, qt.Retries, qt.LastError)
@@ -1135,7 +1135,7 @@ func (s *MasterServer) selectWorkerForTask(task *pb.Task) string {
 		if totalCapacity == 0 {
 			continue
 		}
-		
+
 		totalAllocated := worker.AllocatedCPU + worker.AllocatedMemory + worker.AllocatedStorage + worker.AllocatedGPU
 		utilizationScore := totalAllocated / totalCapacity
 
