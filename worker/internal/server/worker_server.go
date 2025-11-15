@@ -193,11 +193,33 @@ func (s *WorkerServer) executeTask(task *pb.Task) {
 	}
 }
 
-// CancelTask handles task cancellation requests (not implemented)
+// CancelTask handles task cancellation requests
 func (s *WorkerServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.TaskAck, error) {
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Printf("  🛑 TASK CANCELLATION REQUEST")
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Printf("  Task ID: %s", taskID.TaskId)
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	// Cancel the task using executor
+	if err := s.executor.CancelTask(ctx, taskID.TaskId); err != nil {
+		log.Printf("  ✗ Failed to cancel task: %v", err)
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Failed to cancel task: %v", err),
+		}, nil
+	}
+
+	// Remove from monitoring
+	s.monitor.RemoveTask(taskID.TaskId)
+
+	log.Printf("  ✓ Task cancelled successfully")
+	log.Printf("  ✓ Container stopped and removed")
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
 	return &pb.TaskAck{
-		Success: false,
-		Message: "Task cancellation not implemented",
+		Success: true,
+		Message: "Task cancelled",
 	}, nil
 }
 

@@ -313,3 +313,41 @@ func (e *TaskExecutor) GetContainerStatus(ctx context.Context, containerID strin
 
 	return inspect.State.Status, nil
 }
+
+// CancelTask stops and removes a running task's container
+func (e *TaskExecutor) CancelTask(ctx context.Context, taskID string) error {
+	// Get container ID for this task
+	e.mu.RLock()
+	containerID, exists := e.containers[taskID]
+	e.mu.RUnlock()
+
+	if !exists {
+		return fmt.Errorf("task %s not found or not running", taskID)
+	}
+
+	log.Printf("[Task %s] Cancelling task (container: %s)...", taskID, containerID[:12])
+
+	// Try graceful stop first (10 second timeout)
+	timeoutSecs := 10
+	if err := e.dockerClient.ContainerStop(ctx, containerID, container.StopOptions{Timeout: &timeoutSecs}); err != nil {
+		log.Printf("[Task %s] Warning: graceful stop failed, forcing kill: %v", taskID, err)
+		// Continue to force kill below
+	} else {
+		log.Printf("[Task %s] ✓ Container stopped gracefully", taskID)
+	}
+
+	// Remove the container (force=true ensures removal even if stop failed)
+	if err := e.dockerClient.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true}); err != nil {
+		log.Printf("[Task %s] Warning: failed to remove container: %v", taskID, err)
+	} else {
+		log.Printf("[Task %s] ✓ Container removed", taskID)
+	}
+
+	// Remove from tracking
+	e.mu.Lock()
+	delete(e.containers, taskID)
+	e.mu.Unlock()
+
+	log.Printf("[Task %s] ✓ Task cancelled successfully", taskID)
+	return nil
+}

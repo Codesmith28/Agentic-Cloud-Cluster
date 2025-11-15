@@ -22,7 +22,7 @@ type Task struct {
 	ReqMemory   float64   `bson:"req_memory"`
 	ReqStorage  float64   `bson:"req_storage"`
 	ReqGPU      float64   `bson:"req_gpu"`
-	Status      string    `bson:"status"` // pending, running, completed, failed
+	Status      string    `bson:"status"` // pending, running, completed, failed, cancelled
 	CreatedAt   time.Time `bson:"created_at"`
 	StartedAt   time.Time `bson:"started_at,omitempty"`
 	CompletedAt time.Time `bson:"completed_at,omitempty"`
@@ -123,7 +123,7 @@ func (db *TaskDB) UpdateTaskStatus(ctx context.Context, taskID string, status st
 	// Add timestamp fields based on status
 	if status == "running" {
 		update["$set"].(bson.M)["started_at"] = time.Now()
-	} else if status == "completed" || status == "failed" {
+	} else if status == "completed" || status == "failed" || status == "cancelled" {
 		update["$set"].(bson.M)["completed_at"] = time.Now()
 	}
 
