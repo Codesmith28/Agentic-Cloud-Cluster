@@ -82,20 +82,20 @@ func (c *CLI) Run() {
 			}
 			c.unregisterWorker(parts[1])
 		case "task":
-			if len(parts) < 3 {
-				fmt.Println("Usage: task <worker_id> <docker_image> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]")
-				fmt.Println("  worker_id: specific worker ID to assign the task to")
+			if len(parts) < 2 {
+				fmt.Println("Usage: task <docker_image> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]")
 				fmt.Println("  docker_image: Docker image to run")
 				fmt.Println("  -cpu_cores: CPU cores to allocate (default: 1.0)")
 				fmt.Println("  -mem: Memory in GB (default: 0.5)")
 				fmt.Println("  -storage: Storage in GB (default: 1.0)")
 				fmt.Println("  -gpu_cores: GPU cores to allocate (default: 0.0)")
-				fmt.Println("Examples:")
-				fmt.Println("  task worker-1 docker.io/user/sample-task:latest")
-				fmt.Println("  task worker-2 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
+				fmt.Println("\nNote: The scheduler will automatically select the best worker.")
+				fmt.Println("\nExamples:")
+				fmt.Println("  task docker.io/user/sample-task:latest")
+				fmt.Println("  task docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
 				continue
 			}
-			c.assignTask(parts)
+			c.submitTask(parts)
 		case "monitor":
 			if len(parts) < 2 {
 				fmt.Println("Usage: monitor <task_id> [user_id]")
@@ -117,6 +117,8 @@ func (c *CLI) Run() {
 				continue
 			}
 			c.cancelTask(parts[1])
+		case "queue":
+			c.showQueue()
 		case "exit", "quit":
 			fmt.Println("Shutting down master...")
 			return
@@ -142,18 +144,20 @@ func (c *CLI) printHelp() {
 	fmt.Println("  internal-state                 - Dump complete in-memory state of all workers")
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
-	fmt.Println("  task <worker_id> <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Assign task to specific worker")
+	fmt.Println("  task <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Submit task (scheduler selects worker)")
 	fmt.Println("  monitor <task_id> [user_id]    - Monitor live logs for a task (press any key to exit)")
 	fmt.Println("  cancel <task_id>               - Cancel a running task")
+	fmt.Println("  queue                          - Show pending tasks in the queue")
 	fmt.Println("  exit/quit                      - Shutdown master node")
 	fmt.Println("\nExamples:")
 	fmt.Println("  register worker-2 192.168.1.100:50052")
 	fmt.Println("  stats worker-1")
 	fmt.Println("  internal-state")
-	fmt.Println("  task worker-1 docker.io/user/sample-task:latest")
-	fmt.Println("  task worker-2 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
+	fmt.Println("  task docker.io/user/sample-task:latest")
+	fmt.Println("  task docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
 	fmt.Println("  monitor task-123 user-1")
 	fmt.Println("  cancel task-123")
+	fmt.Println("  queue")
 }
 
 func (c *CLI) showStatus() {
@@ -441,9 +445,8 @@ func (c *CLI) liveInternalState() {
 	}
 }
 
-func (c *CLI) assignTask(parts []string) {
-	workerID := parts[1]
-	dockerImage := parts[2]
+func (c *CLI) submitTask(parts []string) {
+	dockerImage := parts[1]
 
 	// Default resource requirements
 	reqCPU := 1.0
@@ -452,7 +455,7 @@ func (c *CLI) assignTask(parts []string) {
 	reqGPU := 0.0
 
 	// Parse flags
-	for i := 3; i < len(parts); i++ {
+	for i := 2; i < len(parts); i++ {
 		switch parts[i] {
 		case "-cpu_cores":
 			if i+1 < len(parts) {
@@ -494,10 +497,9 @@ func (c *CLI) assignTask(parts []string) {
 
 	// Display task details before sending
 	fmt.Println("\n═══════════════════════════════════════════════════════")
-	fmt.Println("  📤 SENDING TASK TO WORKER")
+	fmt.Println("  📤 SUBMITTING TASK TO QUEUE")
 	fmt.Println("═══════════════════════════════════════════════════════")
 	fmt.Printf("  Task ID:           %s\n", taskID)
-	fmt.Printf("  Target Worker:     %s\n", workerID)
 	fmt.Printf("  Docker Image:      %s\n", dockerImage)
 	fmt.Println("───────────────────────────────────────────────────────")
 	fmt.Println("  Resource Requirements:")
@@ -505,40 +507,42 @@ func (c *CLI) assignTask(parts []string) {
 	fmt.Printf("    • Memory:        %.2f GB\n", reqMemory)
 	fmt.Printf("    • Storage:       %.2f GB\n", reqStorage)
 	fmt.Printf("    • GPU Cores:     %.2f cores\n", reqGPU)
+	fmt.Println("───────────────────────────────────────────────────────")
+	fmt.Println("  Note: Scheduler will automatically select best worker")
 	fmt.Println("═══════════════════════════════════════════════════════")
 
 	task := &pb.Task{
-		TaskId:         taskID,
-		DockerImage:    dockerImage,
-		Command:        command,
-		ReqCpu:         reqCPU,
-		ReqMemory:      reqMemory,
-		ReqStorage:     reqStorage,
-		ReqGpu:         reqGPU,
-		TargetWorkerId: workerID, // Always required
-		UserId:         "admin",  // Default user for CLI tasks (can be made configurable)
+		TaskId:      taskID,
+		DockerImage: dockerImage,
+		Command:     command,
+		ReqCpu:      reqCPU,
+		ReqMemory:   reqMemory,
+		ReqStorage:  reqStorage,
+		ReqGpu:      reqGPU,
+		UserId:      "admin", // Default user for CLI tasks (can be made configurable)
 	}
 
-	err := c.assignTaskViaMaster(task)
+	err := c.submitTaskToMaster(task)
 	if err != nil {
-		fmt.Printf("\n❌ Failed to assign task: %v\n", err)
+		fmt.Printf("\n❌ Failed to submit task: %v\n", err)
 		return
 	}
 
-	fmt.Printf("\n✅ Task %s assigned successfully!\n", taskID)
+	fmt.Printf("\n✅ Task %s submitted successfully and queued for scheduling!\n", taskID)
+	fmt.Println("    Use 'queue' command to view queued tasks")
 }
 
-func (c *CLI) assignTaskViaMaster(task *pb.Task) error {
+func (c *CLI) submitTaskToMaster(task *pb.Task) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ack, err := c.masterServer.AssignTask(ctx, task)
+	ack, err := c.masterServer.SubmitTask(ctx, task)
 	if err != nil {
-		return fmt.Errorf("failed to assign task: %w", err)
+		return fmt.Errorf("failed to submit task: %w", err)
 	}
 
 	if !ack.Success {
-		return fmt.Errorf("task assignment failed: %s", ack.Message)
+		return fmt.Errorf("task submission failed: %s", ack.Message)
 	}
 
 	return nil
@@ -686,5 +690,63 @@ func (c *CLI) monitorTask(taskID, userID string) {
 		fmt.Printf("\n%sPress any key to return to CLI...%s\n", yellow, reset)
 		reader := bufio.NewReader(os.Stdin)
 		reader.ReadByte()
+	}
+}
+
+func (c *CLI) showQueue() {
+	queuedTasks := c.masterServer.GetQueuedTasks()
+
+	if len(queuedTasks) == 0 {
+		fmt.Println("\n✓ Task queue is empty")
+		return
+	}
+
+	fmt.Println("\n═══════════════════════════════════════════════════════")
+	fmt.Printf("  📋 QUEUED TASKS (%d pending)\n", len(queuedTasks))
+	fmt.Println("═══════════════════════════════════════════════════════")
+
+	for i, qt := range queuedTasks {
+		// Calculate time in queue
+		timeInQueue := time.Since(qt.QueuedAt)
+
+		// Show assigned worker if available
+		workerStatus := "Waiting for scheduler"
+		if qt.Task.TargetWorkerId != "" {
+			workerStatus = qt.Task.TargetWorkerId
+		}
+
+		fmt.Printf("\n[%d] Task ID: %s\n", i+1, qt.Task.TaskId)
+		fmt.Printf("    Assigned Worker: %s\n", workerStatus)
+		fmt.Printf("    Docker Image:    %s\n", qt.Task.DockerImage)
+		fmt.Printf("    User ID:         %s\n", qt.Task.UserId)
+		fmt.Println("    ───────────────────────────────────────────────")
+		fmt.Println("    Resource Requirements:")
+		fmt.Printf("      • CPU Cores:     %.2f cores\n", qt.Task.ReqCpu)
+		fmt.Printf("      • Memory:        %.2f GB\n", qt.Task.ReqMemory)
+		fmt.Printf("      • Storage:       %.2f GB\n", qt.Task.ReqStorage)
+		fmt.Printf("      • GPU Cores:     %.2f cores\n", qt.Task.ReqGpu)
+		fmt.Println("    ───────────────────────────────────────────────")
+		fmt.Printf("    Queued At:       %s\n", qt.QueuedAt.Format("2006-01-02 15:04:05"))
+		fmt.Printf("    Time in Queue:   %s\n", formatDuration(timeInQueue))
+		fmt.Printf("    Retry Attempts:  %d\n", qt.Retries)
+		if qt.LastError != "" {
+			fmt.Printf("    Status:          %s\n", qt.LastError)
+		}
+	}
+
+	fmt.Println("\n═══════════════════════════════════════════════════════")
+	fmt.Println("  Note: Scheduler checks queue every 5s and assigns")
+	fmt.Println("  tasks to workers with available resources")
+	fmt.Println("═══════════════════════════════════════════════════════")
+}
+
+// formatDuration formats a duration in a human-readable way
+func formatDuration(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	} else if d < time.Hour {
+		return fmt.Sprintf("%dm %ds", int(d.Minutes()), int(d.Seconds())%60)
+	} else {
+		return fmt.Sprintf("%dh %dm", int(d.Hours()), int(d.Minutes())%60)
 	}
 }
