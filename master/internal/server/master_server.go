@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"master/internal/db"
+	"master/internal/scheduler"
 	"master/internal/telemetry"
 	pb "master/proto"
 
@@ -50,6 +51,9 @@ type MasterServer struct {
 	taskQueue   []*QueuedTask
 	queueMu     sync.RWMutex
 	queueTicker *time.Ticker
+
+	// Task scheduler
+	scheduler scheduler.Scheduler
 
 	// Telemetry manager for handling worker telemetry in separate threads
 	telemetryManager *telemetry.TelemetryManager
@@ -94,6 +98,7 @@ func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.
 		masterAddress:    "",
 		taskChan:         make(chan *TaskAssignment, 100),
 		taskQueue:        make([]*QueuedTask, 0),
+		scheduler:        scheduler.NewRoundRobinScheduler(), // Use Round-Robin as default
 		telemetryManager: telemetryMgr,
 	}
 }
@@ -1107,46 +1112,30 @@ func (s *MasterServer) processQueue() {
 	}
 }
 
-// selectWorkerForTask implements a simple First-Fit scheduler
-// Returns the first worker that has sufficient resources, or empty string if none found
+// selectWorkerForTask uses the configured scheduler to select the best worker for a task
+// Returns the worker ID or empty string if no suitable worker is found
 func (s *MasterServer) selectWorkerForTask(task *pb.Task) string {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
 
-	var bestWorker string
-	bestScore := -1.0 // Lower score is better (more available resources)
-
-	for workerID, worker := range s.workers {
-		// Skip inactive workers or workers without IP
-		if !worker.IsActive || worker.Info.WorkerIp == "" {
-			continue
-		}
-
-		// Check if worker has sufficient resources
-		if worker.AvailableCPU < task.ReqCpu ||
-			worker.AvailableMemory < task.ReqMemory ||
-			worker.AvailableStorage < task.ReqStorage ||
-			worker.AvailableGPU < task.ReqGpu {
-			continue
-		}
-
-		// Calculate utilization score (lower is better - means more resources available)
-		totalCapacity := worker.Info.TotalCpu + worker.Info.TotalMemory + worker.Info.TotalStorage + worker.Info.TotalGpu
-		if totalCapacity == 0 {
-			continue
-		}
-
-		totalAllocated := worker.AllocatedCPU + worker.AllocatedMemory + worker.AllocatedStorage + worker.AllocatedGPU
-		utilizationScore := totalAllocated / totalCapacity
-
-		// Select worker with lowest utilization (most available resources)
-		if bestWorker == "" || utilizationScore < bestScore {
-			bestWorker = workerID
-			bestScore = utilizationScore
+	// Convert WorkerState map to scheduler.WorkerInfo map
+	workerInfos := make(map[string]*scheduler.WorkerInfo)
+	for id, worker := range s.workers {
+		workerInfos[id] = &scheduler.WorkerInfo{
+			WorkerID:         id,
+			IsActive:         worker.IsActive,
+			WorkerIP:         worker.Info.WorkerIp,
+			AvailableCPU:     worker.AvailableCPU,
+			AvailableMemory:  worker.AvailableMemory,
+			AvailableStorage: worker.AvailableStorage,
+			AvailableGPU:     worker.AvailableGPU,
 		}
 	}
 
-	return bestWorker
+	s.mu.RUnlock()
+
+	// Use the configured scheduler to select worker
+	selectedWorker := s.scheduler.SelectWorker(task, workerInfos)
+	return selectedWorker
 }
 
 // EnqueueTask adds a task to the queue
