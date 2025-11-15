@@ -133,13 +133,27 @@ func main() {
 			fmt.Sscanf(cfg.HTTPPort, ":%d", &port)
 		}
 
+		// Create telemetry server with WebSocket support
 		httpTelemetryServer = httpserver.NewTelemetryServer(port, telemetryMgr)
+
+		// Create task and worker API handlers
+		taskHandler := httpserver.NewTaskAPIHandler(masterServer, taskDB, assignmentDB, resultDB)
+		workerHandler := httpserver.NewWorkerAPIHandler(masterServer, workerDB, assignmentDB, telemetryMgr)
+
+		// Add API routes
+		httpTelemetryServer.RegisterTaskHandlers(taskHandler)
+		httpTelemetryServer.RegisterWorkerHandlers(workerHandler)
+
 		go func() {
 			if err := httpTelemetryServer.Start(); err != nil && err != http.ErrServerClosed {
-				log.Printf("WebSocket telemetry server error: %v", err)
+				log.Printf("HTTP API server error: %v", err)
 			}
 		}()
-		log.Printf("✓ WebSocket telemetry server started on port %d", port)
+		log.Printf("✓ HTTP API server started on port %d", port)
+		log.Printf("  - Telemetry: GET /health, /telemetry, /workers")
+		log.Printf("  - WebSocket: WS /ws/telemetry, /ws/telemetry/{worker_id}")
+		log.Printf("  - Tasks: POST/GET/DELETE /api/tasks, GET /api/tasks/{id}")
+		log.Printf("  - Workers: GET /api/workers, /api/workers/{id}")
 	}
 
 	// Setup graceful shutdown

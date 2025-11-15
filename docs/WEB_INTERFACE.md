@@ -103,59 +103,61 @@ The web interface will provide a user-friendly dashboard for:
 
 ## API Endpoints
 
-### Authentication
+### Authentication (Planned)
 ```
-POST   /api/auth/login          - User login
-POST   /api/auth/logout         - User logout
-POST   /api/auth/register       - User registration
-GET    /api/auth/profile        - Get current user profile
-```
-
-### Tasks
-```
-POST   /api/tasks               - Submit new task
-GET    /api/tasks               - List user's tasks (with filters)
-GET    /api/tasks/:id           - Get task details
-DELETE /api/tasks/:id           - Cancel/delete task
-POST   /api/tasks/:id/retry     - Retry failed task
-GET    /api/tasks/:id/logs      - Get stored logs for completed task
+POST   /api/auth/login          - User login (NOT IMPLEMENTED)
+POST   /api/auth/logout         - User logout (NOT IMPLEMENTED)
+POST   /api/auth/register       - User registration (NOT IMPLEMENTED)
+GET    /api/auth/profile        - Get current user profile (NOT IMPLEMENTED)
 ```
 
-### Live Monitoring
+### Tasks (✅ IMPLEMENTED)
 ```
-WS     /api/tasks/:id/stream    - WebSocket for live log streaming
-GET    /api/tasks/:id/metrics   - Get real-time metrics
-WS     /api/tasks/:id/metrics/stream - WebSocket for live metrics
-```
-
-### Workers (Read-only for users, CRUD for admins)
-```
-GET    /api/workers             - List all workers
-GET    /api/workers/:id         - Get worker details
-GET    /api/workers/:id/metrics - Get worker resource metrics
-GET    /api/workers/:id/tasks   - Get tasks assigned to worker
+✅ POST   /api/tasks               - Submit new task
+✅ GET    /api/tasks               - List all tasks (supports ?status= filter)
+✅ GET    /api/tasks/:id           - Get task details
+✅ DELETE /api/tasks/:id           - Cancel/delete task
+✅ GET    /api/tasks/:id/logs      - Get stored logs for completed task
+❌ POST   /api/tasks/:id/retry     - Retry failed task (NOT IMPLEMENTED)
 ```
 
-### Admin Endpoints
+### Live Monitoring (Partially Implemented)
 ```
-POST   /api/admin/workers       - Register new worker
-PUT    /api/admin/workers/:id   - Update worker configuration
-DELETE /api/admin/workers/:id   - Deregister worker
-
-GET    /api/admin/users         - List all users
-POST   /api/admin/users         - Create new user
-PUT    /api/admin/users/:id     - Update user
-DELETE /api/admin/users/:id     - Delete user
-
-GET    /api/admin/stats         - Get cluster statistics
-GET    /api/admin/logs          - Get system logs
+✅ WS     /ws                      - WebSocket for live telemetry streaming
+❌ WS     /api/tasks/:id/stream    - WebSocket for live log streaming (NOT IMPLEMENTED)
+❌ GET    /api/tasks/:id/metrics   - Get real-time metrics (NOT IMPLEMENTED)
+❌ WS     /api/tasks/:id/metrics/stream - WebSocket for live metrics (NOT IMPLEMENTED)
 ```
 
-### Telemetry
+### Workers (✅ IMPLEMENTED - Read-only)
 ```
-GET    /api/telemetry/workers          - Current telemetry for all workers
-GET    /api/telemetry/workers/:id      - Current telemetry for specific worker
-WS     /api/telemetry/stream           - WebSocket for live telemetry updates
+✅ GET    /api/workers             - List all workers with metrics
+✅ GET    /api/workers/:id         - Get worker details
+✅ GET    /api/workers/:id/metrics - Get worker resource metrics
+✅ GET    /api/workers/:id/tasks   - Get tasks assigned to worker
+```
+
+### Admin Endpoints (Planned)
+```
+❌ POST   /api/admin/workers       - Register new worker (NOT IMPLEMENTED)
+❌ PUT    /api/admin/workers/:id   - Update worker configuration (NOT IMPLEMENTED)
+❌ DELETE /api/admin/workers/:id   - Deregister worker (NOT IMPLEMENTED)
+
+❌ GET    /api/admin/users         - List all users (NOT IMPLEMENTED)
+❌ POST   /api/admin/users         - Create new user (NOT IMPLEMENTED)
+❌ PUT    /api/admin/users/:id     - Update user (NOT IMPLEMENTED)
+❌ DELETE /api/admin/users/:id     - Delete user (NOT IMPLEMENTED)
+
+❌ GET    /api/admin/stats         - Get cluster statistics (NOT IMPLEMENTED)
+❌ GET    /api/admin/logs          - Get system logs (NOT IMPLEMENTED)
+```
+
+### Telemetry (✅ IMPLEMENTED)
+```
+✅ GET    /telemetry               - Current telemetry for all workers
+✅ GET    /telemetry/:id           - Current telemetry for specific worker
+✅ GET    /workers                 - All workers basic info
+✅ WS     /ws                      - WebSocket for live telemetry updates
 ```
 
 ## Technology Stack (Proposed)
@@ -181,23 +183,27 @@ WS     /api/telemetry/stream           - WebSocket for live telemetry updates
 
 ## Implementation Priority
 
-### Phase 1: Core API (Current CLI Parity)
-1. Task submission endpoint
-2. Task listing and details
-3. Basic authentication
-4. Get stored logs for completed tasks
+### Phase 1: Core API ✅ COMPLETE
+1. ✅ Task submission endpoint (`POST /api/tasks`)
+2. ✅ Task listing and details (`GET /api/tasks`, `GET /api/tasks/:id`)
+3. ✅ Task cancellation (`DELETE /api/tasks/:id`)
+4. ✅ Get stored logs for completed tasks (`GET /api/tasks/:id/logs`)
+5. ✅ Worker listing and details (`GET /api/workers`, `GET /api/workers/:id`)
+6. ✅ Worker metrics and tasks (`GET /api/workers/:id/metrics`, `GET /api/workers/:id/tasks`)
+7. ❌ Basic authentication (NOT IMPLEMENTED)
 
-### Phase 2: Live Monitoring
-1. WebSocket endpoint for log streaming
-2. Frontend log viewer component
-3. Real-time task status updates
+### Phase 2: Live Monitoring (Partially Complete)
+1. ✅ WebSocket endpoint for telemetry streaming (`/ws`)
+2. ❌ WebSocket endpoint for task log streaming
+3. ❌ Frontend log viewer component
+4. ❌ Real-time task status updates via WebSocket
 
-### Phase 3: Dashboards
-1. User dashboard with task overview
-2. Worker status dashboard
-3. Resource utilization charts
+### Phase 3: Dashboards (Not Started)
+1. ❌ User dashboard with task overview
+2. ❌ Worker status dashboard
+3. ❌ Resource utilization charts
 
-### Phase 4: Advanced Features
+### Phase 4: Advanced Features (Not Started)
 1. Multi-task monitoring
 2. Advanced filters and search
 3. Historical metrics and analytics

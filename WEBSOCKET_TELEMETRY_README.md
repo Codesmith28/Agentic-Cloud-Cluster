@@ -1,24 +1,29 @@
-# WebSocket Telemetry System - Changes Overview
+# Telemetry & REST API System - Overview
 
-## 🎯 What Changed?
+## 🎯 What's Available?
 
-The CloudAI telemetry system has been upgraded to use **WebSocket streaming** instead of REST API polling, making it more efficient and real-time.
+The CloudAI system now provides **both WebSocket streaming AND REST API endpoints** for maximum flexibility:
 
-## ✨ Key Improvements
+- **WebSocket**: Real-time telemetry streaming (push-based, low latency)
+- **REST API**: Standard HTTP endpoints for polling, task management, and integrations
 
-### 1. **Real-Time Streaming**
-- ✅ WebSocket push updates (no polling needed)
+## ✨ Key Features
+
+### 1. **Real-Time WebSocket Streaming**
+- ✅ WebSocket push updates (no polling needed for real-time)
 - ✅ Sub-second latency for telemetry data
 - ✅ Persistent connections reduce overhead
 
-### 2. **Efficient Thread Model**
+### 2. **Comprehensive REST API**
+- ✅ Telemetry endpoints (GET /telemetry, /workers)
+- ✅ Task management (POST/GET/DELETE /api/tasks)
+- ✅ Worker management (GET /api/workers)
+- ✅ Perfect for CI/CD, monitoring tools, and automation
+
+### 3. **Efficient Architecture**
 - ✅ Per-worker dedicated goroutines for telemetry processing
 - ✅ Non-blocking heartbeat handling
-- ✅ Main process stays fast and responsive
-
-### 3. **Better Architecture**
 - ✅ TelemetryManager handles all worker telemetry
-- ✅ Separate WebSocket server for streaming
 - ✅ Thread-safe with minimal lock contention
 
 ## 🚀 Quick Start
@@ -42,15 +47,40 @@ cd worker
 python3 test_telemetry_websocket.py
 ```
 
-**Note**: The WebSocket server is **enabled by default** on port 8080. You don't need to set `HTTP_PORT` unless you want to change the port or disable it.
+**Note**: The HTTP/WebSocket server is **enabled by default** on port 8080. You don't need to set `HTTP_PORT` unless you want to change the port or disable it.
 
-## 📡 WebSocket Endpoints
+## 📡 Available Endpoints
 
+### WebSocket Endpoints
 | Endpoint | Description |
 |----------|-------------|
-| `ws://localhost:8080/ws/telemetry` | Stream all workers |
-| `ws://localhost:8080/ws/telemetry/{worker_id}` | Stream specific worker |
-| `http://localhost:8080/health` | Health check |
+| `ws://localhost:8080/ws/telemetry` | Stream all workers (real-time) |
+| `ws://localhost:8080/ws/telemetry/{worker_id}` | Stream specific worker (real-time) |
+
+### REST API - Telemetry
+| Endpoint | Description |
+|----------|-------------|
+| `GET http://localhost:8080/health` | Health check |
+| `GET http://localhost:8080/telemetry` | Get all workers telemetry (snapshot) |
+| `GET http://localhost:8080/telemetry/{worker_id}` | Get specific worker telemetry (snapshot) |
+| `GET http://localhost:8080/workers` | Get workers list |
+
+### REST API - Task Management
+| Endpoint | Description |
+|----------|-------------|
+| `POST http://localhost:8080/api/tasks` | Submit new task |
+| `GET http://localhost:8080/api/tasks` | List all tasks |
+| `GET http://localhost:8080/api/tasks/{id}` | Get task details |
+| `DELETE http://localhost:8080/api/tasks/{id}` | Cancel task |
+| `GET http://localhost:8080/api/tasks/{id}/logs` | Get task logs |
+
+### REST API - Worker Management
+| Endpoint | Description |
+|----------|-------------|
+| `GET http://localhost:8080/api/workers` | List all workers |
+| `GET http://localhost:8080/api/workers/{id}` | Get worker details |
+| `GET http://localhost:8080/api/workers/{id}/metrics` | Get worker metrics |
+| `GET http://localhost:8080/api/workers/{id}/tasks` | Get worker's tasks |
 
 ## 📖 Documentation
 
@@ -220,14 +250,18 @@ master> workers
 # Check worker is sending heartbeats (check logs)
 ```
 
-## 🚦 Migration Guide
+## 🚦 API Evolution
 
-### Breaking Changes
-- ❌ REST API endpoints removed (`/telemetry`, `/telemetry/{id}`)
-- ✅ Replaced with WebSocket endpoints
+### Current Status (November 2025)
+- ✅ **REST API endpoints RESTORED** - `/telemetry`, `/telemetry/{id}`, `/workers` now available
+- ✅ **WebSocket endpoints** - Available for real-time streaming
+- ✅ **Task Management API** - Full CRUD operations via REST
+- ✅ **Worker Management API** - Query worker details and metrics
 
 ### Backward Compatible
 - ✅ Worker nodes (no changes needed)
+- ✅ All WebSocket endpoints maintained
+- ✅ REST API now provides BOTH polling and management capabilities
 - ✅ Database schema (unchanged)
 - ✅ gRPC protocol (unchanged)
 - ✅ CLI interface (unchanged)

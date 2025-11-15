@@ -14,7 +14,7 @@ make setup
 make all
 
 # 3. Start services (in separate terminals)
-cd database && docker-compose up -d                    # Terminal 1
+cd database && docker-compose up -d                     # Terminal 1
 cd master && ./masterNode                               # Terminal 2
 cd worker && ./workerNode                               # Terminal 3
 
@@ -361,9 +361,9 @@ ls -la reports/
 
 ---
 
-## 🌐 Monitoring via Web APIs
+## 🌐 Monitoring & API Usage
 
-### HTTP REST API
+### HTTP REST API - Telemetry
 
 ```bash
 # Health check
@@ -377,6 +377,51 @@ curl http://localhost:8080/telemetry/worker-1 | jq
 
 # Workers list
 curl http://localhost:8080/workers | jq
+```
+
+### HTTP REST API - Task Management
+
+```bash
+# Submit a new task
+curl -X POST http://localhost:8080/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "docker_image": "ubuntu:latest",
+    "command": "echo hello",
+    "cpu_required": 1.0,
+    "memory_required": 512.0
+  }' | jq
+
+# List all tasks
+curl http://localhost:8080/api/tasks | jq
+
+# Filter by status
+curl http://localhost:8080/api/tasks?status=running | jq
+
+# Get task details
+curl http://localhost:8080/api/tasks/task-123 | jq
+
+# Get task logs
+curl http://localhost:8080/api/tasks/task-123/logs | jq
+
+# Cancel task
+curl -X DELETE http://localhost:8080/api/tasks/task-123 | jq
+```
+
+### HTTP REST API - Worker Management
+
+```bash
+# List all workers
+curl http://localhost:8080/api/workers | jq
+
+# Get worker details
+curl http://localhost:8080/api/workers/worker-1 | jq
+
+# Get worker metrics
+curl http://localhost:8080/api/workers/worker-1/metrics | jq
+
+# Get worker's tasks
+curl http://localhost:8080/api/workers/worker-1/tasks | jq
 ```
 
 ### WebSocket Real-Time Streaming

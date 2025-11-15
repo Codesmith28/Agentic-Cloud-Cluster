@@ -52,13 +52,27 @@ Master Process
 
 ### 2. HTTP Telemetry API (`master/internal/http/telemetry_server.go`)
 
-Provides REST endpoints for external monitoring tools.
+Provides REST endpoints for external monitoring tools and management.
 
-**Endpoints:**
+**Telemetry & Health Endpoints:**
 - `GET /health` - Health check
 - `GET /telemetry` - Get telemetry for all workers
 - `GET /telemetry/{workerID}` - Get telemetry for specific worker
 - `GET /workers` - Get basic info about all workers
+- `WS /ws` - WebSocket endpoint for live telemetry streaming
+
+**Task Management Endpoints:**
+- `POST /api/tasks` - Submit new task
+- `GET /api/tasks` - List all tasks (supports `?status=` filter)
+- `GET /api/tasks/{taskID}` - Get task details
+- `DELETE /api/tasks/{taskID}` - Cancel task
+- `GET /api/tasks/{taskID}/logs` - Get task execution logs
+
+**Worker Management Endpoints:**
+- `GET /api/workers` - List all workers with metrics
+- `GET /api/workers/{workerID}` - Get worker details
+- `GET /api/workers/{workerID}/metrics` - Get worker resource metrics
+- `GET /api/workers/{workerID}/tasks` - Get tasks assigned to worker
 
 **Example Response (`/telemetry/worker-1`):**
 ```json
@@ -79,6 +93,19 @@ Provides REST endpoints for external monitoring tools.
   "last_update": 1699286400,
   "is_active": true
 }
+```
+
+**Example Task Submission (`POST /api/tasks`):**
+```bash
+curl -X POST http://localhost:8080/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "docker_image": "python:3.9",
+    "cpu_required": 2.0,
+    "memory_required": 1024,
+    "gpu_required": 0.0,
+    "priority": 5
+  }'
 ```
 
 ## Configuration
