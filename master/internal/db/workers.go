@@ -21,16 +21,25 @@ type WorkerDB struct {
 }
 
 type WorkerDocument struct {
-	WorkerID      string    `bson:"worker_id"`
-	WorkerIP      string    `bson:"worker_ip"` // Format: "ip:port" (e.g., "192.168.1.100:50052")
-	TotalCPU      float64   `bson:"total_cpu"`
-	TotalMemory   float64   `bson:"total_memory"`
-	TotalStorage  float64   `bson:"total_storage"`
-	TotalGPU      float64   `bson:"total_gpu"`
-	IsActive      bool      `bson:"is_active"`
-	LastHeartbeat int64     `bson:"last_heartbeat"`
-	RegisteredAt  time.Time `bson:"registered_at"`
-	UpdatedAt     time.Time `bson:"updated_at"`
+	WorkerID     string  `bson:"worker_id"`
+	WorkerIP     string  `bson:"worker_ip"` // Format: "ip:port" (e.g., "192.168.1.100:50052")
+	TotalCPU     float64 `bson:"total_cpu"`
+	TotalMemory  float64 `bson:"total_memory"`
+	TotalStorage float64 `bson:"total_storage"`
+	TotalGPU     float64 `bson:"total_gpu"`
+	// Resource tracking
+	AllocatedCPU     float64   `bson:"allocated_cpu"`
+	AllocatedMemory  float64   `bson:"allocated_memory"`
+	AllocatedStorage float64   `bson:"allocated_storage"`
+	AllocatedGPU     float64   `bson:"allocated_gpu"`
+	AvailableCPU     float64   `bson:"available_cpu"`
+	AvailableMemory  float64   `bson:"available_memory"`
+	AvailableStorage float64   `bson:"available_storage"`
+	AvailableGPU     float64   `bson:"available_gpu"`
+	IsActive         bool      `bson:"is_active"`
+	LastHeartbeat    int64     `bson:"last_heartbeat"`
+	RegisteredAt     time.Time `bson:"registered_at"`
+	UpdatedAt        time.Time `bson:"updated_at"`
 }
 
 // NewWorkerDB creates a new WorkerDB instance
@@ -80,9 +89,18 @@ func (db *WorkerDB) RegisterWorker(ctx context.Context, workerID, workerIP strin
 		TotalMemory:  0.0,
 		TotalStorage: 0.0,
 		TotalGPU:     0.0,
-		IsActive:     false,
-		RegisteredAt: time.Now(),
-		UpdatedAt:    time.Now(),
+		// Initialize resource tracking
+		AllocatedCPU:     0.0,
+		AllocatedMemory:  0.0,
+		AllocatedStorage: 0.0,
+		AllocatedGPU:     0.0,
+		AvailableCPU:     0.0,
+		AvailableMemory:  0.0,
+		AvailableStorage: 0.0,
+		AvailableGPU:     0.0,
+		IsActive:         false,
+		RegisteredAt:     time.Now(),
+		UpdatedAt:        time.Now(),
 	}
 
 	_, err := db.collection.InsertOne(ctx, doc)
@@ -96,16 +114,37 @@ func (db *WorkerDB) RegisterWorker(ctx context.Context, workerID, workerIP strin
 // UpdateWorkerInfo updates worker details (called when worker connects and sends full specs)
 func (db *WorkerDB) UpdateWorkerInfo(ctx context.Context, info *pb.WorkerInfo) error {
 	filter := bson.M{"worker_id": info.WorkerId}
+
+	// Get current allocated resources to preserve them
+	var currentWorker WorkerDocument
+	err := db.collection.FindOne(ctx, filter).Decode(&currentWorker)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return fmt.Errorf("worker %s not found", info.WorkerId)
+		}
+		return fmt.Errorf("find worker: %w", err)
+	}
+
+	// Calculate available resources: total - allocated
+	availableCPU := info.TotalCpu - currentWorker.AllocatedCPU
+	availableMemory := info.TotalMemory - currentWorker.AllocatedMemory
+	availableStorage := info.TotalStorage - currentWorker.AllocatedStorage
+	availableGPU := info.TotalGpu - currentWorker.AllocatedGPU
+
 	update := bson.M{
 		"$set": bson.M{
-			"worker_ip":      info.WorkerIp,
-			"total_cpu":      info.TotalCpu,
-			"total_memory":   info.TotalMemory,
-			"total_storage":  info.TotalStorage,
-			"total_gpu":      info.TotalGpu,
-			"is_active":      true,
-			"last_heartbeat": time.Now().Unix(),
-			"updated_at":     time.Now(),
+			"worker_ip":         info.WorkerIp,
+			"total_cpu":         info.TotalCpu,
+			"total_memory":      info.TotalMemory,
+			"total_storage":     info.TotalStorage,
+			"total_gpu":         info.TotalGpu,
+			"available_cpu":     availableCPU,
+			"available_memory":  availableMemory,
+			"available_storage": availableStorage,
+			"available_gpu":     availableGPU,
+			"is_active":         true,
+			"last_heartbeat":    time.Now().Unix(),
+			"updated_at":        time.Now(),
 		},
 	}
 
@@ -191,4 +230,66 @@ func (db *WorkerDB) WorkerExists(ctx context.Context, workerID string) (bool, er
 		return false, fmt.Errorf("count workers: %w", err)
 	}
 	return count > 0, nil
+}
+
+// AllocateResources allocates resources to a worker when a task is assigned
+func (db *WorkerDB) AllocateResources(ctx context.Context, workerID string, cpu, memory, storage, gpu float64) error {
+	filter := bson.M{"worker_id": workerID}
+	update := bson.M{
+		"$inc": bson.M{
+			"allocated_cpu":     cpu,
+			"allocated_memory":  memory,
+			"allocated_storage": storage,
+			"allocated_gpu":     gpu,
+			"available_cpu":     -cpu,
+			"available_memory":  -memory,
+			"available_storage": -storage,
+			"available_gpu":     -gpu,
+		},
+		"$set": bson.M{
+			"updated_at": time.Now(),
+		},
+	}
+
+	result, err := db.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("allocate resources: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("worker %s not found", workerID)
+	}
+
+	return nil
+}
+
+// ReleaseResources releases resources from a worker when a task completes
+func (db *WorkerDB) ReleaseResources(ctx context.Context, workerID string, cpu, memory, storage, gpu float64) error {
+	filter := bson.M{"worker_id": workerID}
+	update := bson.M{
+		"$inc": bson.M{
+			"allocated_cpu":     -cpu,
+			"allocated_memory":  -memory,
+			"allocated_storage": -storage,
+			"allocated_gpu":     -gpu,
+			"available_cpu":     cpu,
+			"available_memory":  memory,
+			"available_storage": storage,
+			"available_gpu":     gpu,
+		},
+		"$set": bson.M{
+			"updated_at": time.Now(),
+		},
+	}
+
+	result, err := db.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("release resources: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("worker %s not found", workerID)
+	}
+
+	return nil
 }

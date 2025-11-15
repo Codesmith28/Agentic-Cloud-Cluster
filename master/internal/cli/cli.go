@@ -62,6 +62,12 @@ func (c *CLI) Run() {
 				continue
 			}
 			c.showWorkerStats(parts[1])
+		case "internal-state":
+			if len(parts) != 1 {
+				fmt.Println("Usage: internal-state")
+				continue
+			}
+			c.liveInternalState()
 		case "register":
 			if len(parts) < 3 {
 				fmt.Println("Usage: register <worker_id> <worker_ip:port>")
@@ -133,6 +139,7 @@ func (c *CLI) printHelp() {
 	fmt.Println("  status                         - Show cluster status")
 	fmt.Println("  workers                        - List all registered workers")
 	fmt.Println("  stats <worker_id>              - Show detailed stats for a worker")
+	fmt.Println("  internal-state                 - Dump complete in-memory state of all workers")
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
 	fmt.Println("  task <worker_id> <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Assign task to specific worker")
@@ -142,6 +149,7 @@ func (c *CLI) printHelp() {
 	fmt.Println("\nExamples:")
 	fmt.Println("  register worker-2 192.168.1.100:50052")
 	fmt.Println("  stats worker-1")
+	fmt.Println("  internal-state")
 	fmt.Println("  task worker-1 docker.io/user/sample-task:latest")
 	fmt.Println("  task worker-2 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
 	fmt.Println("  monitor task-123 user-1")
@@ -244,8 +252,15 @@ func (c *CLI) listWorkers() {
 		fmt.Printf("║ %s\n", id)
 		fmt.Printf("║   Status: %s\n", status)
 		fmt.Printf("║   IP: %s\n", w.Info.WorkerIp)
-		fmt.Printf("║   Resources: CPU=%.1f, Memory=%.1fGB, GPU=%.1f\n",
-			w.Info.TotalCpu, w.Info.TotalMemory, w.Info.TotalGpu)
+		fmt.Printf("║   Resources:\n")
+		fmt.Printf("║     CPU:     %.1f total, %.1f allocated, %.1f available\n",
+			w.Info.TotalCpu, w.AllocatedCPU, w.AvailableCPU)
+		fmt.Printf("║     Memory:  %.1f GB total, %.1f GB allocated, %.1f GB available\n",
+			w.Info.TotalMemory, w.AllocatedMemory, w.AvailableMemory)
+		fmt.Printf("║     Storage: %.1f GB total, %.1f GB allocated, %.1f GB available\n",
+			w.Info.TotalStorage, w.AllocatedStorage, w.AvailableStorage)
+		fmt.Printf("║     GPU:     %.1f total, %.1f allocated, %.1f available\n",
+			w.Info.TotalGpu, w.AllocatedGPU, w.AvailableGPU)
 		fmt.Printf("║   Running Tasks: %d\n", len(w.RunningTasks))
 		fmt.Println("║")
 	}
@@ -284,12 +299,12 @@ func (c *CLI) showWorkerStats(workerID string) {
 	renderStats := func() {
 		worker, exists := c.masterServer.GetWorkerStats(workerID)
 		if !exists {
-			fmt.Print("\033[15A") // Move up
+			fmt.Print("\033[21A") // Move up
 			fmt.Print("\r")
-			for i := 0; i < 15; i++ {
+			for i := 0; i < 21; i++ {
 				fmt.Print(clearLine + "\r\n")
 			}
-			fmt.Print("\033[15A")
+			fmt.Print("\033[21A")
 			fmt.Println(clearLine + "\r❌ Worker disconnected or removed")
 			return
 		}
@@ -313,8 +328,8 @@ func (c *CLI) showWorkerStats(workerID string) {
 		}
 
 		// Move cursor up to the start of the stats box
-		// Box has 13 lines + 1 blank line + 1 instruction line = 15 lines total
-		fmt.Print("\033[15A")
+		// Box has 19 lines + 1 blank line + 1 instruction line = 21 lines total
+		fmt.Print("\033[21A")
 		fmt.Print("\r") // Move to beginning of line
 
 		// Clear and redraw stats box (no right border)
@@ -325,10 +340,32 @@ func (c *CLI) showWorkerStats(workerID string) {
 		fmt.Printf("%s║ Address:         %s\n", clearLine, worker.Info.WorkerIp)
 		fmt.Printf("%s║ Last Seen:       %s\n", clearLine, lastSeen)
 		fmt.Printf("%s║\n", clearLine)
-		fmt.Printf("%s║ Resources:\n", clearLine)
-		fmt.Printf("%s║   CPU:           %.2f cores (%.1f%% used)\n", clearLine, worker.Info.TotalCpu, worker.LatestCPU)
-		fmt.Printf("%s║   Memory:        %.2f GB (%.2f%% used)\n", clearLine, worker.Info.TotalMemory, worker.LatestMemory)
-		fmt.Printf("%s║   GPU:           %.2f cores (%.1f%% used)\n", clearLine, worker.Info.TotalGpu, worker.LatestGPU)
+		fmt.Printf("%s║ Resources (Total / Allocated / Available):\n", clearLine)
+		fmt.Printf("%s║   CPU:           %.2f / %.2f / %.2f cores (%.1f%% used)\n", clearLine,
+			worker.Info.TotalCpu, worker.AllocatedCPU, worker.AvailableCPU, worker.LatestCPU)
+		fmt.Printf("%s║   Memory:        %.2f / %.2f / %.2f GB (%.2f%% used)\n", clearLine,
+			worker.Info.TotalMemory, worker.AllocatedMemory, worker.AvailableMemory, worker.LatestMemory)
+		fmt.Printf("%s║   Storage:       %.2f / %.2f / %.2f GB\n", clearLine,
+			worker.Info.TotalStorage, worker.AllocatedStorage, worker.AvailableStorage)
+		fmt.Printf("%s║   GPU:           %.2f / %.2f / %.2f cores (%.1f%% used)\n", clearLine,
+			worker.Info.TotalGpu, worker.AllocatedGPU, worker.AvailableGPU, worker.LatestGPU)
+		fmt.Printf("%s║\n", clearLine)
+		fmt.Printf("%s║ Resource Utilization:\n", clearLine)
+		cpuUtilPct := 0.0
+		memUtilPct := 0.0
+		gpuUtilPct := 0.0
+		if worker.Info.TotalCpu > 0 {
+			cpuUtilPct = (worker.AllocatedCPU / worker.Info.TotalCpu) * 100
+		}
+		if worker.Info.TotalMemory > 0 {
+			memUtilPct = (worker.AllocatedMemory / worker.Info.TotalMemory) * 100
+		}
+		if worker.Info.TotalGpu > 0 {
+			gpuUtilPct = (worker.AllocatedGPU / worker.Info.TotalGpu) * 100
+		}
+		fmt.Printf("%s║   CPU Allocated:   %.1f%%\n", clearLine, cpuUtilPct)
+		fmt.Printf("%s║   Mem Allocated:   %.1f%%\n", clearLine, memUtilPct)
+		fmt.Printf("%s║   GPU Allocated:   %.1f%%\n", clearLine, gpuUtilPct)
 		fmt.Printf("%s║\n", clearLine)
 		fmt.Printf("%s║ Running Tasks:   %d\n", clearLine, worker.TaskCount)
 		fmt.Printf("%s╚═══════════════════════════════════════════════════", clearLine)
@@ -347,6 +384,58 @@ func (c *CLI) showWorkerStats(workerID string) {
 		case <-done:
 			fmt.Print("\033[2B") // Move down 2 lines past the instruction
 			fmt.Println("\nExiting worker stats monitor...")
+			return
+		}
+	}
+}
+
+func (c *CLI) liveInternalState() {
+	// ANSI escape codes
+	const clearLine = "\033[2K"
+	const clearScreen = "\033[2J"
+	const moveCursorHome = "\033[H"
+
+	// Clear screen and move to home
+	fmt.Print(clearScreen + moveCursorHome)
+
+	// Create a ticker for updates (refresh every 2 seconds)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	// Channel to detect user input (to exit the live view)
+	done := make(chan bool)
+
+	// Goroutine to listen for any key press
+	go func() {
+		reader := bufio.NewReader(os.Stdin)
+		reader.ReadByte() // Wait for any key press
+		done <- true
+	}()
+
+	// Function to render the internal state
+	renderState := func() {
+		// Move cursor to home and clear screen
+		fmt.Print(moveCursorHome)
+
+		// Get and print the state
+		output := c.masterServer.DumpInMemoryState()
+		fmt.Print(output)
+
+		// Print instruction at the bottom
+		fmt.Print("(Press any key to exit)")
+	}
+
+	// Initial render
+	renderState()
+
+	// Update loop
+	for {
+		select {
+		case <-ticker.C:
+			renderState()
+		case <-done:
+			fmt.Print(clearScreen + moveCursorHome)
+			fmt.Println("Exiting internal state monitor...")
 			return
 		}
 	}
