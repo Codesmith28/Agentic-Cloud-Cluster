@@ -67,8 +67,7 @@ func (c *CLI) Run() {
 				fmt.Println("Usage: internal-state")
 				continue
 			}
-			output := c.masterServer.DumpInMemoryState()
-			fmt.Print(output)
+			c.liveInternalState()
 		case "register":
 			if len(parts) < 3 {
 				fmt.Println("Usage: register <worker_id> <worker_ip:port>")
@@ -385,6 +384,58 @@ func (c *CLI) showWorkerStats(workerID string) {
 		case <-done:
 			fmt.Print("\033[2B") // Move down 2 lines past the instruction
 			fmt.Println("\nExiting worker stats monitor...")
+			return
+		}
+	}
+}
+
+func (c *CLI) liveInternalState() {
+	// ANSI escape codes
+	const clearLine = "\033[2K"
+	const clearScreen = "\033[2J"
+	const moveCursorHome = "\033[H"
+
+	// Clear screen and move to home
+	fmt.Print(clearScreen + moveCursorHome)
+
+	// Create a ticker for updates (refresh every 2 seconds)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	// Channel to detect user input (to exit the live view)
+	done := make(chan bool)
+
+	// Goroutine to listen for any key press
+	go func() {
+		reader := bufio.NewReader(os.Stdin)
+		reader.ReadByte() // Wait for any key press
+		done <- true
+	}()
+
+	// Function to render the internal state
+	renderState := func() {
+		// Move cursor to home and clear screen
+		fmt.Print(moveCursorHome)
+
+		// Get and print the state
+		output := c.masterServer.DumpInMemoryState()
+		fmt.Print(output)
+
+		// Print instruction at the bottom
+		fmt.Print("(Press any key to exit)")
+	}
+
+	// Initial render
+	renderState()
+
+	// Update loop
+	for {
+		select {
+		case <-ticker.C:
+			renderState()
+		case <-done:
+			fmt.Print(clearScreen + moveCursorHome)
+			fmt.Println("Exiting internal state monitor...")
 			return
 		}
 	}
