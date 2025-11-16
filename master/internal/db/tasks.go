@@ -22,9 +22,11 @@ type Task struct {
 	ReqMemory     float64   `bson:"req_memory"`
 	ReqStorage    float64   `bson:"req_storage"`
 	ReqGPU        float64   `bson:"req_gpu"`
-	TaskType      string    `bson:"task_type"`      // Task type: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed
-	SLAMultiplier float64   `bson:"sla_multiplier"` // k value: 1.5-2.5, default: 2.0
-	Status        string    `bson:"status"`         // pending, running, completed, failed
+	TaskType      string    `bson:"task_type"`          // Task type: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed
+	SLAMultiplier float64   `bson:"sla_multiplier"`     // k value: 1.5-2.5, default: 2.0
+	Deadline      time.Time `bson:"deadline,omitempty"` // SLA deadline: arrival_time + k * tau
+	Tau           float64   `bson:"tau,omitempty"`      // Expected runtime baseline (seconds)
+	Status        string    `bson:"status"`             // pending, running, completed, failed
 	CreatedAt     time.Time `bson:"created_at"`
 	StartedAt     time.Time `bson:"started_at,omitempty"`
 	CompletedAt   time.Time `bson:"completed_at,omitempty"`
@@ -173,6 +175,49 @@ func (db *TaskDB) ListAllTasks(ctx context.Context) ([]*Task, error) {
 	}
 
 	return tasks, nil
+}
+
+// UpdateTaskWithSLA updates a task's SLA-related fields (deadline, tau, task type)
+// This method is called after task submission to enrich it with scheduling parameters
+func (db *TaskDB) UpdateTaskWithSLA(ctx context.Context, taskID string, deadline time.Time, tau float64, taskType string) error {
+	// Validate task type
+	validTypes := map[string]bool{
+		"cpu-light": true, "cpu-heavy": true, "memory-heavy": true,
+		"gpu-inference": true, "gpu-training": true, "mixed": true,
+	}
+
+	if taskType != "" && !validTypes[taskType] {
+		return fmt.Errorf("invalid task type: %s (must be one of: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed)", taskType)
+	}
+
+	// Build update document
+	update := bson.M{
+		"$set": bson.M{
+			"deadline": deadline,
+			"tau":      tau,
+		},
+	}
+
+	// Only update task_type if it's provided and valid
+	if taskType != "" {
+		update["$set"].(bson.M)["task_type"] = taskType
+	}
+
+	result, err := db.collection.UpdateOne(
+		ctx,
+		bson.M{"task_id": taskID},
+		update,
+	)
+
+	if err != nil {
+		return fmt.Errorf("update task with SLA: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+
+	return nil
 }
 
 // Close closes the database connection
