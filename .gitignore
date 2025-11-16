@@ -2,4 +2,5 @@
 planner_py/venv
 venv
 masterNode
-workerNode
+master/masterNode
+worker/workerNode
