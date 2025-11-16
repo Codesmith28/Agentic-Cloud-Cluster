@@ -599,3 +599,162 @@ func (c *CLI) cancelTask(taskID string) {
 	fmt.Printf("\n%s✅ Task cancelled successfully!%s\n", green, reset)
 	fmt.Printf("%s   %s%s\n", yellow, ack.Message, reset)
 }
+
+func (c *CLI) monitorTask(taskID string) {
+	// ANSI escape codes for terminal control
+	const (
+		clearScreen = "\033[2J"
+		moveCursor  = "\033[H"
+		bold        = "\033[1m"
+		reset       = "\033[0m"
+		cyan        = "\033[36m"
+		green       = "\033[32m"
+		yellow      = "\033[33m"
+		red         = "\033[31m"
+	)
+
+	// Get userID from task in database
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	userID, err := c.masterServer.GetUserIDForTask(ctx, taskID)
+	if err != nil {
+		fmt.Printf("\n%s❌ Failed to get task information: %v%s\n", red, err, reset)
+		return
+	}
+
+	// Clear screen and show header
+	fmt.Print(clearScreen + moveCursor)
+	fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, cyan, reset)
+	fmt.Printf("%s%s  TASK MONITOR - Live Logs%s\n", bold, cyan, reset)
+	fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, cyan, reset)
+	fmt.Printf("%sTask ID:%s %s\n", bold, reset, taskID)
+	fmt.Printf("%sUser ID:%s %s\n", bold, reset, userID)
+	fmt.Printf("%s%s───────────────────────────────────────────────────────%s\n", bold, cyan, reset)
+	fmt.Printf("%s%sPress any key to exit%s\n\n", yellow, bold, reset)
+
+	// Create context that can be cancelled
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	defer streamCancel()
+
+	// Channel to detect user input (to exit the live view)
+	done := make(chan bool, 1)
+
+	// Goroutine to listen for any key press
+	go func() {
+		reader := bufio.NewReader(os.Stdin)
+		reader.ReadByte() // Wait for any key press
+		done <- true
+		streamCancel()
+	}()
+
+	// Channel to signal streaming completion
+	streamDone := make(chan error, 1)
+
+	// Start streaming logs in goroutine
+	go func() {
+		err := c.masterServer.StreamTaskLogsUnified(streamCtx, taskID, userID, func(logLine string, isComplete bool, status string) error {
+			if logLine != "" {
+				fmt.Println(logLine)
+			}
+			if isComplete {
+				fmt.Printf("\n%s%s═══════════════════════════════════════════════════════%s\n", bold, green, reset)
+				fmt.Printf("%s%s  Task Completed - Status: %s%s\n", bold, green, status, reset)
+				fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, green, reset)
+			}
+			return nil
+		})
+		streamDone <- err
+	}()
+
+	// Wait for either user input or stream completion
+	select {
+	case <-done:
+		fmt.Printf("\n%s%s═══════════════════════════════════════════════════════%s\n", bold, yellow, reset)
+		fmt.Printf("%s%s  Monitoring Stopped by User%s\n", bold, yellow, reset)
+		fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, yellow, reset)
+	case err := <-streamDone:
+		if err != nil {
+			fmt.Printf("\n%s%s═══════════════════════════════════════════════════════%s\n", bold, red, reset)
+			fmt.Printf("%s%s  Error: %v%s\n", bold, red, err, reset)
+			fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, red, reset)
+		}
+		// Wait for user to press a key before returning to CLI
+		fmt.Printf("\n%sPress any key to return to CLI...%s\n", yellow, reset)
+		reader := bufio.NewReader(os.Stdin)
+		reader.ReadByte()
+	}
+}
+
+func (c *CLI) showQueue() {
+	queuedTasks := c.masterServer.GetQueuedTasks()
+
+	if len(queuedTasks) == 0 {
+		fmt.Println("\n✓ Task queue is empty")
+		return
+	}
+
+	fmt.Println("\n═══════════════════════════════════════════════════════")
+	fmt.Printf("  📋 QUEUED TASKS (%d pending)\n", len(queuedTasks))
+	fmt.Println("═══════════════════════════════════════════════════════")
+
+	for i, qt := range queuedTasks {
+		// Calculate time in queue
+		timeInQueue := time.Since(qt.QueuedAt)
+
+		// Show assigned worker if available
+		workerStatus := "Waiting for scheduler"
+		if qt.Task.TargetWorkerId != "" {
+			workerStatus = qt.Task.TargetWorkerId
+		}
+
+		fmt.Printf("\n[%d] Task ID: %s\n", i+1, qt.Task.TaskId)
+		fmt.Printf("    Assigned Worker: %s\n", workerStatus)
+		fmt.Printf("    Docker Image:    %s\n", qt.Task.DockerImage)
+		fmt.Printf("    User ID:         %s\n", qt.Task.UserId)
+		fmt.Println("    ───────────────────────────────────────────────")
+		fmt.Println("    Resource Requirements:")
+		fmt.Printf("      • CPU Cores:     %.2f cores\n", qt.Task.ReqCpu)
+		fmt.Printf("      • Memory:        %.2f GB\n", qt.Task.ReqMemory)
+		fmt.Printf("      • Storage:       %.2f GB\n", qt.Task.ReqStorage)
+		fmt.Printf("      • GPU Cores:     %.2f cores\n", qt.Task.ReqGpu)
+		fmt.Println("    ───────────────────────────────────────────────")
+		fmt.Printf("    Queued At:       %s\n", qt.QueuedAt.Format("2006-01-02 15:04:05"))
+		fmt.Printf("    Time in Queue:   %s\n", formatDuration(timeInQueue))
+		fmt.Printf("    Retry Attempts:  %d\n", qt.Retries)
+		if qt.LastError != "" {
+			fmt.Printf("    Status:          %s\n", qt.LastError)
+		}
+	}
+
+	fmt.Println("\n═══════════════════════════════════════════════════════")
+	fmt.Println("  Note: Scheduler checks queue every 5s and assigns")
+	fmt.Println("  tasks to workers with available resources")
+	fmt.Println("═══════════════════════════════════════════════════════")
+}
+
+// reconcileResources triggers resource reconciliation to fix stale allocations
+func (c *CLI) reconcileResources() {
+	fmt.Println("\n🔄 Reconciling worker resources...")
+	fmt.Println("This will fix any stale resource allocations from completed tasks.")
+
+	ctx := context.Background()
+	if err := c.masterServer.ReconcileWorkerResourcesPublic(ctx); err != nil {
+		fmt.Printf("❌ Failed to reconcile resources: %v\n", err)
+		return
+	}
+
+	fmt.Println("\n✓ Resource reconciliation complete!")
+	fmt.Println("   Run 'workers' to see updated resource allocations.")
+}
+
+// formatDuration formats a duration in a human-readable way
+func formatDuration(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	} else if d < time.Hour {
+		return fmt.Sprintf("%dm %ds", int(d.Minutes()), int(d.Seconds())%60)
+	} else {
+		return fmt.Sprintf("%dh %dm", int(d.Hours()), int(d.Minutes())%60)
+	}
+}
