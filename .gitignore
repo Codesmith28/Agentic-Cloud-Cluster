@@ -1,3 +1,5 @@
 .env
 planner_py/venv
 venv
+masterNode
+workerNode
