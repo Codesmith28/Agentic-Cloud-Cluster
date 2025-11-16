@@ -13,16 +13,17 @@ Master Node (CLI) → Master Server → gRPC → Worker Server → Task Executio
 
 ### Command Syntax
 ```bash
-task <worker_id> <docker_image> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]
+task <docker_image> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]
 ```
 
 ### Parameters
-- `worker_id`: The specific worker to assign the task to (e.g., `worker-1`)
 - `docker_image`: Docker image to run (e.g., `docker.io/user/sample-task:latest`)
 - `-cpu_cores`: CPU cores to allocate (default: 1.0)
 - `-mem`: Memory in GB (default: 0.5)
 - `-storage`: Storage in GB (default: 1.0)
 - `-gpu_cores`: GPU cores to allocate (default: 0.0)
+
+**Note:** The scheduler automatically selects the best available worker for the task.
 
 ### Examples
 

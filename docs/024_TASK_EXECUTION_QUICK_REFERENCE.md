@@ -53,7 +53,7 @@ master> monitor task-1730899200 user-1
 
 ### Task Command
 ```
-task <worker_id> <docker_image> [options]
+task <docker_image> [options]
 
 Options:
   -cpu_cores <num>   CPU cores (default: 1.0)

@@ -27,10 +27,10 @@ cd worker
 ln -s ../proto/pb proto
 go mod tidy
 go build -o worker-node .
-./worker-node -id worker-1
+./worker-node
 
 # 6. Assign Task (In Master CLI)
-master> task worker-1 docker.io/<username>/cloudai-sample-task:latest
+master> task docker.io/<username>/cloudai-sample-task:latest
 ```
 
 ---
@@ -57,17 +57,18 @@ master> task worker-1 docker.io/<username>/cloudai-sample-task:latest
 help                                    # Show help
 status                                  # Cluster status
 workers                                 # List workers
-task <worker_id> <docker_image>        # Assign task
+task <docker_image> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  # Submit task (scheduler selects worker)
+dispatch <worker_id> <docker_image> [options]  # Dispatch task directly to specific worker
 exit                                    # Shutdown
 ```
 
 ### Worker Flags
 
 ```bash
--id <name>              # Worker ID (default: worker-1)
--ip <address>           # Worker IP (default: localhost)
+# Worker auto-detects system information - no flags required for basic usage
+# Optional flags for advanced configuration:
 -master <address>       # Master address (default: localhost:50051)
--port <port>            # Worker port (default: :50052)
+-port <port>            # Worker port (default: auto-selected available port)
 ```
 
 ---

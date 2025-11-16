@@ -59,7 +59,7 @@ Provides REST endpoints for external monitoring tools and management.
 - `GET /telemetry` - Get telemetry for all workers
 - `GET /telemetry/{workerID}` - Get telemetry for specific worker
 - `GET /workers` - Get basic info about all workers
-- `WS /ws` - WebSocket endpoint for live telemetry streaming
+- `WS /ws/telemetry` - WebSocket endpoint for live telemetry streaming
 
 **Task Management Endpoints:**
 - `POST /api/tasks` - Submit new task
