@@ -93,8 +93,13 @@ type TaskAssignment struct {
 	WorkerID string
 }
 
-// NewMasterServer creates a new master server instance
+// NewMasterServer creates a new master server instance with default Round-Robin scheduler
 func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB, telemetryMgr *telemetry.TelemetryManager, tauStore telemetry.TauStore, slaMultiplier float64) *MasterServer {
+	return NewMasterServerWithScheduler(workerDB, taskDB, assignmentDB, resultDB, telemetryMgr, tauStore, slaMultiplier, scheduler.NewRoundRobinScheduler())
+}
+
+// NewMasterServerWithScheduler creates a new master server instance with a custom scheduler
+func NewMasterServerWithScheduler(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB, telemetryMgr *telemetry.TelemetryManager, tauStore telemetry.TauStore, slaMultiplier float64, sched scheduler.Scheduler) *MasterServer {
 	// Validate SLA multiplier
 	if slaMultiplier < 1.5 || slaMultiplier > 2.5 {
 		log.Printf("⚠️  Invalid SLA multiplier %.2f, using default 2.0", slaMultiplier)
@@ -111,7 +116,7 @@ func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.
 		masterAddress:    "",
 		taskChan:         make(chan *TaskAssignment, 100),
 		taskQueue:        make([]*QueuedTask, 0),
-		scheduler:        scheduler.NewRoundRobinScheduler(), // Use Round-Robin as default
+		scheduler:        sched, // Use provided scheduler
 		telemetryManager: telemetryMgr,
 		tauStore:         tauStore,
 		slaMultiplier:    slaMultiplier,

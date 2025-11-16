@@ -396,16 +396,21 @@
 
 ---
 
-### **Task 3.4: Integrate RTS into Master Server**
+### **Task 3.4: Integrate RTS into Master Server** ✅
+**Status**: COMPLETE
+**Files Modified**: 2
+**Documentation**: [TASK_3_4_RTS_INTEGRATION.md](./TASK_3_4_RTS_INTEGRATION.md), [RTS_INTEGRATION_QUICK_REF.md](./RTS_INTEGRATION_QUICK_REF.md)
+
 **File(s)**:
-- `master/main.go` (MODIFY)
-- `master/internal/server/master_server.go` (MODIFY)
+- `master/main.go` (MODIFIED)
+- `master/internal/server/master_server.go` (MODIFIED)
 
-**Functions to add/modify**:
-- Modify `main()` in `main.go`
-- Modify `NewMasterServer` constructor
+**Functions added/modified**:
+- Modified `main()` in `main.go` to initialize RTS
+- Added `NewMasterServerWithScheduler` constructor
+- Modified `NewMasterServer` to use default Round-Robin (backward compatible)
 
-**Implementation steps**:
+**Implementation completed**:
 1. In `main.go`, after creating TelemetryManager:
    - Create `tauStore = telemetry.NewInMemoryTauStore()`
    - Load SLA multiplier from env var (default 2.0)

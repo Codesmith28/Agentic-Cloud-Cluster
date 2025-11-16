@@ -15,6 +15,7 @@ import (
 	"master/internal/config"
 	"master/internal/db"
 	httpserver "master/internal/http"
+	"master/internal/scheduler"
 	"master/internal/server"
 	"master/internal/system"
 	"master/internal/telemetry"
@@ -114,7 +115,25 @@ func main() {
 	}
 	log.Printf("✓ SLA multiplier (k): %.1f", slaMultiplier)
 
-	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, resultDB, telemetryMgr, tauStore, slaMultiplier)
+	// Create scheduler with RTS (Risk-aware Task Scheduling)
+	// Create Round-Robin as fallback
+	rrScheduler := scheduler.NewRoundRobinScheduler()
+	log.Println("✓ Round-Robin scheduler created (fallback)")
+
+	// Create telemetry source adapter for RTS
+	telemetrySource := scheduler.NewMasterTelemetrySource(telemetryMgr, workerDB)
+	log.Println("✓ Telemetry source adapter created")
+
+	// Create RTS scheduler with Round-Robin fallback
+	paramsPath := "config/ga_output.json"
+	rtsScheduler := scheduler.NewRTSScheduler(rrScheduler, tauStore, telemetrySource, paramsPath, slaMultiplier)
+	log.Printf("✓ RTS scheduler initialized (params: %s)", paramsPath)
+	log.Printf("  - Scheduler: %s", rtsScheduler.GetName())
+	log.Printf("  - Fallback: Round-Robin")
+	log.Printf("  - Parameter hot-reload: enabled (every 30s)")
+
+	masterServer := server.NewMasterServerWithScheduler(workerDB, taskDB, assignmentDB, resultDB, telemetryMgr, tauStore, slaMultiplier, rtsScheduler)
+	log.Printf("✓ Master server configured with %s scheduler", rtsScheduler.GetName())
 
 	// Set master info
 	masterID := "master-1"
@@ -189,6 +208,12 @@ func main() {
 
 		// Shutdown telemetry manager
 		telemetryMgr.Shutdown()
+
+		// Shutdown RTS scheduler
+		if rtsScheduler != nil {
+			log.Println("⏹️  Shutting down RTS scheduler...")
+			rtsScheduler.Shutdown()
+		}
 
 		// Shutdown gRPC server
 		grpcServer.GracefulStop()
