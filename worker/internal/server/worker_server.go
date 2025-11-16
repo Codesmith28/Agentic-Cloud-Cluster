@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"runtime"
 	"sync"
 	"time"
 
 	"worker/internal/executor"
+	"worker/internal/system"
 	"worker/internal/telemetry"
 	pb "worker/proto"
 
@@ -93,14 +93,32 @@ func (s *WorkerServer) registerWithMaster() {
 
 	client := pb.NewMasterWorkerClient(conn)
 
-	// Get system resources
+	// Get actual system resources
+	resources, err := system.GetSystemResources()
+	if err != nil {
+		log.Printf("Warning: Failed to get system resources: %v. Using defaults.", err)
+		resources = &system.ResourceInfo{
+			TotalCPU:     4.0,
+			TotalMemory:  8.0,
+			TotalStorage: 100.0,
+			TotalGPU:     0.0,
+		}
+	}
+
+	// Log the detected resources
+	log.Printf("Detected System Resources:")
+	log.Printf("  CPU:     %.2f cores", resources.TotalCPU)
+	log.Printf("  Memory:  %.2f GB", resources.TotalMemory)
+	log.Printf("  Storage: %.2f GB", resources.TotalStorage)
+	log.Printf("  GPU:     %.2f cores", resources.TotalGPU)
+
 	workerInfo := &pb.WorkerInfo{
 		WorkerId:     s.workerID,
 		WorkerIp:     "", // Will be filled by master based on connection
-		TotalCpu:     float64(runtime.NumCPU()),
-		TotalMemory:  8.0,   // Simplified - in real implementation, get actual memory
-		TotalStorage: 100.0, // Simplified
-		TotalGpu:     0.0,   // Simplified
+		TotalCpu:     resources.TotalCPU,
+		TotalMemory:  resources.TotalMemory,
+		TotalStorage: resources.TotalStorage,
+		TotalGpu:     resources.TotalGPU,
 	}
 
 	ack, err := client.RegisterWorker(ctx, workerInfo)
@@ -350,6 +368,58 @@ func (s *WorkerServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWo
 // Close cleans up resources
 func (s *WorkerServer) Close() error {
 	return s.executor.Close()
+}
+
+// Shutdown handles graceful shutdown by reporting all running tasks as failed
+func (s *WorkerServer) Shutdown() {
+	fmt.Println("╔═══════════════════════════════════════════════════════")
+	fmt.Println("║  Worker Shutdown - Cleaning up running tasks...")
+	fmt.Println("╚═══════════════════════════════════════════════════════")
+
+	// Get all running tasks
+	runningTasks := s.executor.GetRunningTasks()
+
+	if len(runningTasks) == 0 {
+		fmt.Println("  ✓ No running tasks to clean up")
+		return
+	}
+
+	fmt.Printf("  Found %d running task(s) to report as failed\n", len(runningTasks))
+
+	s.mu.RLock()
+	masterAddr := s.masterAddr
+	s.mu.RUnlock()
+
+	if masterAddr == "" {
+		log.Println("  ⚠ No master address - cannot report task failures")
+		return
+	}
+
+	// Report each task as failed to master
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	for _, taskID := range runningTasks {
+		log.Printf("  📤 Reporting task %s as failed due to worker shutdown...", taskID)
+
+		taskResult := &pb.TaskResult{
+			TaskId:         taskID,
+			WorkerId:       s.workerID,
+			Status:         "failed",
+			Logs:           "Task failed: Worker was terminated while task was running",
+			ResultLocation: "",
+		}
+
+		if err := telemetry.ReportTaskResult(ctx, masterAddr, taskResult); err != nil {
+			log.Printf("  ⚠ Failed to report task %s: %v", taskID, err)
+		} else {
+			log.Printf("  ✓ Successfully reported task %s as failed", taskID)
+		}
+	}
+
+	log.Println("╔═══════════════════════════════════════════════════════")
+	log.Println("║  Task cleanup complete")
+	log.Println("╚═══════════════════════════════════════════════════════")
 }
 
 // Not implemented RPCs (worker doesn't receive these)

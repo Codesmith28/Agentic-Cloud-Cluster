@@ -1,11 +1,14 @@
 package system
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -20,6 +23,14 @@ type SystemInfo struct {
 	UID         int
 	GID         int
 	WorkerPort  int
+}
+
+// ResourceInfo holds system resource information
+type ResourceInfo struct {
+	TotalCPU     float64 // Number of CPU cores
+	TotalMemory  float64 // Total memory in GB
+	TotalStorage float64 // Total storage in GB
+	TotalGPU     float64 // Number of GPU cores (0 if not available)
 }
 
 // CollectSystemInfo collects system information using syscalls and Go runtime
@@ -108,4 +119,116 @@ func FindAvailablePort(startPort int) (int, error) {
 		}
 	}
 	return 0, fmt.Errorf("no available ports found starting from %d", startPort)
+}
+
+// GetSystemResources retrieves actual system resources (CPU, Memory, Storage, GPU)
+func GetSystemResources() (*ResourceInfo, error) {
+	resources := &ResourceInfo{
+		TotalCPU: float64(runtime.NumCPU()),
+		TotalGPU: 0.0, // GPU detection requires additional libraries (nvidia-smi, etc.)
+	}
+
+	// Get total memory
+	memory, err := getTotalMemory()
+	if err != nil {
+		log.Printf("Warning: Failed to get total memory, using default: %v", err)
+		resources.TotalMemory = 8.0 // Default fallback
+	} else {
+		resources.TotalMemory = memory
+	}
+
+	// Get total storage (disk space)
+	storage, err := getTotalStorage()
+	if err != nil {
+		log.Printf("Warning: Failed to get total storage, using default: %v", err)
+		resources.TotalStorage = 100.0 // Default fallback
+	} else {
+		resources.TotalStorage = storage
+	}
+
+	return resources, nil
+}
+
+// getTotalMemory returns the total system memory in GB
+func getTotalMemory() (float64, error) {
+	// Try reading from /proc/meminfo first (Linux)
+	file, err := os.Open("/proc/meminfo")
+	if err != nil {
+		// Fallback to sysinfo syscall
+		return getMemoryViaSysinfo()
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "MemTotal:") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 {
+				memKB, err := strconv.ParseUint(fields[1], 10, 64)
+				if err != nil {
+					return 0, fmt.Errorf("failed to parse memory value: %w", err)
+				}
+				// Convert KB to GB
+				memGB := float64(memKB) / (1024.0 * 1024.0)
+				return memGB, nil
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return getMemoryViaSysinfo()
+	}
+
+	return 0, fmt.Errorf("MemTotal not found in /proc/meminfo")
+}
+
+// getMemoryViaSysinfo gets memory using syscall.Sysinfo (fallback method)
+func getMemoryViaSysinfo() (float64, error) {
+	var info syscall.Sysinfo_t
+	err := syscall.Sysinfo(&info)
+	if err != nil {
+		return 0, fmt.Errorf("sysinfo syscall failed: %w", err)
+	}
+
+	// Total RAM in bytes = Totalram * Unit
+	totalRAM := info.Totalram * uint64(info.Unit)
+	// Convert bytes to GB
+	memGB := float64(totalRAM) / (1024.0 * 1024.0 * 1024.0)
+	return memGB, nil
+}
+
+// getTotalStorage returns the total available storage in GB for the root filesystem
+func getTotalStorage() (float64, error) {
+	var stat syscall.Statfs_t
+
+	// Get filesystem statistics for root directory
+	err := syscall.Statfs("/", &stat)
+	if err != nil {
+		return 0, fmt.Errorf("statfs syscall failed: %w", err)
+	}
+
+	// Total size = Blocks * Block size
+	totalBytes := stat.Blocks * uint64(stat.Bsize)
+	// Convert bytes to GB
+	totalGB := float64(totalBytes) / (1024.0 * 1024.0 * 1024.0)
+
+	return totalGB, nil
+}
+
+// GetAvailableStorage returns the available storage in GB for the root filesystem
+func GetAvailableStorage() (float64, error) {
+	var stat syscall.Statfs_t
+
+	err := syscall.Statfs("/", &stat)
+	if err != nil {
+		return 0, fmt.Errorf("statfs syscall failed: %w", err)
+	}
+
+	// Available size = Available blocks * Block size
+	availBytes := stat.Bavail * uint64(stat.Bsize)
+	// Convert bytes to GB
+	availGB := float64(availBytes) / (1024.0 * 1024.0 * 1024.0)
+
+	return availGB, nil
 }

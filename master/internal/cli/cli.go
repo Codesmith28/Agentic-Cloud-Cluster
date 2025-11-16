@@ -4,38 +4,50 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"master/internal/db"
 	"master/internal/server"
 	pb "master/proto"
+
+	"github.com/chzyer/readline"
 )
 
 // CLI handles the command-line interface for the master
 type CLI struct {
 	masterServer *server.MasterServer
-	reader       *bufio.Reader
+	rl           *readline.Instance
 }
 
 // NewCLI creates a new CLI instance
 func NewCLI(srv *server.MasterServer) *CLI {
+	rl, err := readline.New("master> ")
+	if err != nil {
+		log.Fatalf("Failed to create readline instance: %v", err)
+	}
 	return &CLI{
 		masterServer: srv,
-		reader:       bufio.NewReader(os.Stdin),
+		rl:           rl,
 	}
 }
 
 // Run starts the interactive CLI
 func (c *CLI) Run() {
+	defer c.rl.Close()
 	c.printBanner()
 
 	for {
-		fmt.Print("\nmaster> ")
-		input, err := c.reader.ReadString('\n')
+		input, err := c.rl.Readline()
 		if err != nil {
+			if err == io.EOF {
+				fmt.Println("\nShutting down master...")
+				return
+			}
 			log.Printf("Error reading input: %v", err)
 			continue
 		}
@@ -70,6 +82,14 @@ func (c *CLI) Run() {
 			c.liveInternalState()
 		case "fix-resources":
 			c.reconcileResources()
+		case "list-tasks":
+			if len(parts) < 2 {
+				// No status provided - show all tasks categorically
+				c.listAllTasksCategorically()
+			} else {
+				// Status provided - show tasks for that specific status
+				c.listTasksByStatus(parts[1])
+			}
 		case "register":
 			if len(parts) < 3 {
 				fmt.Println("Usage: register <worker_id> <worker_ip:port>")
@@ -156,6 +176,7 @@ func (c *CLI) printHelp() {
 	fmt.Println("  stats <worker_id>              - Show detailed stats for a worker")
 	fmt.Println("  internal-state                 - Dump complete in-memory state of all workers")
 	fmt.Println("  fix-resources                  - Fix stale resource allocations")
+	fmt.Println("  list-tasks [status]            - List all tasks (or filter by: pending/running/completed/failed)")
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
 	fmt.Println("  task <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Submit task (scheduler selects worker)")
@@ -298,9 +319,6 @@ func (c *CLI) showWorkerStats(workerID string) {
 	// ANSI escape codes
 	const clearLine = "\033[2K"
 
-	// Print initial view
-	fmt.Print("\n")
-
 	// Create a ticker for updates (refresh every 2 seconds)
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
@@ -315,16 +333,23 @@ func (c *CLI) showWorkerStats(workerID string) {
 		done <- true
 	}()
 
+	// Track if this is the first render
+	firstRender := true
+
 	// Function to render the worker stats
 	renderStats := func() {
 		worker, exists := c.masterServer.GetWorkerStats(workerID)
 		if !exists {
-			fmt.Print("\033[21A") // Move up
+			if !firstRender {
+				fmt.Print("\033[21A") // Move up
+			}
 			fmt.Print("\r")
 			for i := 0; i < 21; i++ {
 				fmt.Print(clearLine + "\r\n")
 			}
-			fmt.Print("\033[21A")
+			if !firstRender {
+				fmt.Print("\033[21A")
+			}
 			fmt.Println(clearLine + "\r❌ Worker disconnected or removed")
 			return
 		}
@@ -349,8 +374,13 @@ func (c *CLI) showWorkerStats(workerID string) {
 
 		// Move cursor up to the start of the stats box
 		// Box has 19 lines + 1 blank line + 1 instruction line = 21 lines total
-		fmt.Print("\033[21A")
-		fmt.Print("\r") // Move to beginning of line
+		// Only move cursor up if this is NOT the first render
+		if !firstRender {
+			fmt.Print("\033[21A")
+			fmt.Print("\r") // Move to beginning of line
+		} else {
+			fmt.Print("\n") // Add initial spacing
+		}
 
 		// Clear and redraw stats box (no right border)
 		fmt.Printf("%s╔═══════════════════════════════════════════════════\n", clearLine)
@@ -391,6 +421,11 @@ func (c *CLI) showWorkerStats(workerID string) {
 		fmt.Printf("%s╚═══════════════════════════════════════════════════", clearLine)
 		// Print instruction on the line after the box (stays fixed)
 		fmt.Print("\n\n(Press any key to exit)")
+
+		// Mark that first render is complete
+		if firstRender {
+			firstRender = false
+		}
 	}
 
 	// Initial render - call renderStats immediately to avoid "Loading..." flash
@@ -887,6 +922,155 @@ func (c *CLI) reconcileResources() {
 
 	fmt.Println("\n✓ Resource reconciliation complete!")
 	fmt.Println("   Run 'workers' to see updated resource allocations.")
+}
+
+// listAllTasksCategorically lists all tasks organized by status
+func (c *CLI) listAllTasksCategorically() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	statuses := []string{"pending", "running", "completed", "failed"}
+	allTasksByStatus := make(map[string][]*db.Task)
+	totalCount := 0
+
+	// Fetch tasks for each status
+	for _, status := range statuses {
+		tasks, err := c.masterServer.GetTasksByStatus(ctx, status)
+		if err != nil {
+			fmt.Printf("⚠️  Warning: Failed to get %s tasks: %v\n", status, err)
+			continue
+		}
+		allTasksByStatus[status] = tasks
+		totalCount += len(tasks)
+	}
+
+	if totalCount == 0 {
+		fmt.Println("\n✓ No tasks found in the system")
+		return
+	}
+
+	fmt.Println("\n╔═══════════════════════════════════════════════════════")
+	fmt.Printf("║  ALL TASKS - Organized by Status (%d total)\n", totalCount)
+	fmt.Println("╚═══════════════════════════════════════════════════════")
+
+	// Display tasks for each status
+	for _, status := range statuses {
+		tasks := allTasksByStatus[status]
+
+		// Get emoji for status
+		statusEmoji := "📋"
+		switch status {
+		case "pending":
+			statusEmoji = "⏳"
+		case "running":
+			statusEmoji = "▶️ "
+		case "completed":
+			statusEmoji = "✅"
+		case "failed":
+			statusEmoji = "❌"
+		}
+
+		fmt.Printf("\n%s %s (%d task%s)\n", statusEmoji, strings.ToUpper(status), len(tasks), func() string {
+			if len(tasks) == 1 {
+				return ""
+			}
+			return "s"
+		}())
+		fmt.Println("─────────────────────────────────────────────────────────")
+
+		if len(tasks) == 0 {
+			fmt.Println("  (none)")
+			continue
+		}
+
+		for i, task := range tasks {
+			fmt.Printf("  [%d] %s\n", i+1, task.TaskID)
+			fmt.Printf("      Image:    %s\n", task.DockerImage)
+			fmt.Printf("      User:     %s\n", task.UserID)
+
+			// Get assignment info
+			assignment, err := c.masterServer.GetAssignmentByTaskID(ctx, task.TaskID)
+			if err == nil && assignment != nil {
+				fmt.Printf("      Worker:   %s\n", assignment.WorkerID)
+			}
+
+			fmt.Printf("      CPU:      %.1f cores | Memory: %.1f GB | GPU: %.1f cores\n",
+				task.ReqCPU, task.ReqMemory, task.ReqGPU)
+			fmt.Printf("      Created:  %s\n", task.CreatedAt.Format("2006-01-02 15:04:05"))
+
+			if i < len(tasks)-1 {
+				fmt.Println()
+			}
+		}
+	}
+
+	fmt.Println("\n═══════════════════════════════════════════════════════")
+	fmt.Println("💡 Tip: Use 'list-tasks <status>' to see details for a specific status")
+
+	runningCount := len(allTasksByStatus["running"])
+	if runningCount > 0 {
+		fmt.Printf("    Use 'fix-resources' to reconcile resources (%d running task%s)\n",
+			runningCount, func() string {
+				if runningCount == 1 {
+					return ""
+				}
+				return "s"
+			}())
+	}
+}
+
+// listTasksByStatus lists all tasks with a specific status
+func (c *CLI) listTasksByStatus(status string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	tasks, err := c.masterServer.GetTasksByStatus(ctx, status)
+	if err != nil {
+		fmt.Printf("❌ Failed to get tasks: %v\n", err)
+		return
+	}
+
+	if len(tasks) == 0 {
+		fmt.Printf("\n✓ No tasks with status '%s'\n", status)
+		return
+	}
+
+	fmt.Printf("\n╔═══ Tasks with status: %s ═══\n", status)
+	fmt.Printf("║ Found %d task(s)\n", len(tasks))
+	fmt.Println("╠═══════════════════════════════════════════════════════")
+
+	for i, task := range tasks {
+		fmt.Printf("║\n║ [%d] Task ID: %s\n", i+1, task.TaskID)
+		fmt.Printf("║     User ID:       %s\n", task.UserID)
+		fmt.Printf("║     Docker Image:  %s\n", task.DockerImage)
+		fmt.Printf("║     Status:        %s\n", task.Status)
+
+		// Get assignment info
+		assignment, err := c.masterServer.GetAssignmentByTaskID(ctx, task.TaskID)
+		if err == nil && assignment != nil {
+			fmt.Printf("║     Assigned To:   %s\n", assignment.WorkerID)
+		} else {
+			fmt.Printf("║     Assigned To:   (no assignment)\n")
+		}
+
+		fmt.Printf("║     Resources:\n")
+		fmt.Printf("║       CPU:     %.2f cores\n", task.ReqCPU)
+		fmt.Printf("║       Memory:  %.2f GB\n", task.ReqMemory)
+		fmt.Printf("║       Storage: %.2f GB\n", task.ReqStorage)
+		fmt.Printf("║       GPU:     %.2f cores\n", task.ReqGPU)
+		fmt.Printf("║     Created:   %s\n", task.CreatedAt.Format("2006-01-02 15:04:05"))
+
+		if i < len(tasks)-1 {
+			fmt.Println("║     ───────────────────────────────────────────────────")
+		}
+	}
+
+	fmt.Println("╚═══════════════════════════════════════════════════════")
+
+	if status == "running" && len(tasks) > 0 {
+		fmt.Println("\n💡 Tip: If these tasks are not actually running, use 'fix-resources'")
+		fmt.Println("   to reconcile and free up allocated resources.")
+	}
 }
 
 // formatDuration formats a duration in a human-readable way
