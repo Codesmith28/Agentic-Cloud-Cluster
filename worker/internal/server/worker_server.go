@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"runtime"
 	"sync"
 	"time"
 
 	"worker/internal/executor"
+	"worker/internal/system"
 	"worker/internal/telemetry"
 	pb "worker/proto"
 
@@ -93,14 +93,32 @@ func (s *WorkerServer) registerWithMaster() {
 
 	client := pb.NewMasterWorkerClient(conn)
 
-	// Get system resources
+	// Get actual system resources
+	resources, err := system.GetSystemResources()
+	if err != nil {
+		log.Printf("Warning: Failed to get system resources: %v. Using defaults.", err)
+		resources = &system.ResourceInfo{
+			TotalCPU:     4.0,
+			TotalMemory:  8.0,
+			TotalStorage: 100.0,
+			TotalGPU:     0.0,
+		}
+	}
+
+	// Log the detected resources
+	log.Printf("Detected System Resources:")
+	log.Printf("  CPU:     %.2f cores", resources.TotalCPU)
+	log.Printf("  Memory:  %.2f GB", resources.TotalMemory)
+	log.Printf("  Storage: %.2f GB", resources.TotalStorage)
+	log.Printf("  GPU:     %.2f cores", resources.TotalGPU)
+
 	workerInfo := &pb.WorkerInfo{
 		WorkerId:     s.workerID,
 		WorkerIp:     "", // Will be filled by master based on connection
-		TotalCpu:     float64(runtime.NumCPU()),
-		TotalMemory:  8.0,   // Simplified - in real implementation, get actual memory
-		TotalStorage: 100.0, // Simplified
-		TotalGpu:     0.0,   // Simplified
+		TotalCpu:     resources.TotalCPU,
+		TotalMemory:  resources.TotalMemory,
+		TotalStorage: resources.TotalStorage,
+		TotalGpu:     resources.TotalGPU,
 	}
 
 	ack, err := client.RegisterWorker(ctx, workerInfo)
