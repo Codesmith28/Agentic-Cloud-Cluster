@@ -877,7 +877,7 @@ func (c *CLI) showQueue() {
 // reconcileResources triggers resource reconciliation to fix stale allocations
 func (c *CLI) reconcileResources() {
 	fmt.Println("\n🔄 Reconciling worker resources...")
-	fmt.Println("   This will fix any stale resource allocations from completed tasks.\n")
+	fmt.Println("This will fix any stale resource allocations from completed tasks.")
 
 	ctx := context.Background()
 	if err := c.masterServer.ReconcileWorkerResourcesPublic(ctx); err != nil {
