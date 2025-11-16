@@ -37,6 +37,7 @@ message TaskInfo {
     double req_cpu = 2;
     double req_memory = 3;
     double req_gpu = 4;
+    string task_type = 5; // Task type: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed
 }
 
 message TaskAssignments {
