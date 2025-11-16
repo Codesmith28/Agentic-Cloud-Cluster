@@ -58,6 +58,12 @@ type MasterServer struct {
 
 	// Telemetry manager for handling worker telemetry in separate threads
 	telemetryManager *telemetry.TelemetryManager
+
+	// Tau store for runtime learning
+	tauStore telemetry.TauStore
+
+	// SLA multiplier (k) - default 2.0, range [1.5, 2.5]
+	slaMultiplier float64
 }
 
 // WorkerState tracks the current state of a worker
@@ -88,7 +94,13 @@ type TaskAssignment struct {
 }
 
 // NewMasterServer creates a new master server instance
-func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB, telemetryMgr *telemetry.TelemetryManager) *MasterServer {
+func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB, telemetryMgr *telemetry.TelemetryManager, tauStore telemetry.TauStore, slaMultiplier float64) *MasterServer {
+	// Validate SLA multiplier
+	if slaMultiplier < 1.5 || slaMultiplier > 2.5 {
+		log.Printf("⚠️  Invalid SLA multiplier %.2f, using default 2.0", slaMultiplier)
+		slaMultiplier = 2.0
+	}
+
 	return &MasterServer{
 		workers:          make(map[string]*WorkerState),
 		workerDB:         workerDB,
@@ -101,6 +113,8 @@ func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.
 		taskQueue:        make([]*QueuedTask, 0),
 		scheduler:        scheduler.NewRoundRobinScheduler(), // Use Round-Robin as default
 		telemetryManager: telemetryMgr,
+		tauStore:         tauStore,
+		slaMultiplier:    slaMultiplier,
 	}
 }
 
@@ -686,6 +700,43 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 		}
 	}
 
+	// Update tau based on actual runtime (Task 2.4)
+	if s.tauStore != nil && s.taskDB != nil && result.Status == "success" {
+		// Fetch task to get TaskType and StartedAt
+		task, err := s.taskDB.GetTask(context.Background(), result.TaskId)
+		if err != nil {
+			log.Printf("  ⚠ Warning: Failed to fetch task for tau update: %v", err)
+		} else if task.TaskType != "" && !task.StartedAt.IsZero() {
+			// Compute actual runtime (in seconds)
+			completionTime := time.Now()
+			actualRuntime := completionTime.Sub(task.StartedAt).Seconds()
+
+			// Get current tau before update for logging
+			oldTau := s.tauStore.GetTau(task.TaskType)
+
+			// Update tau using EMA learning
+			s.tauStore.UpdateTau(task.TaskType, actualRuntime)
+
+			// Get new tau after update
+			newTau := s.tauStore.GetTau(task.TaskType)
+
+			log.Printf("  📊 Tau learning update for task type '%s':", task.TaskType)
+			log.Printf("     • Actual runtime: %.2fs", actualRuntime)
+			log.Printf("     • Old tau: %.2fs", oldTau)
+			log.Printf("     • New tau: %.2fs (Δ %.2fs)", newTau, newTau-oldTau)
+			log.Printf("     • Task ID: %s", result.TaskId)
+		} else {
+			if task.TaskType == "" {
+				log.Printf("  ⚠ Warning: Cannot update tau - task type not set for task %s", result.TaskId)
+			}
+			if task.StartedAt.IsZero() {
+				log.Printf("  ⚠ Warning: Cannot update tau - start time not recorded for task %s", result.TaskId)
+			}
+		}
+	} else if s.tauStore == nil {
+		log.Printf("  ⚠ Warning: TauStore not available for learning")
+	}
+
 	return &pb.Ack{
 		Success: true,
 		Message: "Task result received and processed",
@@ -969,28 +1020,42 @@ func joinTasks(tasks []string) string {
 // SubmitTask submits a task to the system for scheduling
 // ALL tasks go through the queue first, then the scheduler assigns them to workers
 func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
-	// Extract and validate SLA multiplier from task
-	slaMultiplier := 2.0
+	now := time.Now()
+
+	// Extract and validate SLA multiplier from task (per-task override)
+	slaMultiplier := s.slaMultiplier // Use server default
 	if task.GetSlaMultiplier() >= 1.5 && task.GetSlaMultiplier() <= 2.5 {
-		slaMultiplier = task.GetSlaMultiplier()
+		slaMultiplier = task.GetSlaMultiplier() // Use task-specific value
 	} else if task.GetSlaMultiplier() != 0 {
-		log.Printf("⚠️  Task %s: SLA multiplier %.2f out of range [1.5, 2.5]. Using default: 2.0",
-			task.TaskId, task.GetSlaMultiplier())
+		log.Printf("⚠️  Task %s: SLA multiplier %.2f out of range [1.5, 2.5]. Using default: %.1f",
+			task.TaskId, task.GetSlaMultiplier(), s.slaMultiplier)
 	}
 
-	// Extract and validate task type
+	// Determine task type: use explicit if provided and valid, otherwise infer
 	taskType := task.GetTaskType()
 	if taskType != "" {
-		validTypes := map[string]bool{
-			"cpu-light": true, "cpu-heavy": true, "memory-heavy": true,
-			"gpu-inference": true, "gpu-training": true, "mixed": true,
-		}
-		if !validTypes[taskType] {
-			log.Printf("⚠️  Task %s: Invalid task type '%s'. Will be inferred from resources.",
+		// Validate explicit task type
+		if !scheduler.ValidateTaskType(taskType) {
+			log.Printf("⚠️  Task %s: Invalid task type '%s'. Inferring from resources.",
 				task.TaskId, taskType)
-			taskType = "" // Clear invalid type to trigger inference
+			taskType = scheduler.InferTaskType(task)
+		} else {
+			log.Printf("✓ Task %s: Using explicit task type '%s'", task.TaskId, taskType)
 		}
+	} else {
+		// Infer task type from resource requirements
+		taskType = scheduler.InferTaskType(task)
+		log.Printf("🔍 Task %s: Inferred task type '%s' from resources", task.TaskId, taskType)
 	}
+
+	// Get tau (runtime estimate) from tau store based on task type
+	tau := s.tauStore.GetTau(taskType)
+
+	// Compute deadline: arrival_time + k * tau
+	deadline := now.Add(time.Duration(slaMultiplier*tau) * time.Second)
+
+	log.Printf("📊 Task %s: type=%s, tau=%.2fs, k=%.1f, deadline=%s",
+		task.TaskId, taskType, tau, slaMultiplier, deadline.Format("15:04:05"))
 
 	// Store task in database as queued
 	if s.taskDB != nil {
@@ -1008,7 +1073,17 @@ func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 			Status:        "queued",
 		}
 		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
-			log.Printf("Warning: Failed to store task in database: %v", err)
+			log.Printf("⚠️  Failed to store task in database: %v", err)
+			return &pb.TaskAck{
+				Success: false,
+				Message: fmt.Sprintf("Failed to store task: %v", err),
+			}, err
+		}
+
+		// Update task with SLA parameters (tau, deadline, taskType)
+		if err := s.taskDB.UpdateTaskWithSLA(ctx, task.TaskId, deadline, tau, taskType); err != nil {
+			log.Printf("⚠️  Failed to update task with SLA parameters: %v", err)
+			// Don't fail the entire submission, just log the warning
 		}
 	}
 
@@ -1020,16 +1095,13 @@ func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	position := len(s.taskQueue)
 	s.queueMu.RUnlock()
 
-	typeInfo := ""
-	if taskType != "" {
-		typeInfo = fmt.Sprintf(", type=%s", taskType)
-	}
-	log.Printf("📋 Task %s submitted and queued (position: %d, k=%.1f%s)",
-		task.TaskId, position, slaMultiplier, typeInfo)
+	log.Printf("📋 Task %s submitted and queued (position: %d, type=%s, tau=%.1fs, deadline=%s)",
+		task.TaskId, position, taskType, tau, deadline.Format("15:04:05"))
 
 	return &pb.TaskAck{
 		Success: true,
-		Message: fmt.Sprintf("Task submitted successfully. Queue position: %d. Scheduler will assign it to an available worker.", position),
+		Message: fmt.Sprintf("Task submitted successfully. Type: %s, Tau: %.1fs, Deadline: %s. Queue position: %d.",
+			taskType, tau, deadline.Format("15:04:05"), position),
 	}, nil
 }
 
@@ -1615,12 +1687,31 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 			}
 		}
 
-		// Store assignment in database
+		// Get worker load at assignment time (Task 2.3)
+		var loadAtStart float64
+		if s.telemetryManager != nil {
+			telemetryData, exists := s.telemetryManager.GetWorkerTelemetry(workerID)
+			if exists {
+				// Compute normalized load: average of CPU, Memory, and GPU usage (0-1 scale)
+				loadAtStart = (telemetryData.CpuUsage + telemetryData.MemoryUsage + telemetryData.GpuUsage) / 3.0
+				log.Printf("[INFO] Worker %s load at assignment: %.4f (CPU=%.2f%%, Mem=%.2f%%, GPU=%.2f%%)",
+					workerID, loadAtStart, telemetryData.CpuUsage*100, telemetryData.MemoryUsage*100, telemetryData.GpuUsage*100)
+			} else {
+				log.Printf("[WARN] No telemetry data available for worker %s, using load=0.0", workerID)
+				loadAtStart = 0.0
+			}
+		} else {
+			log.Printf("[WARN] Telemetry manager not available, using load=0.0 for worker %s", workerID)
+			loadAtStart = 0.0
+		}
+
+		// Store assignment in database with load tracking
 		if s.assignmentDB != nil {
 			assignment := &db.Assignment{
 				AssignmentID: fmt.Sprintf("ass-%s", task.TaskId),
 				TaskID:       task.TaskId,
 				WorkerID:     workerID,
+				LoadAtStart:  loadAtStart, // Track load at assignment time (Task 2.3)
 			}
 			if err := s.assignmentDB.CreateAssignment(ctx, assignment); err != nil {
 				log.Printf("Warning: Failed to store assignment in database: %v", err)

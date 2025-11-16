@@ -100,7 +100,21 @@ func main() {
 	telemetryMgr.Start()
 	log.Println("✓ Telemetry manager started")
 
-	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, resultDB, telemetryMgr)
+	// Initialize tau store for runtime learning
+	tauStore := telemetry.NewInMemoryTauStore()
+	log.Println("✓ Tau store initialized with default values:")
+	for taskType, tau := range tauStore.GetAllTau() {
+		log.Printf("  - %s: %.1fs", taskType, tau)
+	}
+
+	// Load SLA multiplier from environment or use default
+	slaMultiplier := 2.0
+	if cfg.SLAMultiplier > 0 {
+		slaMultiplier = cfg.SLAMultiplier
+	}
+	log.Printf("✓ SLA multiplier (k): %.1f", slaMultiplier)
+
+	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, resultDB, telemetryMgr, tauStore, slaMultiplier)
 
 	// Set master info
 	masterID := "master-1"
