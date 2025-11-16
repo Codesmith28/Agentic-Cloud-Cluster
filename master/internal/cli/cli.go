@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -13,30 +14,40 @@ import (
 	"master/internal/db"
 	"master/internal/server"
 	pb "master/proto"
+
+	"github.com/chzyer/readline"
 )
 
 // CLI handles the command-line interface for the master
 type CLI struct {
 	masterServer *server.MasterServer
-	reader       *bufio.Reader
+	rl           *readline.Instance
 }
 
 // NewCLI creates a new CLI instance
 func NewCLI(srv *server.MasterServer) *CLI {
+	rl, err := readline.New("master> ")
+	if err != nil {
+		log.Fatalf("Failed to create readline instance: %v", err)
+	}
 	return &CLI{
 		masterServer: srv,
-		reader:       bufio.NewReader(os.Stdin),
+		rl:           rl,
 	}
 }
 
 // Run starts the interactive CLI
 func (c *CLI) Run() {
+	defer c.rl.Close()
 	c.printBanner()
 
 	for {
-		fmt.Print("\nmaster> ")
-		input, err := c.reader.ReadString('\n')
+		input, err := c.rl.Readline()
 		if err != nil {
+			if err == io.EOF {
+				fmt.Println("\nShutting down master...")
+				return
+			}
 			log.Printf("Error reading input: %v", err)
 			continue
 		}
