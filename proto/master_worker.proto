@@ -68,6 +68,7 @@ message Task {
   double req_gpu = 7;
   string target_worker_id = 8;
   string user_id = 9; // User who submitted the task
+  double sla_multiplier = 10; // SLA multiplier (k), range: 1.5-2.5, default: 2.0
 }
 
 message TaskAck {

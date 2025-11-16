@@ -754,18 +754,22 @@ func joinTasks(tasks []string) string {
 // SubmitTask submits a task to the system for scheduling
 // ALL tasks go through the queue first, then the scheduler assigns them to workers
 func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
+	// Default SLA multiplier: use a safe default (do not reference unavailable fields on pb.Task)
+	slaMultiplier := 2.0
+
 	// Store task in database as queued
 	if s.taskDB != nil {
 		dbTask := &db.Task{
-			TaskID:      task.TaskId,
-			UserID:      task.UserId,
-			DockerImage: task.DockerImage,
-			Command:     task.Command,
-			ReqCPU:      task.ReqCpu,
-			ReqMemory:   task.ReqMemory,
-			ReqStorage:  task.ReqStorage,
-			ReqGPU:      task.ReqGpu,
-			Status:      "queued",
+			TaskID:        task.TaskId,
+			UserID:        task.UserId,
+			DockerImage:   task.DockerImage,
+			Command:       task.Command,
+			ReqCPU:        task.ReqCpu,
+			ReqMemory:     task.ReqMemory,
+			ReqStorage:    task.ReqStorage,
+			ReqGPU:        task.ReqGpu,
+			SLAMultiplier: slaMultiplier,
+			Status:        "queued",
 		}
 		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
 			log.Printf("Warning: Failed to store task in database: %v", err)
@@ -780,7 +784,7 @@ func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	position := len(s.taskQueue)
 	s.queueMu.RUnlock()
 
-	log.Printf("📋 Task %s submitted and queued (position: %d)", task.TaskId, position)
+	log.Printf("📋 Task %s submitted and queued (position: %d, k=%.1f)", task.TaskId, position, slaMultiplier)
 
 	return &pb.TaskAck{
 		Success: true,

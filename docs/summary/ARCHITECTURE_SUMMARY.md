@@ -33,10 +33,12 @@ Central orchestrator for the distributed system - manages workers, assigns tasks
 - Starts WebSocket server (port 8080)
 - Launches interactive CLI
 
-**`internal/server/`** (Core Logic - 624 lines)
-- `MasterServer`: 15+ RPC handlers
+**`internal/server/`** (Core Logic - 1306 lines)
+- `MasterServer`: 20+ RPC handlers
 - Worker registry (in-memory + MongoDB)
-- Task assignment logic
+- **Task queuing system** (FIFO with retry logic)
+- **Pluggable scheduler interface** (Round-Robin implemented)
+- **Resource tracking** (allocated/available CPU, Memory, GPU, Storage)
 - Authorization enforcement
 - Stream coordination
 
@@ -61,8 +63,15 @@ Central orchestrator for the distributed system - manages workers, assigns tasks
 **`internal/db/`** (Persistence - 5 files)
 - 5 collections: USERS, WORKER_REGISTRY, TASKS, ASSIGNMENTS, RESULTS
 - CRUD operations for each entity
+- **Resource allocation tracking** in WORKER_REGISTRY
 - MongoDB connection pooling
 - Graceful error handling
+
+**`internal/scheduler/`** (Task Scheduling - 2 files)
+- **Scheduler interface:** Pluggable scheduling algorithms
+- **Round-Robin implementation:** Cycle through available workers
+- **Resource-aware selection:** Checks CPU, Memory, GPU, Storage availability
+- Extensible for SLA-aware, load-based, energy-efficient algorithms
 
 **`internal/config/`** (Configuration)
 - Environment variable loading
@@ -273,12 +282,15 @@ Worker: Launch goroutine for execution
 ```
 Layer 1: In-Memory (fast read/write)
   - Worker registry map
+  - Resource tracking (allocated/available)
   - Running task tracking
+  - Task queue (FIFO with retries)
 
 Layer 2: MongoDB (persistent)
   - Worker metadata
   - Task history
   - Results with logs
+  - Resource allocation state
 
 Layer 3: Container State (runtime)
   - Docker daemon
@@ -289,6 +301,35 @@ Layer 3: Container State (runtime)
 - Fast access for hot data
 - Durability for important data
 - Clear separation of concerns
+- Resource tracking prevents oversubscription
+
+---
+
+### 6. **Pluggable Scheduler Architecture**
+```
+Scheduler Interface
+  ↓
+├── Round-Robin (implemented)
+│   - Cycles through workers
+│   - Resource-aware filtering
+│   - Deterministic ordering
+│
+├── SLA-Aware (planned - Day 1-14)
+│   - Deadline-based prioritization
+│   - Risk minimization
+│   - GA-optimized parameters
+│
+└── Load-Based (future)
+    - CPU/Memory utilization
+    - Task distribution
+    - Energy efficiency
+```
+
+**Benefits:**
+- Easy to add new scheduling algorithms
+- No code changes to master server
+- Consistent worker selection interface
+- A/B testing different strategies
 
 ---
 
@@ -317,11 +358,26 @@ Worker starts heartbeats (every 5s)
 
 ### Pattern 2: Task Execution Flow
 ```
-CLI: task worker-1 ubuntu:latest
+CLI: task ubuntu:latest "echo hello"
   ↓
-Master stores in TASKS (pending)
+Master creates Task (generates ID)
+  ↓
+Master adds to TASK QUEUE (QueuedTask)
+  ↓
+Queue Processor (every 5s):
+  - Calls scheduler.SelectWorker(task, workers)
+  - Round-Robin finds suitable worker
+  - Checks resource availability (CPU, Memory, GPU, Storage)
+  ↓
+Selected worker found
+  ↓
+Master stores in TASKS (queued/pending)
   ↓
 Master → Worker: AssignTask RPC
+  ↓
+Master allocates resources (decrements Available, increments Allocated)
+  ↓
+Master updates TASKS (running) and ASSIGNMENTS
   ↓
 Worker ACK + launch executeTask() goroutine
   ↓
@@ -331,6 +387,8 @@ Executor.ExecuteTask()
   - Start, collect logs, wait
   ↓
 Worker → Master: ReportTaskCompletion RPC
+  ↓
+Master releases resources (increments Available, decrements Allocated)
   ↓
 Master updates TASKS (completed/failed)
 Master stores in RESULTS with logs
@@ -469,16 +527,16 @@ Terminal displays line-by-line
 
 ### Current Limitations
 1. **No TLS:** Plain gRPC (security risk)
-2. **No Load Balancing:** Manual worker selection
-3. **No Task Queuing:** Direct assignment only
-4. **Simplified GPU Support:** Needs nvidia-docker integration
-5. **No User Auth:** USERS table unused
-6. **No HA:** Single master (SPOF)
+2. **No User Auth:** USERS table unused
+3. **No HA:** Single master (SPOF)
+4. **Basic Scheduler:** Only Round-Robin implemented
+5. **Simplified GPU Support:** Needs nvidia-docker integration
+6. **No Priority Queuing:** FIFO queue only
 
 ### Recommended Enhancements
 1. **Security:** Enable TLS for gRPC and WebSocket
-2. **Scheduler:** Implement load-based worker selection
-3. **Queue:** Add task queue with priority
+2. **Advanced Schedulers:** Implement SLA-aware, load-based, energy-efficient schedulers
+3. **Priority Queue:** Add task priority and deadline support
 4. **Multi-Master:** Leader election for HA
 5. **Metrics:** Prometheus exporter
 6. **Alerting:** Integrate with alerting systems
@@ -543,18 +601,22 @@ Terminal displays line-by-line
 ✅ Concurrent, non-blocking design  
 ✅ Flexible worker discovery  
 ✅ Resource enforcement via Docker  
+✅ **Task queuing system with automatic retry**  
+✅ **Pluggable scheduler architecture**  
+✅ **Resource tracking prevents oversubscription**  
 
 ### What Needs Work
 ⚠️ Security hardening (TLS, authentication)  
-⚠️ Automated scheduling logic  
+⚠️ Advanced scheduling algorithms (SLA-aware, load-based)  
+⚠️ Priority queuing and deadline support  
 ⚠️ High availability and failover  
 ⚠️ Comprehensive testing  
 ⚠️ Production-grade error recovery  
 ⚠️ Metrics and alerting integration  
 
 ### Production Readiness
-**Current State:** 70% ready for production  
-**Blockers:** TLS, authentication, HA  
+**Current State:** 75% ready for production  
+**Blockers:** TLS, authentication, HA, advanced schedulers  
 **Recommended Timeline:** 2-4 weeks for production hardening  
 
 ---

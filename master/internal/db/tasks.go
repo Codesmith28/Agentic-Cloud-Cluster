@@ -14,18 +14,19 @@ import (
 
 // Task represents a task in the database
 type Task struct {
-	TaskID      string    `bson:"task_id"`
-	UserID      string    `bson:"user_id"`
-	DockerImage string    `bson:"docker_image"`
-	Command     string    `bson:"command"`
-	ReqCPU      float64   `bson:"req_cpu"`
-	ReqMemory   float64   `bson:"req_memory"`
-	ReqStorage  float64   `bson:"req_storage"`
-	ReqGPU      float64   `bson:"req_gpu"`
-	Status      string    `bson:"status"` // pending, running, completed, failed
-	CreatedAt   time.Time `bson:"created_at"`
-	StartedAt   time.Time `bson:"started_at,omitempty"`
-	CompletedAt time.Time `bson:"completed_at,omitempty"`
+	TaskID        string    `bson:"task_id"`
+	UserID        string    `bson:"user_id"`
+	DockerImage   string    `bson:"docker_image"`
+	Command       string    `bson:"command"`
+	ReqCPU        float64   `bson:"req_cpu"`
+	ReqMemory     float64   `bson:"req_memory"`
+	ReqStorage    float64   `bson:"req_storage"`
+	ReqGPU        float64   `bson:"req_gpu"`
+	SLAMultiplier float64   `bson:"sla_multiplier"` // k value: 1.5-2.5, default: 2.0
+	Status        string    `bson:"status"`         // pending, running, completed, failed
+	CreatedAt     time.Time `bson:"created_at"`
+	StartedAt     time.Time `bson:"started_at,omitempty"`
+	CompletedAt   time.Time `bson:"completed_at,omitempty"`
 }
 
 // TaskDB handles task-related database operations

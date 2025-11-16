@@ -50,10 +50,11 @@ CloudAI is a distributed computing platform that orchestrates Docker-based task 
 6. Create MasterServer with all dependencies
 7. Set master ID and address
 8. Load pre-registered workers from database
-9. Start gRPC server on port 50051 (background goroutine)
-10. Start HTTP/WebSocket telemetry server on port 8080 (optional)
-11. Set up graceful shutdown handlers (SIGINT, SIGTERM)
-12. Start interactive CLI (blocking)
+9. **Start task queue processor** (background scheduling)
+10. Start gRPC server on port 50051 (background goroutine)
+11. Start HTTP/WebSocket telemetry server on port 8080 (optional)
+12. Set up graceful shutdown handlers (SIGINT, SIGTERM)
+13. Start interactive CLI (blocking)
 ```
 
 **Key Dependencies:**
@@ -62,6 +63,7 @@ CloudAI is a distributed computing platform that orchestrates Docker-based task 
 - `db.EnsureCollections()`
 - `telemetry.NewTelemetryManager()`
 - `server.NewMasterServer()`
+- **`server.StartQueueProcessor()`**
 
 ---
 
@@ -80,7 +82,183 @@ CloudAI is a distributed computing platform that orchestrates Docker-based task 
 **Working:**
 - Creates in-memory worker registry (map)
 - Initializes task channel (buffered, size 100)
+- **Creates task queue** (slice of QueuedTask)
+- **Initializes Round-Robin scheduler** (default)
 - Stores database and telemetry manager references
+
+---
+
+#### **NEW: Task Queue System**
+
+#### `QueuedTask` struct
+**Fields:**
+- `Task *pb.Task` - The actual task
+- `QueuedAt time.Time` - When task was queued
+- `Retries int` - Number of scheduling attempts
+- `LastError string` - Last failure reason
+
+**Purpose:** Track tasks waiting for resources
+
+---
+
+#### `StartQueueProcessor()`
+**Purpose:** Start background task queue processor
+
+**Working:**
+```
+1. Create 5-second ticker
+2. Launch goroutine calling processQueue()
+3. Log startup
+```
+
+**Background Processing:** Runs continuously, tries to schedule queued tasks
+
+---
+
+#### `StopQueueProcessor()`
+**Purpose:** Stop the queue processor gracefully
+
+**Working:**
+```
+1. Stop ticker
+2. Goroutine exits on next tick
+3. Log shutdown
+```
+
+---
+
+#### `processQueue()`
+**Purpose:** Main scheduler loop - assigns queued tasks to workers
+
+**Working:**
+```
+1. On each 5-second tick:
+   a. Lock task queue
+   b. If queue empty: continue
+   c. For each queued task:
+      i. Call selectWorkerForTask() (uses scheduler)
+      ii. If no worker available:
+          - Increment retries
+          - Keep in queue
+          - Log every 1st and 10th retry
+      iii. If worker found:
+          - Set Task.TargetWorkerId
+          - Call assignTaskToWorker()
+          - If success: Remove from queue
+          - If fail: Keep in queue, increment retries
+   d. Update queue with remaining tasks
+   e. Unlock queue
+```
+
+**Retry Logic:** Tasks stay in queue until resources available
+
+---
+
+#### `selectWorkerForTask(task *pb.Task) string`
+**Purpose:** Use scheduler to find best worker for task
+
+**Working:**
+```
+1. Get all workers from registry
+2. Convert WorkerState → scheduler.WorkerInfo:
+   - WorkerID, IsActive, WorkerIP
+   - AvailableCPU, AvailableMemory, AvailableStorage, AvailableGPU
+3. Call scheduler.SelectWorker(task, workerInfos)
+4. Return selected worker ID (or "" if none suitable)
+```
+
+**Scheduler Integration:** Pluggable - currently uses Round-Robin
+
+---
+
+#### `addTaskToQueue(task *pb.Task)`
+**Purpose:** Add task to queue for scheduling
+
+**Working:**
+```
+1. Lock queue
+2. Create QueuedTask:
+   - Task = task
+   - QueuedAt = now
+   - Retries = 0
+   - LastError = ""
+3. Append to taskQueue
+4. Unlock queue
+5. Log task queued
+```
+
+---
+
+#### `GetQueueStatus() []*QueuedTask`
+**Purpose:** Get snapshot of current queue (for CLI)
+
+**Working:**
+```
+1. Lock queue (read)
+2. Create copy of taskQueue
+3. Unlock
+4. Return copy
+```
+
+---
+
+#### **MODIFIED: WorkerState struct**
+**NEW Fields added:**
+```go
+// Resource tracking
+AllocatedCPU     float64  // CPU allocated to tasks
+AllocatedMemory  float64  // Memory allocated to tasks
+AllocatedStorage float64  // Storage allocated to tasks
+AllocatedGPU     float64  // GPU allocated to tasks
+AvailableCPU     float64  // CPU still available
+AvailableMemory  float64  // Memory still available
+AvailableStorage float64  // Storage still available
+AvailableGPU     float64  // GPU still available
+```
+
+**Purpose:** Track resource allocation to prevent oversubscription
+
+---
+
+#### `assignTaskToWorker(ctx, task, workerID) (*pb.TaskAck, error)`
+**Purpose:** Assign task to specific worker (called by queue processor)
+
+**Input:**
+- `ctx context.Context`
+- `task *pb.Task`
+- `workerID string`
+
+**Output:** TaskAck and error
+
+**Working:**
+```
+1. Lock worker registry
+2. Get worker state
+3. **Allocate resources:**
+   a. worker.AllocatedCPU += task.ReqCpu
+   b. worker.AllocatedMemory += task.ReqMemory
+   c. worker.AllocatedStorage += task.ReqStorage
+   d. worker.AllocatedGPU += task.ReqGpu
+   e. worker.AvailableCPU -= task.ReqCpu
+   f. worker.AvailableMemory -= task.ReqMemory
+   g. worker.AvailableStorage -= task.ReqStorage
+   h. worker.AvailableGPU -= task.ReqGpu
+4. Unlock registry
+5. Store task in TASKS database (status: pending)
+6. Connect to worker via gRPC
+7. Call worker.AssignTask RPC
+8. If success:
+   a. Update TASKS (status: running)
+   b. Create ASSIGNMENT record
+   c. Add to worker.RunningTasks
+9. If failure:
+   a. **Release allocated resources** (reverse step 3)
+   b. Update TASKS (status: failed)
+   c. Return error
+10. Return acknowledgment
+```
+
+**Resource Management:** Ensures workers don't get oversubscribed
 
 ---
 
@@ -234,11 +412,11 @@ CloudAI is a distributed computing platform that orchestrates Docker-based task 
 ---
 
 #### `ReportTaskCompletion(ctx, *pb.TaskResult) (*pb.Ack, error)`
-**Purpose:** Receive task completion from worker
+**Purpose:** Receive task completion from worker and release resources
 
 **Input:** `*pb.TaskResult` containing:
 - `task_id, worker_id string`
-- `status string` (success/failed)
+- `status string` (success/failed/cancelled)
 - `logs string`
 - `result_location string`
 
@@ -247,14 +425,28 @@ CloudAI is a distributed computing platform that orchestrates Docker-based task 
 **Working:**
 ```
 1. Log task completion details
-2. Update task status in TASKS collection
-3. Remove from worker's RunningTasks map
-4. Store result in RESULTS collection with:
+2. Get task info from TASKS (to retrieve resource requirements)
+3. **Release allocated resources:**
+   a. worker.AllocatedCPU -= task.ReqCPU
+   b. worker.AllocatedMemory -= task.ReqMemory
+   c. worker.AllocatedStorage -= task.ReqStorage
+   d. worker.AllocatedGPU -= task.ReqGPU
+   e. worker.AvailableCPU += task.ReqCPU
+   f. worker.AvailableMemory += task.ReqMemory
+   g. worker.AvailableStorage += task.ReqStorage
+   h. worker.AvailableGPU += task.ReqGPU
+   i. Ensure non-negative (safety check)
+4. Update database with released resources
+5. Remove from worker's RunningTasks map
+6. Update task status in TASKS collection (completed/failed/cancelled)
+7. Store result in RESULTS collection with:
    - task_id, worker_id, status
    - logs (full execution logs)
    - completed_at timestamp
-5. Return acknowledgment
+8. Return acknowledgment
 ```
+
+**Resource Management:** Frees resources so queue processor can assign new tasks
 
 ---
 
@@ -1111,6 +1303,147 @@ Loop:
 3. Fallback to first available
 4. Default to "localhost"
 ```
+
+---
+
+### 9. Scheduler Layer (`master/internal/scheduler/`)
+
+#### `Scheduler` Interface (`scheduler.go`)
+
+**Purpose:** Define contract for all scheduling algorithms
+
+**Methods:**
+```go
+SelectWorker(task *pb.Task, workers map[string]*WorkerInfo) string
+GetName() string
+Reset()
+```
+
+**Design Pattern:** Strategy pattern - allows swapping algorithms without changing master server
+
+---
+
+#### `WorkerInfo` struct
+**Fields:**
+- `WorkerID string`
+- `IsActive bool`
+- `WorkerIP string`
+- `AvailableCPU float64`
+- `AvailableMemory float64`
+- `AvailableStorage float64`
+- `AvailableGPU float64`
+
+**Purpose:** Simplified worker view for scheduler (read-only)
+
+---
+
+#### `RoundRobinScheduler` (`round_robin.go`)
+
+**Purpose:** Simple round-robin task distribution
+
+**Fields:**
+- `lastWorkerIndex int` - Index of last selected worker
+- `mu sync.Mutex` - Thread-safe access
+
+---
+
+#### `NewRoundRobinScheduler() *RoundRobinScheduler`
+**Output:** Initialized scheduler
+
+**Working:**
+```
+1. Create scheduler
+2. Set lastWorkerIndex = -1 (no selection yet)
+```
+
+---
+
+#### `SelectWorker(task *pb.Task, workers map[string]*WorkerInfo) string`
+**Purpose:** Select next worker in round-robin order
+
+**Input:**
+- `task *pb.Task` - Task to schedule
+- `workers map[string]*WorkerInfo` - Available workers
+
+**Output:** `string` - Selected worker ID (or "" if none suitable)
+
+**Working:**
+```
+1. Lock mutex (thread-safe)
+2. If no workers available: return ""
+3. Create sorted list of worker IDs (deterministic ordering):
+   - Extract all worker IDs
+   - Sort alphabetically (bubble sort)
+4. Calculate start index: (lastWorkerIndex + 1) % len(workers)
+5. Try each worker in circular order:
+   a. Get worker info
+   b. Check if worker is suitable:
+      - IsActive = true
+      - WorkerIP not empty
+      - AvailableCPU >= task.ReqCpu
+      - AvailableMemory >= task.ReqMemory
+      - AvailableStorage >= task.ReqStorage
+      - AvailableGPU >= task.ReqGpu
+   c. If suitable:
+      - Update lastWorkerIndex
+      - Log selection
+      - Return worker ID
+6. If no suitable worker: return ""
+7. Unlock mutex
+```
+
+**Fairness:** Cycles through workers, checks resource availability
+
+---
+
+#### `isWorkerSuitable(worker *WorkerInfo, task *pb.Task) bool`
+**Purpose:** Check if worker can handle task
+
+**Working:**
+```
+1. Check IsActive
+2. Check WorkerIP configured
+3. Check each resource:
+   - CPU: available >= required
+   - Memory: available >= required
+   - Storage: available >= required
+   - GPU: available >= required
+4. Return true only if all checks pass
+```
+
+---
+
+#### `Reset()`
+**Purpose:** Reset scheduler state (for testing)
+
+**Working:**
+```
+1. Lock mutex
+2. Set lastWorkerIndex = -1
+3. Unlock mutex
+```
+
+---
+
+#### `GetName() string`
+**Output:** "Round-Robin"
+
+**Purpose:** Identify scheduler algorithm (for logging/debugging)
+
+---
+
+#### `sortWorkerIDs(ids []string)`
+**Purpose:** Sort worker IDs for deterministic ordering
+
+**Working:**
+```
+1. Bubble sort implementation
+2. Compare adjacent strings
+3. Swap if out of order
+4. Repeat until sorted
+```
+
+**Why Sorting:** Ensures consistent worker order across restarts
 
 ---
 

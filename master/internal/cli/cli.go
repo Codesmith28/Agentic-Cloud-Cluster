@@ -453,6 +453,7 @@ func (c *CLI) submitTask(parts []string) {
 	reqMemory := 0.5
 	reqStorage := 1.0
 	reqGPU := 0.0
+	slaMultiplier := 2.0 // Default k value
 
 	// Parse flags
 	for i := 2; i < len(parts); i++ {
@@ -485,6 +486,18 @@ func (c *CLI) submitTask(parts []string) {
 					i++ // Skip the value
 				}
 			}
+		case "-k", "-sla":
+			if i+1 < len(parts) {
+				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+					// Validate k is between 1.5 and 2.5
+					if val >= 1.5 && val <= 2.5 {
+						slaMultiplier = val
+					} else {
+						fmt.Printf("⚠️  Warning: SLA multiplier (-k) must be between 1.5 and 2.5. Using default: 2.0\n")
+					}
+					i++ // Skip the value
+				}
+			}
 		}
 	}
 
@@ -507,6 +520,9 @@ func (c *CLI) submitTask(parts []string) {
 	fmt.Printf("    • Memory:        %.2f GB\n", reqMemory)
 	fmt.Printf("    • Storage:       %.2f GB\n", reqStorage)
 	fmt.Printf("    • GPU Cores:     %.2f cores\n", reqGPU)
+	fmt.Println("───────────────────────────────────────────────────────")
+	fmt.Println("  SLA Configuration:")
+	fmt.Printf("    • SLA Multiplier (k): %.1f (Deadline = k × τ)\n", slaMultiplier)
 	fmt.Println("───────────────────────────────────────────────────────")
 	fmt.Println("  Note: Scheduler will automatically select best worker")
 	fmt.Println("═══════════════════════════════════════════════════════")
