@@ -1,0 +1,24 @@
+{
+    "Theta": {
+        "Theta1": 0.1,
+        "Theta2": 0.1,
+        "Theta3": 0.3,
+        "Theta4": 0.2
+    },
+    "Risk": {
+        "Alpha": 10,
+        "Beta": 1
+    },
+    "AffinityW": {
+        "A1": 1,
+        "A2": 2,
+        "A3": 0.5
+    },
+    "PenaltyW": {
+        "G1": 2,
+        "G2": 1,
+        "G3": 0.5
+    },
+    "AffinityMatrix": {},
+    "PenaltyVector": {}
+}
