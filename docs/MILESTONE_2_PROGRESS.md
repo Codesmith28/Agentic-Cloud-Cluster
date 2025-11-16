@@ -2,7 +2,7 @@
 
 **Date**: November 16, 2025  
 **Milestone**: Runtime & Deadline Management  
-**Status**: 80% Complete (4/5 tasks)
+**Status**: ✅ **100% COMPLETE** (5/5 tasks)
 
 ---
 
@@ -23,19 +23,15 @@ Enhanced SubmitTask to compute deadlines using tau
 
 Captures worker load when task is assigned
 
-### Task 2.4: Update Tau on Completion ⭐️
-**Status**: ✅ Complete | **Tests**: 12 passing (all fixed)
+### Task 2.4: Update Tau on Completion
+**Status**: ✅ Complete | **Tests**: 12 passing
 
 Learns from actual task runtimes using EMA
 
-**Just Completed**: All 12 tests now passing after fixing MockTauStore
+### Task 2.5: Compute and Store SLA Success ⭐️
+**Status**: ✅ Complete | **Tests**: 9 passing (just completed)
 
----
-
-## ⏳ Task 2.5: Compute and Store SLA Success
-
-**Status**: Ready to start  
-**Estimated Time**: 1-2 hours
+Computes and stores SLA success/violation for each task completion
 
 ---
 
@@ -47,10 +43,15 @@ Learns from actual task runtimes using EMA
 | 2.2 | 10 | ✅ PASS |
 | 2.3 | 10 | ✅ PASS |
 | 2.4 | 12 | ✅ PASS |
-| **Total** | **55** | ✅ **ALL PASS** |
+| 2.5 | 9 | ✅ PASS |
+| **Total** | **64** | ✅ **ALL PASS** |
 
 ---
 
-**Next**: Implement Task 2.5 to complete Milestone 2 (80% → 100%)
+## 🎉 Milestone 2 Complete!
 
-See `TASK_2.4_TEST_FIX_SUMMARY.md` for details on test fixes.
+All tasks for Runtime & Deadline Management are implemented and tested.
+
+**Next**: Ready for Milestone 3 - RTS Scheduler Implementation
+
+See task-specific documentation for implementation details.

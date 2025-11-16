@@ -684,29 +684,59 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 		}
 	}
 
-	// Store result with logs in RESULTS collection
+	// Compute SLA Success (Task 2.5)
+	// Fetch task to get Deadline for SLA tracking and other metadata for tau update
+	var slaSuccess bool
+	var task *db.Task
+	if s.taskDB != nil {
+		var err error
+		task, err = s.taskDB.GetTask(context.Background(), result.TaskId)
+		if err != nil {
+			log.Printf("  ⚠ Warning: Failed to fetch task for SLA tracking: %v", err)
+			// Default to false if we can't fetch the task
+			slaSuccess = false
+		} else if !task.Deadline.IsZero() {
+			// Compare completion time with deadline
+			completionTime := time.Now()
+			slaSuccess = completionTime.Before(task.Deadline) || completionTime.Equal(task.Deadline)
+
+			if slaSuccess {
+				log.Printf("  ✅ SLA Success: Task completed at %s (deadline: %s)",
+					completionTime.Format(time.RFC3339), task.Deadline.Format(time.RFC3339))
+			} else {
+				delay := completionTime.Sub(task.Deadline)
+				log.Printf("  ❌ SLA Violation: Task completed %.2fs after deadline (deadline: %s)",
+					delay.Seconds(), task.Deadline.Format(time.RFC3339))
+			}
+		} else {
+			log.Printf("  ℹ No deadline set for task %s, marking SLA as not applicable", result.TaskId)
+			// If no deadline was set, we can't determine SLA success
+			// Could be an old task from before Task 2.2 implementation
+			slaSuccess = false
+		}
+	}
+
+	// Store result with logs and SLA success in RESULTS collection
 	if s.resultDB != nil {
 		taskResult := &db.TaskResult{
-			TaskID:   result.TaskId,
-			WorkerID: result.WorkerId,
-			Status:   result.Status,
-			Logs:     result.Logs,
+			TaskID:     result.TaskId,
+			WorkerID:   result.WorkerId,
+			Status:     result.Status,
+			Logs:       result.Logs,
+			SLASuccess: slaSuccess,
 		}
 		if err := s.resultDB.CreateResult(context.Background(), taskResult); err != nil {
 			log.Printf("  ⚠ Warning: Failed to store task result: %v", err)
 			// Don't fail here - status update is more critical
 		} else {
-			log.Printf("  ✓ Task result stored in RESULTS collection")
+			log.Printf("  ✓ Task result stored in RESULTS collection (SLA Success: %v)", slaSuccess)
 		}
 	}
 
 	// Update tau based on actual runtime (Task 2.4)
-	if s.tauStore != nil && s.taskDB != nil && result.Status == "success" {
-		// Fetch task to get TaskType and StartedAt
-		task, err := s.taskDB.GetTask(context.Background(), result.TaskId)
-		if err != nil {
-			log.Printf("  ⚠ Warning: Failed to fetch task for tau update: %v", err)
-		} else if task.TaskType != "" && !task.StartedAt.IsZero() {
+	if s.tauStore != nil && task != nil && result.Status == "success" {
+		// We already fetched the task above for SLA tracking, reuse it
+		if task.TaskType != "" && !task.StartedAt.IsZero() {
 			// Compute actual runtime (in seconds)
 			completionTime := time.Now()
 			actualRuntime := completionTime.Sub(task.StartedAt).Seconds()
