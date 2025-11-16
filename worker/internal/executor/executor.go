@@ -368,3 +368,15 @@ func (e *TaskExecutor) CancelTask(ctx context.Context, taskID string) error {
 func (e *TaskExecutor) GetLogStreamManager() *logstream.LogStreamManager {
 	return e.logStreamMgr
 }
+
+// GetRunningTasks returns a list of all currently running task IDs
+func (e *TaskExecutor) GetRunningTasks() []string {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	tasks := make([]string, 0, len(e.containers))
+	for taskID := range e.containers {
+		tasks = append(tasks, taskID)
+	}
+	return tasks
+}

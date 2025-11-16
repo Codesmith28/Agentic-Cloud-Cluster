@@ -86,7 +86,13 @@ func main() {
 
 	go func() {
 		<-sigChan
-		log.Println("\nShutting down worker...")
+		log.Println("\n╔═══════════════════════════════════════════════════════")
+		log.Println("║  Shutdown signal received - gracefully shutting down...")
+		log.Println("╚═══════════════════════════════════════════════════════")
+
+		// Report running tasks as failed before shutting down
+		workerServer.Shutdown()
+
 		monitor.Stop()
 		grpcServer.GracefulStop()
 		cancel()

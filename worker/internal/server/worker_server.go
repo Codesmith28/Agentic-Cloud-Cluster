@@ -352,6 +352,58 @@ func (s *WorkerServer) Close() error {
 	return s.executor.Close()
 }
 
+// Shutdown handles graceful shutdown by reporting all running tasks as failed
+func (s *WorkerServer) Shutdown() {
+	log.Println("╔═══════════════════════════════════════════════════════")
+	log.Println("║  Worker Shutdown - Cleaning up running tasks...")
+	log.Println("╚═══════════════════════════════════════════════════════")
+
+	// Get all running tasks
+	runningTasks := s.executor.GetRunningTasks()
+
+	if len(runningTasks) == 0 {
+		log.Println("  ✓ No running tasks to clean up")
+		return
+	}
+
+	log.Printf("  Found %d running task(s) to report as failed", len(runningTasks))
+
+	s.mu.RLock()
+	masterAddr := s.masterAddr
+	s.mu.RUnlock()
+
+	if masterAddr == "" {
+		log.Println("  ⚠ No master address - cannot report task failures")
+		return
+	}
+
+	// Report each task as failed to master
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	for _, taskID := range runningTasks {
+		log.Printf("  📤 Reporting task %s as failed due to worker shutdown...", taskID)
+
+		taskResult := &pb.TaskResult{
+			TaskId:         taskID,
+			WorkerId:       s.workerID,
+			Status:         "failed",
+			Logs:           "Task failed: Worker was terminated while task was running",
+			ResultLocation: "",
+		}
+
+		if err := telemetry.ReportTaskResult(ctx, masterAddr, taskResult); err != nil {
+			log.Printf("  ⚠ Failed to report task %s: %v", taskID, err)
+		} else {
+			log.Printf("  ✓ Successfully reported task %s as failed", taskID)
+		}
+	}
+
+	log.Println("╔═══════════════════════════════════════════════════════")
+	log.Println("║  Task cleanup complete")
+	log.Println("╚═══════════════════════════════════════════════════════")
+}
+
 // Not implemented RPCs (worker doesn't receive these)
 func (s *WorkerServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) (*pb.RegisterAck, error) {
 	return &pb.RegisterAck{Success: false, Message: "Not applicable"}, nil
