@@ -148,11 +148,24 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 
 **Port:** 8080 (configurable via `HTTP_PORT`)
 
-**REST Endpoints:**
+**REST Endpoints - Telemetry:**
 - `GET /health` - Health check
-- `GET /telemetry` - All workers telemetry
-- `GET /telemetry/{workerID}` - Specific worker telemetry
-- `GET /workers` - Workers list
+- `GET /telemetry` - All workers telemetry (JSON snapshot)
+- `GET /telemetry/{workerID}` - Specific worker telemetry (JSON snapshot)
+- `GET /workers` - Workers list with basic info
+
+**REST Endpoints - Task Management:**
+- `POST /api/tasks` - Submit new task
+- `GET /api/tasks` - List all tasks (supports ?status= filter)
+- `GET /api/tasks/{id}` - Get task details
+- `DELETE /api/tasks/{id}` - Cancel task
+- `GET /api/tasks/{id}/logs` - Get task logs
+
+**REST Endpoints - Worker Management:**
+- `GET /api/workers` - List all workers with telemetry
+- `GET /api/workers/{id}` - Get worker details
+- `GET /api/workers/{id}/metrics` - Get worker resource metrics
+- `GET /api/workers/{id}/tasks` - Get tasks assigned to worker
 
 **WebSocket Endpoints:**
 - `WS /ws/telemetry` - Real-time telemetry stream (all workers)
@@ -163,7 +176,7 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 #### Task Submission Flow
 
 ```
-1. User submits task via CLI
+1. User submits task via CLI or REST API
    ↓
 2. Master validates task and stores in MongoDB
    ↓
@@ -1018,6 +1031,282 @@ Get basic info for all workers.
   "worker-2": { ... }
 }
 ```
+
+---
+
+#### POST /api/tasks
+
+Submit a new task for execution.
+
+**Request Body:**
+```json
+{
+  "docker_image": "ubuntu:latest",
+  "command": "echo 'Hello World'",
+  "cpu_required": 1.0,
+  "memory_required": 512.0,
+  "gpu_required": 0.0,
+  "storage_required": 1024.0,
+  "user_id": "user123"
+}
+```
+
+**Response:**
+```json
+{
+  "task_id": "task-1731677400123456789",
+  "status": "queued",
+  "message": "Task submitted successfully. Queue position: 1. Scheduler will assign it to an available worker."
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8080/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "docker_image": "ubuntu:latest",
+    "command": "echo hello",
+    "cpu_required": 1.0,
+    "memory_required": 512.0
+  }'
+```
+
+---
+
+#### GET /api/tasks
+
+List all tasks with optional status filtering.
+
+**Query Parameters:**
+- `status` (optional): Filter by task status (pending, queued, running, completed, failed)
+
+**Response:**
+```json
+[
+  {
+    "task_id": "task-123",
+    "docker_image": "ubuntu:latest",
+    "command": "echo hello",
+    "status": "running",
+    "user_id": "user123",
+    "cpu_required": 1.0,
+    "memory_required": 512.0,
+    "gpu_required": 0.0,
+    "storage_required": 1024.0,
+    "created_at": 1731677400
+  }
+]
+```
+
+**Examples:**
+```bash
+# List all tasks
+curl http://localhost:8080/api/tasks | jq
+
+# Filter by status
+curl http://localhost:8080/api/tasks?status=running | jq
+```
+
+---
+
+#### GET /api/tasks/{id}
+
+Get detailed information about a specific task.
+
+**Response:**
+```json
+{
+  "task_id": "task-123",
+  "docker_image": "ubuntu:latest",
+  "command": "echo hello",
+  "status": "completed",
+  "user_id": "user123",
+  "cpu_required": 1.0,
+  "memory_required": 512.0,
+  "gpu_required": 0.0,
+  "storage_required": 1024.0,
+  "created_at": 1731677400,
+  "assignment": {
+    "worker_id": "worker-1",
+    "assigned_at": 1731677410
+  },
+  "result": {
+    "status": "completed",
+    "completed_at": 1731677420,
+    "logs": "Hello World\n"
+  }
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8080/api/tasks/task-123 | jq
+```
+
+---
+
+#### DELETE /api/tasks/{id}
+
+Cancel a running or queued task.
+
+**Response:**
+```json
+{
+  "task_id": "task-123",
+  "status": "cancelled",
+  "message": "Task cancellation requested"
+}
+```
+
+**Example:**
+```bash
+curl -X DELETE http://localhost:8080/api/tasks/task-123
+```
+
+---
+
+#### GET /api/tasks/{id}/logs
+
+Get stored logs for a completed task.
+
+**Response:**
+```json
+{
+  "task_id": "task-123",
+  "logs": "Hello World\nTask completed successfully\n",
+  "status": "completed",
+  "completed_at": 1731677420
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8080/api/tasks/task-123/logs | jq
+```
+
+---
+
+#### GET /api/workers
+
+List all workers with current telemetry.
+
+**Response:**
+```json
+[
+  {
+    "worker_id": "worker-1",
+    "is_active": true,
+    "cpu_usage": 45.2,
+    "memory_usage": 62.1,
+    "gpu_usage": 15.3,
+    "running_tasks_count": 2,
+    "last_update": 1731677400
+  }
+]
+```
+
+**Example:**
+```bash
+curl http://localhost:8080/api/workers | jq
+```
+
+---
+
+#### GET /api/workers/{id}
+
+Get detailed information about a specific worker.
+
+**Response:**
+```json
+{
+  "worker_id": "worker-1",
+  "is_active": true,
+  "cpu_usage": 45.2,
+  "memory_usage": 62.1,
+  "gpu_usage": 15.3,
+  "running_tasks": [
+    {
+      "task_id": "task-123",
+      "cpu_allocated": 1.0,
+      "memory_allocated": 512.0,
+      "gpu_allocated": 0.0,
+      "status": "running"
+    }
+  ],
+  "last_update": 1731677400,
+  "worker_info": {
+    "worker_id": "worker-1",
+    "worker_ip": "192.168.1.100",
+    "total_cpu": 8.0,
+    "total_memory": 16384.0,
+    "total_storage": 512000.0,
+    "total_gpu": 1.0,
+    "registered_at": 1731600000,
+    "last_heartbeat": 1731677400
+  }
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8080/api/workers/worker-1 | jq
+```
+
+---
+
+#### GET /api/workers/{id}/metrics
+
+Get current resource metrics for a specific worker.
+
+**Response:**
+```json
+{
+  "worker_id": "worker-1",
+  "cpu_usage": 45.2,
+  "memory_usage": 62.1,
+  "gpu_usage": 15.3,
+  "is_active": true,
+  "last_update": 1731677400,
+  "timestamp": 1731677400
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8080/api/workers/worker-1/metrics | jq
+```
+
+---
+
+#### GET /api/workers/{id}/tasks
+
+Get all tasks assigned to a specific worker.
+
+**Response:**
+```json
+{
+  "worker_id": "worker-1",
+  "tasks": [
+    {
+      "task_id": "task-123",
+      "assigned_at": 1731677410
+    },
+    {
+      "task_id": "task-456",
+      "assigned_at": 1731677420
+    }
+  ],
+  "count": 2
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8080/api/workers/worker-1/tasks | jq
+```
+
+---
 
 ### 7.3 WebSocket API
 

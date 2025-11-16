@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"master/internal/db"
 	"master/internal/server"
 	pb "master/proto"
 )
@@ -68,6 +69,16 @@ func (c *CLI) Run() {
 				continue
 			}
 			c.liveInternalState()
+		case "fix-resources":
+			c.reconcileResources()
+		case "list-tasks":
+			if len(parts) < 2 {
+				// No status provided - show all tasks categorically
+				c.listAllTasksCategorically()
+			} else {
+				// Status provided - show tasks for that specific status
+				c.listTasksByStatus(parts[1])
+			}
 		case "register":
 			if len(parts) < 3 {
 				fmt.Println("Usage: register <worker_id> <worker_ip:port>")
@@ -96,19 +107,30 @@ func (c *CLI) Run() {
 				continue
 			}
 			c.submitTask(parts)
-		case "monitor":
-			if len(parts) < 2 {
-				fmt.Println("Usage: monitor <task_id> [user_id]")
-				fmt.Println("  task_id: ID of the task to monitor")
-				fmt.Println("  user_id: (optional) User ID for authorization (default: admin)")
-				fmt.Println("Example: monitor task-123 user-1")
+		case "dispatch":
+			if len(parts) < 3 {
+				fmt.Println("Usage: dispatch <worker_id> <docker_image> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]")
+				fmt.Println("  worker_id: Specific worker to dispatch task to")
+				fmt.Println("  docker_image: Docker image to run")
+				fmt.Println("  -cpu_cores: CPU cores to allocate (default: 1.0)")
+				fmt.Println("  -mem: Memory in GB (default: 0.5)")
+				fmt.Println("  -storage: Storage in GB (default: 1.0)")
+				fmt.Println("  -gpu_cores: GPU cores to allocate (default: 0.0)")
+				fmt.Println("\nNote: This bypasses the scheduler and directly assigns to the specified worker.")
+				fmt.Println("\nExamples:")
+				fmt.Println("  dispatch worker-1 docker.io/user/sample-task:latest")
+				fmt.Println("  dispatch worker-2 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0")
 				continue
 			}
-			userID := "admin"
-			if len(parts) >= 3 {
-				userID = parts[2]
+			c.dispatchTask(parts)
+		case "monitor":
+			if len(parts) < 2 {
+				fmt.Println("Usage: monitor <task_id>")
+				fmt.Println("  task_id: ID of the task to monitor")
+				fmt.Println("Example: monitor task-123")
+				continue
 			}
-			c.monitorTask(parts[1], userID)
+			c.monitorTask(parts[1])
 		case "cancel":
 			if len(parts) < 2 {
 				fmt.Println("Usage: cancel <task_id>")
@@ -142,10 +164,13 @@ func (c *CLI) printHelp() {
 	fmt.Println("  workers                        - List all registered workers")
 	fmt.Println("  stats <worker_id>              - Show detailed stats for a worker")
 	fmt.Println("  internal-state                 - Dump complete in-memory state of all workers")
+	fmt.Println("  fix-resources                  - Fix stale resource allocations")
+	fmt.Println("  list-tasks [status]            - List all tasks (or filter by: pending/running/completed/failed)")
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
 	fmt.Println("  task <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Submit task (scheduler selects worker)")
-	fmt.Println("  monitor <task_id> [user_id]    - Monitor live logs for a task (press any key to exit)")
+	fmt.Println("  dispatch <worker_id> <docker_img> [options]  - Dispatch task directly to specific worker (testing)")
+	fmt.Println("  monitor <task_id>              - Monitor live logs for a task (press any key to exit)")
 	fmt.Println("  cancel <task_id>               - Cancel a running task")
 	fmt.Println("  queue                          - Show pending tasks in the queue")
 	fmt.Println("  exit/quit                      - Shutdown master node")
@@ -155,7 +180,8 @@ func (c *CLI) printHelp() {
 	fmt.Println("  internal-state")
 	fmt.Println("  task docker.io/user/sample-task:latest")
 	fmt.Println("  task docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
-	fmt.Println("  monitor task-123 user-1")
+	fmt.Println("  dispatch worker-1 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0")
+	fmt.Println("  monitor task-123")
 	fmt.Println("  cancel task-123")
 	fmt.Println("  queue")
 }
@@ -282,9 +308,6 @@ func (c *CLI) showWorkerStats(workerID string) {
 	// ANSI escape codes
 	const clearLine = "\033[2K"
 
-	// Print initial view
-	fmt.Print("\n")
-
 	// Create a ticker for updates (refresh every 2 seconds)
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
@@ -299,16 +322,23 @@ func (c *CLI) showWorkerStats(workerID string) {
 		done <- true
 	}()
 
+	// Track if this is the first render
+	firstRender := true
+
 	// Function to render the worker stats
 	renderStats := func() {
 		worker, exists := c.masterServer.GetWorkerStats(workerID)
 		if !exists {
-			fmt.Print("\033[21A") // Move up
+			if !firstRender {
+				fmt.Print("\033[21A") // Move up
+			}
 			fmt.Print("\r")
 			for i := 0; i < 21; i++ {
 				fmt.Print(clearLine + "\r\n")
 			}
-			fmt.Print("\033[21A")
+			if !firstRender {
+				fmt.Print("\033[21A")
+			}
 			fmt.Println(clearLine + "\r❌ Worker disconnected or removed")
 			return
 		}
@@ -333,8 +363,13 @@ func (c *CLI) showWorkerStats(workerID string) {
 
 		// Move cursor up to the start of the stats box
 		// Box has 19 lines + 1 blank line + 1 instruction line = 21 lines total
-		fmt.Print("\033[21A")
-		fmt.Print("\r") // Move to beginning of line
+		// Only move cursor up if this is NOT the first render
+		if !firstRender {
+			fmt.Print("\033[21A")
+			fmt.Print("\r") // Move to beginning of line
+		} else {
+			fmt.Print("\n") // Add initial spacing
+		}
 
 		// Clear and redraw stats box (no right border)
 		fmt.Printf("%s╔═══════════════════════════════════════════════════\n", clearLine)
@@ -375,6 +410,11 @@ func (c *CLI) showWorkerStats(workerID string) {
 		fmt.Printf("%s╚═══════════════════════════════════════════════════", clearLine)
 		// Print instruction on the line after the box (stays fixed)
 		fmt.Print("\n\n(Press any key to exit)")
+
+		// Mark that first render is complete
+		if firstRender {
+			firstRender = false
+		}
 	}
 
 	// Initial render - call renderStats immediately to avoid "Loading..." flash
@@ -564,6 +604,113 @@ func (c *CLI) submitTaskToMaster(task *pb.Task) error {
 	return nil
 }
 
+// dispatchTask directly dispatches a task to a specific worker, bypassing the scheduler
+func (c *CLI) dispatchTask(parts []string) {
+	workerID := parts[1]
+	dockerImage := parts[2]
+
+	// Default resource requirements
+	reqCPU := 1.0
+	reqMemory := 0.5
+	reqStorage := 1.0
+	reqGPU := 0.0
+
+	// Parse flags (starting from index 3 since we have worker_id and docker_image)
+	for i := 3; i < len(parts); i++ {
+		switch parts[i] {
+		case "-cpu_cores":
+			if i+1 < len(parts) {
+				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+					reqCPU = val
+					i++ // Skip the value
+				}
+			}
+		case "-mem":
+			if i+1 < len(parts) {
+				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+					reqMemory = val
+					i++ // Skip the value
+				}
+			}
+		case "-storage":
+			if i+1 < len(parts) {
+				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+					reqStorage = val
+					i++ // Skip the value
+				}
+			}
+		case "-gpu_cores":
+			if i+1 < len(parts) {
+				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+					reqGPU = val
+					i++ // Skip the value
+				}
+			}
+		}
+	}
+
+	// Generate task ID
+	taskID := fmt.Sprintf("task-%d", time.Now().Unix())
+
+	// Command is empty - the container will use its default CMD/ENTRYPOINT
+	command := ""
+
+	// Display task details before sending
+	fmt.Println("\n═══════════════════════════════════════════════════════")
+	fmt.Println("  🎯 DISPATCHING TASK DIRECTLY TO WORKER")
+	fmt.Println("═══════════════════════════════════════════════════════")
+	fmt.Printf("  Task ID:           %s\n", taskID)
+	fmt.Printf("  Target Worker:     %s\n", workerID)
+	fmt.Printf("  Docker Image:      %s\n", dockerImage)
+	fmt.Println("───────────────────────────────────────────────────────")
+	fmt.Println("  Resource Requirements:")
+	fmt.Printf("    • CPU Cores:     %.2f cores\n", reqCPU)
+	fmt.Printf("    • Memory:        %.2f GB\n", reqMemory)
+	fmt.Printf("    • Storage:       %.2f GB\n", reqStorage)
+	fmt.Printf("    • GPU Cores:     %.2f cores\n", reqGPU)
+	fmt.Println("───────────────────────────────────────────────────────")
+	fmt.Println("  ⚠️  NOTE: Bypassing scheduler - dispatching directly!")
+	fmt.Println("═══════════════════════════════════════════════════════")
+
+	task := &pb.Task{
+		TaskId:      taskID,
+		DockerImage: dockerImage,
+		Command:     command,
+		ReqCpu:      reqCPU,
+		ReqMemory:   reqMemory,
+		ReqStorage:  reqStorage,
+		ReqGpu:      reqGPU,
+		UserId:      "admin", // Default user for CLI tasks
+	}
+
+	err := c.dispatchTaskToWorker(task, workerID)
+	if err != nil {
+		fmt.Printf("\n❌ Failed to dispatch task: %v\n", err)
+		return
+	}
+
+	fmt.Printf("\n✅ Task %s dispatched directly to worker %s!\n", taskID, workerID)
+	fmt.Println("    Use 'monitor <task_id>' command to view task logs")
+}
+
+// dispatchTaskToWorker dispatches a task directly to a specific worker
+func (c *CLI) dispatchTaskToWorker(task *pb.Task, workerID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Call the master server's internal method to assign task to specific worker
+	ack, err := c.masterServer.DispatchTaskToWorker(ctx, task, workerID)
+	if err != nil {
+		return fmt.Errorf("failed to dispatch task: %w", err)
+	}
+
+	if !ack.Success {
+		return fmt.Errorf("task dispatch failed: %s", ack.Message)
+	}
+
+	return nil
+}
+
 func (c *CLI) registerWorker(workerID, workerIP string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -634,7 +781,7 @@ func (c *CLI) cancelTask(taskID string) {
 	fmt.Printf("%s   %s%s\n", yellow, ack.Message, reset)
 }
 
-func (c *CLI) monitorTask(taskID, userID string) {
+func (c *CLI) monitorTask(taskID string) {
 	// ANSI escape codes for terminal control
 	const (
 		clearScreen = "\033[2J"
@@ -647,6 +794,16 @@ func (c *CLI) monitorTask(taskID, userID string) {
 		red         = "\033[31m"
 	)
 
+	// Get userID from task in database
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	userID, err := c.masterServer.GetUserIDForTask(ctx, taskID)
+	if err != nil {
+		fmt.Printf("\n%s❌ Failed to get task information: %v%s\n", red, err, reset)
+		return
+	}
+
 	// Clear screen and show header
 	fmt.Print(clearScreen + moveCursor)
 	fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, cyan, reset)
@@ -658,8 +815,8 @@ func (c *CLI) monitorTask(taskID, userID string) {
 	fmt.Printf("%s%sPress any key to exit%s\n\n", yellow, bold, reset)
 
 	// Create context that can be cancelled
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	defer streamCancel()
 
 	// Channel to detect user input (to exit the live view)
 	done := make(chan bool, 1)
@@ -669,7 +826,7 @@ func (c *CLI) monitorTask(taskID, userID string) {
 		reader := bufio.NewReader(os.Stdin)
 		reader.ReadByte() // Wait for any key press
 		done <- true
-		cancel()
+		streamCancel()
 	}()
 
 	// Channel to signal streaming completion
@@ -677,15 +834,16 @@ func (c *CLI) monitorTask(taskID, userID string) {
 
 	// Start streaming logs in goroutine
 	go func() {
-		err := c.masterServer.StreamTaskLogsFromWorker(ctx, taskID, userID, func(logLine string, isComplete bool) {
+		err := c.masterServer.StreamTaskLogsUnified(streamCtx, taskID, userID, func(logLine string, isComplete bool, status string) error {
 			if logLine != "" {
 				fmt.Println(logLine)
 			}
 			if isComplete {
 				fmt.Printf("\n%s%s═══════════════════════════════════════════════════════%s\n", bold, green, reset)
-				fmt.Printf("%s%s  Task Completed%s\n", bold, green, reset)
+				fmt.Printf("%s%s  Task Completed - Status: %s%s\n", bold, green, status, reset)
 				fmt.Printf("%s%s═══════════════════════════════════════════════════════%s\n", bold, green, reset)
 			}
+			return nil
 		})
 		streamDone <- err
 	}()
@@ -754,6 +912,170 @@ func (c *CLI) showQueue() {
 	fmt.Println("  Note: Scheduler checks queue every 5s and assigns")
 	fmt.Println("  tasks to workers with available resources")
 	fmt.Println("═══════════════════════════════════════════════════════")
+}
+
+// reconcileResources triggers resource reconciliation to fix stale allocations
+func (c *CLI) reconcileResources() {
+	fmt.Println("\n🔄 Reconciling worker resources...")
+	fmt.Println("This will fix any stale resource allocations from completed tasks.")
+
+	ctx := context.Background()
+	if err := c.masterServer.ReconcileWorkerResourcesPublic(ctx); err != nil {
+		fmt.Printf("❌ Failed to reconcile resources: %v\n", err)
+		return
+	}
+
+	fmt.Println("\n✓ Resource reconciliation complete!")
+	fmt.Println("   Run 'workers' to see updated resource allocations.")
+}
+
+// listAllTasksCategorically lists all tasks organized by status
+func (c *CLI) listAllTasksCategorically() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	statuses := []string{"pending", "running", "completed", "failed"}
+	allTasksByStatus := make(map[string][]*db.Task)
+	totalCount := 0
+
+	// Fetch tasks for each status
+	for _, status := range statuses {
+		tasks, err := c.masterServer.GetTasksByStatus(ctx, status)
+		if err != nil {
+			fmt.Printf("⚠️  Warning: Failed to get %s tasks: %v\n", status, err)
+			continue
+		}
+		allTasksByStatus[status] = tasks
+		totalCount += len(tasks)
+	}
+
+	if totalCount == 0 {
+		fmt.Println("\n✓ No tasks found in the system")
+		return
+	}
+
+	fmt.Println("\n╔═══════════════════════════════════════════════════════")
+	fmt.Printf("║  ALL TASKS - Organized by Status (%d total)\n", totalCount)
+	fmt.Println("╚═══════════════════════════════════════════════════════")
+
+	// Display tasks for each status
+	for _, status := range statuses {
+		tasks := allTasksByStatus[status]
+
+		// Get emoji for status
+		statusEmoji := "📋"
+		switch status {
+		case "pending":
+			statusEmoji = "⏳"
+		case "running":
+			statusEmoji = "▶️ "
+		case "completed":
+			statusEmoji = "✅"
+		case "failed":
+			statusEmoji = "❌"
+		}
+
+		fmt.Printf("\n%s %s (%d task%s)\n", statusEmoji, strings.ToUpper(status), len(tasks), func() string {
+			if len(tasks) == 1 {
+				return ""
+			}
+			return "s"
+		}())
+		fmt.Println("─────────────────────────────────────────────────────────")
+
+		if len(tasks) == 0 {
+			fmt.Println("  (none)")
+			continue
+		}
+
+		for i, task := range tasks {
+			fmt.Printf("  [%d] %s\n", i+1, task.TaskID)
+			fmt.Printf("      Image:    %s\n", task.DockerImage)
+			fmt.Printf("      User:     %s\n", task.UserID)
+
+			// Get assignment info
+			assignment, err := c.masterServer.GetAssignmentByTaskID(ctx, task.TaskID)
+			if err == nil && assignment != nil {
+				fmt.Printf("      Worker:   %s\n", assignment.WorkerID)
+			}
+
+			fmt.Printf("      CPU:      %.1f cores | Memory: %.1f GB | GPU: %.1f cores\n",
+				task.ReqCPU, task.ReqMemory, task.ReqGPU)
+			fmt.Printf("      Created:  %s\n", task.CreatedAt.Format("2006-01-02 15:04:05"))
+
+			if i < len(tasks)-1 {
+				fmt.Println()
+			}
+		}
+	}
+
+	fmt.Println("\n═══════════════════════════════════════════════════════")
+	fmt.Println("💡 Tip: Use 'list-tasks <status>' to see details for a specific status")
+
+	runningCount := len(allTasksByStatus["running"])
+	if runningCount > 0 {
+		fmt.Printf("    Use 'fix-resources' to reconcile resources (%d running task%s)\n",
+			runningCount, func() string {
+				if runningCount == 1 {
+					return ""
+				}
+				return "s"
+			}())
+	}
+}
+
+// listTasksByStatus lists all tasks with a specific status
+func (c *CLI) listTasksByStatus(status string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	tasks, err := c.masterServer.GetTasksByStatus(ctx, status)
+	if err != nil {
+		fmt.Printf("❌ Failed to get tasks: %v\n", err)
+		return
+	}
+
+	if len(tasks) == 0 {
+		fmt.Printf("\n✓ No tasks with status '%s'\n", status)
+		return
+	}
+
+	fmt.Printf("\n╔═══ Tasks with status: %s ═══\n", status)
+	fmt.Printf("║ Found %d task(s)\n", len(tasks))
+	fmt.Println("╠═══════════════════════════════════════════════════════")
+
+	for i, task := range tasks {
+		fmt.Printf("║\n║ [%d] Task ID: %s\n", i+1, task.TaskID)
+		fmt.Printf("║     User ID:       %s\n", task.UserID)
+		fmt.Printf("║     Docker Image:  %s\n", task.DockerImage)
+		fmt.Printf("║     Status:        %s\n", task.Status)
+
+		// Get assignment info
+		assignment, err := c.masterServer.GetAssignmentByTaskID(ctx, task.TaskID)
+		if err == nil && assignment != nil {
+			fmt.Printf("║     Assigned To:   %s\n", assignment.WorkerID)
+		} else {
+			fmt.Printf("║     Assigned To:   (no assignment)\n")
+		}
+
+		fmt.Printf("║     Resources:\n")
+		fmt.Printf("║       CPU:     %.2f cores\n", task.ReqCPU)
+		fmt.Printf("║       Memory:  %.2f GB\n", task.ReqMemory)
+		fmt.Printf("║       Storage: %.2f GB\n", task.ReqStorage)
+		fmt.Printf("║       GPU:     %.2f cores\n", task.ReqGPU)
+		fmt.Printf("║     Created:   %s\n", task.CreatedAt.Format("2006-01-02 15:04:05"))
+
+		if i < len(tasks)-1 {
+			fmt.Println("║     ───────────────────────────────────────────────────")
+		}
+	}
+
+	fmt.Println("╚═══════════════════════════════════════════════════════")
+
+	if status == "running" && len(tasks) > 0 {
+		fmt.Println("\n💡 Tip: If these tasks are not actually running, use 'fix-resources'")
+		fmt.Println("   to reconcile and free up allocated resources.")
+	}
 }
 
 // formatDuration formats a duration in a human-readable way

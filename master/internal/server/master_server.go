@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -157,6 +158,9 @@ func (s *MasterServer) LoadWorkersFromDB(ctx context.Context) error {
 		}
 	}
 
+	// Reconcile resources based on actual running tasks
+	s.ReconcileWorkerResources(ctx)
+
 	log.Printf("Loaded %d workers from database", len(workers))
 	return nil
 }
@@ -208,6 +212,193 @@ func (s *MasterServer) ManualRegisterWorker(ctx context.Context, workerID, worke
 
 	log.Printf("Manually registered worker: %s (Address: %s)", workerID, workerIP)
 	return nil
+}
+
+// ReconcileWorkerResources reconciles allocated resources based on actual running tasks
+// This fixes stale resource allocations from completed tasks
+// Should be called: 1) On startup after loading workers, 2) Periodically, 3) After crashes
+func (s *MasterServer) ReconcileWorkerResources(ctx context.Context) error {
+	// This function assumes s.mu is already locked by the caller
+
+	if s.taskDB == nil || s.assignmentDB == nil {
+		log.Printf("⚠ Resource reconciliation skipped: databases not available")
+		return nil
+	}
+
+	log.Printf("🔄 Starting resource reconciliation...")
+
+	// Get all running tasks from database
+	tasks, err := s.taskDB.GetTasksByStatus(ctx, "running")
+	if err != nil {
+		log.Printf("⚠ Failed to get running tasks for reconciliation: %v", err)
+		return err
+	}
+
+	// Build map of actual allocations per worker
+	actualAllocations := make(map[string]struct {
+		CPU, Memory, Storage, GPU float64
+		TaskIDs                   map[string]bool
+	})
+
+	for _, task := range tasks {
+		// Get assignment to find which worker
+		assignment, err := s.assignmentDB.GetAssignmentByTaskID(ctx, task.TaskID)
+		if err != nil {
+			log.Printf("⚠ Task %s has no assignment, skipping", task.TaskID)
+			continue
+		}
+
+		workerID := assignment.WorkerID
+		if _, exists := actualAllocations[workerID]; !exists {
+			actualAllocations[workerID] = struct {
+				CPU, Memory, Storage, GPU float64
+				TaskIDs                   map[string]bool
+			}{TaskIDs: make(map[string]bool)}
+		}
+
+		alloc := actualAllocations[workerID]
+		alloc.CPU += task.ReqCPU
+		alloc.Memory += task.ReqMemory
+		alloc.Storage += task.ReqStorage
+		alloc.GPU += task.ReqGPU
+		alloc.TaskIDs[task.TaskID] = true
+		actualAllocations[workerID] = alloc
+	}
+
+	// Now reconcile each worker
+	fixedCount := 0
+	for workerID, worker := range s.workers {
+		actual := actualAllocations[workerID]
+
+		// Check if resources are out of sync
+		if worker.AllocatedCPU != actual.CPU ||
+			worker.AllocatedMemory != actual.Memory ||
+			worker.AllocatedStorage != actual.Storage ||
+			worker.AllocatedGPU != actual.GPU {
+
+			oldCPU := worker.AllocatedCPU
+			oldMem := worker.AllocatedMemory
+
+			// Fix the allocations
+			worker.AllocatedCPU = actual.CPU
+			worker.AllocatedMemory = actual.Memory
+			worker.AllocatedStorage = actual.Storage
+			worker.AllocatedGPU = actual.GPU
+
+			// Recalculate available resources
+			worker.AvailableCPU = worker.Info.TotalCpu - actual.CPU
+			worker.AvailableMemory = worker.Info.TotalMemory - actual.Memory
+			worker.AvailableStorage = worker.Info.TotalStorage - actual.Storage
+			worker.AvailableGPU = worker.Info.TotalGpu - actual.GPU
+
+			// Update running tasks map
+			worker.RunningTasks = actual.TaskIDs
+
+			// Update in database
+			// First release all old allocations, then allocate the correct amount
+			if s.workerDB != nil && oldCPU > 0 {
+				if err := s.workerDB.ReleaseResources(ctx, workerID,
+					oldCPU, oldMem, worker.AllocatedStorage, worker.AllocatedGPU); err != nil {
+					log.Printf("⚠ Failed to release old resources for %s in DB: %v", workerID, err)
+				}
+			}
+
+			// Now allocate the correct amount
+			if s.workerDB != nil && actual.CPU > 0 {
+				if err := s.workerDB.AllocateResources(ctx, workerID,
+					actual.CPU, actual.Memory, actual.Storage, actual.GPU); err != nil {
+					log.Printf("⚠ Failed to allocate resources for %s in DB: %v", workerID, err)
+				}
+			}
+
+			log.Printf("  ✓ Fixed %s: CPU %.1f→%.1f, Memory %.1f→%.1f, Tasks: %d",
+				workerID, oldCPU, actual.CPU, oldMem, actual.Memory, len(actual.TaskIDs))
+			fixedCount++
+		}
+	}
+
+	if fixedCount > 0 {
+		log.Printf("✓ Resource reconciliation complete: fixed %d workers", fixedCount)
+	} else {
+		log.Printf("✓ Resource reconciliation complete: all workers correct")
+	}
+
+	return nil
+}
+
+// ReconcileWorkerResourcesPublic is a public wrapper that acquires the lock
+func (s *MasterServer) ReconcileWorkerResourcesPublic(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ReconcileWorkerResources(ctx)
+}
+
+// reconcileSingleWorker reconciles resources for a specific worker based on actual running tasks
+// This function assumes s.mu is already locked by the caller
+func (s *MasterServer) reconcileSingleWorker(ctx context.Context, workerID string, worker *WorkerState) {
+	if s.taskDB == nil || s.assignmentDB == nil {
+		log.Printf("⚠ Resource reconciliation skipped for %s: databases not available", workerID)
+		return
+	}
+
+	// Get all running tasks assigned to this worker
+	tasks, err := s.taskDB.GetTasksByStatus(ctx, "running")
+	if err != nil {
+		log.Printf("⚠ Failed to get running tasks for reconciliation: %v", err)
+		return
+	}
+
+	log.Printf("  🔍 Reconciliation: Found %d tasks with 'running' status in database", len(tasks))
+
+	// Calculate actual resource usage from running tasks
+	var actualCPU, actualMemory, actualStorage, actualGPU float64
+	actualTaskIDs := make(map[string]bool)
+
+	for _, task := range tasks {
+		// Get assignment to find which worker
+		assignment, err := s.assignmentDB.GetAssignmentByTaskID(ctx, task.TaskID)
+		if err != nil {
+			log.Printf("  ⚠ Task %s has no assignment, skipping", task.TaskID)
+			continue
+		}
+
+		if assignment.WorkerID == workerID {
+			log.Printf("  📋 Found task %s assigned to %s (CPU=%.1f, Mem=%.1f, Storage=%.1f, GPU=%.1f)",
+				task.TaskID, workerID, task.ReqCPU, task.ReqMemory, task.ReqStorage, task.ReqGPU)
+			actualCPU += task.ReqCPU
+			actualMemory += task.ReqMemory
+			actualStorage += task.ReqStorage
+			actualGPU += task.ReqGPU
+			actualTaskIDs[task.TaskID] = true
+		}
+	}
+
+	// Update worker's allocated resources
+	worker.AllocatedCPU = actualCPU
+	worker.AllocatedMemory = actualMemory
+	worker.AllocatedStorage = actualStorage
+	worker.AllocatedGPU = actualGPU
+
+	// Recalculate available resources
+	worker.AvailableCPU = worker.Info.TotalCpu - actualCPU
+	worker.AvailableMemory = worker.Info.TotalMemory - actualMemory
+	worker.AvailableStorage = worker.Info.TotalStorage - actualStorage
+	worker.AvailableGPU = worker.Info.TotalGpu - actualGPU
+
+	// Update running tasks map
+	worker.RunningTasks = actualTaskIDs
+
+	// Update database with correct allocations
+	if s.workerDB != nil {
+		if err := s.workerDB.SetWorkerResources(ctx, workerID,
+			actualCPU, actualMemory, actualStorage, actualGPU,
+			worker.AvailableCPU, worker.AvailableMemory, worker.AvailableStorage, worker.AvailableGPU); err != nil {
+			log.Printf("⚠ Failed to update resources for %s in DB: %v", workerID, err)
+		}
+	}
+
+	log.Printf("  ✓ Reconciled %s: CPU=%.1f, Memory=%.1f, Storage=%.1f, GPU=%.1f, Tasks=%d",
+		workerID, actualCPU, actualMemory, actualStorage, actualGPU, len(actualTaskIDs))
 }
 
 // ManualRegisterAndNotify registers a worker and immediately tries to notify it of the master's address
@@ -292,6 +483,9 @@ func (s *MasterServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) 
 		}, fmt.Errorf("worker %s not authorized - must be pre-registered by admin", info.WorkerId)
 	}
 
+	// Check if this is a new registration (worker connecting for the first time or reconnecting with new specs)
+	isNewConnection := existingWorker.Info.TotalCpu == 0 || !existingWorker.IsActive
+
 	// Worker IS pre-registered - update with full specs but preserve the IP from manual registration
 	preservedIP := existingWorker.Info.WorkerIp
 	existingWorker.Info = info
@@ -305,11 +499,32 @@ func (s *MasterServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) 
 	existingWorker.IsActive = true
 	existingWorker.LastHeartbeat = time.Now().Unix()
 
-	// Initialize available resources (total - already allocated)
-	existingWorker.AvailableCPU = info.TotalCpu - existingWorker.AllocatedCPU
-	existingWorker.AvailableMemory = info.TotalMemory - existingWorker.AllocatedMemory
-	existingWorker.AvailableStorage = info.TotalStorage - existingWorker.AllocatedStorage
-	existingWorker.AvailableGPU = info.TotalGpu - existingWorker.AllocatedGPU
+	// If this is a new connection or reconnection, reconcile resources for this worker
+	// to ensure allocated resources match actual running tasks
+	if isNewConnection {
+		log.Printf("🔄 Worker %s connected with new specs, reconciling resources...", info.WorkerId)
+
+		// Initialize allocated resources to 0 first, reconciliation will fix them
+		existingWorker.AllocatedCPU = 0.0
+		existingWorker.AllocatedMemory = 0.0
+		existingWorker.AllocatedStorage = 0.0
+		existingWorker.AllocatedGPU = 0.0
+
+		// Initialize available resources to total
+		existingWorker.AvailableCPU = info.TotalCpu
+		existingWorker.AvailableMemory = info.TotalMemory
+		existingWorker.AvailableStorage = info.TotalStorage
+		existingWorker.AvailableGPU = info.TotalGpu
+
+		// Trigger reconciliation for this specific worker to fix resources based on actual running tasks
+		s.reconcileSingleWorker(ctx, info.WorkerId, existingWorker)
+	} else {
+		// Worker is already connected with same specs, just update available resources
+		existingWorker.AvailableCPU = info.TotalCpu - existingWorker.AllocatedCPU
+		existingWorker.AvailableMemory = info.TotalMemory - existingWorker.AllocatedMemory
+		existingWorker.AvailableStorage = info.TotalStorage - existingWorker.AllocatedStorage
+		existingWorker.AvailableGPU = info.TotalGpu - existingWorker.AllocatedGPU
+	}
 
 	// Update in database
 	if s.workerDB != nil {
@@ -798,6 +1013,50 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	return s.SubmitTask(ctx, task)
 }
 
+// DispatchTaskToWorker directly dispatches a task to a specific worker, bypassing the scheduler
+// This is useful for testing and debugging purposes
+func (s *MasterServer) DispatchTaskToWorker(ctx context.Context, task *pb.Task, workerID string) (*pb.TaskAck, error) {
+	log.Printf("🎯 Direct dispatch request: Task %s -> Worker %s", task.TaskId, workerID)
+
+	// Store task in database as queued first
+	if s.taskDB != nil {
+		dbTask := &db.Task{
+			TaskID:      task.TaskId,
+			UserID:      task.UserId,
+			DockerImage: task.DockerImage,
+			Command:     task.Command,
+			ReqCPU:      task.ReqCpu,
+			ReqMemory:   task.ReqMemory,
+			ReqStorage:  task.ReqStorage,
+			ReqGPU:      task.ReqGpu,
+			Status:      "queued",
+		}
+		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
+			log.Printf("Warning: Failed to store task in database: %v", err)
+		}
+	}
+
+	// Directly assign to the specified worker (bypassing queue and scheduler)
+	ack, err := s.assignTaskToWorker(ctx, task, workerID)
+	if err != nil {
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Failed to dispatch task to worker %s: %v", workerID, err),
+		}, nil
+	}
+
+	if !ack.Success {
+		return ack, nil
+	}
+
+	log.Printf("✅ Task %s dispatched directly to worker %s", task.TaskId, workerID)
+
+	return &pb.TaskAck{
+		Success: true,
+		Message: fmt.Sprintf("Task dispatched directly to worker %s (bypassed scheduler)", workerID),
+	}, nil
+}
+
 // StreamTaskLogs handles gRPC streaming of task logs (called by master CLI)
 func (s *MasterServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWorker_StreamTaskLogsServer) error {
 	// This is a stub - the master doesn't receive this call from workers
@@ -813,9 +1072,17 @@ func (s *MasterServer) StreamTaskLogsFromWorker(ctx context.Context, taskID, use
 	if s.resultDB != nil {
 		result, err := s.resultDB.GetResult(ctx, taskID)
 		if err == nil && result != nil {
-			// Task is completed, return stored logs
+			// Task is completed, stream stored logs line by line
 			s.mu.RUnlock()
-			logHandler(result.Logs, true)
+
+			// Split logs by newlines and stream them
+			lines := strings.Split(result.Logs, "\n")
+			for i, line := range lines {
+				// Send each line with a small delay to simulate streaming
+				time.Sleep(10 * time.Millisecond)
+				isLastLine := i == len(lines)-1
+				logHandler(line, isLastLine)
+			}
 			return nil
 		}
 	}
@@ -885,6 +1152,52 @@ func (s *MasterServer) StreamTaskLogsFromWorker(ctx context.Context, taskID, use
 			return nil
 		}
 	}
+}
+
+// GetUserIDForTask retrieves the user ID associated with a task from the database
+func (s *MasterServer) GetUserIDForTask(ctx context.Context, taskID string) (string, error) {
+	if s.taskDB == nil {
+		return "", fmt.Errorf("task database not available")
+	}
+
+	task, err := s.taskDB.GetTask(ctx, taskID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get task: %w", err)
+	}
+
+	if task == nil {
+		return "", fmt.Errorf("task not found")
+	}
+
+	return task.UserID, nil
+}
+
+// GetTasksByStatus returns all tasks with a specific status
+func (s *MasterServer) GetTasksByStatus(ctx context.Context, status string) ([]*db.Task, error) {
+	if s.taskDB == nil {
+		return nil, fmt.Errorf("task database not available")
+	}
+
+	tasks, err := s.taskDB.GetTasksByStatus(ctx, status)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tasks: %w", err)
+	}
+
+	return tasks, nil
+}
+
+// GetAssignmentByTaskID returns the assignment for a specific task
+func (s *MasterServer) GetAssignmentByTaskID(ctx context.Context, taskID string) (*db.Assignment, error) {
+	if s.assignmentDB == nil {
+		return nil, fmt.Errorf("assignment database not available")
+	}
+
+	assignment, err := s.assignmentDB.GetAssignmentByTaskID(ctx, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get assignment: %w", err)
+	}
+
+	return assignment, nil
 }
 
 // BroadcastMasterRegistration calls MasterRegister on all pre-registered workers

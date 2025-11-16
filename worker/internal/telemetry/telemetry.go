@@ -3,6 +3,7 @@ package telemetry
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"log"
 	"os/exec"
 	"strconv"
@@ -61,7 +62,7 @@ func (m *Monitor) Start(ctx context.Context) {
 				log.Printf("Failed to send heartbeat: %v", err)
 			}
 		case <-m.stopChan:
-			log.Println("Stopping telemetry monitor")
+			fmt.Println("  ✓ Telemetry monitor stopped")
 			return
 		case <-ctx.Done():
 			return

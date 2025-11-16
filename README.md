@@ -6,7 +6,6 @@
 [![Python Version](https://img.shields.io/badge/Python-3.8+-3776AB?style=flat&logo=python)](https://python.org)
 [![Docker](https://img.shields.io/badge/Docker-Required-2496ED?style=flat&logo=docker)](https://docker.com)
 [![MongoDB](https://img.shields.io/badge/MongoDB-6.0+-47A248?style=flat&logo=mongodb)](https://mongodb.com)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
 
@@ -16,7 +15,7 @@ CloudAI is a distributed computing platform for executing Docker-based workloads
 
 **Use Cases:** ML training, batch processing, CI/CD pipelines, scientific computing, microservices testing
 
-**📚 [Complete Documentation](DOCUMENTATION.md)** | **🚀 [Getting Started Guide](GETTING_STARTED.md)** | **📑 [Documentation Index](DOCUMENTATION_INDEX.md)**
+**📚 [Complete Documentation](DOCUMENTATION.md)** | **🚀 [Getting Started Guide](GETTING_STARTED.md)** 
 
 ---
 
@@ -37,7 +36,7 @@ CloudAI is a distributed computing platform for executing Docker-based workloads
 ```
 User Interface (CLI/API)
          ↓
-    Master Node ────→ MongoDB (Persistence)
+    Master Node ---> MongoDB (Persistence)
     (Go + gRPC)       
          ↓
     ┌────┼────┐
@@ -52,7 +51,7 @@ User Interface (CLI/API)
 - **Database**: MongoDB for persistence
 
 **Communication:**
-- gRPC for Master↔Worker
+- gRPC for Master <-> Worker
 - HTTP/WebSocket for monitoring (Port 8080)
 - MongoDB for data persistence
 
@@ -140,11 +139,21 @@ python test_schedulers.py      # Compare all strategies
 ### Monitoring
 
 ```bash
-# REST API
+# REST API - Telemetry
 curl http://localhost:8080/telemetry | jq
+curl http://localhost:8080/workers | jq
+
+# REST API - Tasks
+curl http://localhost:8080/api/tasks | jq
+curl http://localhost:8080/api/workers | jq
 
 # WebSocket (real-time)
 wscat -c ws://localhost:8080/ws/telemetry
+
+# Submit Task via REST API
+curl -X POST http://localhost:8080/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"docker_image":"ubuntu:latest","command":"echo hello","cpu_required":1.0,"memory_required":512.0}'
 ```
 
 **📖 See [DOCUMENTATION.md](DOCUMENTATION.md) for complete API reference**
@@ -208,20 +217,6 @@ Contributions welcome! Areas of interest:
 - 🔜 Task queuing
 - 🔜 Web dashboard
 - 🔜 Authentication
-
----
-
-## 📜 License
-
-MIT License - see [LICENSE](LICENSE) file
-
----
-
-## 📞 Contact
-
-- **Issues**: [GitHub Issues](https://github.com/Codesmith28/CloudAI/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Codesmith28/CloudAI/discussions)
-- **Repository**: [github.com/Codesmith28/CloudAI](https://github.com/Codesmith28/CloudAI)
 
 ---
 

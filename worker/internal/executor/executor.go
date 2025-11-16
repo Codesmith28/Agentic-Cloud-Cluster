@@ -9,6 +9,8 @@ import (
 	"log"
 	"sync"
 
+	"worker/internal/logstream"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
@@ -18,6 +20,7 @@ import (
 // TaskExecutor handles Docker container execution
 type TaskExecutor struct {
 	dockerClient *client.Client
+	logStreamMgr *logstream.LogStreamManager
 	mu           sync.RWMutex
 	containers   map[string]string // task_id -> container_id
 }
@@ -40,6 +43,7 @@ func NewTaskExecutor() (*TaskExecutor, error) {
 
 	return &TaskExecutor{
 		dockerClient: cli,
+		logStreamMgr: logstream.NewLogStreamManager(cli),
 		containers:   make(map[string]string),
 	}, nil
 }
@@ -77,6 +81,9 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 	e.mu.Unlock()
 
 	defer func() {
+		// Stop log streaming when task completes
+		e.logStreamMgr.StopTask(taskID)
+
 		e.cleanup(ctx, containerID)
 		e.mu.Lock()
 		delete(e.containers, taskID)
@@ -91,7 +98,12 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 		return result
 	}
 
-	// Collect logs
+	// Start log streaming for this task
+	if err := e.logStreamMgr.StartTask(taskID, containerID); err != nil {
+		log.Printf("[Task %s] Warning: failed to start log streaming: %v", taskID, err)
+	}
+
+	// Collect logs for final result
 	logs, err := e.collectLogs(ctx, containerID)
 	if err != nil {
 		log.Printf("[Task %s] Warning: failed to collect logs: %v", taskID, err)
@@ -143,6 +155,12 @@ func (e *TaskExecutor) createContainer(ctx context.Context, image, command, task
 	containerConfig := &container.Config{
 		Image: image,
 	}
+
+	// Use a TTY so many programs flush stdout line-by-line instead of block-buffering
+	// when their stdout is not a TTY. This improves live log streaming behavior.
+	containerConfig.Tty = true
+	containerConfig.AttachStdout = true
+	containerConfig.AttachStderr = true
 
 	// Add command if provided
 	if command != "" {
@@ -250,9 +268,10 @@ func (e *TaskExecutor) GetContainerID(taskID string) (string, bool) {
 	return containerID, exists
 }
 
-// StreamLogs streams live logs from a container
+// StreamLogs subscribes to live logs from a container via the log stream manager
 // Returns a channel that receives log lines and an error channel
-func (e *TaskExecutor) StreamLogs(ctx context.Context, containerID string) (<-chan string, <-chan error) {
+// This uses the broadcaster pattern to support multiple subscribers efficiently
+func (e *TaskExecutor) StreamLogs(ctx context.Context, taskID string) (<-chan string, <-chan error) {
 	logChan := make(chan string, 100)
 	errChan := make(chan error, 1)
 
@@ -260,35 +279,30 @@ func (e *TaskExecutor) StreamLogs(ctx context.Context, containerID string) (<-ch
 		defer close(logChan)
 		defer close(errChan)
 
-		logReader, err := e.dockerClient.ContainerLogs(ctx, containerID, container.LogsOptions{
-			ShowStdout: true,
-			ShowStderr: true,
-			Follow:     true,
-			Timestamps: true,
-		})
+		// Subscribe to logs via the manager (sends recent logs + live stream)
+		logLineChan, err := e.logStreamMgr.Subscribe(ctx, taskID, true)
 		if err != nil {
-			errChan <- fmt.Errorf("failed to get container logs: %w", err)
+			errChan <- fmt.Errorf("failed to subscribe to logs: %w", err)
 			return
 		}
-		defer logReader.Close()
 
-		scanner := bufio.NewScanner(logReader)
-		for scanner.Scan() {
-			line := scanner.Text()
-			// Remove Docker log header (first 8 bytes)
-			if len(line) > 8 {
-				line = line[8:]
-			}
-
+		// Forward log lines to the string channel
+		for {
 			select {
-			case logChan <- line:
+			case logLine, ok := <-logLineChan:
+				if !ok {
+					// Log stream closed
+					return
+				}
+				// Send the log content
+				select {
+				case logChan <- logLine.Content:
+				case <-ctx.Done():
+					return
+				}
 			case <-ctx.Done():
 				return
 			}
-		}
-
-		if err := scanner.Err(); err != nil {
-			errChan <- fmt.Errorf("error reading logs: %w", err)
 		}
 	}()
 
@@ -348,4 +362,21 @@ func (e *TaskExecutor) CancelTask(ctx context.Context, taskID string) error {
 
 	log.Printf("[Task %s] ✓ Task cancelled successfully", taskID)
 	return nil
+}
+
+// GetLogStreamManager returns the log stream manager for direct access
+func (e *TaskExecutor) GetLogStreamManager() *logstream.LogStreamManager {
+	return e.logStreamMgr
+}
+
+// GetRunningTasks returns a list of all currently running task IDs
+func (e *TaskExecutor) GetRunningTasks() []string {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	tasks := make([]string, 0, len(e.containers))
+	for taskID := range e.containers {
+		tasks = append(tasks, taskID)
+	}
+	return tasks
 }
