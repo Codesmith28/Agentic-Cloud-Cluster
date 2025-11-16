@@ -22,6 +22,7 @@ type Task struct {
 	ReqMemory     float64   `bson:"req_memory"`
 	ReqStorage    float64   `bson:"req_storage"`
 	ReqGPU        float64   `bson:"req_gpu"`
+	TaskType      string    `bson:"task_type"`      // Task type: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed
 	SLAMultiplier float64   `bson:"sla_multiplier"` // k value: 1.5-2.5, default: 2.0
 	Status        string    `bson:"status"`         // pending, running, completed, failed
 	CreatedAt     time.Time `bson:"created_at"`

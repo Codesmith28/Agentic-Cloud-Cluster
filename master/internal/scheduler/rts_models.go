@@ -86,20 +86,34 @@ type GAParams struct {
 //   - tau: Base runtime estimate in seconds
 //   - k: SLA multiplier (typically 1.5 or 2.0) - if 0, uses pbTask.SlaMultiplier or default 2.0
 func NewTaskViewFromProto(pbTask *pb.Task, now time.Time, tau float64, k float64) TaskView {
-	// Determine task type: infer from resource requirements
-	// Note: If pb.Task gains a TaskType field in the future, add validation:
-	// taskType := pbTask.TaskType
-	// if taskType == "" || !ValidateTaskType(taskType) {
-	//     taskType = InferTaskType(pbTask)
-	// }
-	taskType := InferTaskType(pbTask)
+	// Determine task type: use explicit type if provided and valid, otherwise infer
+	taskType := ""
+
+	// Try to get task type from proto using reflection (for forward compatibility)
+	method := reflect.ValueOf(pbTask).MethodByName("GetTaskType")
+	if method.IsValid() {
+		results := method.Call(nil)
+		if len(results) == 1 {
+			if typeStr, ok := results[0].Interface().(string); ok && typeStr != "" {
+				taskType = typeStr
+			}
+		}
+	}
+
+	// Validate the task type if provided
+	if taskType != "" && !ValidateTaskType(taskType) {
+		taskType = "" // Invalid type, will infer
+	}
+
+	// If no valid type provided, infer from resources
+	if taskType == "" {
+		taskType = InferTaskType(pbTask)
+	}
 
 	// Use k from task if provided and valid, otherwise use parameter k, otherwise default to 2.0
 	slaMultiplier := k
 	if slaMultiplier == 0 {
-		// Try to get from task (when proto is updated)
-		// slaMultiplier = pbTask.SlaMultiplier
-		slaMultiplier = 2.0 // Default for now
+		slaMultiplier = GetSLAMultiplier(pbTask)
 	}
 
 	// Validate k is in acceptable range
@@ -178,6 +192,7 @@ func ValidateTaskType(taskType string) bool {
 		return false
 	}
 }
+
 // GetSLAMultiplier extracts and validates the SLA multiplier from a task
 // Returns the k value in range [1.5, 2.5], defaulting to 2.0 if invalid
 func GetSLAMultiplier(pbTask *pb.Task) float64 {

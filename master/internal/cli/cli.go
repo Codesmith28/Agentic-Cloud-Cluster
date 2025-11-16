@@ -168,18 +168,28 @@ func (c *CLI) printHelp() {
 	fmt.Println("  list-tasks [status]            - List all tasks (or filter by: pending/running/completed/failed)")
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
-	fmt.Println("  task <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]  - Submit task (scheduler selects worker)")
+	fmt.Println("  task <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>] [-k <1.5-2.5>] [-type <task_type>]")
+	fmt.Println("                                 - Submit task (scheduler selects worker)")
 	fmt.Println("  dispatch <worker_id> <docker_img> [options]  - Dispatch task directly to specific worker (testing)")
 	fmt.Println("  monitor <task_id>              - Monitor live logs for a task (press any key to exit)")
 	fmt.Println("  cancel <task_id>               - Cancel a running task")
 	fmt.Println("  queue                          - Show pending tasks in the queue")
 	fmt.Println("  exit/quit                      - Shutdown master node")
+	fmt.Println("\nTask Types (-type flag):")
+	fmt.Println("  cpu-light                      - Light CPU workloads")
+	fmt.Println("  cpu-heavy                      - Heavy CPU workloads")
+	fmt.Println("  memory-heavy                   - Memory-intensive workloads")
+	fmt.Println("  gpu-inference                  - GPU inference workloads")
+	fmt.Println("  gpu-training                   - GPU training workloads")
+	fmt.Println("  mixed                          - Mixed workloads")
 	fmt.Println("\nExamples:")
 	fmt.Println("  register worker-2 192.168.1.100:50052")
 	fmt.Println("  stats worker-1")
 	fmt.Println("  internal-state")
 	fmt.Println("  task docker.io/user/sample-task:latest")
 	fmt.Println("  task docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
+	fmt.Println("  task myapp:latest -cpu_cores 4 -mem 8 -k 1.8 -type cpu-heavy")
+	fmt.Println("  task ml-model:latest -gpu_cores 2 -mem 16 -k 2.5 -type gpu-training")
 	fmt.Println("  dispatch worker-1 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0")
 	fmt.Println("  monitor task-123")
 	fmt.Println("  cancel task-123")
@@ -494,6 +504,7 @@ func (c *CLI) submitTask(parts []string) {
 	reqStorage := 1.0
 	reqGPU := 0.0
 	slaMultiplier := 2.0 // Default k value
+	taskType := ""       // Will be inferred if not specified
 
 	// Parse flags
 	for i := 2; i < len(parts); i++ {
@@ -538,6 +549,28 @@ func (c *CLI) submitTask(parts []string) {
 					i++ // Skip the value
 				}
 			}
+		case "-type", "-task_type":
+			if i+1 < len(parts) {
+				taskType = parts[i+1]
+				i++ // Skip the value
+			}
+		}
+	}
+
+	// Validate task type if provided
+	validTypes := []string{"cpu-light", "cpu-heavy", "memory-heavy", "gpu-inference", "gpu-training", "mixed"}
+	if taskType != "" {
+		valid := false
+		for _, vt := range validTypes {
+			if taskType == vt {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			fmt.Printf("⚠️  Warning: Invalid task type '%s'. Must be one of: %v\n", taskType, validTypes)
+			fmt.Println("    Task type will be automatically inferred from resources.")
+			taskType = "" // Reset to trigger inference
 		}
 	}
 
@@ -561,6 +594,15 @@ func (c *CLI) submitTask(parts []string) {
 	fmt.Printf("    • Storage:       %.2f GB\n", reqStorage)
 	fmt.Printf("    • GPU Cores:     %.2f cores\n", reqGPU)
 	fmt.Println("───────────────────────────────────────────────────────")
+	if taskType != "" {
+		fmt.Println("  Task Classification:")
+		fmt.Printf("    • Type:          %s (user-specified)\n", taskType)
+		fmt.Println("───────────────────────────────────────────────────────")
+	} else {
+		fmt.Println("  Task Classification:")
+		fmt.Println("    • Type:          (will be inferred from resources)")
+		fmt.Println("───────────────────────────────────────────────────────")
+	}
 	fmt.Println("  SLA Configuration:")
 	fmt.Printf("    • SLA Multiplier (k): %.1f (Deadline = k × τ)\n", slaMultiplier)
 	fmt.Println("───────────────────────────────────────────────────────")
@@ -568,14 +610,16 @@ func (c *CLI) submitTask(parts []string) {
 	fmt.Println("═══════════════════════════════════════════════════════")
 
 	task := &pb.Task{
-		TaskId:      taskID,
-		DockerImage: dockerImage,
-		Command:     command,
-		ReqCpu:      reqCPU,
-		ReqMemory:   reqMemory,
-		ReqStorage:  reqStorage,
-		ReqGpu:      reqGPU,
-		UserId:      "admin", // Default user for CLI tasks (can be made configurable)
+		TaskId:        taskID,
+		DockerImage:   dockerImage,
+		Command:       command,
+		ReqCpu:        reqCPU,
+		ReqMemory:     reqMemory,
+		ReqStorage:    reqStorage,
+		ReqGpu:        reqGPU,
+		TaskType:      taskType,
+		SlaMultiplier: slaMultiplier,
+		UserId:        "admin", // Default user for CLI tasks (can be made configurable)
 	}
 
 	err := c.submitTaskToMaster(task)

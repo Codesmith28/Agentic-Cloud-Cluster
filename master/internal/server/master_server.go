@@ -969,8 +969,28 @@ func joinTasks(tasks []string) string {
 // SubmitTask submits a task to the system for scheduling
 // ALL tasks go through the queue first, then the scheduler assigns them to workers
 func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
-	// Default SLA multiplier: use a safe default (do not reference unavailable fields on pb.Task)
+	// Extract and validate SLA multiplier from task
 	slaMultiplier := 2.0
+	if task.GetSlaMultiplier() >= 1.5 && task.GetSlaMultiplier() <= 2.5 {
+		slaMultiplier = task.GetSlaMultiplier()
+	} else if task.GetSlaMultiplier() != 0 {
+		log.Printf("⚠️  Task %s: SLA multiplier %.2f out of range [1.5, 2.5]. Using default: 2.0",
+			task.TaskId, task.GetSlaMultiplier())
+	}
+
+	// Extract and validate task type
+	taskType := task.GetTaskType()
+	if taskType != "" {
+		validTypes := map[string]bool{
+			"cpu-light": true, "cpu-heavy": true, "memory-heavy": true,
+			"gpu-inference": true, "gpu-training": true, "mixed": true,
+		}
+		if !validTypes[taskType] {
+			log.Printf("⚠️  Task %s: Invalid task type '%s'. Will be inferred from resources.",
+				task.TaskId, taskType)
+			taskType = "" // Clear invalid type to trigger inference
+		}
+	}
 
 	// Store task in database as queued
 	if s.taskDB != nil {
@@ -983,6 +1003,7 @@ func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 			ReqMemory:     task.ReqMemory,
 			ReqStorage:    task.ReqStorage,
 			ReqGPU:        task.ReqGpu,
+			TaskType:      taskType,
 			SLAMultiplier: slaMultiplier,
 			Status:        "queued",
 		}
@@ -999,7 +1020,12 @@ func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	position := len(s.taskQueue)
 	s.queueMu.RUnlock()
 
-	log.Printf("📋 Task %s submitted and queued (position: %d, k=%.1f)", task.TaskId, position, slaMultiplier)
+	typeInfo := ""
+	if taskType != "" {
+		typeInfo = fmt.Sprintf(", type=%s", taskType)
+	}
+	log.Printf("📋 Task %s submitted and queued (position: %d, k=%.1f%s)",
+		task.TaskId, position, slaMultiplier, typeInfo)
 
 	return &pb.TaskAck{
 		Success: true,
