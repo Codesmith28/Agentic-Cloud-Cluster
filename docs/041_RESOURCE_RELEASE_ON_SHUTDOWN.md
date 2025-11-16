@@ -7,6 +7,7 @@ When a worker process was terminated (Ctrl+C or killed) while tasks were running
 2. `ReportTaskResult` was never called 
 3. Master never received task completion notification
 4. Resources remained allocated indefinitely, even after running `fix-resources`
+temp
 
 ## Root Cause
 
