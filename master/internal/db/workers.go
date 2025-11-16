@@ -293,3 +293,35 @@ func (db *WorkerDB) ReleaseResources(ctx context.Context, workerID string, cpu, 
 
 	return nil
 }
+
+// SetWorkerResources sets the exact resource allocation values for a worker (used during reconciliation)
+func (db *WorkerDB) SetWorkerResources(ctx context.Context, workerID string,
+	allocatedCPU, allocatedMemory, allocatedStorage, allocatedGPU,
+	availableCPU, availableMemory, availableStorage, availableGPU float64) error {
+
+	filter := bson.M{"worker_id": workerID}
+	update := bson.M{
+		"$set": bson.M{
+			"allocated_cpu":     allocatedCPU,
+			"allocated_memory":  allocatedMemory,
+			"allocated_storage": allocatedStorage,
+			"allocated_gpu":     allocatedGPU,
+			"available_cpu":     availableCPU,
+			"available_memory":  availableMemory,
+			"available_storage": availableStorage,
+			"available_gpu":     availableGPU,
+			"updated_at":        time.Now(),
+		},
+	}
+
+	result, err := db.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("set worker resources: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("worker %s not found", workerID)
+	}
+
+	return nil
+}
