@@ -1,308 +1,229 @@
 # CloudAI - Distributed Task Execution System
 
-CloudAI is a distributed computing platform that orchestrates Docker-based task execution across a cluster of worker nodes. Built with Go and gRPC, it provides a robust foundation for distributed workload processing with real-time monitoring and management.
+**Orchestrate Docker-based tasks across worker nodes with AI-powered scheduling and real-time monitoring.**
 
-## 🌟 Features
+[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://golang.org)
+[![Python Version](https://img.shields.io/badge/Python-3.8+-3776AB?style=flat&logo=python)](https://python.org)
+[![Docker](https://img.shields.io/badge/Docker-Required-2496ED?style=flat&logo=docker)](https://docker.com)
+[![MongoDB](https://img.shields.io/badge/MongoDB-6.0+-47A248?style=flat&logo=mongodb)](https://mongodb.com)
 
-- **🎮 Interactive Master CLI**: Manage tasks and monitor cluster from a command-line interface
-- **📡 gRPC Communication**: Efficient, type-safe communication between master and workers
-- **🐳 Docker Integration**: Run any containerized workload
-- **📊 Real-time Telemetry**: Worker health monitoring with periodic heartbeats
-- **🗃️ MongoDB Backend**: Persistent storage for tasks, workers, and results
-- **🔄 Auto-Registration**: Workers automatically register with master on startup
-- **📝 Log Collection**: Capture and display task execution logs
-- **⚡ Async Execution**: Non-blocking task processing
+---
+
+## 📖 Overview
+
+CloudAI is a distributed computing platform for executing Docker-based workloads across a cluster of worker nodes. Built with **Go** for performance and **Python** for AI-powered scheduling.
+
+**Use Cases:** ML training, batch processing, CI/CD pipelines, scientific computing, microservices testing
+
+**📚 [Complete Documentation](DOCUMENTATION.md)** | **🚀 [Getting Started Guide](GETTING_STARTED.md)** 
+
+---
+
+## ✨ Key Features
+
+- **Interactive CLI** - Manage cluster from command-line
+- **AI Scheduling** - 4 optimization strategies (30-40% better throughput)
+- **Real-Time Telemetry** - WebSocket streaming of cluster metrics
+- **Docker Native** - Run any containerized workload
+- **REST & gRPC APIs** - Full programmatic access
+- **MongoDB Persistence** - Task history and results
+- **Auto-Registration** - Workers connect automatically
+- **Task Cancellation** - Graceful and forceful termination
+- **Resource Tracking** - CPU, Memory, GPU, Storage
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────┐
-│   Master    │  (Port 50051)
-│   - gRPC    │  • Task assignment
-│   - MongoDB │  • Worker management
-│   - CLI     │  • Telemetry collection
-└──────┬──────┘
-       │
-       │ gRPC (TLS Ready)
-       │
-    ┌──┴──────────┬──────────────┐
-    │             │              │
-┌───▼────┐   ┌───▼────┐    ┌───▼────┐
-│Worker-1│   │Worker-2│    │Worker-N│
-│- Docker│   │- Docker│    │- Docker│
-│- gRPC  │   │- gRPC  │    │- gRPC  │
-└────────┘   └────────┘    └────────┘
+User Interface (CLI/API)
+         ↓
+    Master Node ---> MongoDB (Persistence)
+    (Go + gRPC)       
+         ↓
+    ┌────┼────┐
+    ↓    ↓    ↓
+ Worker Worker Worker (Go + Docker)
 ```
 
-## 📂 Project Structure
+**Components:**
+- **Master**: Task assignment, worker management, telemetry aggregation (Port 50051)
+- **Worker**: Docker execution, heartbeat monitoring (Port 50052+)
+- **AI Scheduler**: Intelligent task placement (Python, optional)
+- **Database**: MongoDB for persistence
 
-```
-CloudAI/
-├── proto/              # gRPC protocol definitions
-│   ├── master_worker.proto
-│   ├── master_agent.proto
-│   ├── generate.sh
-│   ├── pb/            # Generated Go code
-│   └── py/            # Generated Python code
-├── master/             # Master node (Go)
-│   ├── main.go
-│   ├── proto -> ../proto/pb  # Symlink to Go protos
-│   └── internal/
-│       ├── server/     # gRPC handlers
-│       ├── cli/        # Interactive CLI
-│       └── db/         # MongoDB integration
-├── worker/             # Worker node (Go)
-│   ├── main.go
-│   ├── proto -> ../proto/pb  # Symlink to Go protos
-│   └── internal/
-│       ├── server/     # gRPC server
-│       ├── executor/   # Docker execution
-│       └── telemetry/  # Monitoring
-├── agentic_scheduler/  # AI Scheduler (Python submodule)
-│   ├── proto -> ../proto/py  # Symlink to Python protos
-│   ├── main.py
-│   └── grpc_client.py
-├── sample_task/        # Example Docker task
-├── database/           # MongoDB setup
-└── docs/               # Documentation
-```
+**Communication:**
+- gRPC for Master <-> Worker
+- HTTP/WebSocket for monitoring (Port 8080)
+- MongoDB for data persistence
+
+See [architecture.md](docs/architecture.md) for detailed diagrams.
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Go 1.22+**
-- **Docker** with daemon running
-- **Protocol Buffers** compiler (`protoc`)
-- **MongoDB** (via docker-compose)
-
-### Clone with Submodules
-
-For newcomers cloning this repository:
-
-```bash
-# Clone the repository with all submodules
-git clone --recurse-submodules git@github.com:Codesmith28/CloudAI.git
-
-# OR if already cloned without submodules:
-git submodule update --init --recursive
-```
+- Go 1.22+
+- Docker (daemon running)
+- Protocol Buffers compiler (`protoc`)
+- MongoDB (via Docker Compose)
+- Python 3.8+ (for AI Scheduler)
 
 ### Installation
 
 ```bash
-# 1. Generate gRPC code
-cd proto && ./generate.sh && cd ..
+# Clone repository
+git clone --recurse-submodules https://github.com/Codesmith28/CloudAI.git
+cd CloudAI
 
-# 2. Start MongoDB
-cd database && docker-compose up -d && cd ..
+# One-time setup (generates proto code, creates symlinks, installs deps)
+make setup
 
-# 3. Create .env file
-cat > .env << EOF
-MONGODB_USERNAME=admin
-MONGODB_PASSWORD=password123
-EOF
-
-# 4. Build and run Master (Terminal 1)
-cd master
-ln -s ../proto/pb proto
-go mod tidy
-go build -o master-node .
-./master-node
-
-# 5. Build and run Worker (Terminal 2)
-cd worker
-ln -s ../proto/pb proto
-go mod tidy
-go build -o worker-node .
-./worker-node -id worker-1
-
-# 6. Assign a task (in Master CLI)
-master> task worker-1 docker.io/username/cloudai-sample-task:latest
+# Build master and worker
+make all
 ```
 
-## 📚 Documentation
-
-- **[SETUP.md](./SETUP.md)** - Comprehensive setup and testing guide
-- **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Command reference and quick fixes
-- **[master/README.md](./master/README.md)** - Master node documentation
-- **[worker/README.md](./worker/README.md)** - Worker node documentation
-- **[proto/README.md](./proto/README.md)** - Protocol buffer guide
-- **[docs/schema.md](./docs/schema.md)** - Database schema
-
-## 🎮 Master CLI Commands
+### Run the System
 
 ```bash
-help                                  # Show available commands
-status                                # Show cluster status
-workers                               # List registered workers
-task <worker_id> <docker_image>      # Assign task to worker
-exit                                  # Shutdown master
+# Terminal 1: Start MongoDB
+cd database && docker-compose up -d
+
+# Terminal 2: Start Master
+cd master && ./masterNode
+
+# Terminal 3: Start Worker  
+cd worker && ./workerNode
 ```
 
-## 🔧 Worker Configuration
+### Your First Task
 
 ```bash
-./worker-node \
-  -id worker-1 \                    # Worker identifier
-  -ip localhost \                   # Worker IP address
-  -master localhost:50051 \         # Master server address
-  -port :50052                      # Worker gRPC port
+# In master CLI
+master> workers                              # List workers
+master> task worker-1 hello-world:latest    # Submit task
+master> monitor task-<id>                   # Watch execution
 ```
 
-## 📊 System Flow
-
-```
-1. Worker Registration
-   Worker → Master: RegisterWorker(WorkerInfo)
-
-2. Heartbeat Monitoring
-   Worker → Master: SendHeartbeat (every 5s)
-
-3. Task Assignment
-   User → Master CLI: task worker-1 docker.io/image
-   Master → Worker: AssignTask(Task)
-
-4. Task Execution
-   Worker: Pull Docker image → Run container → Collect logs
-
-5. Result Reporting
-   Worker → Master: ReportTaskCompletion(TaskResult)
-```
-
-## 🐳 Creating Custom Tasks
-
-Tasks are Docker containers. Create your own:
-
-```python
-# task.py
-import time
-print("Processing data...")
-time.sleep(5)
-print("Task completed!")
-```
-
-```dockerfile
-# Dockerfile
-FROM python:3.11-slim
-COPY task.py .
-CMD ["python", "task.py"]
-```
-
-```bash
-docker build -t username/my-task:latest .
-docker push username/my-task:latest
-```
-
-Then assign it:
-
-```bash
-master> task worker-1 docker.io/username/my-task:latest
-```
-
-## 🗄️ MongoDB Collections
-
-| Collection        | Purpose                     |
-| ----------------- | --------------------------- |
-| `USERS`           | User authentication         |
-| `WORKER_REGISTRY` | Worker nodes and resources  |
-| `TASKS`           | Task definitions and status |
-| `ASSIGNMENTS`     | Task-to-worker mappings     |
-| `RESULTS`         | Task execution results      |
-
-## 🔌 gRPC Services
-
-### MasterWorker Service
-
-- `RegisterWorker` - Worker registration
-- `SendHeartbeat` - Health monitoring
-- `ReportTaskCompletion` - Task results
-- `AssignTask` - Task assignment
-- `CancelTask` - Task cancellation
-
-### MasterAgent Service (Future)
-
-- `FetchClusterState` - Get cluster info
-- `SubmitAssignments` - AI-based scheduling
-
-## 🛠️ Troubleshooting
-
-**Problem**: protoc: command not found
-
-```bash
-# Ubuntu/Debian
-sudo apt-get install protobuf-compiler
-# macOS
-brew install protobuf
-```
-
-**Problem**: Worker can't connect to master
-
-```bash
-# Check master is running
-ps aux | grep master-node
-# Verify port
-netstat -tlnp | grep 50051
-```
-
-**Problem**: Docker permission denied
-
-```bash
-sudo usermod -aG docker $USER
-# Logout and login again
-```
-
-See [SETUP.md](./SETUP.md) for more troubleshooting.
-
-## 🎯 Use Cases
-
-- **Machine Learning Training**: Distribute ML training jobs across workers
-- **Data Processing**: Process large datasets in parallel
-- **CI/CD Pipelines**: Run build and test jobs on demand
-- **Batch Jobs**: Execute scheduled batch processing tasks
-- **Scientific Computing**: Run simulations and computations
-- **Video Processing**: Transcode and process media files
-
-## 🚧 Roadmap
-
-- [x] Basic master-worker communication
-- [x] Docker task execution
-- [x] Real-time telemetry
-- [x] Interactive CLI
-- [ ] Task queuing system
-- [ ] AI-based scheduling agent (Python)
-- [ ] Web dashboard
-- [ ] TLS authentication
-- [ ] GPU support
-- [ ] S3 result storage
-- [ ] Multi-master HA setup
-
-## 🤝 Contributing
-
-Contributions are welcome! Areas for improvement:
-
-- Enhanced resource monitoring
-- Load balancing algorithms
-- Task priority scheduling
-- Container networking
-- Security hardening
-- Performance optimization
-
-## 📄 License
-
-[Add your license here]
-
-## 🙏 Acknowledgments
-
-Built with:
-
-- [gRPC](https://grpc.io/) - RPC framework
-- [Protocol Buffers](https://protobuf.dev/) - Serialization
-- [Docker SDK](https://docs.docker.com/engine/api/sdk/) - Container management
-- [MongoDB Go Driver](https://www.mongodb.com/docs/drivers/go/current/) - Database
+**📚 See [GETTING_STARTED.md](GETTING_STARTED.md) for detailed walkthrough**
 
 ---
 
-**Status**: ✅ Minimal viable version complete and tested
+## 📚 Usage Examples
 
-For detailed setup instructions, see [SETUP.md](./SETUP.md)
+### CLI Commands
+
+```bash
+# Cluster management
+master> status                                    # Cluster overview
+master> workers                                   # List all workers
+master> register worker-3 192.168.1.102:50052    # Manual registration
+
+# Task operations
+master> task worker-1 python:3.9 -cpu_cores 2.0 -mem 4.0    # Submit task
+master> monitor task-<id>                                     # Watch logs
+master> cancel task-<id>                                      # Cancel task
+```
+
+### AI Scheduler
+
+```bash
+cd agentic_scheduler
+
+python main.py ai              # Multi-Objective (balanced)
+python main.py ai_aggressive   # Max resource utilization
+python main.py ai_predictive   # Min completion time
+python test_schedulers.py      # Compare all strategies
+```
+
+### Monitoring
+
+```bash
+# REST API - Telemetry
+curl http://localhost:8080/telemetry | jq
+curl http://localhost:8080/workers | jq
+
+# REST API - Tasks
+curl http://localhost:8080/api/tasks | jq
+curl http://localhost:8080/api/workers | jq
+
+# WebSocket (real-time)
+wscat -c ws://localhost:8080/ws/telemetry
+
+# Submit Task via REST API
+curl -X POST http://localhost:8080/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"docker_image":"ubuntu:latest","command":"echo hello","cpu_required":1.0,"memory_required":512.0}'
+```
+
+**📖 See [DOCUMENTATION.md](DOCUMENTATION.md) for complete API reference**
+
+---
+
+## � Documentation
+
+- **[GETTING_STARTED.md](GETTING_STARTED.md)** - 5-minute setup guide
+- **[DOCUMENTATION.md](DOCUMENTATION.md)** - Complete reference (50+ pages)
+- **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - Documentation navigator
+- **[docs/architecture.md](docs/architecture.md)** - System architecture
+- **[docs/TELEMETRY_QUICK_REFERENCE.md](docs/TELEMETRY_QUICK_REFERENCE.md)** - Monitoring guide
+- **[agentic_scheduler/AI_SCHEDULER_USAGE.md](agentic_scheduler/AI_SCHEDULER_USAGE.md)** - AI scheduler
+
+---
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| **Worker not connecting** | Check `netstat -tuln \| grep 50051`, verify firewall |
+| **Task fails** | Run `docker pull <image>` to test, check logs with `monitor` |
+| **MongoDB error** | Run `docker-compose ps` in database/, restart if needed |
+
+**Debug Logging:**
+```bash
+export LOG_LEVEL=debug
+./masterNode
+```
+
+**📚 See [DOCUMENTATION.md](DOCUMENTATION.md) Section 12 for detailed troubleshooting**
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome! Areas of interest:
+- New scheduling algorithms
+- Dashboard/UI implementation  
+- Authentication & authorization
+- Performance optimizations
+- Documentation improvements
+
+**Process:** Fork → Feature Branch → Commit → Push → Pull Request
+
+---
+
+## 🗺️ Roadmap
+
+**Current (v2.0)**
+- ✅ Master-Worker architecture  
+- ✅ AI scheduling (4 strategies)
+- ✅ Real-time telemetry
+- ✅ Interactive CLI
+- ✅ Task cancellation
+
+**Planned (v2.1)**
+- 🔜 Task queuing
+- 🔜 Web dashboard
+- 🔜 Authentication
+
+---
+
+<div align="center">
+
+**⭐ Star this repo if you find it useful!**
+
+Built with [gRPC](https://grpc.io/) • [MongoDB](https://www.mongodb.com/) • [Docker](https://www.docker.com/)
+
+</div>

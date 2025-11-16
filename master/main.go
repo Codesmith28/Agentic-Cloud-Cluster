@@ -43,6 +43,7 @@ func main() {
 	var workerDB *db.WorkerDB
 	var taskDB *db.TaskDB
 	var assignmentDB *db.AssignmentDB
+	var resultDB *db.ResultDB
 
 	if err := db.EnsureCollections(ctx, cfg); err != nil {
 		log.Printf("Warning: MongoDB initialization failed: %v", err)
@@ -81,6 +82,16 @@ func main() {
 			log.Println("✓ AssignmentDB initialized")
 			defer assignmentDB.Close(context.Background())
 		}
+
+		// Create result database handler
+		resultDB, err = db.NewResultDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create ResultDB: %v", err)
+			resultDB = nil
+		} else {
+			log.Println("✓ ResultDB initialized")
+			defer resultDB.Close(context.Background())
+		}
 	}
 
 	// Create master server
@@ -89,12 +100,16 @@ func main() {
 	telemetryMgr.Start()
 	log.Println("✓ Telemetry manager started")
 
-	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, telemetryMgr)
+	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, resultDB, telemetryMgr)
 
 	// Set master info
 	masterID := "master-1"
 	masterAddress := sysInfo.GetMasterAddress() + cfg.GRPCPort
 	masterServer.SetMasterInfo(masterID, masterAddress)
+
+	// Start task queue processor
+	masterServer.StartQueueProcessor()
+	log.Println("✓ Task queue processor started")
 
 	// Load workers from database
 	if workerDB != nil {
@@ -118,13 +133,27 @@ func main() {
 			fmt.Sscanf(cfg.HTTPPort, ":%d", &port)
 		}
 
+		// Create telemetry server with WebSocket support
 		httpTelemetryServer = httpserver.NewTelemetryServer(port, telemetryMgr)
+
+		// Create task and worker API handlers
+		taskHandler := httpserver.NewTaskAPIHandler(masterServer, taskDB, assignmentDB, resultDB)
+		workerHandler := httpserver.NewWorkerAPIHandler(masterServer, workerDB, assignmentDB, telemetryMgr)
+
+		// Add API routes
+		httpTelemetryServer.RegisterTaskHandlers(taskHandler)
+		httpTelemetryServer.RegisterWorkerHandlers(workerHandler)
+
 		go func() {
 			if err := httpTelemetryServer.Start(); err != nil && err != http.ErrServerClosed {
-				log.Printf("WebSocket telemetry server error: %v", err)
+				log.Printf("HTTP API server error: %v", err)
 			}
 		}()
-		log.Printf("✓ WebSocket telemetry server started on port %d", port)
+		log.Printf("✓ HTTP API server started on port %d", port)
+		log.Printf("  - Telemetry: GET /health, /telemetry, /workers")
+		log.Printf("  - WebSocket: WS /ws/telemetry, /ws/telemetry/{worker_id}")
+		log.Printf("  - Tasks: POST/GET/DELETE /api/tasks, GET /api/tasks/{id}")
+		log.Printf("  - Workers: GET /api/workers, /api/workers/{id}")
 	}
 
 	// Setup graceful shutdown
@@ -135,6 +164,9 @@ func main() {
 	go func() {
 		<-sigChan
 		log.Println("\n\nShutting down master node...")
+
+		// Stop queue processor
+		masterServer.StopQueueProcessor()
 
 		// Shutdown HTTP server
 		if httpTelemetryServer != nil {
