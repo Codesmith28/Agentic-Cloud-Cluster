@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -86,9 +87,9 @@ func main() {
 
 	go func() {
 		<-sigChan
-		log.Println("\n╔═══════════════════════════════════════════════════════")
-		log.Println("║  Shutdown signal received - gracefully shutting down...")
-		log.Println("╚═══════════════════════════════════════════════════════")
+		fmt.Println("\n╔═══════════════════════════════════════════════════════")
+		fmt.Println("║  Shutdown signal received - gracefully shutting down...")
+		fmt.Println("╚═══════════════════════════════════════════════════════")
 
 		// Report running tasks as failed before shutting down
 		workerServer.Shutdown()

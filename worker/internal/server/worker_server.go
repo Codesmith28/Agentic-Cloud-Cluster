@@ -354,19 +354,19 @@ func (s *WorkerServer) Close() error {
 
 // Shutdown handles graceful shutdown by reporting all running tasks as failed
 func (s *WorkerServer) Shutdown() {
-	log.Println("╔═══════════════════════════════════════════════════════")
-	log.Println("║  Worker Shutdown - Cleaning up running tasks...")
-	log.Println("╚═══════════════════════════════════════════════════════")
+	fmt.Println("╔═══════════════════════════════════════════════════════")
+	fmt.Println("║  Worker Shutdown - Cleaning up running tasks...")
+	fmt.Println("╚═══════════════════════════════════════════════════════")
 
 	// Get all running tasks
 	runningTasks := s.executor.GetRunningTasks()
 
 	if len(runningTasks) == 0 {
-		log.Println("  ✓ No running tasks to clean up")
+		fmt.Println("  ✓ No running tasks to clean up")
 		return
 	}
 
-	log.Printf("  Found %d running task(s) to report as failed", len(runningTasks))
+	fmt.Printf("  Found %d running task(s) to report as failed\n", len(runningTasks))
 
 	s.mu.RLock()
 	masterAddr := s.masterAddr
