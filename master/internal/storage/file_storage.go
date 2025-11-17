@@ -14,8 +14,9 @@ import (
 
 // FileStorageService handles file uploads and storage organization
 type FileStorageService struct {
-	baseDir string // Base directory for all file storage (e.g., /var/cloudai/files)
-	mu      sync.RWMutex
+	baseDir       string // Base directory for all file storage (e.g., /var/cloudai/files)
+	accessControl *AccessControl
+	mu            sync.RWMutex
 }
 
 // FileMetadata represents metadata for stored files
@@ -35,16 +36,35 @@ func NewFileStorageService(baseDir string) (*FileStorageService, error) {
 		return nil, fmt.Errorf("failed to create storage directory: %w", err)
 	}
 
-	return &FileStorageService{
+	fs := &FileStorageService{
 		baseDir: baseDir,
-	}, nil
+	}
+
+	// Initialize access control
+	fs.accessControl = NewAccessControl(fs)
+
+	log.Printf("✓ FileStorageService initialized with access control")
+
+	return fs, nil
+}
+
+// GetAccessControl returns the access control instance
+func (s *FileStorageService) GetAccessControl() *AccessControl {
+	return s.accessControl
 }
 
 // GetTaskStoragePath returns the directory path for a specific task
 // Path format: <baseDir>/<user_id>/<task_name>/<timestamp>/<task_id>/
+// Creates directories with secure permissions (0700 - owner only)
 func (s *FileStorageService) GetTaskStoragePath(userID, taskName string, timestamp int64, taskID string) string {
 	timestampStr := time.Unix(timestamp, 0).Format("2006-01-02_15-04-05")
-	return filepath.Join(s.baseDir, userID, taskName, timestampStr, taskID)
+
+	// Create user directory with strict permissions (drwx------)
+	userDir := filepath.Join(s.baseDir, userID)
+	os.MkdirAll(userDir, 0700) // Only owner can read/write/execute
+
+	// Create full path
+	return filepath.Join(userDir, taskName, timestampStr, taskID)
 }
 
 // ReceiveFileStream handles streaming file uploads from workers
@@ -83,13 +103,13 @@ func (s *FileStorageService) ReceiveFileStream(stream pb.MasterWorker_UploadTask
 			metadata.StoragePath = s.GetTaskStoragePath(chunk.UserId, chunk.TaskName, chunk.Timestamp, chunk.TaskId)
 			metadata.FilePaths = []string{}
 
-			// Create storage directory
-			if err := os.MkdirAll(metadata.StoragePath, 0755); err != nil {
+			// Create storage directory with secure permissions (drwx------)
+			if err := os.MkdirAll(metadata.StoragePath, 0700); err != nil {
 				return nil, fmt.Errorf("failed to create storage directory: %w", err)
 			}
 
-			log.Printf("[FileStorage] Receiving files for task %s (user: %s, task_name: %s)",
-				chunk.TaskId, chunk.UserId, chunk.TaskName)
+			log.Printf("[FileStorage] 🔒 Receiving files for task %s (user: %s, secure storage)",
+				chunk.TaskId, chunk.UserId)
 		}
 
 		// New file in the stream
@@ -104,18 +124,19 @@ func (s *FileStorageService) ReceiveFileStream(stream pb.MasterWorker_UploadTask
 			currentFilePath = chunk.FilePath
 			fullPath := filepath.Join(metadata.StoragePath, chunk.FilePath)
 
-			// Create parent directories
-			if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+			// Create parent directories with secure permissions
+			if err := os.MkdirAll(filepath.Dir(fullPath), 0700); err != nil {
 				return nil, fmt.Errorf("failed to create directory for %s: %w", chunk.FilePath, err)
 			}
 
-			currentFile, err = os.Create(fullPath)
+			// Create file with secure permissions (rw-------)
+			currentFile, err = os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create file %s: %w", fullPath, err)
 			}
 
 			metadata.FilePaths = append(metadata.FilePaths, chunk.FilePath)
-			log.Printf("[FileStorage] Receiving file: %s", chunk.FilePath)
+			log.Printf("[FileStorage] 📄 Receiving file: %s (secure)", chunk.FilePath)
 		}
 
 		// Write chunk data
@@ -272,4 +293,108 @@ func (s *FileStorageService) GetFilePath(userID, taskID, relativeFilePath string
 // Close cleans up resources (currently no-op, but useful for future extensions)
 func (s *FileStorageService) Close() error {
 	return nil
+}
+
+// ListUserFilesWithAccess lists files for a user with access control
+// requestingUserID: the user making the request
+// targetUserID: the user whose files to list
+func (s *FileStorageService) ListUserFilesWithAccess(requestingUserID, targetUserID string) ([]*FileMetadata, error) {
+	// Check access permission
+	if err := s.accessControl.CanAccessFiles(requestingUserID, targetUserID); err != nil {
+		s.accessControl.AuditFileAccess(requestingUserID, "list_files", targetUserID, false)
+		return nil, err
+	}
+
+	// Access granted - get files
+	files, err := s.ListUserFiles(targetUserID)
+	if err != nil {
+		s.accessControl.AuditFileAccess(requestingUserID, "list_files", targetUserID, false)
+		return nil, err
+	}
+
+	s.accessControl.AuditFileAccess(requestingUserID, "list_files", targetUserID, true)
+
+	log.Printf("🔐 [Access Control] User %s accessed file list for user %s (%d files)",
+		requestingUserID, targetUserID, len(files))
+
+	// Convert []FileMetadata to []*FileMetadata
+	result := make([]*FileMetadata, len(files))
+	for i := range files {
+		result[i] = &files[i]
+	}
+
+	return result, nil
+}
+
+// GetTaskFilesWithAccess gets task files with access control
+func (s *FileStorageService) GetTaskFilesWithAccess(requestingUserID, targetUserID, taskID string) (*FileMetadata, error) {
+	// Check access permission
+	if err := s.accessControl.CanAccessFiles(requestingUserID, targetUserID); err != nil {
+		s.accessControl.AuditFileAccess(requestingUserID, "get_task", taskID, false)
+		return nil, err
+	}
+
+	// Access granted - get task files
+	metadata, err := s.GetTaskFiles(targetUserID, taskID)
+	s.accessControl.AuditFileAccess(requestingUserID, "get_task", taskID, err == nil)
+
+	if err == nil {
+		log.Printf("🔐 [Access Control] User %s accessed task %s files (user: %s)",
+			requestingUserID, taskID, targetUserID)
+	}
+
+	return metadata, err
+}
+
+// ReadFileWithAccess reads a file with access control
+func (s *FileStorageService) ReadFileWithAccess(requestingUserID, targetUserID, taskID, filePath string) ([]byte, error) {
+	// Check access permission
+	if err := s.accessControl.CanAccessFiles(requestingUserID, targetUserID); err != nil {
+		s.accessControl.AuditFileAccess(requestingUserID, "read_file", filePath, false)
+		return nil, err
+	}
+
+	// Sanitize file path to prevent directory traversal
+	if err := s.accessControl.ValidateFilePath(filePath); err != nil {
+		s.accessControl.AuditFileAccess(requestingUserID, "read_file", filePath, false)
+		return nil, err
+	}
+
+	// Get full file path
+	fullPath, err := s.GetFilePath(targetUserID, taskID, filePath)
+	if err != nil {
+		s.accessControl.AuditFileAccess(requestingUserID, "read_file", filePath, false)
+		return nil, err
+	}
+
+	// Read file
+	data, err := os.ReadFile(fullPath)
+	s.accessControl.AuditFileAccess(requestingUserID, "read_file", filePath, err == nil)
+
+	if err == nil {
+		log.Printf("🔐 [Access Control] User %s read file %s (task: %s, user: %s, size: %d bytes)",
+			requestingUserID, filePath, taskID, targetUserID, len(data))
+	}
+
+	return data, err
+}
+
+// DeleteTaskFilesWithAccess deletes task files with access control
+func (s *FileStorageService) DeleteTaskFilesWithAccess(requestingUserID, targetUserID, taskID string) error {
+	// Check access permission (only owner or admin can delete)
+	if requestingUserID != targetUserID && !s.accessControl.isAdmin(requestingUserID) {
+		s.accessControl.AuditFileAccess(requestingUserID, "delete_task", taskID, false)
+		return fmt.Errorf("access denied: only file owner or admin can delete files")
+	}
+
+	// Delete files
+	err := s.DeleteTaskFiles(targetUserID, taskID)
+	s.accessControl.AuditFileAccess(requestingUserID, "delete_task", taskID, err == nil)
+
+	if err == nil {
+		log.Printf("🔐 [Access Control] User %s deleted task %s files (user: %s)",
+			requestingUserID, taskID, targetUserID)
+	}
+
+	return err
 }

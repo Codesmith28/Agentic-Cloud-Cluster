@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -22,6 +23,24 @@ func main() {
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("  CloudAI Worker Node - Starting...")
 	log.Println("═══════════════════════════════════════════════════════")
+
+	// Create base output directory for task files (secure permissions)
+	// Try /var/cloudai/outputs first, fallback to user home directory
+	outputBaseDir := "/var/cloudai/outputs"
+	if err := os.MkdirAll(outputBaseDir, 0700); err != nil {
+		// Fallback to user home directory if /var/cloudai requires root
+		homeDir, _ := os.UserHomeDir()
+		outputBaseDir = filepath.Join(homeDir, ".cloudai", "outputs")
+		if err := os.MkdirAll(outputBaseDir, 0700); err != nil {
+			log.Fatalf("Failed to create output directory %s: %v", outputBaseDir, err)
+		}
+		log.Printf("⚠️  Using user directory (no /var/cloudai access): %s", outputBaseDir)
+	} else {
+		log.Printf("✓ Output directory ready (secure): %s", outputBaseDir)
+	}
+	
+	// Store output directory for executor to use
+	os.Setenv("CLOUDAI_OUTPUT_DIR", outputBaseDir)
 
 	// Collect system information
 	sysInfo, err := system.CollectSystemInfo()

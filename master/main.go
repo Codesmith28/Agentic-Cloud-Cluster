@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -27,6 +28,27 @@ import (
 func main() {
 	// Load configuration
 	cfg := config.LoadConfig()
+
+	// Determine file storage base directory with fallback
+	fileStorageBaseDir := "/var/cloudai/files"
+	if err := os.MkdirAll(fileStorageBaseDir, 0700); err != nil {
+		// If /var/cloudai/files fails (permission denied), fallback to ~/.cloudai/files
+		log.Printf("Warning: Cannot create %s: %v", fileStorageBaseDir, err)
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatalf("Failed to get home directory: %v", err)
+		}
+		fileStorageBaseDir = filepath.Join(homeDir, ".cloudai", "files")
+		if err := os.MkdirAll(fileStorageBaseDir, 0700); err != nil {
+			log.Fatalf("Failed to create fallback directory %s: %v", fileStorageBaseDir, err)
+		}
+		log.Printf("✓ Using fallback file storage directory: %s", fileStorageBaseDir)
+	} else {
+		log.Printf("✓ File storage directory ready (secure): %s", fileStorageBaseDir)
+	}
+
+	// Set environment variable for file storage components
+	os.Setenv("CLOUDAI_FILES_DIR", fileStorageBaseDir)
 
 	// Collect system information
 	sysInfo, err := system.CollectSystemInfo()
@@ -108,13 +130,13 @@ func main() {
 	}
 
 	// Initialize file storage service
-	fileStorage, err = storage.NewFileStorageService("/var/cloudai/files")
+	fileStorage, err = storage.NewFileStorageService(fileStorageBaseDir)
 	if err != nil {
 		log.Printf("Warning: Failed to create FileStorageService: %v", err)
 		log.Println("Continuing without file storage...")
 		fileStorage = nil
 	} else {
-		log.Println("✓ FileStorageService initialized (base: /var/cloudai/files)")
+		log.Printf("✓ FileStorageService initialized (base: %s)", fileStorageBaseDir)
 		defer fileStorage.Close()
 	}
 

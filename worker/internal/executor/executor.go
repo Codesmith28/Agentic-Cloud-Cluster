@@ -39,6 +39,14 @@ type TaskResult struct {
 	OutputFiles    []string // List of output files relative to ResultLocation
 }
 
+// getBaseOutputDir returns the base output directory, using CLOUDAI_OUTPUT_DIR env var if set
+func getBaseOutputDir() string {
+	if dir := os.Getenv("CLOUDAI_OUTPUT_DIR"); dir != "" {
+		return dir
+	}
+	return "/var/cloudai/outputs"
+}
+
 // NewTaskExecutor creates a new task executor
 func NewTaskExecutor() (*TaskExecutor, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -139,7 +147,7 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 	}
 
 	// Collect output files
-	outputDir := fmt.Sprintf("/var/cloudai/outputs/%s", taskID)
+	outputDir := filepath.Join(getBaseOutputDir(), taskID)
 	outputFiles, err := e.collectOutputFiles(outputDir)
 	if err != nil {
 		log.Printf("[Task %s] Warning: failed to collect output files: %v", taskID, err)
@@ -185,13 +193,12 @@ func (e *TaskExecutor) createContainer(ctx context.Context, image, command, task
 		containerConfig.Cmd = []string{"/bin/sh", "-c", command}
 	}
 
-	// Create output directory on host
-	outputDir := fmt.Sprintf("/var/cloudai/outputs/%s", taskID)
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		log.Printf("[Task %s] Warning: failed to create output directory: %v", taskID, err)
-	} else {
-		log.Printf("[Task %s] Created output directory: %s", taskID, outputDir)
+	// Create output directory on host with secure permissions
+	outputDir := filepath.Join(getBaseOutputDir(), taskID)
+	if err := os.MkdirAll(outputDir, 0700); err != nil { // drwx------ (owner only)
+		return "", fmt.Errorf("failed to create output directory %s: %w", outputDir, err)
 	}
+	log.Printf("[Task %s] ✓ Created secure output directory: %s", taskID, outputDir)
 
 	// Prepare host config with resource limits and volume mount
 	hostConfig := &container.HostConfig{
