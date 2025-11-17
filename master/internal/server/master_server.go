@@ -10,6 +10,7 @@ import (
 
 	"master/internal/db"
 	"master/internal/scheduler"
+	"master/internal/storage"
 	"master/internal/telemetry"
 	pb "master/proto"
 
@@ -37,14 +38,16 @@ type TaskSubmission struct {
 type MasterServer struct {
 	pb.UnimplementedMasterWorkerServer
 
-	workers       map[string]*WorkerState
-	mu            sync.RWMutex
-	workerDB      *db.WorkerDB
-	taskDB        *db.TaskDB
-	assignmentDB  *db.AssignmentDB
-	resultDB      *db.ResultDB
-	masterID      string
-	masterAddress string
+	workers        map[string]*WorkerState
+	mu             sync.RWMutex
+	workerDB       *db.WorkerDB
+	taskDB         *db.TaskDB
+	assignmentDB   *db.AssignmentDB
+	resultDB       *db.ResultDB
+	fileMetadataDB *db.FileMetadataDB
+	fileStorage    *storage.FileStorageService
+	masterID       string
+	masterAddress  string
 
 	taskChan chan *TaskAssignment
 
@@ -59,11 +62,9 @@ type MasterServer struct {
 	// Telemetry manager for handling worker telemetry in separate threads
 	telemetryManager *telemetry.TelemetryManager
 
-	// Tau store for runtime learning
-	tauStore telemetry.TauStore
-
-	// SLA multiplier (k) - default 2.0, range [1.5, 2.5]
-	slaMultiplier float64
+	// Worker reconnection
+	reconnectTicker *time.Ticker
+	reconnectStop   chan bool
 }
 
 // WorkerState tracks the current state of a worker
@@ -93,33 +94,22 @@ type TaskAssignment struct {
 	WorkerID string
 }
 
-// NewMasterServer creates a new master server instance with default Round-Robin scheduler
-func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB, telemetryMgr *telemetry.TelemetryManager, tauStore telemetry.TauStore, slaMultiplier float64) *MasterServer {
-	return NewMasterServerWithScheduler(workerDB, taskDB, assignmentDB, resultDB, telemetryMgr, tauStore, slaMultiplier, scheduler.NewRoundRobinScheduler())
-}
-
-// NewMasterServerWithScheduler creates a new master server instance with a custom scheduler
-func NewMasterServerWithScheduler(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB, telemetryMgr *telemetry.TelemetryManager, tauStore telemetry.TauStore, slaMultiplier float64, sched scheduler.Scheduler) *MasterServer {
-	// Validate SLA multiplier
-	if slaMultiplier < 1.5 || slaMultiplier > 2.5 {
-		log.Printf("⚠️  Invalid SLA multiplier %.2f, using default 2.0", slaMultiplier)
-		slaMultiplier = 2.0
-	}
-
+// NewMasterServer creates a new master server instance
+func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB, fileMetadataDB *db.FileMetadataDB, fileStorage *storage.FileStorageService, telemetryMgr *telemetry.TelemetryManager) *MasterServer {
 	return &MasterServer{
 		workers:          make(map[string]*WorkerState),
 		workerDB:         workerDB,
 		taskDB:           taskDB,
 		assignmentDB:     assignmentDB,
 		resultDB:         resultDB,
+		fileMetadataDB:   fileMetadataDB,
+		fileStorage:      fileStorage,
 		masterID:         "",
 		masterAddress:    "",
 		taskChan:         make(chan *TaskAssignment, 100),
 		taskQueue:        make([]*QueuedTask, 0),
-		scheduler:        sched, // Use provided scheduler
+		scheduler:        scheduler.NewRoundRobinScheduler(), // Use Round-Robin as default
 		telemetryManager: telemetryMgr,
-		tauStore:         tauStore,
-		slaMultiplier:    slaMultiplier,
 	}
 }
 
@@ -137,6 +127,14 @@ func (s *MasterServer) GetMasterInfo() (string, string) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.masterID, s.masterAddress
+}
+
+// SetScheduler sets the task scheduler
+func (s *MasterServer) SetScheduler(sched scheduler.Scheduler) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.scheduler = sched
+	log.Printf("Scheduler set: %s", sched.GetName())
 }
 
 // LoadWorkersFromDB loads registered workers from database into memory
@@ -484,6 +482,89 @@ func (s *MasterServer) ManualRegisterAndNotify(ctx context.Context, workerID, wo
 	return nil
 }
 
+// StartWorkerReconnectionMonitor starts a background process that periodically attempts
+// to reconnect to inactive workers
+func (s *MasterServer) StartWorkerReconnectionMonitor() {
+	s.reconnectTicker = time.NewTicker(30 * time.Second) // Check every 30 seconds
+	s.reconnectStop = make(chan bool)
+
+	go func() {
+		log.Println("🔄 Worker reconnection monitor started")
+		for {
+			select {
+			case <-s.reconnectTicker.C:
+				s.attemptWorkerReconnections()
+			case <-s.reconnectStop:
+				log.Println("🛑 Worker reconnection monitor stopped")
+				return
+			}
+		}
+	}()
+}
+
+// StopWorkerReconnectionMonitor stops the reconnection monitor
+func (s *MasterServer) StopWorkerReconnectionMonitor() {
+	if s.reconnectTicker != nil {
+		s.reconnectTicker.Stop()
+	}
+	if s.reconnectStop != nil {
+		close(s.reconnectStop)
+	}
+}
+
+// attemptWorkerReconnections tries to reconnect to all inactive workers
+func (s *MasterServer) attemptWorkerReconnections() {
+	s.mu.RLock()
+	masterID := s.masterID
+	masterAddress := s.masterAddress
+
+	// Collect inactive workers
+	inactiveWorkers := make(map[string]string) // workerID -> workerIP
+	for workerID, worker := range s.workers {
+		if !worker.IsActive && worker.Info != nil && worker.Info.WorkerIp != "" {
+			inactiveWorkers[workerID] = worker.Info.WorkerIp
+		}
+	}
+	s.mu.RUnlock()
+
+	// If there are inactive workers, attempt to reconnect
+	if len(inactiveWorkers) > 0 {
+		log.Printf("🔄 Attempting to reconnect to %d inactive worker(s)...", len(inactiveWorkers))
+
+		for workerID, workerIP := range inactiveWorkers {
+			// Launch reconnection attempt in goroutine (non-blocking)
+			go s.attemptSingleWorkerReconnection(workerID, workerIP, masterID, masterAddress)
+		}
+	}
+}
+
+// attemptSingleWorkerReconnection attempts to reconnect to a single worker
+func (s *MasterServer) attemptSingleWorkerReconnection(workerID, workerIP, masterID, masterAddress string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, workerIP,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock())
+	if err != nil {
+		// Worker still offline, silently skip (don't spam logs)
+		return
+	}
+	defer conn.Close()
+
+	client := pb.NewMasterWorkerClient(conn)
+	mi := &pb.MasterInfo{MasterId: masterID, MasterAddress: masterAddress}
+	ack, err := client.MasterRegister(ctx, mi)
+	if err != nil {
+		// Failed to register, worker may not be fully ready yet
+		return
+	}
+
+	if ack != nil && ack.Success {
+		log.Printf("✓ Successfully reconnected to worker %s (%s)", workerID, workerIP)
+	}
+}
+
 // UnregisterWorker removes a worker from the system
 func (s *MasterServer) UnregisterWorker(ctx context.Context, workerID string) error {
 	s.mu.Lock()
@@ -762,93 +843,83 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 		}
 	}
 
-	// Compute SLA Success (Task 2.5)
-	// Fetch task to get Deadline for SLA tracking and other metadata for tau update
-	var slaSuccess bool
-	var task *db.Task
-	if s.taskDB != nil {
-		var err error
-		task, err = s.taskDB.GetTask(context.Background(), result.TaskId)
-		if err != nil {
-			log.Printf("  ⚠ Warning: Failed to fetch task for SLA tracking: %v", err)
-			// Default to false if we can't fetch the task
-			slaSuccess = false
-		} else if !task.Deadline.IsZero() {
-			// Compare completion time with deadline
-			completionTime := time.Now()
-			slaSuccess = completionTime.Before(task.Deadline) || completionTime.Equal(task.Deadline)
-
-			if slaSuccess {
-				log.Printf("  ✅ SLA Success: Task completed at %s (deadline: %s)",
-					completionTime.Format(time.RFC3339), task.Deadline.Format(time.RFC3339))
-			} else {
-				delay := completionTime.Sub(task.Deadline)
-				log.Printf("  ❌ SLA Violation: Task completed %.2fs after deadline (deadline: %s)",
-					delay.Seconds(), task.Deadline.Format(time.RFC3339))
-			}
-		} else {
-			log.Printf("  ℹ No deadline set for task %s, marking SLA as not applicable", result.TaskId)
-			// If no deadline was set, we can't determine SLA success
-			// Could be an old task from before Task 2.2 implementation
-			slaSuccess = false
-		}
-	}
-
-	// Store result with logs and SLA success in RESULTS collection
+	// Store result with logs in RESULTS collection
 	if s.resultDB != nil {
 		taskResult := &db.TaskResult{
-			TaskID:     result.TaskId,
-			WorkerID:   result.WorkerId,
-			Status:     result.Status,
-			Logs:       result.Logs,
-			SLASuccess: slaSuccess,
+			TaskID:   result.TaskId,
+			WorkerID: result.WorkerId,
+			Status:   result.Status,
+			Logs:     result.Logs,
 		}
 		if err := s.resultDB.CreateResult(context.Background(), taskResult); err != nil {
 			log.Printf("  ⚠ Warning: Failed to store task result: %v", err)
 			// Don't fail here - status update is more critical
 		} else {
-			log.Printf("  ✓ Task result stored in RESULTS collection (SLA Success: %v)", slaSuccess)
+			log.Printf("  ✓ Task result stored in RESULTS collection")
 		}
-	}
-
-	// Update tau based on actual runtime (Task 2.4)
-	if s.tauStore != nil && task != nil && result.Status == "success" {
-		// We already fetched the task above for SLA tracking, reuse it
-		if task.TaskType != "" && !task.StartedAt.IsZero() {
-			// Compute actual runtime (in seconds)
-			completionTime := time.Now()
-			actualRuntime := completionTime.Sub(task.StartedAt).Seconds()
-
-			// Get current tau before update for logging
-			oldTau := s.tauStore.GetTau(task.TaskType)
-
-			// Update tau using EMA learning
-			s.tauStore.UpdateTau(task.TaskType, actualRuntime)
-
-			// Get new tau after update
-			newTau := s.tauStore.GetTau(task.TaskType)
-
-			log.Printf("  📊 Tau learning update for task type '%s':", task.TaskType)
-			log.Printf("     • Actual runtime: %.2fs", actualRuntime)
-			log.Printf("     • Old tau: %.2fs", oldTau)
-			log.Printf("     • New tau: %.2fs (Δ %.2fs)", newTau, newTau-oldTau)
-			log.Printf("     • Task ID: %s", result.TaskId)
-		} else {
-			if task.TaskType == "" {
-				log.Printf("  ⚠ Warning: Cannot update tau - task type not set for task %s", result.TaskId)
-			}
-			if task.StartedAt.IsZero() {
-				log.Printf("  ⚠ Warning: Cannot update tau - start time not recorded for task %s", result.TaskId)
-			}
-		}
-	} else if s.tauStore == nil {
-		log.Printf("  ⚠ Warning: TauStore not available for learning")
 	}
 
 	return &pb.Ack{
 		Success: true,
 		Message: "Task result received and processed",
 	}, nil
+}
+
+// UploadTaskFiles handles file uploads from workers via streaming RPC
+func (s *MasterServer) UploadTaskFiles(stream pb.MasterWorker_UploadTaskFilesServer) error {
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Printf("  📤 FILE UPLOAD REQUEST")
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	if s.fileStorage == nil {
+		log.Printf("  ✗ File storage service not initialized")
+		return stream.SendAndClose(&pb.FileUploadAck{
+			Success:       false,
+			Message:       "File storage service not available",
+			FilesReceived: 0,
+		})
+	}
+
+	// Receive file stream and store files
+	metadata, err := s.fileStorage.ReceiveFileStream(stream)
+	if err != nil {
+		log.Printf("  ✗ Failed to receive files: %v", err)
+		return stream.SendAndClose(&pb.FileUploadAck{
+			Success:       false,
+			Message:       fmt.Sprintf("Failed to receive files: %v", err),
+			FilesReceived: 0,
+		})
+	}
+
+	// Store metadata in database
+	if s.fileMetadataDB != nil {
+		dbMetadata := &db.FileMetadata{
+			UserID:      metadata.UserID,
+			TaskID:      metadata.TaskID,
+			TaskName:    metadata.TaskName,
+			Timestamp:   metadata.Timestamp,
+			FilePaths:   metadata.FilePaths,
+			StoragePath: metadata.StoragePath,
+		}
+
+		if err := s.fileMetadataDB.CreateFileMetadata(context.Background(), dbMetadata); err != nil {
+			log.Printf("  ⚠ Warning: Failed to store file metadata in database: %v", err)
+		} else {
+			log.Printf("  ✓ File metadata stored in database")
+		}
+	}
+
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Printf("  ✓ FILE UPLOAD COMPLETE")
+	log.Printf("  Task: %s | User: %s | Files: %d", metadata.TaskID, metadata.UserID, len(metadata.FilePaths))
+	log.Printf("  Storage Path: %s", metadata.StoragePath)
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	return stream.SendAndClose(&pb.FileUploadAck{
+		Success:       true,
+		Message:       "Files uploaded successfully",
+		FilesReceived: int32(len(metadata.FilePaths)),
+	})
 }
 
 // GetWorkers returns current worker states (for CLI)
@@ -1132,70 +1203,23 @@ func joinTasks(tasks []string) string {
 // SubmitTask submits a task to the system for scheduling
 // ALL tasks go through the queue first, then the scheduler assigns them to workers
 func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
-	now := time.Now()
-
-	// Extract and validate SLA multiplier from task (per-task override)
-	slaMultiplier := s.slaMultiplier // Use server default
-	if task.GetSlaMultiplier() >= 1.5 && task.GetSlaMultiplier() <= 2.5 {
-		slaMultiplier = task.GetSlaMultiplier() // Use task-specific value
-	} else if task.GetSlaMultiplier() != 0 {
-		log.Printf("⚠️  Task %s: SLA multiplier %.2f out of range [1.5, 2.5]. Using default: %.1f",
-			task.TaskId, task.GetSlaMultiplier(), s.slaMultiplier)
-	}
-
-	// Determine task type: use explicit if provided and valid, otherwise infer
-	taskType := task.GetTaskType()
-	if taskType != "" {
-		// Validate explicit task type
-		if !scheduler.ValidateTaskType(taskType) {
-			log.Printf("⚠️  Task %s: Invalid task type '%s'. Inferring from resources.",
-				task.TaskId, taskType)
-			taskType = scheduler.InferTaskType(task)
-		} else {
-			log.Printf("✓ Task %s: Using explicit task type '%s'", task.TaskId, taskType)
-		}
-	} else {
-		// Infer task type from resource requirements
-		taskType = scheduler.InferTaskType(task)
-		log.Printf("🔍 Task %s: Inferred task type '%s' from resources", task.TaskId, taskType)
-	}
-
-	// Get tau (runtime estimate) from tau store based on task type
-	tau := s.tauStore.GetTau(taskType)
-
-	// Compute deadline: arrival_time + k * tau
-	deadline := now.Add(time.Duration(slaMultiplier*tau) * time.Second)
-
-	log.Printf("📊 Task %s: type=%s, tau=%.2fs, k=%.1f, deadline=%s",
-		task.TaskId, taskType, tau, slaMultiplier, deadline.Format("15:04:05"))
-
 	// Store task in database as queued
 	if s.taskDB != nil {
 		dbTask := &db.Task{
-			TaskID:        task.TaskId,
-			UserID:        task.UserId,
-			DockerImage:   task.DockerImage,
-			Command:       task.Command,
-			ReqCPU:        task.ReqCpu,
-			ReqMemory:     task.ReqMemory,
-			ReqStorage:    task.ReqStorage,
-			ReqGPU:        task.ReqGpu,
-			TaskType:      taskType,
-			SLAMultiplier: slaMultiplier,
-			Status:        "queued",
+			TaskID:      task.TaskId,
+			UserID:      task.UserId,
+			TaskName:    task.TaskName,
+			SubmittedAt: task.SubmittedAt,
+			DockerImage: task.DockerImage,
+			Command:     task.Command,
+			ReqCPU:      task.ReqCpu,
+			ReqMemory:   task.ReqMemory,
+			ReqStorage:  task.ReqStorage,
+			ReqGPU:      task.ReqGpu,
+			Status:      "queued",
 		}
 		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
-			log.Printf("⚠️  Failed to store task in database: %v", err)
-			return &pb.TaskAck{
-				Success: false,
-				Message: fmt.Sprintf("Failed to store task: %v", err),
-			}, err
-		}
-
-		// Update task with SLA parameters (tau, deadline, taskType)
-		if err := s.taskDB.UpdateTaskWithSLA(ctx, task.TaskId, deadline, tau, taskType); err != nil {
-			log.Printf("⚠️  Failed to update task with SLA parameters: %v", err)
-			// Don't fail the entire submission, just log the warning
+			log.Printf("Warning: Failed to store task in database: %v", err)
 		}
 	}
 
@@ -1207,13 +1231,11 @@ func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	position := len(s.taskQueue)
 	s.queueMu.RUnlock()
 
-	log.Printf("📋 Task %s submitted and queued (position: %d, type=%s, tau=%.1fs, deadline=%s)",
-		task.TaskId, position, taskType, tau, deadline.Format("15:04:05"))
+	log.Printf("📋 Task %s submitted and queued (position: %d)", task.TaskId, position)
 
 	return &pb.TaskAck{
 		Success: true,
-		Message: fmt.Sprintf("Task submitted successfully. Type: %s, Tau: %.1fs, Deadline: %s. Queue position: %d.",
-			taskType, tau, deadline.Format("15:04:05"), position),
+		Message: fmt.Sprintf("Task submitted successfully. Queue position: %d. Scheduler will assign it to an available worker.", position),
 	}, nil
 }
 
@@ -1233,6 +1255,8 @@ func (s *MasterServer) DispatchTaskToWorker(ctx context.Context, task *pb.Task, 
 		dbTask := &db.Task{
 			TaskID:      task.TaskId,
 			UserID:      task.UserId,
+			TaskName:    task.TaskName,
+			SubmittedAt: task.SubmittedAt,
 			DockerImage: task.DockerImage,
 			Command:     task.Command,
 			ReqCPU:      task.ReqCpu,
@@ -1811,31 +1835,12 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 			}
 		}
 
-		// Get worker load at assignment time (Task 2.3)
-		var loadAtStart float64
-		if s.telemetryManager != nil {
-			telemetryData, exists := s.telemetryManager.GetWorkerTelemetry(workerID)
-			if exists {
-				// Compute normalized load: average of CPU, Memory, and GPU usage (0-1 scale)
-				loadAtStart = (telemetryData.CpuUsage + telemetryData.MemoryUsage + telemetryData.GpuUsage) / 3.0
-				log.Printf("[INFO] Worker %s load at assignment: %.4f (CPU=%.2f%%, Mem=%.2f%%, GPU=%.2f%%)",
-					workerID, loadAtStart, telemetryData.CpuUsage*100, telemetryData.MemoryUsage*100, telemetryData.GpuUsage*100)
-			} else {
-				log.Printf("[WARN] No telemetry data available for worker %s, using load=0.0", workerID)
-				loadAtStart = 0.0
-			}
-		} else {
-			log.Printf("[WARN] Telemetry manager not available, using load=0.0 for worker %s", workerID)
-			loadAtStart = 0.0
-		}
-
-		// Store assignment in database with load tracking
+		// Store assignment in database
 		if s.assignmentDB != nil {
 			assignment := &db.Assignment{
 				AssignmentID: fmt.Sprintf("ass-%s", task.TaskId),
 				TaskID:       task.TaskId,
 				WorkerID:     workerID,
-				LoadAtStart:  loadAtStart, // Track load at assignment time (Task 2.3)
 			}
 			if err := s.assignmentDB.CreateAssignment(ctx, assignment); err != nil {
 				log.Printf("Warning: Failed to store assignment in database: %v", err)

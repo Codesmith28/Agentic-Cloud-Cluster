@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	httpserver "master/internal/http"
 	"master/internal/scheduler"
 	"master/internal/server"
+	"master/internal/storage"
 	"master/internal/system"
 	"master/internal/telemetry"
 	pb "master/proto"
@@ -28,6 +30,27 @@ import (
 func main() {
 	// Load configuration
 	cfg := config.LoadConfig()
+
+	// Determine file storage base directory with fallback
+	fileStorageBaseDir := "/var/cloudai/files"
+	if err := os.MkdirAll(fileStorageBaseDir, 0700); err != nil {
+		// If /var/cloudai/files fails (permission denied), fallback to ~/.cloudai/files
+		log.Printf("Warning: Cannot create %s: %v", fileStorageBaseDir, err)
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatalf("Failed to get home directory: %v", err)
+		}
+		fileStorageBaseDir = filepath.Join(homeDir, ".cloudai", "files")
+		if err := os.MkdirAll(fileStorageBaseDir, 0700); err != nil {
+			log.Fatalf("Failed to create fallback directory %s: %v", fileStorageBaseDir, err)
+		}
+		log.Printf("✓ Using fallback file storage directory: %s", fileStorageBaseDir)
+	} else {
+		log.Printf("✓ File storage directory ready (secure): %s", fileStorageBaseDir)
+	}
+
+	// Set environment variable for file storage components
+	os.Setenv("CLOUDAI_FILES_DIR", fileStorageBaseDir)
 
 	// Collect system information
 	sysInfo, err := system.CollectSystemInfo()
@@ -46,6 +69,8 @@ func main() {
 	var taskDB *db.TaskDB
 	var assignmentDB *db.AssignmentDB
 	var resultDB *db.ResultDB
+	var fileMetadataDB *db.FileMetadataDB
+	var fileStorage *storage.FileStorageService
 
 	if err := db.EnsureCollections(ctx, cfg); err != nil {
 		log.Printf("Warning: MongoDB initialization failed: %v", err)
@@ -94,6 +119,27 @@ func main() {
 			log.Println("✓ ResultDB initialized")
 			defer resultDB.Close(context.Background())
 		}
+
+		// Create file metadata database handler
+		fileMetadataDB, err = db.NewFileMetadataDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create FileMetadataDB: %v", err)
+			fileMetadataDB = nil
+		} else {
+			log.Println("✓ FileMetadataDB initialized")
+			defer fileMetadataDB.Close(context.Background())
+		}
+	}
+
+	// Initialize file storage service
+	fileStorage, err = storage.NewFileStorageService(fileStorageBaseDir)
+	if err != nil {
+		log.Printf("Warning: Failed to create FileStorageService: %v", err)
+		log.Println("Continuing without file storage...")
+		fileStorage = nil
+	} else {
+		log.Printf("✓ FileStorageService initialized (base: %s)", fileStorageBaseDir)
+		defer fileStorage.Close()
 	}
 
 	// Create master server
@@ -133,7 +179,8 @@ func main() {
 	log.Printf("  - Fallback: Round-Robin")
 	log.Printf("  - Parameter hot-reload: enabled (every 30s)")
 
-	masterServer := server.NewMasterServerWithScheduler(workerDB, taskDB, assignmentDB, resultDB, telemetryMgr, tauStore, slaMultiplier, rtsScheduler)
+	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, resultDB, fileMetadataDB, fileStorage, telemetryMgr)
+	masterServer.SetScheduler(rtsScheduler)
 	log.Printf("✓ Master server configured with %s scheduler", rtsScheduler.GetName())
 
 	// Set master info
@@ -203,6 +250,10 @@ func main() {
 		}
 	}
 
+	// Start worker reconnection monitor
+	masterServer.StartWorkerReconnectionMonitor()
+	log.Println("✓ Worker reconnection monitor started")
+
 	// Start gRPC server in background
 	grpcServer := grpc.NewServer()
 	pb.RegisterMasterWorkerServer(grpcServer, masterServer)
@@ -229,6 +280,13 @@ func main() {
 		httpTelemetryServer.RegisterTaskHandlers(taskHandler)
 		httpTelemetryServer.RegisterWorkerHandlers(workerHandler)
 
+		// Register file handlers if file storage is available
+		if fileStorage != nil {
+			fileHandler := httpserver.NewFileAPIHandler(fileStorage)
+			httpTelemetryServer.RegisterFileHandlers(fileHandler)
+			log.Println("✓ File API handlers registered")
+		}
+
 		go func() {
 			if err := httpTelemetryServer.Start(); err != nil && err != http.ErrServerClosed {
 				log.Printf("HTTP API server error: %v", err)
@@ -239,6 +297,11 @@ func main() {
 		log.Printf("  - WebSocket: WS /ws/telemetry, /ws/telemetry/{worker_id}")
 		log.Printf("  - Tasks: POST/GET/DELETE /api/tasks, GET /api/tasks/{id}")
 		log.Printf("  - Workers: GET /api/workers, /api/workers/{id}")
+		if fileStorage != nil {
+			log.Printf("  - Files: GET /api/files, /api/files/{task_id}")
+			log.Printf("           GET /api/files/{task_id}/download/{file_path}")
+			log.Printf("           DELETE /api/files/{task_id}")
+		}
 	}
 
 	// Setup graceful shutdown
@@ -252,6 +315,9 @@ func main() {
 
 		// Stop queue processor
 		masterServer.StopQueueProcessor()
+
+		// Stop worker reconnection monitor
+		masterServer.StopWorkerReconnectionMonitor()
 
 		// Shutdown HTTP server
 		if httpTelemetryServer != nil {
@@ -301,7 +367,7 @@ func main() {
 	log.Println("\n✓ Master node started successfully")
 	log.Printf("✓ Starting gRPC server on %s\n", masterAddress)
 
-	cliInterface := cli.NewCLI(masterServer)
+	cliInterface := cli.NewCLI(masterServer, fileStorage)
 	cliInterface.Run()
 }
 

@@ -9,6 +9,7 @@ service MasterWorker {
   rpc RegisterWorker(WorkerInfo) returns (RegisterAck);
   rpc SendHeartbeat(Heartbeat) returns (HeartbeatAck);
   rpc ReportTaskCompletion(TaskResult) returns (Ack);
+  rpc UploadTaskFiles(stream FileChunk) returns (FileUploadAck);
 
   // Master -> Worker
   rpc MasterRegister(MasterInfo) returns (RegisterAck);
@@ -70,6 +71,8 @@ message Task {
   string user_id = 9; // User who submitted the task
   double sla_multiplier = 10; // SLA multiplier (k), range: 1.5-2.5, default: 2.0
   string task_type = 11; // Task type: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed
+  string task_name = 12;   // User-defined task name
+  int64 submitted_at = 13; // Unix timestamp when task was submitted
 }
 
 message TaskAck {
@@ -83,7 +86,9 @@ message TaskResult {
   string worker_id = 2;
   string status = 3; // success/failure
   string logs = 4;
-  string result_location = 5; // e.g., S3 or shared volume
+  string result_location = 5; // Local path on worker where files are stored
+  repeated string output_files =
+      6; // List of output file paths relative to result_location
 }
 
 message Ack {
@@ -107,4 +112,23 @@ message LogChunk {
   string timestamp = 3; // ISO 8601 timestamp
   bool is_complete = 4; // True when task is finished and no more logs
   string status = 5;    // Task status: running, completed, failed
+}
+
+// File transfer
+message FileChunk {
+  string task_id = 1;
+  string user_id = 2;
+  string task_name = 3;
+  string file_path =
+      4;          // Relative path of the file (e.g., "output/result.json")
+  bytes data = 5; // File chunk data
+  bool is_last_chunk = 6; // True if this is the last chunk of current file
+  bool is_last_file = 7;  // True if this is the last file in the upload
+  int64 timestamp = 8;    // Task submission timestamp
+}
+
+message FileUploadAck {
+  bool success = 1;
+  string message = 2;
+  int32 files_received = 3;
 }
