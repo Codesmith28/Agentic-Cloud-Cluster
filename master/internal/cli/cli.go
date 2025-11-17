@@ -700,16 +700,18 @@ func (c *CLI) submitTask(parts []string) {
 	fmt.Println("═══════════════════════════════════════════════════════")
 
 	task := &pb.Task{
-		TaskId:      taskID,
-		DockerImage: dockerImage,
-		Command:     command,
-		ReqCpu:      reqCPU,
-		ReqMemory:   reqMemory,
-		ReqStorage:  reqStorage,
-		ReqGpu:      reqGPU,
-		UserId:      "admin", // Default user for CLI tasks (can be made configurable)
-		TaskName:    taskName,
-		SubmittedAt: submittedAt,
+		TaskId:        taskID,
+		DockerImage:   dockerImage,
+		Command:       command,
+		ReqCpu:        reqCPU,
+		ReqMemory:     reqMemory,
+		ReqStorage:    reqStorage,
+		ReqGpu:        reqGPU,
+		TaskType:      taskType,
+		SlaMultiplier: slaMultiplier,
+		UserId:        "admin", // Default user for CLI tasks (can be made configurable)
+		TaskName:      taskName,
+		SubmittedAt:   submittedAt,
 	}
 
 	err := c.submitTaskToMaster(task)
