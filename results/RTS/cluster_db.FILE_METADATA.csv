@@ -1,0 +1,11 @@
+_id,user_id,task_id,task_name,timestamp,file_paths[0],storage_path,uploaded_at
+691b3cbbd66e62100c9cb178,batch-test-user,task-1763392688207884921,,1970-01-01T00:00:00.000Z,summary.csv,/home/udaan/.cloudai/files/batch-test-user/1970-01-01_05-30-00/task-1763392688207884921,2025-11-17T15:18:19.998Z
+691b3cc3d66e62100c9cb17f,batch-test-user,task-1763392698266465608,,1970-01-01T00:00:00.000Z,word_frequencies.csv,/home/udaan/.cloudai/files/batch-test-user/1970-01-01_05-30-00/task-1763392698266465608,2025-11-17T15:18:27.748Z
+691b3cced66e62100c9cb187,batch-test-user,task-1763392708325079477,,1970-01-01T00:00:00.000Z,pi_estimation.csv,/home/udaan/.cloudai/files/batch-test-user/1970-01-01_05-30-00/task-1763392708325079477,2025-11-17T15:18:38.814Z
+691b3cd5d66e62100c9cb18c,batch-test-user,task-1763392713349243335,,1970-01-01T00:00:00.000Z,primes.csv,/home/udaan/.cloudai/files/batch-test-user/1970-01-01_05-30-00/task-1763392713349243335,2025-11-17T15:18:45.266Z
+691b3cd7d66e62100c9cb18f,batch-test-user,task-1763392718379002339,,1970-01-01T00:00:00.000Z,matrix_results.csv,/home/udaan/.cloudai/files/batch-test-user/1970-01-01_05-30-00/task-1763392718379002339,2025-11-17T15:18:47.410Z
+691b3cdfd66e62100c9cb195,batch-test-user,task-1763392728441302834,,1970-01-01T00:00:00.000Z,sort_benchmark.csv,/home/udaan/.cloudai/files/batch-test-user/1970-01-01_05-30-00/task-1763392728441302834,2025-11-17T15:18:55.353Z
+691b3d15d66e62100c9cb1a6,batch-test-user,task-1763392778739213453,,1970-01-01T00:00:00.000Z,preprocessed_features.csv,/home/udaan/.cloudai/files/batch-test-user/1970-01-01_05-30-00/task-1763392778739213453,2025-11-17T15:19:49.676Z
+691b3d5bd66e62100c9cb1b6,batch-test-user,task-1763392753594341680,,1970-01-01T00:00:00.000Z,merged_dataset.csv,/home/udaan/.cloudai/files/batch-test-user/1970-01-01_05-30-00/task-1763392753594341680,2025-11-17T15:20:59.334Z
+691b3d65d66e62100c9cb1b9,batch-test-user,task-1763392758622557804,,1970-01-01T00:00:00.000Z,aggregated_data.csv,/home/udaan/.cloudai/files/batch-test-user/1970-01-01_05-30-00/task-1763392758622557804,2025-11-17T15:21:09.961Z
+691b3d7bd66e62100c9cb1c1,batch-test-user,task-1763392768681433979,,1970-01-01T00:00:00.000Z,timeseries_stats.csv,/home/udaan/.cloudai/files/batch-test-user/1970-01-01_05-30-00/task-1763392768681433979,2025-11-17T15:21:31.715Z

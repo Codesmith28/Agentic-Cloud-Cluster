@@ -1,0 +1,173 @@
+CLOUDAI WORKLOAD DOCKER IMAGES
+===============================
+
+Docker Hub Username: moinvinchhi
+Image Prefix: cloudai
+
+
+CPU-LIGHT WORKLOADS (Quick validation tasks, 5-30 seconds)
+-----------------------------------------------------------
+moinvinchhi/cloudai-cpu-light:1
+  Process: Health Check - System status verification
+  Output: None (logs only)
+
+moinvinchhi/cloudai-cpu-light:2
+  Process: JSON Parser - JSON data parsing and validation
+  Output: parsed_data.csv ✓
+
+moinvinchhi/cloudai-cpu-light:3
+  Process: Log Analyzer - Log file analysis with pattern matching
+  Output: None (logs only)
+
+moinvinchhi/cloudai-cpu-light:4
+  Process: String Processor - String manipulation and analysis
+  Output: string_analysis.csv ✓
+
+moinvinchhi/cloudai-cpu-light:5
+  Process: Ping Test - Network connectivity simulation
+  Output: None (logs only)
+
+
+CPU-HEAVY WORKLOADS (Computationally intensive, 1-5 minutes)
+-------------------------------------------------------------
+moinvinchhi/cloudai-cpu-heavy:1
+  Process: Monte Carlo Simulation - π estimation using Monte Carlo method
+  Output: simulation_results.csv ✓
+
+moinvinchhi/cloudai-cpu-heavy:2
+  Process: Prime Generator - Prime number generation with Sieve of Eratosthenes
+  Output: primes.csv ✓
+
+moinvinchhi/cloudai-cpu-heavy:3
+  Process: Matrix Operations - Matrix multiplication and operations
+  Output: matrix_results.csv ✓
+
+moinvinchhi/cloudai-cpu-heavy:4
+  Process: Fibonacci - Fibonacci sequence computation
+  Output: None (logs only)
+
+moinvinchhi/cloudai-cpu-heavy:5
+  Process: Sort Benchmark - Sorting algorithm performance testing
+  Output: sort_benchmark.csv ✓
+
+
+MEMORY-HEAVY WORKLOADS (Large dataset processing, 30s-3 minutes)
+-----------------------------------------------------------------
+moinvinchhi/cloudai-memory-heavy:1
+  Process: Dataset Merge - Large dataset merging operations
+  Output: merged_data.csv ✓
+
+moinvinchhi/cloudai-memory-heavy:2
+  Process: Data Aggregation - In-memory data aggregation
+  Output: aggregated_results.csv ✓
+
+moinvinchhi/cloudai-memory-heavy:3
+  Process: Graph Analysis - Graph traversal and analysis
+  Output: None (logs only)
+
+moinvinchhi/cloudai-memory-heavy:4
+  Process: Time Series Processing - Time series data processing
+  Output: timeseries_summary.csv ✓
+
+moinvinchhi/cloudai-memory-heavy:5
+  Process: Dataset Join - Multi-dataset join operations
+  Output: None (logs only)
+
+
+GPU-INFERENCE WORKLOADS (ML model inference, 30s-2 minutes)
+------------------------------------------------------------
+moinvinchhi/cloudai-gpu-inference:1
+  Process: Text Embedding - Text embedding generation using transformers
+  Output: embeddings.csv ✓
+
+moinvinchhi/cloudai-gpu-inference:2
+  Process: Image Classification - Batch image classification
+  Output: None (logs only)
+
+moinvinchhi/cloudai-gpu-inference:3
+  Process: Speech Recognition - Audio transcription simulation
+  Output: transcriptions.csv ✓
+
+moinvinchhi/cloudai-gpu-inference:4
+  Process: Object Detection - Object detection in images
+  Output: detections.csv ✓
+
+moinvinchhi/cloudai-gpu-inference:5
+  Process: Sentiment Analysis - Text sentiment analysis
+  Output: sentiment_analysis.csv ✓
+
+
+GPU-TRAINING WORKLOADS (Long-running training, 3-10 minutes)
+-------------------------------------------------------------
+moinvinchhi/cloudai-gpu-training:1
+  Process: Neural Network Training - ResNet-50 training with multiple epochs
+  Output: training_metrics.csv ✓
+
+moinvinchhi/cloudai-gpu-training:2
+  Process: LLM Fine-tuning - Large language model fine-tuning with checkpointing
+  Output: finetuning_checkpoints.csv ✓
+
+moinvinchhi/cloudai-gpu-training:3
+  Process: Reinforcement Learning - RL training loop using PPO algorithm
+  Output: None (logs only)
+
+moinvinchhi/cloudai-gpu-training:4
+  Process: GAN Training - Generative Adversarial Network training (DCGAN)
+  Output: gan_training_log.csv ✓
+
+moinvinchhi/cloudai-gpu-training:5
+  Process: Hyperparameter Tuning - Hyperparameter search with multiple trials
+  Output: hyperparameter_results.csv ✓
+
+
+MIXED WORKLOADS (Balanced CPU/Memory, 1-5 minutes)
+---------------------------------------------------
+moinvinchhi/cloudai-mixed:1
+  Process: ETL Pipeline - Extract-Transform-Load data pipeline
+  Output: None (logs only)
+
+moinvinchhi/cloudai-mixed:2
+  Process: ML Preprocessing - ML data preprocessing with feature engineering
+  Output: preprocessed_features.csv ✓
+
+moinvinchhi/cloudai-mixed:3
+  Process: Statistical Analysis - Statistical tests and hypothesis testing
+  Output: None (logs only)
+
+moinvinchhi/cloudai-mixed:4
+  Process: Image Processing - Batch image processing with filters and compression
+  Output: processing_report.csv ✓
+
+moinvinchhi/cloudai-mixed:5
+  Process: Data Validation - Data quality checks and validation
+  Output: validation_report.csv ✓
+
+
+SUMMARY
+-------
+Total Images: 30
+Total with CSV Output: 22
+
+Images with File Generation:
+  - cpu-light:2, cpu-light:4
+  - cpu-heavy:1, cpu-heavy:2, cpu-heavy:3, cpu-heavy:5
+  - memory-heavy:1, memory-heavy:2, memory-heavy:4
+  - gpu-inference:1, gpu-inference:3, gpu-inference:4, gpu-inference:5
+  - gpu-training:1, gpu-training:2, gpu-training:4, gpu-training:5
+  - mixed:2, mixed:4, mixed:5
+
+All output files are saved to /output/ directory in CSV format.
+
+USAGE EXAMPLE
+-------------
+docker pull moinvinchhi/cloudai-cpu-heavy:1
+docker run -v $(pwd)/output:/output moinvinchhi/cloudai-cpu-heavy:1
+
+DOCKER HUB REPOSITORIES
+-----------------------
+https://hub.docker.com/r/moinvinchhi/cloudai-cpu-light
+https://hub.docker.com/r/moinvinchhi/cloudai-cpu-heavy
+https://hub.docker.com/r/moinvinchhi/cloudai-memory-heavy
+https://hub.docker.com/r/moinvinchhi/cloudai-gpu-inference
+https://hub.docker.com/r/moinvinchhi/cloudai-gpu-training
+https://hub.docker.com/r/moinvinchhi/cloudai-mixed

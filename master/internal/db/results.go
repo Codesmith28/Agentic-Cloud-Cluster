@@ -20,6 +20,7 @@ type TaskResult struct {
 	Status      string    `bson:"status"` // "success", "failed"
 	Logs        string    `bson:"logs"`
 	CompletedAt time.Time `bson:"completed_at"`
+	SLASuccess  bool      `bson:"sla_success"` // Task 2.5: Whether task met its deadline
 }
 
 // ResultDB handles task results operations

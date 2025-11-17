@@ -12,10 +12,12 @@ import (
 	"syscall"
 	"time"
 
+	"master/internal/aod"
 	"master/internal/cli"
 	"master/internal/config"
 	"master/internal/db"
 	httpserver "master/internal/http"
+	"master/internal/scheduler"
 	"master/internal/server"
 	"master/internal/storage"
 	"master/internal/system"
@@ -146,7 +148,40 @@ func main() {
 	telemetryMgr.Start()
 	log.Println("✓ Telemetry manager started")
 
+	// Initialize tau store for runtime learning
+	tauStore := telemetry.NewInMemoryTauStore()
+	log.Println("✓ Tau store initialized with default values:")
+	for taskType, tau := range tauStore.GetAllTau() {
+		log.Printf("  - %s: %.1fs", taskType, tau)
+	}
+
+	// Load SLA multiplier from environment or use default
+	slaMultiplier := 2.0
+	if cfg.SLAMultiplier > 0 {
+		slaMultiplier = cfg.SLAMultiplier
+	}
+	log.Printf("✓ SLA multiplier (k): %.1f", slaMultiplier)
+
+	// Create scheduler with RTS (Risk-aware Task Scheduling)
+	// Create Round-Robin as fallback
+	rrScheduler := scheduler.NewRoundRobinScheduler()
+	log.Println("✓ Round-Robin scheduler created (fallback)")
+
+	// Create telemetry source adapter for RTS
+	telemetrySource := scheduler.NewMasterTelemetrySource(telemetryMgr, workerDB)
+	log.Println("✓ Telemetry source adapter created")
+
+	// Create RTS scheduler with Round-Robin fallback
+	paramsPath := "config/ga_output.json"
+	rtsScheduler := scheduler.NewRTSScheduler(rrScheduler, tauStore, telemetrySource, paramsPath, slaMultiplier)
+	log.Printf("✓ RTS scheduler initialized (params: %s)", paramsPath)
+	log.Printf("  - Scheduler: %s", rtsScheduler.GetName())
+	log.Printf("  - Fallback: Round-Robin")
+	log.Printf("  - Parameter hot-reload: enabled (every 30s)")
+
 	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, resultDB, fileMetadataDB, fileStorage, telemetryMgr)
+	masterServer.SetScheduler(rtsScheduler)
+	log.Printf("✓ Master server configured with %s scheduler", rtsScheduler.GetName())
 
 	// Set master info
 	masterID := "master-1"
@@ -156,6 +191,57 @@ func main() {
 	// Start task queue processor
 	masterServer.StartQueueProcessor()
 	log.Println("✓ Task queue processor started")
+
+	// Initialize HistoryDB for AOD/GA training
+	var historyDB *db.HistoryDB
+	if cfg.MongoDBURI != "" {
+		historyDB, err = db.NewHistoryDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create HistoryDB: %v", err)
+			log.Println("AOD/GA training will be disabled")
+			historyDB = nil
+		} else {
+			log.Println("✓ HistoryDB initialized for AOD/GA training")
+			defer historyDB.Close(context.Background())
+		}
+	}
+
+	// Start AOD/GA epoch ticker for parameter optimization
+	if historyDB != nil {
+		// Get GA configuration (can be overridden via env vars in future)
+		gaConfig := aod.GetDefaultGAConfig()
+		log.Printf("✓ GA configuration loaded:")
+		log.Printf("  - Population size: %d", gaConfig.PopulationSize)
+		log.Printf("  - Generations: %d", gaConfig.Generations)
+		log.Printf("  - Mutation rate: %.2f", gaConfig.MutationRate)
+		log.Printf("  - Crossover rate: %.2f", gaConfig.CrossoverRate)
+		log.Printf("  - Elitism count: %d", gaConfig.ElitismCount)
+		log.Printf("  - Tournament size: %d", gaConfig.TournamentSize)
+
+		// Start GA epoch ticker (runs every 60 seconds)
+		gaEpochInterval := 60 * time.Second
+		go func() {
+			ticker := time.NewTicker(gaEpochInterval)
+			defer ticker.Stop()
+
+			log.Printf("✓ AOD/GA epoch ticker started (interval: %s)", gaEpochInterval)
+			log.Printf("  - Training data window: 24 hours")
+			log.Printf("  - Output: %s", paramsPath)
+			log.Printf("  - RTS hot-reload: every 30s")
+
+			for range ticker.C {
+				log.Println("🧬 Starting AOD/GA epoch...")
+				if err := aod.RunGAEpoch(context.Background(), historyDB, gaConfig, paramsPath); err != nil {
+					log.Printf("❌ AOD/GA epoch error: %v", err)
+				} else {
+					log.Println("✅ AOD/GA epoch completed successfully")
+				}
+			}
+		}()
+	} else {
+		log.Println("⚠️  AOD/GA training disabled (HistoryDB not available)")
+		log.Println("  - RTS will use default parameters from config/ga_output.json")
+	}
 
 	// Load workers from database
 	if workerDB != nil {
@@ -241,12 +327,30 @@ func main() {
 		// Shutdown telemetry manager
 		telemetryMgr.Shutdown()
 
+		// Shutdown RTS scheduler
+		if rtsScheduler != nil {
+			log.Println("⏹️  Shutting down RTS scheduler...")
+			rtsScheduler.Shutdown()
+		}
+
 		// Shutdown gRPC server
 		grpcServer.GracefulStop()
 
 		// Close database
 		if workerDB != nil {
 			workerDB.Close(context.Background())
+		}
+		if taskDB != nil {
+			taskDB.Close(context.Background())
+		}
+		if assignmentDB != nil {
+			assignmentDB.Close(context.Background())
+		}
+		if resultDB != nil {
+			resultDB.Close(context.Background())
+		}
+		if historyDB != nil {
+			historyDB.Close(context.Background())
 		}
 
 		log.Println("✓ Master node shutdown complete")

@@ -2,5 +2,7 @@
 planner_py/venv
 node_modules
 venv
+test
+master/config/ga_output.json
 master/masterNode
 worker/workerNode
