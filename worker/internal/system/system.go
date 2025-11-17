@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
 // SystemInfo holds system information collected at runtime
@@ -31,6 +33,16 @@ type ResourceInfo struct {
 	TotalMemory  float64 // Total memory in GB
 	TotalStorage float64 // Total storage in GB
 	TotalGPU     float64 // Number of GPU cores (0 if not available)
+}
+
+// GPUInfo holds detailed information about a single GPU
+type GPUInfo struct {
+	Index             int     // GPU index (0, 1, 2, ...)
+	Name              string  // GPU model name
+	MemoryTotalGB     float64 // Total GPU memory in GB
+	ComputeCapability string  // CUDA compute capability (e.g., "8.9")
+	DriverVersion     string  // NVIDIA driver version
+	CUDAVersion       string  // CUDA version
 }
 
 // CollectSystemInfo collects system information using syscalls and Go runtime
@@ -125,7 +137,6 @@ func FindAvailablePort(startPort int) (int, error) {
 func GetSystemResources() (*ResourceInfo, error) {
 	resources := &ResourceInfo{
 		TotalCPU: float64(runtime.NumCPU()),
-		TotalGPU: 0.0, // GPU detection requires additional libraries (nvidia-smi, etc.)
 	}
 
 	// Get total memory
@@ -144,6 +155,16 @@ func GetSystemResources() (*ResourceInfo, error) {
 		resources.TotalStorage = 100.0 // Default fallback
 	} else {
 		resources.TotalStorage = storage
+	}
+
+	// Detect GPU count
+	gpuCount, err := detectGPUCount()
+	if err != nil {
+		log.Printf("Info: No GPU detected or nvidia-smi not available: %v", err)
+		resources.TotalGPU = 0.0 // No GPU available
+	} else {
+		resources.TotalGPU = gpuCount
+		log.Printf("Detected %d GPU(s)", int(gpuCount))
 	}
 
 	return resources, nil
@@ -231,4 +252,118 @@ func GetAvailableStorage() (float64, error) {
 	availGB := float64(availBytes) / (1024.0 * 1024.0 * 1024.0)
 
 	return availGB, nil
+}
+
+// detectGPUCount detects the number of NVIDIA GPUs using NVML (NVIDIA Management Library)
+// This provides more accurate and detailed GPU information than nvidia-smi
+func detectGPUCount() (float64, error) {
+	// Initialize NVML
+	ret := nvml.Init()
+	if ret != nvml.SUCCESS {
+		return 0.0, fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
+	}
+	defer nvml.Shutdown()
+
+	// Get device count
+	count, ret := nvml.DeviceGetCount()
+	if ret != nvml.SUCCESS {
+		return 0.0, fmt.Errorf("failed to get device count: %v", nvml.ErrorString(ret))
+	}
+
+	// Log detailed GPU information
+	if count > 0 {
+		log.Printf("Detected %d NVIDIA GPU(s):", count)
+		for i := 0; i < count; i++ {
+			device, ret := nvml.DeviceGetHandleByIndex(i)
+			if ret != nvml.SUCCESS {
+				log.Printf("  [%d] Failed to get device handle: %v", i, nvml.ErrorString(ret))
+				continue
+			}
+
+			// Get GPU name
+			name, ret := device.GetName()
+			if ret == nvml.SUCCESS {
+				log.Printf("  [%d] %s", i, name)
+			}
+
+			// Get memory info (optional, for informational purposes)
+			memory, ret := device.GetMemoryInfo()
+			if ret == nvml.SUCCESS {
+				totalGB := float64(memory.Total) / (1024 * 1024 * 1024)
+				log.Printf("      Memory: %.2f GB", totalGB)
+			}
+
+			// Get compute capability (optional)
+			major, minor, ret := device.GetCudaComputeCapability()
+			if ret == nvml.SUCCESS {
+				log.Printf("      Compute Capability: %d.%d", major, minor)
+			}
+		}
+	}
+
+	return float64(count), nil
+}
+
+// GetDetailedGPUInfo returns detailed information about all GPUs
+// This can be used for logging or advanced GPU management
+func GetDetailedGPUInfo() ([]GPUInfo, error) {
+	// Initialize NVML
+	ret := nvml.Init()
+	if ret != nvml.SUCCESS {
+		return nil, fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
+	}
+	defer nvml.Shutdown()
+
+	// Get device count
+	count, ret := nvml.DeviceGetCount()
+	if ret != nvml.SUCCESS {
+		return nil, fmt.Errorf("failed to get device count: %v", nvml.ErrorString(ret))
+	}
+
+	gpus := make([]GPUInfo, 0, count)
+
+	for i := 0; i < count; i++ {
+		device, ret := nvml.DeviceGetHandleByIndex(i)
+		if ret != nvml.SUCCESS {
+			log.Printf("Warning: Failed to get device handle for GPU %d: %v", i, nvml.ErrorString(ret))
+			continue
+		}
+
+		gpuInfo := GPUInfo{Index: i}
+
+		// Get GPU name
+		if name, ret := device.GetName(); ret == nvml.SUCCESS {
+			gpuInfo.Name = name
+		}
+
+		// Get memory info
+		if memory, ret := device.GetMemoryInfo(); ret == nvml.SUCCESS {
+			gpuInfo.MemoryTotalGB = float64(memory.Total) / (1024 * 1024 * 1024)
+		}
+
+		// Get compute capability
+		if major, minor, ret := device.GetCudaComputeCapability(); ret == nvml.SUCCESS {
+			gpuInfo.ComputeCapability = fmt.Sprintf("%d.%d", major, minor)
+		}
+
+		gpus = append(gpus, gpuInfo)
+	}
+
+	// Get driver and CUDA versions (global info)
+	if len(gpus) > 0 {
+		if driverVersion, ret := nvml.SystemGetDriverVersion(); ret == nvml.SUCCESS {
+			for i := range gpus {
+				gpus[i].DriverVersion = driverVersion
+			}
+		}
+
+		if cudaVersion, ret := nvml.SystemGetCudaDriverVersion(); ret == nvml.SUCCESS {
+			cudaVersionStr := fmt.Sprintf("%d.%d", cudaVersion/1000, (cudaVersion%1000)/10)
+			for i := range gpus {
+				gpus[i].CUDAVersion = cudaVersionStr
+			}
+		}
+	}
+
+	return gpus, nil
 }

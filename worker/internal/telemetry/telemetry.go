@@ -1,18 +1,15 @@
 package telemetry
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log"
-	"os/exec"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	pb "worker/proto"
 
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
 	"google.golang.org/grpc"
@@ -173,26 +170,47 @@ func (m *Monitor) getResourceUsage() (cpuPercent, memoryPercent, gpuPercent floa
 	return cpuPercent, memoryPercent, gpuPercent
 }
 
-// getGPUUsage returns GPU utilization percentage using nvidia-smi
+// getGPUUsage returns GPU utilization percentage using NVML
+// Returns the average utilization across all GPUs if multiple GPUs present
 func (m *Monitor) getGPUUsage() float64 {
-	// Run nvidia-smi to get GPU utilization
-	cmd := exec.Command("bash", "-c",
-		`nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits | head -n 1`)
-	var out bytes.Buffer
-	cmd.Stdout = &out
+	// Initialize NVML
+	ret := nvml.Init()
+	if ret != nvml.SUCCESS {
+		// NVML not available - no GPU or drivers not loaded
+		return 0.0
+	}
+	defer nvml.Shutdown()
 
-	if err := cmd.Run(); err != nil {
-		// nvidia-smi not available or error - GPU not present
+	// Get device count
+	count, ret := nvml.DeviceGetCount()
+	if ret != nvml.SUCCESS || count == 0 {
 		return 0.0
 	}
 
-	// Parse the output
-	output := strings.TrimSpace(out.String())
-	if gpuUtil, err := strconv.ParseFloat(output, 64); err == nil {
-		return gpuUtil
+	// Get average utilization across all GPUs
+	var totalUtil float64
+	validDevices := 0
+
+	for i := 0; i < count; i++ {
+		device, ret := nvml.DeviceGetHandleByIndex(i)
+		if ret != nvml.SUCCESS {
+			continue
+		}
+
+		// Get utilization rates
+		util, ret := device.GetUtilizationRates()
+		if ret == nvml.SUCCESS {
+			totalUtil += float64(util.Gpu)
+			validDevices++
+		}
 	}
 
-	return 0.0
+	if validDevices == 0 {
+		return 0.0
+	}
+
+	// Return average utilization
+	return totalUtil / float64(validDevices)
 }
 
 // RegisterWorker registers the worker with the master
