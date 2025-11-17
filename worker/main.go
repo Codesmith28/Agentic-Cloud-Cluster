@@ -38,7 +38,7 @@ func main() {
 	} else {
 		log.Printf("✓ Output directory ready (secure): %s", outputBaseDir)
 	}
-	
+
 	// Store output directory for executor to use
 	os.Setenv("CLOUDAI_OUTPUT_DIR", outputBaseDir)
 
