@@ -708,314 +708,1170 @@
 ---
 
 ## **MILESTONE 5: Testing & Validation**
-**Goal**: Verify RTS+GA system works end-to-end with real workloads.
+**Goal**: Verify RTS+GA system works end-to-end using Master CLI commands.
 
 ---
 
-### **Task 5.1: Create Test Workload Generator**
+### **Task 5.1: CLI-Based Manual Testing Procedure**
+**Status**: 🎯 CURRENT FOCUS
+**Documentation**: `docs/Scheduler/TASK_5_1_CLI_TESTING_GUIDE.md` (NEW)
+
+**Available Master CLI Commands** (from production logs):
+```
+Task Submission:
+  task <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>] [-k <1.5-2.5>] [-type <task_type>]
+  dispatch <worker_id> <docker_img> [options]
+
+Task Monitoring:
+  list-tasks [status]           - List tasks (pending/running/completed/failed)
+  monitor <task_id>             - Live logs for task
+  cancel <task_id>              - Cancel running task
+  queue                         - Show pending tasks in queue
+
+Worker Management:
+  workers                       - List all workers
+  stats <worker_id>             - Detailed worker stats
+  internal-state                - Dump all in-memory state
+  fix-resources                 - Fix stale allocations
+  register <id> <ip:port>       - Manual registration
+  unregister <id>               - Unregister worker
+
+System Status:
+  status                        - Cluster status
+  help                          - Command help
+```
+
+**Task Types Supported**:
+- `cpu-light` - Light CPU workloads
+- `cpu-heavy` - Heavy CPU workloads
+- `memory-heavy` - Memory-intensive workloads
+- `gpu-inference` - GPU inference workloads
+- `gpu-training` - GPU training workloads
+- `mixed` - Mixed workloads
+
+**Implementation Plan**:
+
+1. **Create CLI Testing Guide** (`docs/Scheduler/TASK_5_1_CLI_TESTING_GUIDE.md`):
+   - Step-by-step manual testing procedures
+   - Test scenarios for each of the 6 task types
+   - Validation criteria for RTS vs Round-Robin
+   - How to interpret outputs and verify SLA tracking
+   - GA convergence verification steps
+
+2. **Create Test Workload Scripts** (`test/workloads/`):
+   - `submit_cpu_light.sh` - 10 cpu-light tasks
+   - `submit_cpu_heavy.sh` - 10 cpu-heavy tasks
+   - `submit_memory_heavy.sh` - 10 memory-heavy tasks
+   - `submit_gpu_inference.sh` - 10 gpu-inference tasks
+   - `submit_gpu_training.sh` - 10 gpu-training tasks
+   - `submit_mixed.sh` - 10 mixed tasks
+   - `submit_full_workload.sh` - 60 tasks (10 of each type)
+
+3. **Create Verification Scripts** (`test/verify/`):
+   - `check_task_distribution.sh` - Verify tasks distributed across workers
+   - `check_sla_violations.sh` - Query MongoDB for SLA success rates
+   - `check_tau_updates.sh` - Verify tau values updated per task type
+   - `check_ga_output.sh` - Parse ga_output.json for affinity matrix structure
+   - `check_rts_fallback.sh` - Verify fallback to Round-Robin when needed
+
+**Example Test Commands**:
+```bash
+# Submit CPU-light task with explicit type
+master> task moinvinchhi/cloudai-cpu-intensive:1 -cpu_cores 1 -mem 2 -type cpu-light
+
+# Submit GPU-training task
+master> task moinvinchhi/cloudai-gpu-intensive:4 -gpu_cores 2 -mem 16 -k 2.5 -type gpu-training
+
+# Monitor task execution
+master> list-tasks running
+master> monitor task-123
+master> stats worker-1
+
+# Check queue and system status
+master> queue
+master> status
+master> internal-state
+```
+
+---
+
+### **Task 5.2: RTS vs Round-Robin Comparison**
+**Documentation**: `docs/Scheduler/TASK_5_2_SCHEDULER_COMPARISON.md` (NEW)
+
+**Goal**: Manually compare RTS and Round-Robin schedulers using CLI commands.
+
+**Test Procedure**:
+
+1. **Baseline: Round-Robin Testing** (Requires code change to disable RTS):
+   - Temporarily modify `master/main.go` to use `rrScheduler` instead of `rtsScheduler`
+   - Rebuild: `cd master && go build -o masterNode .`
+   - Start master: `./runMaster.sh`
+   - Submit 60 mixed tasks using CLI (10 of each type)
+   - Record metrics:
+     - Task completion times (from MongoDB)
+     - SLA violations per task type
+     - Worker utilization (from `stats <worker_id>`)
+     - Task distribution (from `internal-state`)
+
+2. **Comparison: RTS Testing** (Default configuration):
+   - Restore RTS scheduler (use git stash/unstash)
+   - Rebuild and restart master
+   - Submit same 60 tasks
+   - Record same metrics
+   - Compare results
+
+3. **Metrics Collection**:
+   - Create MongoDB queries to extract:
+     - SLA success rate per task type
+     - Average task completion time per type
+     - Worker load distribution
+     - Task assignment patterns
+
+4. **Create Comparison Script** (`test/compare_schedulers.sh`):
+   ```bash
+   #!/bin/bash
+   # Queries MongoDB and compares:
+   # - SLA violation rates (RR vs RTS)
+   # - Task makespan (RR vs RTS)
+   # - Worker utilization (RR vs RTS)
+   # - Generates comparison report
+   ```
+
+**Expected Outcomes**:
+- RTS should have ≤ SLA violations vs Round-Robin
+- RTS should achieve higher worker utilization
+- RTS should assign tasks based on affinity (once GA trains)
+- Fallback to Round-Robin should work when no feasible workers
+
+---
+
+### **Task 5.3: GA Convergence Verification**
+**Documentation**: `docs/Scheduler/TASK_5_3_GA_CONVERGENCE.md` (NEW)
+
+**Goal**: Verify GA learns correct parameters from execution history.
+
+**Test Procedure**:
+
+1. **Initial State Verification**:
+   ```bash
+   # Check default parameters
+   cat master/config/ga_output.json
+   # Should show empty AffinityMatrix and PenaltyVector
+   ```
+
+2. **Generate Training Data** (60+ tasks across 6 types):
+   ```bash
+   master> task moinvinchhi/cloudai-cpu-intensive:1 -type cpu-light -cpu_cores 1 -mem 2
+   # (Repeat for 10 tasks)
+   master> task moinvinchhi/cloudai-cpu-intensive:8 -type cpu-heavy -cpu_cores 8 -mem 4
+   # (Repeat for 10 tasks)
+   # ... continue for all 6 types
+   ```
+
+3. **Wait for GA Epoch** (60 seconds):
+   - Watch master logs for: `🧬 Starting AOD/GA epoch...`
+   - Should log: `✓ Retrieved X task history records and Y worker stats`
+   - If X < 10: Will use defaults (insufficient data)
+   - If X ≥ 10: GA will train and update parameters
+
+4. **Verify GA Output**:
+   ```bash
+   # After GA epoch completes
+   cat master/config/ga_output.json | jq .
+   
+   # Verify structure:
+   # - AffinityMatrix should have 6 keys (task types)
+   # - Each task type should have worker IDs as subkeys
+   # - PenaltyVector should have worker IDs as keys
+   # - Theta values should be updated from training
+   ```
+
+5. **Verify RTS Hot-Reload**:
+   - Watch logs for: `✓ RTS: Reloaded GA parameters from config/ga_output.json`
+   - Should occur every 30 seconds
+   - New tasks should use updated parameters
+
+6. **Create Verification Script** (`test/verify_ga_convergence.sh`):
+   ```bash
+   #!/bin/bash
+   # 1. Submit 60 mixed tasks
+   # 2. Wait for GA epoch (60s)
+   # 3. Parse ga_output.json
+   # 4. Verify affinity matrix structure
+   # 5. Submit 60 more tasks
+   # 6. Compare SLA violation rates (should improve)
+   ```
+
+**Expected Outcomes**:
+- After 10+ completed tasks: GA should train successfully
+- Affinity matrix should have 6 rows (one per task type)
+- Subsequent tasks should have better SLA success rates
+- Theta values should converge toward optimal values
+
+---
+
+### **Task 5.4: End-to-End Integration Test**
+**Documentation**: `docs/Scheduler/TASK_5_4_INTEGRATION_TEST.md` (NEW)
+
+**Goal**: Validate complete RTS+GA workflow with real workers and Docker execution.
+
+**Test Procedure**:
+
+1. **Setup Multi-Worker Cluster**:
+   ```bash
+   # Terminal 1: Start master
+   ./runMaster.sh
+   
+   # Terminal 2: Start worker-1
+   ./runWorker.sh
+   
+   # Terminal 3: Start worker-2 (on different machine/laptop)
+   ./runWorker.sh
+   
+   # Verify registration
+   master> workers
+   # Should show 2+ workers
+   ```
+
+2. **Test Task Type Inference**:
+   ```bash
+   # Submit without explicit type (should infer)
+   master> task moinvinchhi/cloudai-cpu-intensive:1 -cpu_cores 1 -mem 2
+   # Check MongoDB: task should have type="cpu-light"
+   
+   master> task moinvinchhi/cloudai-gpu-intensive:5 -gpu_cores 3 -mem 12
+   # Should infer type="gpu-training"
+   ```
+
+3. **Test Explicit Task Type**:
+   ```bash
+   # Submit with explicit type
+   master> task myapp:latest -cpu_cores 4 -mem 8 -type cpu-heavy
+   # Verify type is preserved (not overwritten by inference)
+   ```
+
+4. **Test SLA Tracking**:
+   ```bash
+   # Submit tasks with different k values
+   master> task sample:v1 -cpu_cores 2 -mem 4 -k 1.5 -type cpu-light
+   master> task sample:v1 -cpu_cores 2 -mem 4 -k 2.5 -type cpu-light
+   
+   # Monitor completion
+   master> list-tasks running
+   master> list-tasks completed
+   
+   # Check MongoDB for SLA success/failure
+   # Query: db.results.find({}, {task_id:1, sla_success:1, completed_at:1})
+   ```
+
+5. **Test Tau Updates**:
+   ```bash
+   # Before tasks: Check initial tau values in logs
+   # Submit 10 cpu-light tasks
+   # After completion: Tau should update
+   # Logs should show: "Updated tau for cpu-light: X.XX seconds"
+   ```
+
+6. **Test Load Balancing**:
+   ```bash
+   # Submit 20 tasks rapidly
+   master> internal-state
+   # Verify tasks distributed across workers
+   # RTS should balance based on load
+   ```
+
+7. **Test Fallback to Round-Robin**:
+   ```bash
+   # Submit task requiring 100 CPU cores (infeasible)
+   master> task heavy:latest -cpu_cores 100 -mem 200
+   # Should fallback to Round-Robin
+   # Logs: "⚠️  RTS: No feasible workers, falling back to Round-Robin"
+   ```
+
+**Expected Outcomes**:
+- All task types submit successfully
+- Type inference works correctly
+- Explicit types are preserved
+- SLA tracking records success/failure
+- Tau updates per task type
+- RTS balances load across workers
+- Fallback works for infeasible tasks
+
+---
+
+### **Task 5.5: Performance & Stress Testing**
+**Documentation**: `docs/Scheduler/TASK_5_5_PERFORMANCE_TEST.md` (NEW)
+
+**Goal**: Test system under load and measure performance characteristics.
+
+**Test Scenarios**:
+
+1. **High-Volume Task Submission** (100 tasks in 1 minute):
+   ```bash
+   # Create script: test/stress_test.sh
+   for i in {1..100}; do
+     echo "task moinvinchhi/cloudai-cpu-intensive:$((i % 12 + 1)) -cpu_cores $((i % 8 + 1)) -mem $((i % 16 + 2)) -type cpu-light"
+   done | timeout 60 nc localhost 50051
+   ```
+
+2. **Concurrent Worker Load** (3+ workers, 200 tasks):
+   - Start 3+ workers on different machines
+   - Submit 200 tasks via CLI
+   - Monitor: `master> status` (every 10s)
+   - Verify: Tasks complete without deadlock
+
+3. **GA Training Under Load**:
+   - Submit 100 tasks
+   - Let 20+ complete
+   - Wait for GA epoch
+   - Verify: GA completes without blocking new submissions
+   - Check logs: AOD epoch duration should be < 5s
+
+4. **Resource Reconciliation Test**:
+   ```bash
+   # Simulate stale allocations
+   master> fix-resources
+   # Should log: "✓ Resource reconciliation complete"
+   
+   # Check workers still responsive
+   master> workers
+   master> stats worker-1
+   ```
+
+5. **Long-Running Stability** (8 hours):
+   - Start master + 2 workers
+   - Submit 500 tasks over 8 hours (1 task/minute script)
+   - Monitor for:
+     - Memory leaks (check master process RSS)
+     - GA epochs completing successfully
+     - Worker disconnections/reconnections
+     - Task queue not growing unbounded
+
+**Performance Metrics to Collect**:
+- Task submission latency (CLI response time)
+- Scheduling decision time (from RTS logs)
+- GA epoch duration (from AOD logs)
+- Worker registration time
+- Task completion rate (tasks/hour)
+
+**Expected Outcomes**:
+- System handles 100 tasks/minute without degradation
+- RTS scheduling decision < 10ms
+- GA epoch completes in < 5s with 100+ history records
+- No memory leaks over 8 hours
+- Queue drains correctly (no tasks stuck)
+
+---
+
+## **MILESTONE 6: Documentation & User Guides**
+**Goal**: Complete documentation for operators and users.
+
+---
+
+### **Task 6.1: CLI User Guide**
 **File(s)**:
-- `test/workload_generator.go` (NEW)
-
-**Functions to add/modify**:
-- `func GenerateMixedWorkload(count int) []*pb.Task`
-- `func GenerateCPULightTask() *pb.Task`
-- `func GenerateCPUHeavyTask() *pb.Task`
-- `func GenerateMemoryHeavyTask() *pb.Task`
-- `func GenerateGPUInferenceTask() *pb.Task`
-- `func GenerateGPUTrainingTask() *pb.Task`
-- `func GenerateMixedTask() *pb.Task`
-
-**Implementation steps**:
-1. Create `test/` directory
-2. Implement workload generators that create tasks with:
-   - Explicit task_type field set to one of the 6 valid types
-   - Different resource requirements matching each type
-   - Realistic patterns (burst, steady, mixed)
-3. Test that explicit task_type is preserved through submission
-
----
-
-### **Task 5.2: Create Scheduler Comparison Test**
-**File(s)**:
-- `test/scheduler_comparison_test.go` (NEW)
-
-**Functions to add/modify**:
-- `func TestRTSvsRoundRobin(t *testing.T)`
-- `func measureSLAViolations(results []TaskResult) float64`
-- `func measureUtilization(telemetry []WorkerTelemetry) float64`
-
-**Implementation steps**:
-1. Create test that:
-   - Submits same workload to both schedulers
-   - Measures SLA violations, utilization, makespan
-   - Compares results
-2. Verify RTS never breaks existing RoundRobin behavior (fallback works)
-
----
-
-### **Task 5.3: Create GA Convergence Test**
-**File(s)**:
-- `test/ga_convergence_test.go` (NEW)
-
-**Functions to add/modify**:
-- `func TestGAConvergence(t *testing.T)`
-- `func verifyAffinityMatrix(affinity map[string]map[string]float64) error`
-- `func verifyPenaltyVector(penalty map[string]float64) error`
-
-**Implementation steps**:
-1. Create synthetic telemetry data with all 6 task types
-2. Run GA for multiple epochs
-3. Verify:
-   - Theta converges to expected values
-   - Affinity matrix has exactly 6 rows (one per task type)
-   - Affinity correctly identifies fast workers for each task type
-   - Penalty correctly penalizes unreliable workers
-   - Fitness improves over generations
-
----
-
-### **Task 5.4: Integration Test with Real Workers**
-**File(s)**:
-- `test/integration_test.go` (NEW)
-
-**Functions to add/modify**:
-- `func TestEndToEndRTSScheduling(t *testing.T)`
-- `func TestExplicitTaskTypeSubmission(t *testing.T)` (NEW)
-
-**Implementation steps**:
-1. Start master with RTS scheduler
-2. Start 3+ mock workers with different capacities
-3. Submit 100+ tasks of mixed types with explicit task_type field
-4. Verify:
-   - All tasks complete successfully
-   - Explicit task_type is preserved and not overwritten by inference
-   - SLA violations are tracked correctly per task type
-   - Tau values are updated separately for each of the 6 task types
-   - GA params file is generated with 6-row affinity matrix
-   - RTS uses GA params after first epoch
-5. Test that tasks without explicit task_type use inference correctly
-
----
-
-### **Task 5.5: Load Test & Performance Benchmarks**
-**File(s)**:
-- `test/load_test.go` (NEW)
-
-**Functions to add/modify**:
-- `func BenchmarkRTSScheduler(b *testing.B)`
-- `func BenchmarkRoundRobinScheduler(b *testing.B)`
-
-**Implementation steps**:
-1. Benchmark SelectWorker call latency
-2. Verify RTS overhead is < 10ms per decision
-3. Test with 1000+ workers and 10000+ tasks across all 6 task types
-4. Measure memory usage growth
-
----
-
-### **Task 5.6: Task Type Migration Utility (NEW)**
-**File(s)**:
-- `master/internal/db/migration.go` (NEW)
-- `master/cmd/migrate_task_types.go` (NEW)
-
-**Functions to add/modify**:
-- `func MigrateTaskTypes(ctx context.Context, taskDB *TaskDB) error`
-- `func normalizeOldTaskType(oldType string) string`
-
-**Implementation steps**:
-1. Create migration utility that:
-   - Reads all existing tasks from MongoDB TASKS collection
-   - For tasks with empty or invalid TaskType:
-     - Apply `InferTaskType` logic based on resource requirements
-     - Update TaskType to one of the 6 valid types
-   - For tasks with old type labels (e.g., "cpu", "gpu", "dl"):
-     - Map to new standardized types:
-       - "cpu" → "cpu-light"
-       - "gpu" → "gpu-inference"
-       - "dl" → "gpu-training"
-       - Others → "mixed"
-   - Update all affected records in MongoDB
-2. Create standalone CLI tool for running migration
-3. Log migration statistics (records updated, type distribution)
-
----
-
-## **MILESTONE 6: Documentation & Deployment**
-**Goal**: Complete documentation and production readiness.
-
----
-
-### **Task 6.1: Configuration Documentation**
-**File(s)**:
-- `docs/RTS_CONFIGURATION.md` (NEW)
+- `docs/Scheduler/CLI_USER_GUIDE.md` (NEW)
 
 **Content**:
-- Environment variables:
-  - `SCHED_SLA_MULTIPLIER` (default 2.0)
-  - `GA_POPULATION_SIZE` (default 20)
-  - `GA_GENERATIONS` (default 10)
-  - `GA_MUTATION_RATE` (default 0.1)
-  - `GA_CROSSOVER_RATE` (default 0.7)
-  - `GA_EPOCH_INTERVAL` (default 60s)
-  - `RTS_PARAMS_RELOAD_INTERVAL` (default 30s)
-- Task type enums and validation:
-  - Valid task types: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed
-  - How to specify explicit task_type in submission
-  - Task type inference rules when not specified
-- GAParams JSON schema with 6-row affinity matrix structure
-- How to disable RTS (use Round-Robin only)
+- **Master CLI Commands Reference**:
+  - Complete command syntax with examples
+  - Task submission: `task` vs `dispatch`
+  - Worker management: `register`, `unregister`, `stats`
+  - Monitoring: `monitor`, `list-tasks`, `queue`, `status`
+  - Resource management: `fix-resources`, `internal-state`
+
+- **Task Type Guide**:
+  - Explanation of 6 task types (cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed)
+  - When to use explicit `-type` flag
+  - How task type affects scheduling
+  - Task type inference rules
+  - Best practices for each type
+
+- **SLA Configuration**:
+  - Understanding `-k` parameter (SLA multiplier: 1.5-2.5)
+  - How deadlines are computed: `deadline = now + k × τ`
+  - Default k value: 2.0
+  - When to use tight vs loose SLAs
+
+- **Common Workflows**:
+  ```bash
+  # Submit batch of CPU tasks
+  task app:v1 -cpu_cores 4 -mem 8 -type cpu-heavy
+  
+  # Submit GPU training job
+  task ml-model:latest -gpu_cores 2 -mem 16 -k 2.5 -type gpu-training
+  
+  # Monitor execution
+  list-tasks running
+  monitor task-123
+  stats worker-1
+  
+  # Check cluster health
+  status
+  workers
+  queue
+  ```
 
 ---
 
 ### **Task 6.2: Operator Guide**
 **File(s)**:
-- `docs/RTS_OPERATOR_GUIDE.md` (NEW)
+- `docs/Scheduler/OPERATOR_GUIDE.md` (NEW)
 
 **Content**:
-- How to monitor RTS performance
-- How to interpret ga_output.json
-- How to tune GA weights
-- Task type best practices:
-  - When to use explicit task_type vs inference
-  - How task types affect scheduling decisions
-  - Reviewing task type distribution in telemetry
-- Troubleshooting common issues:
-  - All tasks going to one worker (check affinity for specific task type)
-  - High SLA violations (increase alpha, adjust theta, check per-type tau values)
-  - Poor utilization (decrease beta, adjust affinity)
-  - Invalid task_type errors
+- **System Monitoring**:
+  - Master logs interpretation
+  - Key log messages to watch:
+    - `✓ RTS: Reloaded GA parameters` (every 30s)
+    - `🧬 Starting AOD/GA epoch` (every 60s)
+    - `⚠️ RTS: No feasible workers, falling back to Round-Robin`
+    - `✓ Retrieved X task history records and Y worker stats`
+  - Using `internal-state` for debugging
+  - MongoDB queries for telemetry analysis
+
+- **GA Parameter Tuning**:
+  - Understanding `ga_output.json` structure
+  - Theta values (execution time prediction)
+  - Risk parameters (Alpha for SLA, Beta for load)
+  - Affinity weights (A1, A2, A3)
+  - Penalty weights (G1, G2, G3)
+  - When to manually adjust vs let GA learn
+
+- **Troubleshooting Guide**:
+  
+  **Issue**: All tasks assigned to one worker
+  - **Check**: `cat master/config/ga_output.json | jq .AffinityMatrix`
+  - **Cause**: Affinity heavily favors that worker for common task types
+  - **Solution**: Adjust AffinityW weights or add more diverse task history
+
+  **Issue**: High SLA violations
+  - **Check**: MongoDB query for SLA success rate per task type
+  - **Cause**: Tight deadlines (low k) or poor θ prediction
+  - **Solution**: Increase k parameter, let GA train more, check worker loads
+
+  **Issue**: Workers underutilized
+  - **Check**: `master> stats worker-1` for all workers
+  - **Cause**: Beta parameter too high (avoids loaded workers)
+  - **Solution**: Decrease Beta in Risk parameters
+
+  **Issue**: GA not training
+  - **Check**: Logs show "Insufficient data (X tasks < 10 required)"
+  - **Cause**: Not enough completed tasks in last 24h
+  - **Solution**: Submit more tasks, wait for completions
+
+  **Issue**: Tasks stuck in queue
+  - **Check**: `master> queue`
+  - **Cause**: No feasible workers or all workers offline
+  - **Solution**: Check worker status, use `fix-resources`
+
+- **Performance Optimization**:
+  - Ideal worker:task ratio (1:10 to 1:50)
+  - GA training frequency tuning
+  - MongoDB query optimization
+  - Resource reconciliation schedule
 
 ---
 
-### **Task 6.3: API Documentation**
+### **Task 6.3: Configuration Reference**
 **File(s)**:
-- `docs/RTS_API_REFERENCE.md` (NEW)
+- `docs/Scheduler/CONFIGURATION_REFERENCE.md` (NEW)
 
 **Content**:
-- Scheduler interface documentation
-- RTSScheduler public methods
-- TauStore interface
-- GAParams structure
-- How to implement custom schedulers
+- **Environment Variables**:
+  ```bash
+  # Master Configuration
+  MASTER_PORT=:50051                    # gRPC port
+  HTTP_PORT=8080                        # HTTP/WebSocket port
+  
+  # Scheduler Configuration
+  SCHED_SLA_MULTIPLIER=2.0              # Default k for SLA deadlines
+  RTS_PARAMS_PATH=config/ga_output.json # GA parameters file
+  RTS_RELOAD_INTERVAL=30s               # Parameter hot-reload frequency
+  
+  # GA Configuration
+  GA_POPULATION_SIZE=20                 # Population size
+  GA_GENERATIONS=10                     # Generations per epoch
+  GA_MUTATION_RATE=0.1                  # Mutation probability
+  GA_CROSSOVER_RATE=0.7                 # Crossover probability
+  GA_ELITISM_COUNT=2                    # Elite chromosomes preserved
+  GA_TOURNAMENT_SIZE=3                  # Tournament selection size
+  GA_EPOCH_INTERVAL=60s                 # Training frequency
+  GA_HISTORY_WINDOW=24h                 # Training data window
+  
+  # Database Configuration
+  MONGO_URI=mongodb://localhost:27017
+  MONGO_DB=cloudai
+  ```
+
+- **ga_output.json Schema**:
+  ```json
+  {
+    "Theta": {
+      "Theta1": 0.1,    // CPU ratio weight
+      "Theta2": 0.1,    // Memory ratio weight
+      "Theta3": 0.3,    // GPU ratio weight
+      "Theta4": 0.2     // Load weight
+    },
+    "Risk": {
+      "Alpha": 10,      // SLA penalty multiplier
+      "Beta": 1         // Load penalty multiplier
+    },
+    "AffinityW": {
+      "A1": 1,          // Speed weight
+      "A2": 2,          // SLA reliability weight
+      "A3": 0.5         // Overload rate weight
+    },
+    "PenaltyW": {
+      "G1": 2,          // SLA failure weight
+      "G2": 1,          // Overload weight
+      "G3": 0.5         // Energy weight
+    },
+    "AffinityMatrix": {
+      "cpu-light": {
+        "worker-1": 2.5,
+        "worker-2": 1.8
+      },
+      "gpu-training": {
+        "worker-1": -1.0,
+        "worker-2": 3.2
+      }
+      // ... 6 task types total
+    },
+    "PenaltyVector": {
+      "worker-1": 0.5,
+      "worker-2": 1.2
+    }
+  }
+  ```
+
+- **Task Type Definitions**:
+  - `cpu-light`: < 4 CPU cores, < 8GB RAM, no GPU
+  - `cpu-heavy`: ≥ 4 CPU cores, < 8GB RAM, no GPU
+  - `memory-heavy`: ≥ 8GB RAM, no GPU
+  - `gpu-inference`: Any GPU, < 2 GPU cores
+  - `gpu-training`: ≥ 2 GPU cores
+  - `mixed`: Complex workloads with multiple resource types
 
 ---
 
-### **Task 6.4: Migration Guide**
+### **Task 6.4: Testing Documentation**
 **File(s)**:
-- `docs/RTS_MIGRATION.md` (NEW)
+- `docs/Scheduler/TESTING_GUIDE.md` (NEW)
 
 **Content**:
-- Step-by-step migration from Round-Robin to RTS
-- Backward compatibility notes
-- How to rollback if issues occur
-- Database schema changes required
-- Task type migration procedure:
-  - Running the migration utility
-  - Validating task type distribution
-  - Handling tasks with old type labels
-- Performance considerations
+- Links to all testing documentation:
+  - Task 5.1: CLI Testing Guide
+  - Task 5.2: Scheduler Comparison
+  - Task 5.3: GA Convergence Verification
+  - Task 5.4: Integration Testing
+  - Task 5.5: Performance Testing
+
+- **Quick Test Checklist**:
+  ```bash
+  # 1. Start master and verify initialization
+  ./runMaster.sh
+  # Check logs for ✓ marks
+  
+  # 2. Register workers
+  master> workers
+  # Should show registered workers
+  
+  # 3. Submit test task
+  master> task moinvinchhi/cloudai-cpu-intensive:1 -type cpu-light
+  
+  # 4. Monitor execution
+  master> list-tasks running
+  master> monitor <task_id>
+  
+  # 5. Verify completion
+  master> list-tasks completed
+  
+  # 6. Check GA training (after 60s)
+  cat master/config/ga_output.json | jq .
+  
+  # 7. Verify RTS hot-reload (after 90s)
+  # Check logs for parameter reload message
+  ```
+
+- **Test Scripts Location**:
+  - `test/workloads/` - Task submission scripts
+  - `test/verify/` - Verification scripts
+  - `test/compare_schedulers.sh` - RTS vs RR comparison
+  - `test/verify_ga_convergence.sh` - GA validation
 
 ---
 
-## **MILESTONE 7: Monitoring & Observability**
-**Goal**: Add metrics and logging for production operations.
+## **MILESTONE 7: Monitoring & Production Readiness**
+**Goal**: Add observability and production-ready features using CLI-based monitoring.
 
 ---
 
-### **Task 7.1: Add Prometheus Metrics**
+### **Task 7.1: Enhanced CLI Monitoring Commands**
 **File(s)**:
-- `master/internal/scheduler/rts_metrics.go` (NEW)
+- `master/internal/cli/cli.go` (MODIFY)
 
 **Functions to add/modify**:
-- `var rtsDecisionDuration prometheus.Histogram`
-- `var rtsFallbackCounter prometheus.Counter`
-- `var rtsSelectedWorkerGauge prometheus.GaugeVec`
-- `func InitRTSMetrics()`
-- `func recordSchedulingDecision(duration time.Duration, workerID string, fallback bool)`
+- `func handleRTSStats(s *server.MasterServer)` (NEW)
+- `func handleGAStats(s *server.MasterServer)` (NEW)
+- `func handleTaskTypeStats(s *server.MasterServer)` (NEW)
+- `func handleSLAReport(s *server.MasterServer)` (NEW)
 
-**Implementation steps**:
-1. Create Prometheus metrics for:
-   - Scheduling decision latency
-   - Fallback to Round-Robin count
-   - Selected worker distribution
-   - SLA violations per worker
-   - Tau values per task type
-2. Export metrics on `/metrics` endpoint
+**New CLI Commands**:
+```bash
+master> rts-stats                     # Show RTS scheduling statistics
+master> ga-stats                      # Show GA training statistics
+master> task-type-stats               # Show task distribution by type
+master> sla-report [hours]            # SLA violation report (default: last 24h)
+```
+
+**Implementation**:
+1. **rts-stats** command output:
+   ```
+   RTS Scheduler Statistics:
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Total Scheduling Decisions: 156
+   RTS Selections: 142 (91.0%)
+   Round-Robin Fallbacks: 14 (9.0%)
+   
+   Average Decision Time: 2.3ms
+   Feasible Worker Rate: 95.2%
+   
+   Current Parameters:
+   - Theta: (0.12, 0.15, 0.28, 0.22)
+   - Risk: (α=10.0, β=1.2)
+   - Affinity Types: 6/6 task types
+   - Penalty Workers: 3/3 workers
+   
+   Last Parameter Reload: 15 seconds ago
+   Next GA Epoch: 35 seconds
+   ```
+
+2. **ga-stats** command output:
+   ```
+   GA Training Statistics:
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Total Epochs Completed: 8
+   Last Epoch: 45 seconds ago
+   Next Epoch: 15 seconds
+   
+   Training Data (Last Epoch):
+   - Task History Records: 67
+   - Worker Stats Records: 3
+   - Training Duration: 1.2s
+   
+   Best Fitness: 0.854 (+12.3% vs baseline)
+   
+   Task Type Distribution:
+   - cpu-light: 15 tasks
+   - cpu-heavy: 12 tasks
+   - memory-heavy: 8 tasks
+   - gpu-inference: 18 tasks
+   - gpu-training: 10 tasks
+   - mixed: 4 tasks
+   
+   Affinity Matrix: 6x3 (6 types, 3 workers)
+   Penalty Vector: 3 workers
+   ```
+
+3. **task-type-stats** command output:
+   ```
+   Task Type Statistics:
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Task Type         | Total | Pending | Running | Completed | Failed | SLA Success
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   cpu-light         |   45  |    2    |    3    |    38     |   2    |   92.1%
+   cpu-heavy         |   32  |    1    |    2    |    28     |   1    |   87.5%
+   memory-heavy      |   18  |    0    |    1    |    16     |   1    |   88.9%
+   gpu-inference     |   28  |    3    |    4    |    20     |   1    |   90.9%
+   gpu-training      |   15  |    1    |    2    |    11     |   1    |   84.6%
+   mixed             |   12  |    0    |    1    |    10     |   1    |   90.9%
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TOTAL             |  150  |    7    |   13    |   123     |   7    |   89.1%
+   
+   Tau Values (Average Runtime):
+   - cpu-light: 4.8s
+   - cpu-heavy: 16.2s
+   - memory-heavy: 22.5s
+   - gpu-inference: 12.3s
+   - gpu-training: 58.7s
+   - mixed: 11.4s
+   ```
+
+4. **sla-report** command output:
+   ```bash
+   master> sla-report 24
+   
+   SLA Report (Last 24 Hours):
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Overall SLA Success Rate: 89.1% (123/138 tasks)
+   
+   By Task Type:
+   - cpu-light: 92.1% (35/38)
+   - cpu-heavy: 87.5% (28/32)
+   - memory-heavy: 88.9% (16/18)
+   - gpu-inference: 90.9% (20/22)
+   - gpu-training: 84.6% (11/13)
+   - mixed: 90.9% (10/11)
+   
+   By Worker:
+   - worker-1: 91.2% (52/57)
+   - worker-2: 88.5% (46/52)
+   - worker-3: 86.2% (25/29)
+   
+   Recent SLA Violations (Last 10):
+   1. task-145 (gpu-training) - worker-2 - Late by 15.2s
+   2. task-138 (cpu-heavy) - worker-1 - Late by 8.7s
+   3. task-129 (memory-heavy) - worker-3 - Late by 22.4s
+   ...
+   ```
+
+**Implementation Steps**:
+1. Add new command handlers in `cli.go`
+2. Query MongoDB for statistics
+3. Format output with aligned tables
+4. Add to help menu
 
 ---
 
-### **Task 7.2: Add Structured Logging**
+### **Task 7.2: Automated Health Checks**
+**File(s)**:
+- `master/internal/health/health_check.go` (NEW)
+- `master/internal/cli/cli.go` (MODIFY for new command)
+
+**Functions to add/modify**:
+- `func RunHealthCheck(ctx context.Context, s *server.MasterServer) *HealthReport`
+- `func CheckWorkerHealth(workers map[string]*WorkerInfo) []WorkerHealthStatus`
+- `func CheckGAHealth(historyDB *db.HistoryDB) GAHealthStatus`
+- `func CheckRTSHealth(scheduler *scheduler.RTSScheduler) RTSHealthStatus`
+
+**New CLI Command**:
+```bash
+master> health-check                  # Run comprehensive health check
+```
+
+**Health Check Output**:
+```
+System Health Check:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Master Node: HEALTHY
+  - Uptime: 4h 23m
+  - Memory: 234MB / 8GB (2.9%)
+  - gRPC: Listening on :50051
+  - HTTP: Listening on :8080
+
+✓ Workers: HEALTHY (3/3 online)
+  - worker-1: HEALTHY (Load: 42%, CPU: 8/16, Mem: 12/32GB)
+  - worker-2: HEALTHY (Load: 35%, CPU: 6/16, Mem: 8/32GB)
+  - worker-3: HEALTHY (Load: 18%, CPU: 3/16, Mem: 4/32GB)
+
+✓ Task Queue: HEALTHY
+  - Pending: 7 tasks
+  - Processing: 13 tasks
+  - Average Wait Time: 2.3s
+
+✓ RTS Scheduler: HEALTHY
+  - Decision Time: 2.1ms (avg)
+  - Fallback Rate: 8.2%
+  - Parameters Loaded: 35s ago
+
+⚠ GA Training: WARNING
+  - Last Epoch: 45s ago (GOOD)
+  - Training Data: 67 tasks (GOOD)
+  - Missing Task Types: 0 (GOOD)
+  - Fitness Trend: Declining ⚠️
+
+✓ Database: HEALTHY
+  - MongoDB: Connected
+  - Collections: 5/5 accessible
+  - Avg Query Time: 12ms
+
+✓ SLA Performance: GOOD
+  - Success Rate: 89.1%
+  - Target: > 85%
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Overall Status: HEALTHY (1 warning)
+```
+
+---
+
+### **Task 7.3: Logging Enhancements**
 **File(s)**:
 - `master/internal/scheduler/rts_scheduler.go` (MODIFY)
+- `master/internal/aod/ga_runner.go` (MODIFY)
 
-**Functions to add/modify**:
-- Enhance logging in `SelectWorker` with structured fields
+**Improvements**:
+1. **Structured Logging** with context:
+   ```go
+   log.Printf("[RTS] [task=%s] [type=%s] Selected worker=%s (risk=%.2f, feasible=%d/%d)",
+       taskID, taskType, selectedWorker, bestRisk, feasibleCount, totalWorkers)
+   ```
 
-**Implementation steps**:
-1. Add detailed logs for:
-   - Task type inference
-   - Feasibility filtering results
-   - Risk scores for all workers
-   - Selected worker and reason
-   - Fallback triggers
-2. Use log levels appropriately (DEBUG, INFO, WARN, ERROR)
+2. **Debug Mode** (env var: `LOG_LEVEL=debug`):
+   ```go
+   if debugEnabled {
+       log.Printf("[RTS] [DEBUG] Risk calculation for worker=%s: base=%.2f, affinity=%.2f, penalty=%.2f, final=%.2f",
+           workerID, baseRisk, affinity, penalty, finalRisk)
+   }
+   ```
+
+3. **GA Training Logs**:
+   ```go
+   log.Printf("[GA] [epoch=%d] Generation %d/%d: best_fitness=%.4f, avg_fitness=%.4f",
+       epochNum, gen, totalGens, bestFitness, avgFitness)
+   ```
+
+4. **Performance Logs**:
+   ```go
+   log.Printf("[PERF] RTS decision took %dms for task=%s (feasible=%d)",
+       duration.Milliseconds(), taskID, feasibleCount)
+   ```
 
 ---
 
-### **Task 7.3: Add GA Training Metrics**
+### **Task 7.4: Alerting & Notifications**
 **File(s)**:
-- `master/internal/aod/ga_runner.go` (MODIFY)
+- `master/internal/alerts/alert_manager.go` (NEW)
 
 **Functions to add/modify**:
-- Add metrics for GA epochs:
-  - `var gaEpochDuration prometheus.Histogram`
-  - `var gaBestFitness prometheus.Gauge`
-  - `var gaDataPointsUsed prometheus.Gauge`
-  - `var gaAffinityMatrixSize prometheus.GaugeVec` (per task type)
+- `func CheckSLAThreshold(ctx context.Context, db *db.HistoryDB) error`
+- `func CheckWorkerAvailability(workers map[string]*WorkerInfo) error`
+- `func CheckGATrainingFailures(gaStatus GAStatus) error`
 
-**Implementation steps**:
-1. Track and log:
-   - Epoch duration
-   - Best fitness achieved
-   - Number of training samples per task type
-   - Theta convergence
-   - Affinity matrix size (should be 6 rows for 6 task types)
-   - Penalty vector size
-2. Alert if GA fails or data insufficient for any task type
+**Alert Conditions**:
+1. **Critical Alerts** (log ERROR + could send webhook):
+   - SLA success rate < 70% for any task type
+   - All workers offline
+   - GA training failed 3+ consecutive epochs
+   - Task queue > 100 pending tasks
+
+2. **Warning Alerts** (log WARN):
+   - SLA success rate < 85% for any task type
+   - Worker offline for > 5 minutes
+   - GA training data < 10 tasks
+   - Tau values not updating (stale > 1 hour)
+
+3. **Info Alerts** (log INFO):
+   - New worker registered
+   - GA training completed successfully
+   - RTS parameters reloaded
+   - Worker resource reconciliation
+
+**Log Format**:
+```
+2025/11/17 10:15:23 ⚠️ [ALERT] [WARNING] SLA success rate below threshold: gpu-training=82.3% (target: >85%)
+2025/11/17 10:15:45 ❌ [ALERT] [CRITICAL] Worker worker-2 offline for 6 minutes
+2025/11/17 10:16:12 ✓ [ALERT] [INFO] GA training completed: fitness=0.854 (+12.3%)
+```
+
+---
+
+### **Task 7.5: MongoDB Query Optimization**
+**File(s)**:
+- `master/internal/db/history.go` (MODIFY)
+- `master/internal/db/tasks.go` (MODIFY)
+
+**Optimizations**:
+1. **Add Database Indexes**:
+   ```go
+   // In InitHistoryDB:
+   db.Collection("tasks").Indexes().CreateMany(ctx, []mongo.IndexModel{
+       {Keys: bson.D{{"task_type", 1}}},
+       {Keys: bson.D{{"completed_at", -1}}},
+       {Keys: bson.D{{"worker_id", 1}, {"task_type", 1}}},
+       {Keys: bson.D{{"sla_success", 1}, {"task_type", 1}}},
+   })
+   ```
+
+2. **Optimize GA Training Query**:
+   ```go
+   // Use aggregation pipeline for faster stats computation
+   pipeline := mongo.Pipeline{
+       {{"$match", bson.D{{"completed_at", bson.D{{"$gte", since}, {"$lte", until}}}}}},
+       {{"$group", bson.D{
+           {"_id", bson.D{{"task_type", "$task_type"}, {"worker_id", "$worker_id"}}},
+           {"count", bson.D{{"$sum", 1}}},
+           {"sla_success_count", bson.D{{"$sum", bson.D{{"$cond", bson.A{"$sla_success", 1, 0}}}}}},
+       }}},
+   }
+   ```
+
+3. **Add Query Timeouts**:
+   ```go
+   ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+   defer cancel()
+   ```
+
+---
+
+### **Task 7.6: Production Deployment Script**
+**File(s)**:
+- `deploy_production.sh` (NEW)
+- `check_production_health.sh` (NEW)
+
+**deploy_production.sh**:
+```bash
+#!/bin/bash
+set -e
+
+echo "🚀 Deploying CloudAI Master (Production Mode)"
+
+# 1. Backup current ga_output.json
+if [ -f master/config/ga_output.json ]; then
+    cp master/config/ga_output.json master/config/ga_output.json.backup
+    echo "✓ Backed up GA parameters"
+fi
+
+# 2. Build master
+cd master
+go build -o masterNode .
+cd ..
+echo "✓ Master built successfully"
+
+# 3. Verify MongoDB connection
+echo "Checking MongoDB connection..."
+if ! mongo --eval "db.adminCommand('ping')" > /dev/null 2>&1; then
+    echo "❌ MongoDB not accessible"
+    exit 1
+fi
+echo "✓ MongoDB accessible"
+
+# 4. Verify configuration
+if [ ! -f .env ]; then
+    echo "❌ Missing .env file"
+    exit 1
+fi
+echo "✓ Configuration file present"
+
+# 5. Start master in background
+echo "Starting master node..."
+nohup ./runMaster.sh > master.log 2>&1 &
+MASTER_PID=$!
+echo "✓ Master started (PID: $MASTER_PID)"
+
+# 6. Wait for initialization
+echo "Waiting for master to initialize..."
+sleep 5
+
+# 7. Health check
+if ! grep -q "✓ Master node started successfully" master.log; then
+    echo "❌ Master failed to start. Check master.log"
+    exit 1
+fi
+echo "✓ Master initialized successfully"
+
+# 8. Run health check
+echo "Running health check..."
+./check_production_health.sh
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "✅ Deployment complete!"
+echo "Master PID: $MASTER_PID"
+echo "Logs: tail -f master.log"
+echo "CLI: ./runMaster.sh (will connect to existing instance)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+```
+
+**check_production_health.sh**:
+```bash
+#!/bin/bash
+
+echo "🏥 CloudAI Production Health Check"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Check master process
+if pgrep -f "masterNode" > /dev/null; then
+    echo "✓ Master process running"
+else
+    echo "❌ Master process not running"
+    exit 1
+fi
+
+# Check MongoDB
+if mongo --eval "db.adminCommand('ping')" > /dev/null 2>&1; then
+    echo "✓ MongoDB accessible"
+else
+    echo "❌ MongoDB not accessible"
+    exit 1
+fi
+
+# Check gRPC port
+if netstat -tuln | grep -q ":50051"; then
+    echo "✓ gRPC port listening (:50051)"
+else
+    echo "❌ gRPC port not listening"
+    exit 1
+fi
+
+# Check HTTP port
+if netstat -tuln | grep -q ":8080"; then
+    echo "✓ HTTP port listening (:8080)"
+else
+    echo "❌ HTTP port not listening"
+    exit 1
+fi
+
+# Check recent logs for errors
+if tail -100 master.log | grep -q "ERROR\|CRITICAL"; then
+    echo "⚠️  Recent errors found in logs"
+else
+    echo "✓ No recent critical errors"
+fi
+
+# Check GA output file
+if [ -f master/config/ga_output.json ]; then
+    echo "✓ GA parameters file exists"
+    
+    # Check if affinity matrix has data
+    if jq -e '.AffinityMatrix | length > 0' master/config/ga_output.json > /dev/null; then
+        echo "✓ GA has trained (affinity matrix populated)"
+    else
+        echo "⚠️  GA not yet trained (empty affinity matrix)"
+    fi
+else
+    echo "❌ GA parameters file missing"
+fi
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Health check complete"
+```
 
 ---
 
 ## **Summary & Dependencies**
 
 ### **Critical Path**:
-1. M1 (Foundation) → M2 (Telemetry) → M3 (RTS) → M4 (AOD) → M5 (Testing)
+1. ✅ M1 (Foundation) → ✅ M2 (Telemetry) → ✅ M3 (RTS) → ✅ M4 (AOD) → 🎯 M5 (Testing)
 2. M6 (Documentation) can proceed in parallel with M5
-3. M7 (Monitoring) should be done after M3 is stable
+3. M7 (Monitoring) should be done after M5 is validated
 
-### **Estimated Timeline**:
-- **M1**: 3 days
-- **M2**: 4 days
-- **M3**: 5 days
-- **M4**: 6 days
-- **M5**: 4 days
-- **M6**: 2 days
-- **M7**: 2 days
-- **Total**: ~26 days (1 sprint = ~4 weeks with buffer)
+### **Current Status**:
+- **Milestone 1**: ✅ COMPLETE (Foundation & Data Models)
+- **Milestone 2**: ✅ COMPLETE (Tau Store & Telemetry Enrichment)
+- **Milestone 3**: ✅ COMPLETE (RTS Scheduler Implementation)
+- **Milestone 4**: ✅ COMPLETE (AOD/GA Module - 119/119 tests passing)
+- **Milestone 5**: 🎯 IN PROGRESS (CLI-Based Testing & Validation)
+- **Milestone 6**: 📋 PENDING (Documentation & User Guides)
+- **Milestone 7**: 📋 PENDING (Monitoring & Production Readiness)
 
-### **Team Allocation** (suggested):
-- **Developer 1**: M1, M3 (RTS core)
-- **Developer 2**: M2, M4 (Telemetry + GA)
-- **Developer 3**: M5, M7 (Testing + Monitoring)
-- **Technical Writer**: M6 (Documentation)
+### **Revised Testing Approach (Milestones 5-7)**:
+
+**Why CLI-Based Testing?**
+Based on the production logs, the master node provides a rich interactive CLI with comprehensive commands for:
+- Task submission with explicit task types (`-type` flag)
+- Real-time monitoring (`monitor`, `list-tasks`, `queue`)
+- Worker management (`workers`, `stats`, `internal-state`)
+- System status (`status`, `fix-resources`)
+
+This CLI-based approach is **more practical** than programmatic testing because:
+1. ✅ Tests actual production workflow users will use
+2. ✅ No need to write complex gRPC client code
+3. ✅ Easier to debug and visualize results
+4. ✅ Scripts can automate CLI commands
+5. ✅ Validates end-to-end system behavior
+
+**Testing Workflow**:
+```
+M5: Manual Testing
+├── Task 5.1: CLI Testing Procedures (guides + scripts)
+├── Task 5.2: RTS vs RR Comparison (CLI-based)
+├── Task 5.3: GA Convergence Verification (CLI + MongoDB queries)
+├── Task 5.4: End-to-End Integration (multi-worker CLI testing)
+└── Task 5.5: Performance & Stress Testing (scripted CLI load)
+
+M6: Documentation
+├── Task 6.1: CLI User Guide (command reference)
+├── Task 6.2: Operator Guide (troubleshooting, tuning)
+├── Task 6.3: Configuration Reference (env vars, JSON schema)
+└── Task 6.4: Testing Documentation (links to M5 guides)
+
+M7: Production Features
+├── Task 7.1: Enhanced CLI Commands (rts-stats, ga-stats, sla-report)
+├── Task 7.2: Automated Health Checks (health-check command)
+├── Task 7.3: Logging Enhancements (structured logs, debug mode)
+├── Task 7.4: Alerting & Notifications (threshold monitoring)
+├── Task 7.5: MongoDB Query Optimization (indexes, timeouts)
+└── Task 7.6: Production Deployment Scripts (deploy, health check)
+```
+
+### **Estimated Timeline** (Revised):
+- **M5 (CLI Testing)**: 4 days
+  - Day 1: Create testing guides and scripts (Task 5.1)
+  - Day 2: RTS vs RR comparison testing (Task 5.2)
+  - Day 3: GA convergence and integration tests (Task 5.3, 5.4)
+  - Day 4: Performance and stress testing (Task 5.5)
+- **M6 (Documentation)**: 2 days (can parallel with M5)
+  - Day 1: CLI user guide and operator guide (Task 6.1, 6.2)
+  - Day 2: Configuration and testing docs (Task 6.3, 6.4)
+- **M7 (Production)**: 3 days
+  - Day 1: Enhanced CLI monitoring commands (Task 7.1, 7.2)
+  - Day 2: Health checks and alerting (Task 7.3, 7.4)
+  - Day 3: Optimization and deployment scripts (Task 7.5, 7.6)
+- **Total**: ~9 days (~2 weeks with buffer)
+
+### **Key Deliverables**:
+1. **M5 Deliverables**:
+   - ✅ CLI testing guide with step-by-step procedures
+   - ✅ Bash scripts for automated workload submission
+   - ✅ MongoDB queries for metrics collection
+   - ✅ Scheduler comparison report (RTS vs RR)
+   - ✅ GA convergence verification report
+   - ✅ Performance benchmarks
+
+2. **M6 Deliverables**:
+   - ✅ Complete CLI command reference
+   - ✅ Operator troubleshooting guide
+   - ✅ Configuration schema documentation
+   - ✅ Testing procedures documentation
+
+3. **M7 Deliverables**:
+   - ✅ Enhanced CLI monitoring commands (4 new commands)
+   - ✅ Automated health check system
+   - ✅ Production deployment scripts
+   - ✅ Structured logging with debug mode
+   - ✅ Alert system for critical conditions
+   - ✅ Optimized database queries
 
 ### **Risk Mitigation**:
 1. **Risk**: RTS performs worse than Round-Robin
-   - **Mitigation**: Fallback mechanism ensures no regression
-2. **Risk**: GA doesn't converge
-   - **Mitigation**: Use sensible defaults, make GA optional
-3. **Risk**: Performance overhead
-   - **Mitigation**: Benchmark early (Task 5.5), optimize hot paths
+   - **Mitigation**: ✅ Fallback mechanism ensures no regression (already implemented)
+   - **Validation**: Task 5.2 will measure and compare both schedulers
+
+2. **Risk**: GA doesn't converge with real data
+   - **Mitigation**: ✅ Default parameters used if insufficient data (already implemented)
+   - **Validation**: Task 5.3 will verify convergence with real task history
+
+3. **Risk**: CLI-based testing is manual and slow
+   - **Mitigation**: Create bash scripts to automate CLI command sequences
+   - **Validation**: Task 5.1 includes script templates for automation
+
+4. **Risk**: Performance issues under load
+   - **Mitigation**: Task 5.5 stress tests and Task 7.5 optimizes queries
+   - **Validation**: Benchmark against targets (< 10ms RTS decision, < 5s GA epoch)
+
+### **Success Criteria**:
+- ✅ **M5**: All 5 test scenarios pass with documented results
+- ✅ **M6**: Complete documentation published (4 guides)
+- ✅ **M7**: Production features deployed and validated
+
+### **Next Immediate Actions**:
+1. 🎯 **Start Task 5.1**: Create CLI testing guide
+   - Document test procedures for each of 6 task types
+   - Write bash scripts for workload submission
+   - Create verification scripts for MongoDB queries
+
+2. 📋 Delete test directory (as user requested):
+   - Remove `test/generate_workload.go` (no longer needed)
+   - Remove `test/README.md` and `test/QUICK_START.md`
+   - Remove `test/build.sh`
+   - Keep directory structure for new bash scripts
+
+3. 📝 Begin M6 documentation in parallel:
+   - Start CLI_USER_GUIDE.md with command examples from master logs
+   - Document task type usage patterns
+   - Create configuration reference from env vars
 
 ---
 
-**This sprint plan is complete and ready for implementation. All tasks map directly to existing codebase structure and follow EDD specifications exactly.**
+**This revised sprint plan is production-focused and aligns with the actual master CLI capabilities shown in the logs. All testing will use real CLI commands that users will actually use in production.**
