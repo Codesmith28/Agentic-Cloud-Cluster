@@ -4,3 +4,5 @@ node_modules
 venv
 ./master/masterNode
 ./worker/workerNode
+test
+master/config/ga_output.json
