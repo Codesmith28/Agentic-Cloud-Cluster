@@ -16,6 +16,7 @@ import (
 	"master/internal/db"
 	httpserver "master/internal/http"
 	"master/internal/server"
+	"master/internal/storage"
 	"master/internal/system"
 	"master/internal/telemetry"
 	pb "master/proto"
@@ -44,6 +45,8 @@ func main() {
 	var taskDB *db.TaskDB
 	var assignmentDB *db.AssignmentDB
 	var resultDB *db.ResultDB
+	var fileMetadataDB *db.FileMetadataDB
+	var fileStorage *storage.FileStorageService
 
 	if err := db.EnsureCollections(ctx, cfg); err != nil {
 		log.Printf("Warning: MongoDB initialization failed: %v", err)
@@ -92,6 +95,27 @@ func main() {
 			log.Println("✓ ResultDB initialized")
 			defer resultDB.Close(context.Background())
 		}
+
+		// Create file metadata database handler
+		fileMetadataDB, err = db.NewFileMetadataDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create FileMetadataDB: %v", err)
+			fileMetadataDB = nil
+		} else {
+			log.Println("✓ FileMetadataDB initialized")
+			defer fileMetadataDB.Close(context.Background())
+		}
+	}
+
+	// Initialize file storage service
+	fileStorage, err = storage.NewFileStorageService("/var/cloudai/files")
+	if err != nil {
+		log.Printf("Warning: Failed to create FileStorageService: %v", err)
+		log.Println("Continuing without file storage...")
+		fileStorage = nil
+	} else {
+		log.Println("✓ FileStorageService initialized (base: /var/cloudai/files)")
+		defer fileStorage.Close()
 	}
 
 	// Create master server
@@ -100,7 +124,7 @@ func main() {
 	telemetryMgr.Start()
 	log.Println("✓ Telemetry manager started")
 
-	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, resultDB, telemetryMgr)
+	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, resultDB, fileMetadataDB, fileStorage, telemetryMgr)
 
 	// Set master info
 	masterID := "master-1"

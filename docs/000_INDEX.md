@@ -54,10 +54,15 @@ This directory contains all documentation files organized chronologically with s
 - **038_architecture.md** - System architecture overview
 - **039_schema.md** - Database schema documentation
 
-### Latest Features (040-042)
+### Latest Features (040-047)
 - **040_RESOURCE_RECONCILIATION_FIX.md** - Resource reconciliation fix
-- **041_RESOURCE_RELEASE_ON_SHUTDOWN.md** - Resource cleanup on worker shutdown ✨ **NEW**
-- **042_DOCUMENTATION_VERIFICATION_REPORT.md** - Documentation consistency verification ✨ **VERIFICATION**
+- **041_RESOURCE_RELEASE_ON_SHUTDOWN.md** - Resource cleanup on worker shutdown
+- **042_DOCUMENTATION_VERIFICATION_REPORT.md** - Documentation consistency verification
+- **043_FILE_TRANSFER_AND_STORAGE.md** - File transfer and storage system ✨ **NEW**
+- **044_FILE_STORAGE_QUICK_REF.md** - File storage quick reference ✨ **NEW**
+- **045_CLI_TASK_NAMING.md** - CLI task naming and timestamp support ✨ **NEW**
+- **046_CLI_TASK_NAMING_QUICK_REF.md** - Task naming quick reference ✨ **NEW**
+- **047_COMPLETE_IMPLEMENTATION_SUMMARY.md** - Complete file transfer implementation ✨ **NEW**
 
 ---
 
@@ -75,6 +80,8 @@ High-level architecture and function-level documentation:
 ### By Feature
 - **Resource Management**: 017, 018, 040, 041
 - **Task Management**: 020-030
+- **File Transfer & Storage**: 043, 044, 047 ✨ **NEW**
+- **CLI Features**: 045, 046 ✨ **NEW**
 - **Telemetry & Monitoring**: 031-034
 - **WebSocket Communication**: 009, 035, 036
 - **Worker System**: 011, 015, 037, 041
@@ -124,9 +131,9 @@ When adding new documentation:
 
 ---
 
-**Last Updated**: November 16, 2025  
-**Total Documents**: 43 documentation files (000-042)  
-**Latest Addition**: Documentation Verification Report (042)
+**Last Updated**: January 2025  
+**Total Documents**: 48 documentation files (000-047)  
+**Latest Addition**: File Transfer and Task Naming Implementation (043-047)
 
 ---
 

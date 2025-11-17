@@ -10,6 +10,7 @@ import (
 
 	"master/internal/db"
 	"master/internal/scheduler"
+	"master/internal/storage"
 	"master/internal/telemetry"
 	pb "master/proto"
 
@@ -37,14 +38,16 @@ type TaskSubmission struct {
 type MasterServer struct {
 	pb.UnimplementedMasterWorkerServer
 
-	workers       map[string]*WorkerState
-	mu            sync.RWMutex
-	workerDB      *db.WorkerDB
-	taskDB        *db.TaskDB
-	assignmentDB  *db.AssignmentDB
-	resultDB      *db.ResultDB
-	masterID      string
-	masterAddress string
+	workers        map[string]*WorkerState
+	mu             sync.RWMutex
+	workerDB       *db.WorkerDB
+	taskDB         *db.TaskDB
+	assignmentDB   *db.AssignmentDB
+	resultDB       *db.ResultDB
+	fileMetadataDB *db.FileMetadataDB
+	fileStorage    *storage.FileStorageService
+	masterID       string
+	masterAddress  string
 
 	taskChan chan *TaskAssignment
 
@@ -88,13 +91,15 @@ type TaskAssignment struct {
 }
 
 // NewMasterServer creates a new master server instance
-func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB, telemetryMgr *telemetry.TelemetryManager) *MasterServer {
+func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB, fileMetadataDB *db.FileMetadataDB, fileStorage *storage.FileStorageService, telemetryMgr *telemetry.TelemetryManager) *MasterServer {
 	return &MasterServer{
 		workers:          make(map[string]*WorkerState),
 		workerDB:         workerDB,
 		taskDB:           taskDB,
 		assignmentDB:     assignmentDB,
 		resultDB:         resultDB,
+		fileMetadataDB:   fileMetadataDB,
+		fileStorage:      fileStorage,
 		masterID:         "",
 		masterAddress:    "",
 		taskChan:         make(chan *TaskAssignment, 100),
@@ -735,6 +740,63 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 	}, nil
 }
 
+// UploadTaskFiles handles file uploads from workers via streaming RPC
+func (s *MasterServer) UploadTaskFiles(stream pb.MasterWorker_UploadTaskFilesServer) error {
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Printf("  📤 FILE UPLOAD REQUEST")
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	if s.fileStorage == nil {
+		log.Printf("  ✗ File storage service not initialized")
+		return stream.SendAndClose(&pb.FileUploadAck{
+			Success:       false,
+			Message:       "File storage service not available",
+			FilesReceived: 0,
+		})
+	}
+
+	// Receive file stream and store files
+	metadata, err := s.fileStorage.ReceiveFileStream(stream)
+	if err != nil {
+		log.Printf("  ✗ Failed to receive files: %v", err)
+		return stream.SendAndClose(&pb.FileUploadAck{
+			Success:       false,
+			Message:       fmt.Sprintf("Failed to receive files: %v", err),
+			FilesReceived: 0,
+		})
+	}
+
+	// Store metadata in database
+	if s.fileMetadataDB != nil {
+		dbMetadata := &db.FileMetadata{
+			UserID:      metadata.UserID,
+			TaskID:      metadata.TaskID,
+			TaskName:    metadata.TaskName,
+			Timestamp:   metadata.Timestamp,
+			FilePaths:   metadata.FilePaths,
+			StoragePath: metadata.StoragePath,
+		}
+
+		if err := s.fileMetadataDB.CreateFileMetadata(context.Background(), dbMetadata); err != nil {
+			log.Printf("  ⚠ Warning: Failed to store file metadata in database: %v", err)
+		} else {
+			log.Printf("  ✓ File metadata stored in database")
+		}
+	}
+
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Printf("  ✓ FILE UPLOAD COMPLETE")
+	log.Printf("  Task: %s | User: %s | Files: %d", metadata.TaskID, metadata.UserID, len(metadata.FilePaths))
+	log.Printf("  Storage Path: %s", metadata.StoragePath)
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	return stream.SendAndClose(&pb.FileUploadAck{
+		Success:       true,
+		Message:       "Files uploaded successfully",
+		FilesReceived: int32(len(metadata.FilePaths)),
+	})
+}
+
 // GetWorkers returns current worker states (for CLI)
 func (s *MasterServer) GetWorkers() map[string]*WorkerState {
 	s.mu.RLock()
@@ -1021,6 +1083,8 @@ func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 		dbTask := &db.Task{
 			TaskID:      task.TaskId,
 			UserID:      task.UserId,
+			TaskName:    task.TaskName,
+			SubmittedAt: task.SubmittedAt,
 			DockerImage: task.DockerImage,
 			Command:     task.Command,
 			ReqCPU:      task.ReqCpu,
@@ -1066,6 +1130,8 @@ func (s *MasterServer) DispatchTaskToWorker(ctx context.Context, task *pb.Task, 
 		dbTask := &db.Task{
 			TaskID:      task.TaskId,
 			UserID:      task.UserId,
+			TaskName:    task.TaskName,
+			SubmittedAt: task.SubmittedAt,
 			DockerImage: task.DockerImage,
 			Command:     task.Command,
 			ReqCPU:      task.ReqCpu,

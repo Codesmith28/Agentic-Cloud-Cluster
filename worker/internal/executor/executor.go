@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"worker/internal/logstream"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-units"
 )
@@ -27,11 +30,13 @@ type TaskExecutor struct {
 
 // TaskResult contains the execution result
 type TaskResult struct {
-	TaskID   string
-	Status   string // success, failed
-	Logs     string
-	ExitCode int64
-	Error    error
+	TaskID         string
+	Status         string // success, failed
+	Logs           string
+	ExitCode       int64
+	Error          error
+	ResultLocation string   // Path to output directory on worker
+	OutputFiles    []string // List of output files relative to ResultLocation
 }
 
 // NewTaskExecutor creates a new task executor
@@ -133,6 +138,19 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 		}
 	}
 
+	// Collect output files
+	outputDir := fmt.Sprintf("/var/cloudai/outputs/%s", taskID)
+	outputFiles, err := e.collectOutputFiles(outputDir)
+	if err != nil {
+		log.Printf("[Task %s] Warning: failed to collect output files: %v", taskID, err)
+	} else {
+		result.ResultLocation = outputDir
+		result.OutputFiles = outputFiles
+		if len(outputFiles) > 0 {
+			log.Printf("[Task %s] ✓ Collected %d output file(s)", taskID, len(outputFiles))
+		}
+	}
+
 	return result
 }
 
@@ -167,9 +185,24 @@ func (e *TaskExecutor) createContainer(ctx context.Context, image, command, task
 		containerConfig.Cmd = []string{"/bin/sh", "-c", command}
 	}
 
-	// Prepare host config with resource limits
+	// Create output directory on host
+	outputDir := fmt.Sprintf("/var/cloudai/outputs/%s", taskID)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		log.Printf("[Task %s] Warning: failed to create output directory: %v", taskID, err)
+	} else {
+		log.Printf("[Task %s] Created output directory: %s", taskID, outputDir)
+	}
+
+	// Prepare host config with resource limits and volume mount
 	hostConfig := &container.HostConfig{
 		Resources: container.Resources{},
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: outputDir,
+				Target: "/output",
+			},
+		},
 	}
 
 	// Set CPU limit (in nano CPUs: 1 CPU = 1e9 nano CPUs)
@@ -238,6 +271,37 @@ func (e *TaskExecutor) collectLogs(ctx context.Context, containerID string) (str
 	}
 
 	return logBuffer.String(), scanner.Err()
+}
+
+// collectOutputFiles collects all files from the output directory
+func (e *TaskExecutor) collectOutputFiles(outputDir string) ([]string, error) {
+	var files []string
+
+	// Check if directory exists
+	if _, err := os.Stat(outputDir); os.IsNotExist(err) {
+		return files, nil // No output directory, return empty list
+	}
+
+	// Walk through directory and collect all file paths
+	err := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories, only collect files
+		if !info.IsDir() {
+			// Get relative path from output directory
+			relPath, err := filepath.Rel(outputDir, path)
+			if err != nil {
+				return err
+			}
+			files = append(files, relPath)
+		}
+
+		return nil
+	})
+
+	return files, err
 }
 
 // cleanup removes the container

@@ -105,31 +105,37 @@ func (c *CLI) Run() {
 			c.unregisterWorker(parts[1])
 		case "task":
 			if len(parts) < 2 {
-				fmt.Println("Usage: task <docker_image> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]")
+				fmt.Println("Usage: task <docker_image> [-name <task_name>] [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]")
 				fmt.Println("  docker_image: Docker image to run")
+				fmt.Println("  -name: Custom task name (default: auto-generated from image name)")
 				fmt.Println("  -cpu_cores: CPU cores to allocate (default: 1.0)")
 				fmt.Println("  -mem: Memory in GB (default: 0.5)")
 				fmt.Println("  -storage: Storage in GB (default: 1.0)")
 				fmt.Println("  -gpu_cores: GPU cores to allocate (default: 0.0)")
 				fmt.Println("\nNote: The scheduler will automatically select the best worker.")
+				fmt.Println("      Files generated in /output will be automatically collected and stored.")
 				fmt.Println("\nExamples:")
 				fmt.Println("  task docker.io/user/sample-task:latest")
+				fmt.Println("  task docker.io/user/sample-task:latest -name my-experiment")
 				fmt.Println("  task docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
 				continue
 			}
 			c.submitTask(parts)
 		case "dispatch":
 			if len(parts) < 3 {
-				fmt.Println("Usage: dispatch <worker_id> <docker_image> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]")
+				fmt.Println("Usage: dispatch <worker_id> <docker_image> [-name <task_name>] [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]")
 				fmt.Println("  worker_id: Specific worker to dispatch task to")
 				fmt.Println("  docker_image: Docker image to run")
+				fmt.Println("  -name: Custom task name (default: auto-generated from image name)")
 				fmt.Println("  -cpu_cores: CPU cores to allocate (default: 1.0)")
 				fmt.Println("  -mem: Memory in GB (default: 0.5)")
 				fmt.Println("  -storage: Storage in GB (default: 1.0)")
 				fmt.Println("  -gpu_cores: GPU cores to allocate (default: 0.0)")
 				fmt.Println("\nNote: This bypasses the scheduler and directly assigns to the specified worker.")
+				fmt.Println("      Files generated in /output will be automatically collected and stored.")
 				fmt.Println("\nExamples:")
 				fmt.Println("  dispatch worker-1 docker.io/user/sample-task:latest")
+				fmt.Println("  dispatch worker-1 docker.io/user/sample-task:latest -name my-experiment")
 				fmt.Println("  dispatch worker-2 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0")
 				continue
 			}
@@ -504,6 +510,7 @@ func (c *CLI) submitTask(parts []string) {
 	reqMemory := 0.5
 	reqStorage := 1.0
 	reqGPU := 0.0
+	taskName := "" // Optional task name
 
 	// Parse flags
 	for i := 2; i < len(parts); i++ {
@@ -536,11 +543,28 @@ func (c *CLI) submitTask(parts []string) {
 					i++ // Skip the value
 				}
 			}
+		case "-name":
+			if i+1 < len(parts) {
+				taskName = parts[i+1]
+				i++ // Skip the value
+			}
 		}
 	}
 
 	// Generate task ID
 	taskID := fmt.Sprintf("task-%d", time.Now().Unix())
+
+	// Generate default task name if not provided
+	if taskName == "" {
+		// Extract image name from docker image (e.g., "user/image:tag" -> "image")
+		imageParts := strings.Split(dockerImage, "/")
+		imageName := imageParts[len(imageParts)-1]
+		imageName = strings.Split(imageName, ":")[0] // Remove tag
+		taskName = fmt.Sprintf("%s-%d", imageName, time.Now().Unix())
+	}
+
+	// Record submission timestamp
+	submittedAt := time.Now().Unix()
 
 	// Command is empty - the container will use its default CMD/ENTRYPOINT
 	// If user wants to override, they can pass -cmd flag (future feature)
@@ -551,7 +575,9 @@ func (c *CLI) submitTask(parts []string) {
 	fmt.Println("  📤 SUBMITTING TASK TO QUEUE")
 	fmt.Println("═══════════════════════════════════════════════════════")
 	fmt.Printf("  Task ID:           %s\n", taskID)
+	fmt.Printf("  Task Name:         %s\n", taskName)
 	fmt.Printf("  Docker Image:      %s\n", dockerImage)
+	fmt.Printf("  Submitted At:      %s\n", time.Unix(submittedAt, 0).Format("2006-01-02 15:04:05"))
 	fmt.Println("───────────────────────────────────────────────────────")
 	fmt.Println("  Resource Requirements:")
 	fmt.Printf("    • CPU Cores:     %.2f cores\n", reqCPU)
@@ -571,6 +597,8 @@ func (c *CLI) submitTask(parts []string) {
 		ReqStorage:  reqStorage,
 		ReqGpu:      reqGPU,
 		UserId:      "admin", // Default user for CLI tasks (can be made configurable)
+		TaskName:    taskName,
+		SubmittedAt: submittedAt,
 	}
 
 	err := c.submitTaskToMaster(task)
@@ -609,6 +637,7 @@ func (c *CLI) dispatchTask(parts []string) {
 	reqMemory := 0.5
 	reqStorage := 1.0
 	reqGPU := 0.0
+	taskName := "" // Optional task name
 
 	// Parse flags (starting from index 3 since we have worker_id and docker_image)
 	for i := 3; i < len(parts); i++ {
@@ -641,11 +670,28 @@ func (c *CLI) dispatchTask(parts []string) {
 					i++ // Skip the value
 				}
 			}
+		case "-name":
+			if i+1 < len(parts) {
+				taskName = parts[i+1]
+				i++ // Skip the value
+			}
 		}
 	}
 
 	// Generate task ID
 	taskID := fmt.Sprintf("task-%d", time.Now().Unix())
+
+	// Generate default task name if not provided
+	if taskName == "" {
+		// Extract image name from docker image (e.g., "user/image:tag" -> "image")
+		imageParts := strings.Split(dockerImage, "/")
+		imageName := imageParts[len(imageParts)-1]
+		imageName = strings.Split(imageName, ":")[0] // Remove tag
+		taskName = fmt.Sprintf("%s-%d", imageName, time.Now().Unix())
+	}
+
+	// Record submission timestamp
+	submittedAt := time.Now().Unix()
 
 	// Command is empty - the container will use its default CMD/ENTRYPOINT
 	command := ""
@@ -655,8 +701,10 @@ func (c *CLI) dispatchTask(parts []string) {
 	fmt.Println("  🎯 DISPATCHING TASK DIRECTLY TO WORKER")
 	fmt.Println("═══════════════════════════════════════════════════════")
 	fmt.Printf("  Task ID:           %s\n", taskID)
+	fmt.Printf("  Task Name:         %s\n", taskName)
 	fmt.Printf("  Target Worker:     %s\n", workerID)
 	fmt.Printf("  Docker Image:      %s\n", dockerImage)
+	fmt.Printf("  Submitted At:      %s\n", time.Unix(submittedAt, 0).Format("2006-01-02 15:04:05"))
 	fmt.Println("───────────────────────────────────────────────────────")
 	fmt.Println("  Resource Requirements:")
 	fmt.Printf("    • CPU Cores:     %.2f cores\n", reqCPU)
@@ -676,6 +724,8 @@ func (c *CLI) dispatchTask(parts []string) {
 		ReqStorage:  reqStorage,
 		ReqGpu:      reqGPU,
 		UserId:      "admin", // Default user for CLI tasks
+		TaskName:    taskName,
+		SubmittedAt: submittedAt,
 	}
 
 	err := c.dispatchTaskToWorker(task, workerID)

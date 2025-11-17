@@ -16,6 +16,8 @@ import (
 type Task struct {
 	TaskID      string    `bson:"task_id"`
 	UserID      string    `bson:"user_id"`
+	TaskName    string    `bson:"task_name"`    // User-friendly task name
+	SubmittedAt int64     `bson:"submitted_at"` // Unix timestamp when task was submitted
 	DockerImage string    `bson:"docker_image"`
 	Command     string    `bson:"command"`
 	ReqCPU      float64   `bson:"req_cpu"`
