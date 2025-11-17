@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,14 +20,22 @@ type FileStorageService struct {
 	mu            sync.RWMutex
 }
 
+// FileInfo represents individual file information
+type FileInfo struct {
+	Path string // Relative path from task directory
+	Size int64  // File size in bytes
+}
+
 // FileMetadata represents metadata for stored files
 type FileMetadata struct {
 	UserID      string
 	TaskID      string
 	TaskName    string
 	Timestamp   time.Time
-	FilePaths   []string // Relative paths from task directory
-	StoragePath string   // Absolute path to task directory
+	FilePaths   []string   // Relative paths from task directory (deprecated, use Files)
+	Files       []FileInfo // Detailed file information with sizes
+	StoragePath string     // Absolute path to task directory
+	TotalSize   int64      // Total size of all files in bytes
 }
 
 // NewFileStorageService creates a new file storage service
@@ -191,10 +200,10 @@ func (s *FileStorageService) ListUserFiles(userID string) ([]FileMetadata, error
 		// We're looking for task directories (deepest level)
 		// Structure: <userDir>/<taskName>/<timestamp>/<taskID>/
 		rel, _ := filepath.Rel(userDir, path)
-		parts := filepath.SplitList(rel)
+		parts := strings.Split(rel, string(filepath.Separator))
 
-		// Check if this is a task directory (4 levels deep)
-		if len(parts) == 4 && info.IsDir() {
+		// Check if this is a task directory (3 levels deep relative to userDir)
+		if len(parts) == 3 && info.IsDir() {
 			taskName := parts[0]
 			timestampStr := parts[1]
 			taskID := parts[2]
@@ -208,6 +217,8 @@ func (s *FileStorageService) ListUserFiles(userID string) ([]FileMetadata, error
 
 			// List files in this task directory
 			var filePaths []string
+			var files []FileInfo
+			var totalSize int64
 			taskDir := path
 			filepath.Walk(taskDir, func(filePath string, fileInfo os.FileInfo, err error) error {
 				if err != nil || fileInfo.IsDir() {
@@ -215,6 +226,11 @@ func (s *FileStorageService) ListUserFiles(userID string) ([]FileMetadata, error
 				}
 				relPath, _ := filepath.Rel(taskDir, filePath)
 				filePaths = append(filePaths, relPath)
+				files = append(files, FileInfo{
+					Path: relPath,
+					Size: fileInfo.Size(),
+				})
+				totalSize += fileInfo.Size()
 				return nil
 			})
 
@@ -224,7 +240,9 @@ func (s *FileStorageService) ListUserFiles(userID string) ([]FileMetadata, error
 				TaskName:    taskName,
 				Timestamp:   timestamp,
 				FilePaths:   filePaths,
+				Files:       files,
 				StoragePath: taskDir,
+				TotalSize:   totalSize,
 			})
 		}
 

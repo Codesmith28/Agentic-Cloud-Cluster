@@ -190,6 +190,13 @@ func main() {
 		httpTelemetryServer.RegisterTaskHandlers(taskHandler)
 		httpTelemetryServer.RegisterWorkerHandlers(workerHandler)
 
+		// Register file handlers if file storage is available
+		if fileStorage != nil {
+			fileHandler := httpserver.NewFileAPIHandler(fileStorage)
+			httpTelemetryServer.RegisterFileHandlers(fileHandler)
+			log.Println("✓ File API handlers registered")
+		}
+
 		go func() {
 			if err := httpTelemetryServer.Start(); err != nil && err != http.ErrServerClosed {
 				log.Printf("HTTP API server error: %v", err)
@@ -200,6 +207,11 @@ func main() {
 		log.Printf("  - WebSocket: WS /ws/telemetry, /ws/telemetry/{worker_id}")
 		log.Printf("  - Tasks: POST/GET/DELETE /api/tasks, GET /api/tasks/{id}")
 		log.Printf("  - Workers: GET /api/workers, /api/workers/{id}")
+		if fileStorage != nil {
+			log.Printf("  - Files: GET /api/files, /api/files/{task_id}")
+			log.Printf("           GET /api/files/{task_id}/download/{file_path}")
+			log.Printf("           DELETE /api/files/{task_id}")
+		}
 	}
 
 	// Setup graceful shutdown
@@ -244,7 +256,7 @@ func main() {
 	log.Println("\n✓ Master node started successfully")
 	log.Printf("✓ Starting gRPC server on %s\n", masterAddress)
 
-	cliInterface := cli.NewCLI(masterServer)
+	cliInterface := cli.NewCLI(masterServer, fileStorage)
 	cliInterface.Run()
 }
 

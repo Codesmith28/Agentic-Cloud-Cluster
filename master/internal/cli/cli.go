@@ -7,12 +7,14 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"master/internal/db"
 	"master/internal/server"
+	"master/internal/storage"
 	pb "master/proto"
 
 	"github.com/chzyer/readline"
@@ -21,17 +23,19 @@ import (
 // CLI handles the command-line interface for the master
 type CLI struct {
 	masterServer *server.MasterServer
+	fileStorage  *storage.FileStorageService
 	rl           *readline.Instance
 }
 
 // NewCLI creates a new CLI instance
-func NewCLI(srv *server.MasterServer) *CLI {
+func NewCLI(srv *server.MasterServer, fs *storage.FileStorageService) *CLI {
 	rl, err := readline.New("master> ")
 	if err != nil {
 		log.Fatalf("Failed to create readline instance: %v", err)
 	}
 	return &CLI{
 		masterServer: srv,
+		fileStorage:  fs,
 		rl:           rl,
 	}
 }
@@ -158,6 +162,55 @@ func (c *CLI) Run() {
 			c.cancelTask(parts[1])
 		case "queue":
 			c.showQueue()
+		case "files":
+			if len(parts) < 2 {
+				fmt.Println("Usage: files <user_id> [requesting_user]")
+				fmt.Println("  user_id: User whose files to list")
+				fmt.Println("  requesting_user: User making the request (defaults to same as user_id)")
+				fmt.Println("Example: files alice")
+				fmt.Println("         files alice admin")
+				continue
+			}
+			requestingUser := parts[1] // Default: same as target user
+			if len(parts) >= 3 {
+				requestingUser = parts[2]
+			}
+			c.listFiles(requestingUser, parts[1])
+		case "task-files":
+			if len(parts) < 3 {
+				fmt.Println("Usage: task-files <task_id> <user_id> [requesting_user]")
+				fmt.Println("  task_id: Task ID to view files for")
+				fmt.Println("  user_id: User who owns the task")
+				fmt.Println("  requesting_user: User making the request (defaults to same as user_id)")
+				fmt.Println("Example: task-files task-123 alice")
+				fmt.Println("         task-files task-123 alice admin")
+				continue
+			}
+			requestingUser := parts[2] // Default: same as target user
+			if len(parts) >= 4 {
+				requestingUser = parts[3]
+			}
+			c.showTaskFiles(parts[1], requestingUser, parts[2])
+		case "download":
+			if len(parts) < 3 {
+				fmt.Println("Usage: download <task_id> <user_id> [requesting_user] [output_dir]")
+				fmt.Println("  task_id: Task ID")
+				fmt.Println("  user_id: User who owns the task")
+				fmt.Println("  requesting_user: User making the request (defaults to same as user_id)")
+				fmt.Println("  output_dir: Directory to save files (defaults to current directory)")
+				fmt.Println("Example: download task-123 alice")
+				fmt.Println("         download task-123 alice admin /tmp/task-outputs")
+				continue
+			}
+			requestingUser := parts[2] // Default: same as target user
+			outputDir := "."           // Default: current directory
+			if len(parts) >= 4 {
+				requestingUser = parts[3]
+			}
+			if len(parts) >= 5 {
+				outputDir = parts[4]
+			}
+			c.downloadTaskFiles(parts[1], requestingUser, parts[2], outputDir)
 		case "exit", "quit":
 			fmt.Println("Shutting down master...")
 			return
@@ -190,6 +243,9 @@ func (c *CLI) printHelp() {
 	fmt.Println("  monitor <task_id>              - Monitor live logs for a task (press any key to exit)")
 	fmt.Println("  cancel <task_id>               - Cancel a running task")
 	fmt.Println("  queue                          - Show pending tasks in the queue")
+	fmt.Println("  files <user_id> [requesting_user]  - List all files for a user")
+	fmt.Println("  task-files <task_id> <user_id> [requesting_user]  - View files for a specific task")
+	fmt.Println("  download <task_id> <user_id> [requesting_user] [output_dir]  - Download all task files")
 	fmt.Println("  exit/quit                      - Shutdown master node")
 	fmt.Println("\nExamples:")
 	fmt.Println("  register worker-2 192.168.1.100:50052")
@@ -201,6 +257,9 @@ func (c *CLI) printHelp() {
 	fmt.Println("  monitor task-123")
 	fmt.Println("  cancel task-123")
 	fmt.Println("  queue")
+	fmt.Println("  files alice")
+	fmt.Println("  task-files task-123 alice")
+	fmt.Println("  download task-123 alice")
 }
 
 func (c *CLI) showStatus() {
@@ -1132,4 +1191,170 @@ func formatDuration(d time.Duration) string {
 	} else {
 		return fmt.Sprintf("%dh %dm", int(d.Hours()), int(d.Minutes())%60)
 	}
+}
+
+// listFiles lists all files for a user with access control
+func (c *CLI) listFiles(requestingUser, targetUser string) {
+	if c.fileStorage == nil {
+		fmt.Println("❌ File storage not available")
+		return
+	}
+
+	fileList, err := c.fileStorage.ListUserFilesWithAccess(requestingUser, targetUser)
+	if err != nil {
+		fmt.Printf("❌ Failed to list files: %v\n", err)
+		return
+	}
+
+	if len(fileList) == 0 {
+		fmt.Printf("\n✓ No files found for user '%s'\n", targetUser)
+		return
+	}
+
+	fmt.Println("\n╔═══════════════════════════════════════════════════════")
+	fmt.Printf("║  Files for User: %s\n", targetUser)
+	fmt.Printf("║  Total Tasks: %d\n", len(fileList))
+	fmt.Println("╠═══════════════════════════════════════════════════════")
+
+	for i, metadata := range fileList {
+		fmt.Printf("║  [%d] Task: %s\n", i+1, metadata.TaskName)
+		fmt.Printf("║      Task ID:   %s\n", metadata.TaskID)
+		fmt.Printf("║      Timestamp: %s\n", metadata.Timestamp.Format("2006-01-02 15:04:05"))
+		fmt.Printf("║      Files:     %d\n", len(metadata.FilePaths))
+		for _, file := range metadata.FilePaths {
+			fmt.Printf("║        - %s\n", file)
+		}
+		if i < len(fileList)-1 {
+			fmt.Println("║      ───────────────────────────────────────────────")
+		}
+	}
+
+	fmt.Println("╚═══════════════════════════════════════════════════════")
+	fmt.Println("\n💡 Tips:")
+	fmt.Printf("   - View task files: task-files <task_id> %s\n", targetUser)
+	fmt.Printf("   - Download file: download <task_id> <file_path> %s\n", targetUser)
+}
+
+// showTaskFiles shows files for a specific task
+func (c *CLI) showTaskFiles(taskID, requestingUser, targetUser string) {
+	if c.fileStorage == nil {
+		fmt.Println("❌ File storage not available")
+		return
+	}
+
+	metadata, err := c.fileStorage.GetTaskFilesWithAccess(requestingUser, targetUser, taskID)
+	if err != nil {
+		fmt.Printf("❌ Failed to get task files: %v\n", err)
+		return
+	}
+
+	fmt.Println("\n╔═══════════════════════════════════════════════════════")
+	fmt.Printf("║  Task Files: %s\n", taskID)
+	fmt.Println("╠═══════════════════════════════════════════════════════")
+	fmt.Printf("║  Task Name:  %s\n", metadata.TaskName)
+	fmt.Printf("║  Owner:      %s\n", targetUser)
+	fmt.Printf("║  Timestamp:  %s\n", metadata.Timestamp.Format("2006-01-02 15:04:05"))
+	fmt.Printf("║  Total Size: %s\n", formatFileSize(metadata.TotalSize))
+	fmt.Printf("║  Files:      %d\n", len(metadata.Files))
+	fmt.Println("╠═══════════════════════════════════════════════════════")
+
+	if len(metadata.Files) == 0 {
+		fmt.Println("║  No files generated by this task")
+	} else {
+		for i, file := range metadata.Files {
+			fmt.Printf("║  [%d] %s (%s)\n", i+1, file.Path, formatFileSize(file.Size))
+		}
+	}
+
+	fmt.Println("╚═══════════════════════════════════════════════════════")
+
+	if len(metadata.Files) > 0 {
+		fmt.Println("\n💡 To download all files:")
+		fmt.Printf("   download %s %s\n", taskID, targetUser)
+	}
+}
+
+// downloadTaskFiles downloads all files from a task
+func (c *CLI) downloadTaskFiles(taskID, requestingUser, targetUser, outputDir string) {
+	if c.fileStorage == nil {
+		fmt.Println("❌ File storage not available")
+		return
+	}
+
+	// Get task metadata first
+	metadata, err := c.fileStorage.GetTaskFilesWithAccess(requestingUser, targetUser, taskID)
+	if err != nil {
+		fmt.Printf("❌ Failed to get task files: %v\n", err)
+		return
+	}
+
+	if len(metadata.FilePaths) == 0 {
+		fmt.Println("❌ No files found for this task")
+		return
+	}
+
+	fmt.Printf("Downloading %d file(s) from task '%s'...\n", len(metadata.FilePaths), taskID)
+
+	// Create output directory for this task
+	taskOutputDir := filepath.Join(outputDir, taskID)
+	if err := os.MkdirAll(taskOutputDir, 0755); err != nil {
+		fmt.Printf("❌ Failed to create output directory: %v\n", err)
+		return
+	}
+
+	successCount := 0
+	totalSize := int64(0)
+
+	// Download each file
+	for i, filePath := range metadata.FilePaths {
+		fmt.Printf("  [%d/%d] Downloading: %s\n", i+1, len(metadata.FilePaths), filePath)
+
+		// Read file with access control
+		fileData, err := c.fileStorage.ReadFileWithAccess(requestingUser, targetUser, taskID, filePath)
+		if err != nil {
+			fmt.Printf("    ❌ Failed: %v\n", err)
+			continue
+		}
+
+		// Create subdirectories if needed
+		outputPath := filepath.Join(taskOutputDir, filePath)
+		if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+			fmt.Printf("    ❌ Failed to create directory: %v\n", err)
+			continue
+		}
+
+		// Write to output file
+		err = os.WriteFile(outputPath, fileData, 0644)
+		if err != nil {
+			fmt.Printf("    ❌ Failed to write: %v\n", err)
+			continue
+		}
+
+		totalSize += int64(len(fileData))
+		successCount++
+		fmt.Printf("    ✓ Saved to: %s\n", outputPath)
+	}
+
+	fmt.Println("\n╔═══════════════════════════════════════════════════════")
+	fmt.Println("║  Download Complete")
+	fmt.Println("╠═══════════════════════════════════════════════════════")
+	fmt.Printf("║  Task:         %s\n", taskID)
+	fmt.Printf("║  Files:        %d/%d successful\n", successCount, len(metadata.FilePaths))
+	fmt.Printf("║  Total Size:   %s\n", formatFileSize(totalSize))
+	fmt.Printf("║  Directory:    %s\n", taskOutputDir)
+	fmt.Println("╚═══════════════════════════════════════════════════════")
+}
+
+// formatFileSize formats bytes into a human-readable string
+func formatFileSize(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.2f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
