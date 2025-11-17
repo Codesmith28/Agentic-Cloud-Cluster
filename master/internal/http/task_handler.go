@@ -13,6 +13,8 @@ import (
 	"master/internal/db"
 	"master/internal/server"
 	pb "master/proto"
+
+	"github.com/gorilla/websocket"
 )
 
 // TaskAPIHandler handles HTTP REST API requests for task management
@@ -366,4 +368,87 @@ func (h *TaskAPIHandler) HandleGetTaskLogs(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// HandleTaskLogsStream handles WebSocket connections for streaming live task logs
+// WebSocket endpoint: /ws/tasks/:id/logs
+func (h *TaskAPIHandler) HandleTaskLogsStream(w http.ResponseWriter, r *http.Request) {
+	// Extract task ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/ws/tasks/")
+	taskID := strings.TrimSuffix(path, "/logs")
+
+	if taskID == "" {
+		http.Error(w, "Task ID required", http.StatusBadRequest)
+		return
+	}
+
+	// Upgrade to WebSocket
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true // Allow all origins (restrict in production)
+		},
+	}
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("WebSocket upgrade failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer conn.Close()
+
+	// Get task info to get userID
+	ctx := context.Background()
+	userID, err := h.masterServer.GetUserIDForTask(ctx, taskID)
+	if err != nil {
+		conn.WriteJSON(map[string]interface{}{
+			"error": fmt.Sprintf("Failed to get task information: %v", err),
+		})
+		return
+	}
+
+	// Send initial message
+	conn.WriteJSON(map[string]interface{}{
+		"type":    "connected",
+		"task_id": taskID,
+		"user_id": userID,
+		"message": "Connected to task log stream",
+	})
+
+	// Create context for streaming
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	defer streamCancel()
+
+	// Stream logs using the master server's streaming function
+	err = h.masterServer.StreamTaskLogsUnified(streamCtx, taskID, userID, func(logLine string, isComplete bool, status string) error {
+		if logLine != "" {
+			// Send log line
+			if err := conn.WriteJSON(map[string]interface{}{
+				"type":    "log",
+				"line":    logLine,
+				"task_id": taskID,
+			}); err != nil {
+				return err
+			}
+		}
+
+		if isComplete {
+			// Send completion message
+			conn.WriteJSON(map[string]interface{}{
+				"type":    "complete",
+				"task_id": taskID,
+				"status":  status,
+				"message": fmt.Sprintf("Task completed with status: %s", status),
+			})
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		conn.WriteJSON(map[string]interface{}{
+			"type":    "error",
+			"task_id": taskID,
+			"error":   err.Error(),
+		})
+	}
 }

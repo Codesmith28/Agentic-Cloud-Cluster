@@ -16,7 +16,7 @@ function App() {
   };
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', overflow: 'auto' }}>
       <Navbar onMenuClick={toggleSidebar} />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
@@ -26,8 +26,8 @@ function App() {
           flexGrow: 1,
           p: 3,
           mt: 8,
-          ml: sidebarOpen ? { xs: 0, sm: '240px' } : 0,
-          transition: 'margin 0.3s ease',
+          width: '100%',
+          overflow: 'auto',
         }}
       >
         <Routes>
