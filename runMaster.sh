@@ -24,14 +24,19 @@ echo "Starting UI (npm run dev) in background..."
 UI_PID=$!
 echo "Frontend started on port 3000 (PID: $UI_PID)"
 
-# Function to cleanup on exit
+# Function to safely cleanup UI
 cleanup() {
     echo ""
     echo "Shutting down UI server..."
-    kill $UI_PID 2>/dev/null
-    wait $UI_PID 2>/dev/null
+
+    # Kill ONLY the npm process we started
+    kill "$UI_PID" 2>/dev/null
+    wait "$UI_PID" 2>/dev/null
+
     echo "✓ UI server stopped"
-    
+
+    pgrep -f "ui/.*(node|vite|npm)" | xargs -r kill -9 2>/dev/null
+
     exit 0
 }
 

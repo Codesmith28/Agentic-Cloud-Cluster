@@ -68,7 +68,7 @@ const WorkersPage = () => {
       Object.entries(telemetryWorkers).forEach(([workerId, telemetry]) => {
         const existingWorker = workerMap.get(workerId);
         if (existingWorker) {
-          // Update real-time data
+          // Update real-time data including resources
           workerMap.set(workerId, {
             ...existingWorker,
             is_active: telemetry.is_active,
@@ -77,6 +77,25 @@ const WorkersPage = () => {
             gpu_usage: telemetry.gpu_usage,
             running_tasks_count: telemetry.running_tasks?.length || 0,
             last_update: telemetry.last_update,
+            // Update resource allocations from telemetry
+            total_resources: {
+              cpu: telemetry.total_resources?.cpu || existingWorker.total_resources?.cpu || 0,
+              memory: telemetry.total_resources?.memory || existingWorker.total_resources?.memory || 0,
+              storage: telemetry.total_resources?.storage || existingWorker.total_resources?.storage || 0,
+              gpu: telemetry.total_resources?.gpu || existingWorker.total_resources?.gpu || 0,
+            },
+            allocated_resources: {
+              cpu: telemetry.allocated_resources?.cpu || existingWorker.allocated_resources?.cpu || 0,
+              memory: telemetry.allocated_resources?.memory || existingWorker.allocated_resources?.memory || 0,
+              storage: telemetry.allocated_resources?.storage || existingWorker.allocated_resources?.storage || 0,
+              gpu: telemetry.allocated_resources?.gpu || existingWorker.allocated_resources?.gpu || 0,
+            },
+            available_resources: {
+              cpu: telemetry.available_resources?.cpu || existingWorker.available_resources?.cpu || 0,
+              memory: telemetry.available_resources?.memory || existingWorker.available_resources?.memory || 0,
+              storage: telemetry.available_resources?.storage || existingWorker.available_resources?.storage || 0,
+              gpu: telemetry.available_resources?.gpu || existingWorker.available_resources?.gpu || 0,
+            },
           });
         } else {
           // New worker from telemetry
@@ -89,16 +108,22 @@ const WorkersPage = () => {
             gpu_usage: telemetry.gpu_usage,
             running_tasks_count: telemetry.running_tasks?.length || 0,
             total_resources: {
-              cpu: 0,
-              memory: 0,
-              storage: 0,
-              gpu: 0,
+              cpu: telemetry.total_resources?.cpu || 0,
+              memory: telemetry.total_resources?.memory || 0,
+              storage: telemetry.total_resources?.storage || 0,
+              gpu: telemetry.total_resources?.gpu || 0,
             },
             allocated_resources: {
-              cpu: 0,
-              memory: 0,
-              storage: 0,
-              gpu: 0,
+              cpu: telemetry.allocated_resources?.cpu || 0,
+              memory: telemetry.allocated_resources?.memory || 0,
+              storage: telemetry.allocated_resources?.storage || 0,
+              gpu: telemetry.allocated_resources?.gpu || 0,
+            },
+            available_resources: {
+              cpu: telemetry.available_resources?.cpu || 0,
+              memory: telemetry.available_resources?.memory || 0,
+              storage: telemetry.available_resources?.storage || 0,
+              gpu: telemetry.available_resources?.gpu || 0,
             },
           });
         }
