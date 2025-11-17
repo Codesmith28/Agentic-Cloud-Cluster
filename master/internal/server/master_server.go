@@ -493,6 +493,7 @@ func (s *MasterServer) StartWorkerReconnectionMonitor() {
 		for {
 			select {
 			case <-s.reconnectTicker.C:
+				s.checkAndMarkInactiveWorkers() // Check for inactive workers first
 				s.attemptWorkerReconnections()
 			case <-s.reconnectStop:
 				log.Println("🛑 Worker reconnection monitor stopped")
@@ -509,6 +510,25 @@ func (s *MasterServer) StopWorkerReconnectionMonitor() {
 	}
 	if s.reconnectStop != nil {
 		close(s.reconnectStop)
+	}
+}
+
+// checkAndMarkInactiveWorkers marks workers as inactive if they haven't sent heartbeat in 30 seconds
+func (s *MasterServer) checkAndMarkInactiveWorkers() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().Unix()
+	const heartbeatTimeout = 30 // 30 seconds timeout
+
+	for workerID, worker := range s.workers {
+		if worker.IsActive && worker.LastHeartbeat > 0 {
+			timeSinceLastHeartbeat := now - worker.LastHeartbeat
+			if timeSinceLastHeartbeat > heartbeatTimeout {
+				log.Printf("⚠️ Worker %s marked as inactive (no heartbeat for %d seconds)", workerID, timeSinceLastHeartbeat)
+				worker.IsActive = false
+			}
+		}
 	}
 }
 
@@ -928,8 +948,21 @@ func (s *MasterServer) GetWorkers() map[string]*WorkerState {
 	defer s.mu.RUnlock()
 
 	workers := make(map[string]*WorkerState)
+	now := time.Now().Unix()
+
 	for k, v := range s.workers {
-		workers[k] = v
+		// Create a copy to avoid modifying the original
+		workerCopy := *v
+
+		// Check if worker is truly active based on heartbeat timeout (30 seconds)
+		if workerCopy.LastHeartbeat > 0 {
+			timeSinceLastHeartbeat := now - workerCopy.LastHeartbeat
+			if timeSinceLastHeartbeat > 30 {
+				workerCopy.IsActive = false
+			}
+		}
+
+		workers[k] = &workerCopy
 	}
 	return workers
 }
