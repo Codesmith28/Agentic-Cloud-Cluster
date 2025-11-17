@@ -39,24 +39,107 @@ func (h *WorkerAPIHandler) HandleListWorkers(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Get telemetry data for all workers (contains most up-to-date info)
+	// Get telemetry data for all workers (contains most up-to-date info from connected workers)
 	allTelemetry := h.telemetryManager.GetAllWorkerTelemetry()
 
-	var workers []map[string]interface{}
+	// Also get workers from database (includes manually registered workers)
+	var dbWorkers []db.WorkerDocument
+	if h.workerDB != nil {
+		ctx := context.Background()
+		var err error
+		dbWorkers, err = h.workerDB.GetAllWorkers(ctx)
+		if err != nil {
+			// Log error but continue with telemetry data
+			fmt.Printf("Warning: Failed to fetch workers from database: %v\n", err)
+		}
+	}
+
+	// Create a map to merge database and telemetry data
+	workerMap := make(map[string]map[string]interface{})
+
+	// First, add all workers from database
+	for _, dbWorker := range dbWorkers {
+		workerMap[dbWorker.WorkerID] = map[string]interface{}{
+			"worker_id": dbWorker.WorkerID,
+			"address":   dbWorker.WorkerIP,
+			"worker_ip": dbWorker.WorkerIP,
+			"is_active": dbWorker.IsActive,
+			"total_resources": map[string]interface{}{
+				"cpu":     dbWorker.TotalCPU,
+				"memory":  dbWorker.TotalMemory,
+				"storage": dbWorker.TotalStorage,
+				"gpu":     dbWorker.TotalGPU,
+			},
+			"allocated_resources": map[string]interface{}{
+				"cpu":     dbWorker.AllocatedCPU,
+				"memory":  dbWorker.AllocatedMemory,
+				"storage": dbWorker.AllocatedStorage,
+				"gpu":     dbWorker.AllocatedGPU,
+			},
+			"available_resources": map[string]interface{}{
+				"cpu":     dbWorker.AvailableCPU,
+				"memory":  dbWorker.AvailableMemory,
+				"storage": dbWorker.AvailableStorage,
+				"gpu":     dbWorker.AvailableGPU,
+			},
+			"last_heartbeat":      dbWorker.LastHeartbeat,
+			"registered_at":       dbWorker.RegisteredAt.Unix(),
+			"cpu_usage":           0.0,
+			"memory_usage":        0.0,
+			"gpu_usage":           0.0,
+			"running_tasks_count": 0,
+		}
+	}
+
+	// Then, overlay telemetry data (real-time data from connected workers)
 	for workerID, telemetry := range allTelemetry {
-		workers = append(workers, map[string]interface{}{
-			"worker_id":           workerID,
-			"is_active":           telemetry.IsActive,
-			"cpu_usage":           telemetry.CpuUsage,
-			"memory_usage":        telemetry.MemoryUsage,
-			"gpu_usage":           telemetry.GpuUsage,
-			"running_tasks_count": len(telemetry.RunningTasks),
-			"last_update":         telemetry.LastUpdate,
-		})
+		if existingWorker, exists := workerMap[workerID]; exists {
+			// Update with live telemetry data
+			existingWorker["is_active"] = telemetry.IsActive
+			existingWorker["cpu_usage"] = telemetry.CpuUsage
+			existingWorker["memory_usage"] = telemetry.MemoryUsage
+			existingWorker["gpu_usage"] = telemetry.GpuUsage
+			existingWorker["running_tasks_count"] = len(telemetry.RunningTasks)
+			existingWorker["last_update"] = telemetry.LastUpdate
+		} else {
+			// Worker in telemetry but not in DB (shouldn't happen, but handle it)
+			workerMap[workerID] = map[string]interface{}{
+				"worker_id":           workerID,
+				"is_active":           telemetry.IsActive,
+				"cpu_usage":           telemetry.CpuUsage,
+				"memory_usage":        telemetry.MemoryUsage,
+				"gpu_usage":           telemetry.GpuUsage,
+				"running_tasks_count": len(telemetry.RunningTasks),
+				"last_update":         telemetry.LastUpdate,
+				"total_resources": map[string]interface{}{
+					"cpu":     0.0,
+					"memory":  0.0,
+					"storage": 0.0,
+					"gpu":     0.0,
+				},
+				"allocated_resources": map[string]interface{}{
+					"cpu":     0.0,
+					"memory":  0.0,
+					"storage": 0.0,
+					"gpu":     0.0,
+				},
+			}
+		}
+	}
+
+	// Convert map to array
+	var workers []map[string]interface{}
+	for _, worker := range workerMap {
+		workers = append(workers, worker)
+	}
+
+	// Wrap in response object
+	response := map[string]interface{}{
+		"workers": workers,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(workers)
+	json.NewEncoder(w).Encode(response)
 }
 
 // HandleGetWorker handles GET /api/workers/:id
@@ -202,5 +285,70 @@ func (h *WorkerAPIHandler) HandleGetWorkerMetrics(w http.ResponseWriter, r *http
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// HandleRegisterWorker handles POST /api/workers - Manual worker registration
+func (h *WorkerAPIHandler) HandleRegisterWorker(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Check if workerDB is available
+	if h.workerDB == nil {
+		http.Error(w, "Worker registration is not available (database not connected)", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		WorkerID string `json:"worker_id"`
+		WorkerIP string `json:"worker_ip"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if req.WorkerID == "" {
+		http.Error(w, "worker_id is required", http.StatusBadRequest)
+		return
+	}
+	if req.WorkerIP == "" {
+		http.Error(w, "worker_ip is required", http.StatusBadRequest)
+		return
+	}
+
+	// Get master info to send to worker
+	masterID, masterAddress := h.masterServer.GetMasterInfo()
+	if masterID == "" || masterAddress == "" {
+		http.Error(w, "Master info not set. Cannot register worker.", http.StatusInternalServerError)
+		return
+	}
+
+	// Register worker and notify it - this will trigger the worker to connect back with its resources
+	ctx := context.Background()
+	if err := h.masterServer.ManualRegisterAndNotify(ctx, req.WorkerID, req.WorkerIP, masterID, masterAddress); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to register worker: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Return success response
+	response := map[string]interface{}{
+		"success":   true,
+		"message":   "Worker registered successfully. Master is notifying worker to connect and send resource information.",
+		"worker_id": req.WorkerID,
+		"worker": map[string]interface{}{
+			"worker_id": req.WorkerID,
+			"worker_ip": req.WorkerIP,
+			"is_active": false, // Will become active when worker connects
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
 }

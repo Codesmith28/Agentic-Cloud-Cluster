@@ -14,16 +14,19 @@ import (
 
 // Task represents a task in the database
 type Task struct {
-	TaskID      string    `bson:"task_id"`
-	UserID      string    `bson:"user_id"`
-	TaskName    string    `bson:"task_name"`    // User-friendly task name
-	SubmittedAt int64     `bson:"submitted_at"` // Unix timestamp when task was submitted
-	DockerImage string    `bson:"docker_image"`
-	Command     string    `bson:"command"`
-	ReqCPU      float64   `bson:"req_cpu"`
-	ReqMemory   float64   `bson:"req_memory"`
-	ReqStorage  float64   `bson:"req_storage"`
-	ReqGPU      float64   `bson:"req_gpu"`
+	TaskID      string  `bson:"task_id"`
+	UserID      string  `bson:"user_id"`
+	TaskName    string  `bson:"task_name"`    // User-friendly task name
+	SubmittedAt int64   `bson:"submitted_at"` // Unix timestamp when task was submitted
+	DockerImage string  `bson:"docker_image"`
+	Command     string  `bson:"command"`
+	ReqCPU      float64 `bson:"req_cpu"`
+	ReqMemory   float64 `bson:"req_memory"`
+	ReqStorage  float64 `bson:"req_storage"`
+	ReqGPU      float64 `bson:"req_gpu"`
+	// New fields: scheduling tag and K-value
+	Tag         string    `bson:"tag,omitempty"`
+	KValue      float64   `bson:"k_value,omitempty"`
 	Status      string    `bson:"status"` // pending, running, completed, failed
 	CreatedAt   time.Time `bson:"created_at"`
 	StartedAt   time.Time `bson:"started_at,omitempty"`
@@ -98,6 +101,22 @@ func (db *TaskDB) GetTasksByUser(ctx context.Context, userID string) ([]*Task, e
 	return tasks, nil
 }
 
+// GetAllTasks retrieves all tasks from the database
+func (db *TaskDB) GetAllTasks(ctx context.Context) ([]*Task, error) {
+	cursor, err := db.collection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("find all tasks: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var tasks []*Task
+	if err := cursor.All(ctx, &tasks); err != nil {
+		return nil, fmt.Errorf("decode tasks: %w", err)
+	}
+
+	return tasks, nil
+}
+
 // GetTasksByStatus retrieves all tasks with a specific status
 func (db *TaskDB) GetTasksByStatus(ctx context.Context, status string) ([]*Task, error) {
 	cursor, err := db.collection.Find(ctx, bson.M{"status": status})
@@ -142,6 +161,26 @@ func (db *TaskDB) UpdateTaskStatus(ctx context.Context, taskID string, status st
 		return fmt.Errorf("task not found: %s", taskID)
 	}
 
+	return nil
+}
+
+// UpdateTaskMetadata updates task metadata fields such as tag and k_value
+func (db *TaskDB) UpdateTaskMetadata(ctx context.Context, taskID string, tag string, kValue float64) error {
+	update := bson.M{
+		"$set": bson.M{
+			"tag":        tag,
+			"k_value":    kValue,
+			"updated_at": time.Now(),
+		},
+	}
+
+	result, err := db.collection.UpdateOne(ctx, bson.M{"task_id": taskID}, update)
+	if err != nil {
+		return fmt.Errorf("update task metadata: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
 	return nil
 }
 

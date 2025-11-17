@@ -219,6 +219,36 @@ func (s *MasterServer) ManualRegisterWorker(ctx context.Context, workerID, worke
 	return nil
 }
 
+// UpdateWorkerResourcesInMemory updates worker resources in memory (called from HTTP API after manual registration)
+func (s *MasterServer) UpdateWorkerResourcesInMemory(workerID string, totalCPU, totalMemory, totalStorage, totalGPU float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	worker, exists := s.workers[workerID]
+	if !exists {
+		log.Printf("Warning: Cannot update resources for non-existent worker: %s", workerID)
+		return
+	}
+
+	// Update the worker's info with the provided resources
+	worker.Info.TotalCpu = totalCPU
+	worker.Info.TotalMemory = totalMemory
+	worker.Info.TotalStorage = totalStorage
+	worker.Info.TotalGpu = totalGPU
+
+	// Calculate available resources (total - allocated)
+	worker.AvailableCPU = totalCPU - worker.AllocatedCPU
+	worker.AvailableMemory = totalMemory - worker.AllocatedMemory
+	worker.AvailableStorage = totalStorage - worker.AllocatedStorage
+	worker.AvailableGPU = totalGPU - worker.AllocatedGPU
+
+	// Mark worker as active since it has been configured
+	worker.IsActive = true
+
+	log.Printf("Updated worker %s resources: CPU=%.2f, Memory=%.2f, Storage=%.2f, GPU=%.2f",
+		workerID, totalCPU, totalMemory, totalStorage, totalGPU)
+}
+
 // ReconcileWorkerResources reconciles allocated resources based on actual running tasks
 // This fixes stale resource allocations from completed tasks
 // Should be called: 1) On startup after loading workers, 2) Periodically, 3) After crashes
