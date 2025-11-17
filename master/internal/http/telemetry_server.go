@@ -67,13 +67,31 @@ func NewTelemetryServer(port int, telemetryMgr *telemetry.TelemetryManager) *Tel
 
 	ts.server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
-		Handler: mux,
+		Handler: corsMiddleware(mux),
 	}
 
 	// Set callback on telemetry manager to broadcast updates
 	telemetryMgr.SetUpdateCallback(ts.onTelemetryUpdate)
 
 	return ts
+}
+
+// corsMiddleware adds CORS headers to all responses
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 // SetQuietMode enables or disables verbose logging
@@ -453,7 +471,13 @@ func (ts *TelemetryServer) RegisterTaskHandlers(handler *TaskAPIHandler) {
 
 // RegisterWorkerHandlers registers worker API handlers
 func (ts *TelemetryServer) RegisterWorkerHandlers(handler *WorkerAPIHandler) {
-	ts.mux.HandleFunc("/api/workers", handler.HandleListWorkers)
+	ts.mux.HandleFunc("/api/workers", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			handler.HandleRegisterWorker(w, r)
+		} else {
+			handler.HandleListWorkers(w, r)
+		}
+	})
 	ts.mux.HandleFunc("/api/workers/", func(w http.ResponseWriter, r *http.Request) {
 		// Check if this is a /metrics request
 		if strings.Contains(r.URL.Path, "/metrics") {

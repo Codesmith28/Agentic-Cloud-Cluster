@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,14 +36,30 @@ func NewTaskAPIHandler(ms *server.MasterServer, taskDB *db.TaskDB, assignmentDB 
 }
 
 // TaskRequest represents the JSON body for task submission
+// Uses json.Number to accept both strings and numbers
 type TaskRequest struct {
-	DockerImage     string  `json:"docker_image"`
-	Command         string  `json:"command,omitempty"`
-	CPURequired     float64 `json:"cpu_required"`
-	MemoryRequired  float64 `json:"memory_required"`
-	GPURequired     float64 `json:"gpu_required,omitempty"`
-	StorageRequired float64 `json:"storage_required,omitempty"`
-	UserID          string  `json:"user_id,omitempty"`
+	DockerImage     string      `json:"docker_image"`
+	Command         string      `json:"command,omitempty"`
+	CPURequired     json.Number `json:"cpu_required"`
+	MemoryRequired  json.Number `json:"memory_required"`
+	GPURequired     json.Number `json:"gpu_required,omitempty"`
+	StorageRequired json.Number `json:"storage_required,omitempty"`
+	UserID          string      `json:"user_id,omitempty"`
+	// New fields
+	Tag    string      `json:"tag,omitempty"`
+	KValue json.Number `json:"k_value,omitempty"`
+}
+
+// parseFloat64 safely parses a json.Number to float64
+func parseFloat64(num json.Number, defaultVal float64) float64 {
+	if num == "" {
+		return defaultVal
+	}
+	val, err := strconv.ParseFloat(string(num), 64)
+	if err != nil {
+		return defaultVal
+	}
+	return val
 }
 
 // TaskResponse represents the JSON response for task operations
@@ -76,13 +93,20 @@ func (h *TaskAPIHandler) HandleCreateTask(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// Parse numeric fields
+	cpuRequired := parseFloat64(taskReq.CPURequired, 0)
+	memoryRequired := parseFloat64(taskReq.MemoryRequired, 0)
+	gpuRequired := parseFloat64(taskReq.GPURequired, 0)
+	storageRequired := parseFloat64(taskReq.StorageRequired, 1024) // Default 1GB
+	kValue := parseFloat64(taskReq.KValue, 0)
+
 	// Validate required fields
 	if taskReq.DockerImage == "" {
 		http.Error(w, "Missing required field: docker_image", http.StatusBadRequest)
 		return
 	}
-	if taskReq.CPURequired <= 0 || taskReq.MemoryRequired <= 0 {
-		http.Error(w, "Invalid resource requirements", http.StatusBadRequest)
+	if cpuRequired <= 0 || memoryRequired <= 0 {
+		http.Error(w, "Invalid resource requirements: cpu_required and memory_required must be greater than 0", http.StatusBadRequest)
 		return
 	}
 
@@ -91,10 +115,10 @@ func (h *TaskAPIHandler) HandleCreateTask(w http.ResponseWriter, r *http.Request
 		TaskId:      fmt.Sprintf("task-%d", time.Now().UnixNano()),
 		DockerImage: taskReq.DockerImage,
 		Command:     taskReq.Command,
-		ReqCpu:      taskReq.CPURequired,
-		ReqMemory:   taskReq.MemoryRequired,
-		ReqStorage:  taskReq.StorageRequired,
-		ReqGpu:      taskReq.GPURequired,
+		ReqCpu:      cpuRequired,
+		ReqMemory:   memoryRequired,
+		ReqStorage:  storageRequired,
+		ReqGpu:      gpuRequired,
 		UserId:      taskReq.UserID,
 	}
 
@@ -110,6 +134,24 @@ func (h *TaskAPIHandler) HandleCreateTask(w http.ResponseWriter, r *http.Request
 		TaskID:  task.TaskId,
 		Status:  "queued",
 		Message: ack.Message,
+	}
+
+	// Persist metadata (tag and k_value) to DB if available
+	if h.taskDB != nil {
+		// Validate K-value if provided (allowed range 1.5 to 2.5 step 0.1)
+		if taskReq.KValue != "" {
+			if kValue < 1.5 || kValue > 2.5 {
+				// log and continue, but return bad request to client
+				http.Error(w, "k_value must be between 1.5 and 2.5", http.StatusBadRequest)
+				return
+			}
+		}
+
+		// Update metadata on stored task (SubmitTask already created db entry)
+		if err := h.taskDB.UpdateTaskMetadata(ctx, task.TaskId, taskReq.Tag, kValue); err != nil {
+			// If update fails, log warning but don't fail the request
+			fmt.Printf("Warning: failed to update task metadata for %s: %v\n", task.TaskId, err)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -140,35 +182,23 @@ func (h *TaskAPIHandler) HandleListTasks(w http.ResponseWriter, r *http.Request)
 	// Filter by status if provided
 	if status != "" {
 		tasks, err = h.taskDB.GetTasksByStatus(ctx, status)
-	} else {
-		// Get all tasks (we need to implement this method or get by multiple statuses)
-		tasks, err = h.taskDB.GetTasksByStatus(ctx, "")
 		if err != nil {
-			// Try to get tasks of different statuses and combine
-			pendingTasks, _ := h.taskDB.GetTasksByStatus(ctx, "pending")
-			queuedTasks, _ := h.taskDB.GetTasksByStatus(ctx, "queued")
-			runningTasks, _ := h.taskDB.GetTasksByStatus(ctx, "running")
-			completedTasks, _ := h.taskDB.GetTasksByStatus(ctx, "completed")
-			failedTasks, _ := h.taskDB.GetTasksByStatus(ctx, "failed")
-
-			tasks = append(tasks, pendingTasks...)
-			tasks = append(tasks, queuedTasks...)
-			tasks = append(tasks, runningTasks...)
-			tasks = append(tasks, completedTasks...)
-			tasks = append(tasks, failedTasks...)
-			err = nil
+			http.Error(w, fmt.Sprintf("Failed to retrieve tasks: %v", err), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Get all tasks
+		tasks, err = h.taskDB.GetAllTasks(ctx)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to retrieve tasks: %v", err), http.StatusInternalServerError)
+			return
 		}
 	}
 
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to retrieve tasks: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Convert to response format
-	var responses []map[string]interface{}
+	// Convert to response format - initialize as empty array to avoid null in JSON
+	taskList := make([]map[string]interface{}, 0)
 	for _, task := range tasks {
-		responses = append(responses, map[string]interface{}{
+		taskList = append(taskList, map[string]interface{}{
 			"task_id":          task.TaskID,
 			"docker_image":     task.DockerImage,
 			"command":          task.Command,
@@ -178,12 +208,19 @@ func (h *TaskAPIHandler) HandleListTasks(w http.ResponseWriter, r *http.Request)
 			"memory_required":  task.ReqMemory,
 			"gpu_required":     task.ReqGPU,
 			"storage_required": task.ReqStorage,
+			"tag":              task.Tag,
+			"k_value":          task.KValue,
 			"created_at":       task.CreatedAt.Unix(),
 		})
 	}
 
+	// Wrap in response object
+	response := map[string]interface{}{
+		"tasks": taskList,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(responses)
+	json.NewEncoder(w).Encode(response)
 }
 
 // HandleGetTask handles GET /api/tasks/:id
@@ -247,6 +284,8 @@ func (h *TaskAPIHandler) HandleGetTask(w http.ResponseWriter, r *http.Request) {
 		"memory_required":  task.ReqMemory,
 		"gpu_required":     task.ReqGPU,
 		"storage_required": task.ReqStorage,
+		"tag":              task.Tag,
+		"k_value":          task.KValue,
 		"created_at":       task.CreatedAt.Unix(),
 		"assignment":       assignmentInfo,
 		"result":           resultInfo,
