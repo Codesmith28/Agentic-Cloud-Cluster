@@ -26,6 +26,7 @@ import { getStatusColor } from '../utils/formatters';
 import { formatRelativeTime } from '../utils/formatters';
 import { TASK_TAG_LABELS } from '../utils/constants';
 import { useRealTimeTasks } from '../hooks/useRealTimeTasks';
+import TaskLogsDialog from '../components/tasks/TaskLogsDialog';
 
 const TasksPage = () => {
   const navigate = useNavigate();
@@ -39,6 +40,18 @@ const TasksPage = () => {
   } = useRealTimeTasks(3000); // Poll every 3 seconds
   
   const [cancelingTask, setCancelingTask] = useState(null);
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [logsDialogOpen, setLogsDialogOpen] = useState(false);
+
+  const handleTaskClick = (taskId) => {
+    setSelectedTaskId(taskId);
+    setLogsDialogOpen(true);
+  };
+
+  const handleCloseLogsDialog = () => {
+    setLogsDialogOpen(false);
+    setSelectedTaskId(null);
+  };
 
   const handleCancelTask = async (taskId) => {
     if (!confirm('Are you sure you want to cancel this task?')) return;
@@ -127,7 +140,12 @@ const TasksPage = () => {
               </TableRow>
             ) : (
               tasks.map((task) => (
-                <TableRow key={task.task_id}>
+                <TableRow 
+                  key={task.task_id}
+                  hover
+                  onClick={() => handleTaskClick(task.task_id)}
+                  sx={{ cursor: 'pointer' }}
+                >
                   <TableCell>
                     <Typography variant="body2" fontFamily="monospace">
                       {task.task_id?.substring(0, 8)}...
@@ -189,6 +207,13 @@ const TasksPage = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Task Logs Dialog */}
+      <TaskLogsDialog
+        open={logsDialogOpen}
+        onClose={handleCloseLogsDialog}
+        taskId={selectedTaskId}
+      />
     </Container>
   );
 };

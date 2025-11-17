@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"master/internal/db"
 	"master/internal/server"
@@ -59,11 +60,15 @@ func (h *WorkerAPIHandler) HandleListWorkers(w http.ResponseWriter, r *http.Requ
 
 	// First, add all workers from database
 	for _, dbWorker := range dbWorkers {
+		// Check if worker is active based on last_heartbeat (active if heartbeat within last 30 seconds)
+		currentTime := time.Now().Unix()
+		isActive := (currentTime - dbWorker.LastHeartbeat) < 30
+
 		workerMap[dbWorker.WorkerID] = map[string]interface{}{
 			"worker_id": dbWorker.WorkerID,
 			"address":   dbWorker.WorkerIP,
 			"worker_ip": dbWorker.WorkerIP,
-			"is_active": dbWorker.IsActive,
+			"is_active": isActive,
 			"total_resources": map[string]interface{}{
 				"cpu":     dbWorker.TotalCPU,
 				"memory":  dbWorker.TotalMemory,
