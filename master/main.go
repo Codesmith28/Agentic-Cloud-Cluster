@@ -164,6 +164,10 @@ func main() {
 		}
 	}
 
+	// Start worker reconnection monitor
+	masterServer.StartWorkerReconnectionMonitor()
+	log.Println("✓ Worker reconnection monitor started")
+
 	// Start gRPC server in background
 	grpcServer := grpc.NewServer()
 	pb.RegisterMasterWorkerServer(grpcServer, masterServer)
@@ -225,6 +229,9 @@ func main() {
 
 		// Stop queue processor
 		masterServer.StopQueueProcessor()
+
+		// Stop worker reconnection monitor
+		masterServer.StopWorkerReconnectionMonitor()
 
 		// Shutdown HTTP server
 		if httpTelemetryServer != nil {
