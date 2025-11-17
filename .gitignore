@@ -3,3 +3,8 @@ planner_py/venv
 node_modules
 venv
 
+venv
+./master/masterNode
+./worker/workerNode
+masterNode
+workerNode

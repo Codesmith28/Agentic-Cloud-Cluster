@@ -341,9 +341,9 @@ func (db *WorkerDB) ReleaseResources(ctx context.Context, workerID string, cpu, 
 	return nil
 }
 
-// SetWorkerResources sets the exact resource allocation values for a worker (used during reconciliation)
+// SetWorkerResources directly sets allocated and available resources (used for reconciliation)
 func (db *WorkerDB) SetWorkerResources(ctx context.Context, workerID string,
-	allocatedCPU, allocatedMemory, allocatedStorage, allocatedGPU,
+	allocatedCPU, allocatedMemory, allocatedStorage, allocatedGPU float64,
 	availableCPU, availableMemory, availableStorage, availableGPU float64) error {
 
 	filter := bson.M{"worker_id": workerID}
