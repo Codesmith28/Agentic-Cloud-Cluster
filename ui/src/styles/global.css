@@ -4,6 +4,11 @@
   box-sizing: border-box;
 }
 
+html, body {
+  min-height: 100vh;
+  overflow: auto;
+}
+
 body {
   font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -16,6 +21,7 @@ code {
 
 #root {
   min-height: 100vh;
+  overflow: auto;
 }
 
 /* Custom scrollbar */

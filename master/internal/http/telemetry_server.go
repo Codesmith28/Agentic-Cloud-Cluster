@@ -451,6 +451,9 @@ func (ts *TelemetryServer) RegisterTaskHandlers(handler *TaskAPIHandler) {
 		}
 	})
 
+	// WebSocket endpoint for live task logs
+	ts.mux.HandleFunc("/ws/tasks/", handler.HandleTaskLogsStream)
+
 	ts.mux.HandleFunc("/api/tasks/", func(w http.ResponseWriter, r *http.Request) {
 		// Check if this is a /logs or /retry request
 		if strings.Contains(r.URL.Path, "/logs") {
