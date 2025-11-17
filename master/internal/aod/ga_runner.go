@@ -54,7 +54,7 @@ func RunGAEpoch(ctx context.Context, historyDB *db.HistoryDB, config GAConfig, p
 	log.Printf("✓ Retrieved %d task history records and %d worker stats", len(history), len(workerStats))
 
 	// Step 2: Check if we have sufficient data
-	minDataPoints := 10 // Minimum tasks required for meaningful training
+	minDataPoints := 2 // Minimum tasks required for meaningful training
 	if len(history) < minDataPoints {
 		log.Printf("⚠️  Insufficient data (%d tasks < %d required), using default parameters", len(history), minDataPoints)
 		return saveDefaultParams(paramsOutputPath)
