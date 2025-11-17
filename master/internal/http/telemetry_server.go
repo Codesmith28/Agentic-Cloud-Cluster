@@ -487,3 +487,33 @@ func (ts *TelemetryServer) RegisterWorkerHandlers(handler *WorkerAPIHandler) {
 		}
 	})
 }
+
+// RegisterFileHandlers registers file API handlers
+func (ts *TelemetryServer) RegisterFileHandlers(handler *FileAPIHandler) {
+	// List all files for a user
+	ts.mux.HandleFunc("/api/files", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handler.HandleListFiles(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Handle specific file operations: get task files, download file, delete files
+	ts.mux.HandleFunc("/api/files/", func(w http.ResponseWriter, r *http.Request) {
+		// Check if this is a download request: /api/files/{task_id}/download/{file_path}
+		if strings.Contains(r.URL.Path, "/download") {
+			handler.HandleDownloadFile(w, r)
+		} else {
+			// /api/files/{task_id} - get task files or delete task files
+			switch r.Method {
+			case http.MethodGet:
+				handler.HandleGetTaskFiles(w, r)
+			case http.MethodDelete:
+				handler.HandleDeleteTaskFiles(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		}
+	})
+}

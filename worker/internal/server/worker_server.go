@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -191,6 +193,16 @@ func (s *WorkerServer) executeTask(task *pb.Task) {
 	// Remove from monitoring
 	s.monitor.RemoveTask(task.TaskId)
 
+	// Upload output files to master if any were generated
+	if len(result.OutputFiles) > 0 {
+		log.Printf("[Task %s] Uploading %d output file(s) to master...", task.TaskId, len(result.OutputFiles))
+		if err := s.uploadOutputFiles(task, result); err != nil {
+			log.Printf("[Task %s] Warning: failed to upload output files: %v", task.TaskId, err)
+		} else {
+			log.Printf("[Task %s] ✓ Output files uploaded successfully", task.TaskId)
+		}
+	}
+
 	// Report result to master with a timeout
 	reportCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -200,7 +212,8 @@ func (s *WorkerServer) executeTask(task *pb.Task) {
 		WorkerId:       s.workerID,
 		Status:         result.Status,
 		Logs:           result.Logs,
-		ResultLocation: "", // Not implemented yet
+		ResultLocation: result.ResultLocation,
+		OutputFiles:    result.OutputFiles,
 	}
 
 	s.mu.RLock()
@@ -420,6 +433,81 @@ func (s *WorkerServer) Shutdown() {
 	log.Println("╔═══════════════════════════════════════════════════════")
 	log.Println("║  Task cleanup complete")
 	log.Println("╚═══════════════════════════════════════════════════════")
+}
+
+// uploadOutputFiles uploads task output files to master
+func (s *WorkerServer) uploadOutputFiles(task *pb.Task, result *executor.TaskResult) error {
+	s.mu.RLock()
+	masterAddr := s.masterAddr
+	s.mu.RUnlock()
+
+	if masterAddr == "" {
+		return fmt.Errorf("no master address available")
+	}
+
+	// Connect to master
+	conn, err := grpc.Dial(masterAddr, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
+	if err != nil {
+		return fmt.Errorf("failed to connect to master: %w", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewMasterWorkerClient(conn)
+	stream, err := client.UploadTaskFiles(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to create upload stream: %w", err)
+	}
+
+	// Upload each file
+	for i, relPath := range result.OutputFiles {
+		filePath := filepath.Join(result.ResultLocation, relPath)
+
+		// Read file
+		fileData, err := os.ReadFile(filePath)
+		if err != nil {
+			log.Printf("[Task %s] Warning: failed to read file %s: %v", task.TaskId, relPath, err)
+			continue
+		}
+
+		// Split file into chunks (max 1MB per chunk)
+		const chunkSize = 1024 * 1024 // 1MB
+		for offset := 0; offset < len(fileData); offset += chunkSize {
+			end := offset + chunkSize
+			if end > len(fileData) {
+				end = len(fileData)
+			}
+
+			chunk := &pb.FileChunk{
+				TaskId:      task.TaskId,
+				UserId:      task.UserId,
+				TaskName:    task.TaskName,
+				FilePath:    relPath,
+				Data:        fileData[offset:end],
+				IsLastChunk: end == len(fileData),
+				IsLastFile:  (i == len(result.OutputFiles)-1) && (end == len(fileData)),
+				Timestamp:   task.SubmittedAt,
+			}
+
+			if err := stream.Send(chunk); err != nil {
+				return fmt.Errorf("failed to send chunk: %w", err)
+			}
+		}
+
+		log.Printf("[Task %s] ✓ Uploaded file: %s (%d bytes)", task.TaskId, relPath, len(fileData))
+	}
+
+	// Close stream and get response
+	ack, err := stream.CloseAndRecv()
+	if err != nil {
+		return fmt.Errorf("failed to close stream: %w", err)
+	}
+
+	if !ack.Success {
+		return fmt.Errorf("upload failed: %s", ack.Message)
+	}
+
+	log.Printf("[Task %s] ✓ Uploaded %d file(s) successfully", task.TaskId, ack.FilesReceived)
+	return nil
 }
 
 // Not implemented RPCs (worker doesn't receive these)
