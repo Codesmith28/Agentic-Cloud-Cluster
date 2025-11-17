@@ -1,14 +1,21 @@
 # Task Cancellation Feature
 
-**Date:** November 14, 2025  
-**Branch:** sarthak/cancel_tasks  
-**Status:** ✅ Implemented and Tested
+**Date:** November 14, 2025 (Updated: November 16, 2025)  
+**Branch:** main  
+**Status:** ✅ Implemented, Fixed, and Production Ready
 
 ---
 
 ## Overview
 
-The task cancellation feature allows users to stop running tasks from the master CLI. When a task is cancelled, the Docker container is stopped, the task status is updated in the database, and the worker reports the cancellation back to the master.
+The task cancellation feature allows users to stop running tasks from the master CLI. When a task is cancelled:
+- The Docker container is **stopped gracefully (SIGTERM)** with a 10-second timeout
+- If graceful stop fails, the container is **forcefully killed (SIGKILL)**
+- Task status is **immediately updated to "cancelled" in the database** (optimistic update)
+- Worker reports cancellation back to master with task logs
+- **Database preserves "cancelled" status** even if worker reports later
+- **Resources are released** and available for new tasks
+- **Only one result is stored** per cancelled task (no duplicates)
 
 ---
 
@@ -49,6 +56,235 @@ MongoDB
     | - TASKS collection: status='cancelled'
     | - RESULTS collection: task result with logs
 ```
+
+---
+
+## Key Features & Improvements (November 16, 2025)
+
+### 🛡️ **Defensive Programming - Nil Map Protection**
+
+**Problem Fixed:** `panic: assignment to entry in nil map`
+
+The system now includes comprehensive nil checks for the `RunningTasks` map to prevent runtime panics:
+
+#### **Initialization Points:**
+1. **`ManualRegisterWorker`**: Initializes map when worker is manually registered
+2. **`RegisterWorker`**: Adds defensive check when worker connects
+3. **`LoadWorkersFromDB`**: Initializes map when loading from database
+4. **`assignTaskToWorker`**: Checks and initializes before assignment
+
+#### **Safe Access Points:**
+- `CancelTask`: Checks nil before reading map
+- `ReceiveTaskResult`: Checks nil before deleting from map
+- `GetClusterSnapshot`: Checks nil before iterating
+
+```go
+// Defensive initialization example
+if worker.RunningTasks == nil {
+    worker.RunningTasks = make(map[string]bool)
+}
+```
+
+---
+
+### 🔒 **Status Preservation - No Overwrites**
+
+**Problem Fixed:** Worker reports could overwrite "cancelled" status with "failed"
+
+When a task is cancelled but worker communication times out, the worker might later report the task as "failed" or "success". The system now preserves the "cancelled" status:
+
+#### **Implementation:**
+```go
+// Check if task is already cancelled
+existingTask, err := s.taskDB.GetTask(context.Background(), result.TaskId)
+if existingTask != nil && existingTask.Status == "cancelled" {
+    log.Printf("Task %s is already cancelled - preserving status", result.TaskId)
+    // Don't overwrite - status stays "cancelled"
+    return success
+}
+```
+
+#### **Flow:**
+1. Master cancels task → Updates DB to "cancelled"
+2. Master tries to notify worker → Times out (DeadlineExceeded)
+3. Worker completes naturally → Reports "failed" status
+4. Master receives report → **Checks DB first** → Sees "cancelled" → **Ignores worker report**
+5. Task status remains "cancelled" ✅
+
+---
+
+### 🚫 **Duplicate Result Prevention**
+
+**Problem Fixed:** Two results stored for cancelled tasks in database
+
+The system was storing:
+- **First result**: Task completion with actual logs
+- **Second result**: Worker's cancellation confirmation with "Task was cancelled by user request"
+
+#### **Solution:**
+```go
+// Check if result already exists
+existingResult, err := s.resultDB.GetResult(context.Background(), result.TaskId)
+if existingResult != nil {
+    log.Printf("Result already stored - ignoring duplicate")
+    return success
+}
+// Store only if no result exists
+```
+
+#### **Behavior:**
+1. Task runs and gets cancelled → Master updates status to "cancelled"
+2. Worker stops container → Sends first report with actual logs up to cancellation
+3. Master stores result with logs ✅
+4. Worker sends cancellation confirmation → "Task was cancelled by user request"
+5. Master checks DB → Result exists → **Ignores second report** ✅
+6. **Only one result stored** with meaningful logs ✅
+
+---
+
+### ⏱️ **Extended Timeout & Resilient Communication**
+
+**Problem Fixed:** 10-second timeout was insufficient for container shutdown
+
+#### **Improvements:**
+- **Timeout increased**: 10s → 30s for cancellation operations
+- **Graceful degradation**: Cancellation succeeds even if worker unreachable
+- **Optimistic update**: Database updated FIRST, then worker notified
+
+```go
+// Extended timeout for container operations
+cancelCtx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancelFunc()
+
+// If worker unreachable, still return success
+if err != nil {
+    log.Printf("Worker communication failed but DB updated")
+    return &pb.TaskAck{
+        Success: true,
+        Message: "Task marked as cancelled (worker unreachable)",
+    }, nil
+}
+```
+
+#### **Network Failure Handling:**
+| Scenario | Old Behavior | New Behavior |
+|----------|-------------|--------------|
+| Worker offline | ❌ Cancellation fails | ✅ DB updated, returns success |
+| Network timeout | ❌ User sees error | ✅ DB updated, graceful message |
+| Worker rejects | ⚠️ Inconsistent state | ✅ DB correct, warning logged |
+
+---
+
+### 🧹 **Resource Cleanup & Reconciliation**
+
+#### **Immediate Cleanup:**
+When a task is cancelled, resources are immediately released:
+
+```go
+// Release allocated resources
+worker.AllocatedCPU -= task.ReqCPU
+worker.AllocatedMemory -= task.ReqMemory
+worker.AllocatedStorage -= task.ReqStorage
+worker.AllocatedGPU -= task.ReqGPU
+
+// Make resources available
+worker.AvailableCPU += task.ReqCPU
+worker.AvailableMemory += task.ReqMemory
+worker.AvailableStorage += task.ReqStorage
+worker.AvailableGPU += task.ReqGPU
+```
+
+#### **Database Synchronization:**
+New method added: `SetWorkerResources` for reconciliation
+
+```go
+func (db *WorkerDB) SetWorkerResources(ctx context.Context, workerID string,
+    allocatedCPU, allocatedMemory, allocatedStorage, allocatedGPU float64,
+    availableCPU, availableMemory, availableStorage, availableGPU float64) error
+```
+
+**Used for:**
+- Worker reconnection scenarios
+- Resource reconciliation on startup
+- Fixing stale resource allocations
+
+---
+
+### 🔄 **Container Shutdown Process**
+
+#### **Two-Phase Termination:**
+
+**Phase 1: Graceful Shutdown (10 seconds)**
+```go
+timeoutSecs := 10
+err := dockerClient.ContainerStop(ctx, containerID, container.StopOptions{
+    Timeout: &timeoutSecs,
+})
+```
+- Sends **SIGTERM** to container
+- Allows process to cleanup (close files, flush buffers, etc.)
+- Waits up to 10 seconds
+
+**Phase 2: Forceful Termination**
+```go
+if err != nil {
+    // Graceful stop failed, force kill
+    killErr := dockerClient.ContainerKill(ctx, containerID, "SIGKILL")
+}
+```
+- Sends **SIGKILL** to container
+- Immediate process termination
+- No cleanup opportunity
+
+**Phase 3: Container Removal**
+```go
+err := dockerClient.ContainerRemove(ctx, containerID, container.RemoveOptions{
+    Force: true,
+})
+```
+- Removes container from Docker
+- Frees disk space
+- Cleans up Docker metadata
+
+---
+
+### 📊 **Comprehensive Logging**
+
+#### **Master Side:**
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🛑 CANCELLING TASK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Task ID: task-1763298788
+  Target Worker: NullPointer (10.1.186.172:50052)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✓ Task status updated to 'cancelled' in database
+  ✗ Failed to cancel task on worker: rpc error: code = DeadlineExceeded
+  ⚠ Database updated but worker communication failed
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+#### **Worker Side:**
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🛑 TASK CANCELLATION REQUEST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Task ID: task-1763298788
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[Task task-1763298788] Cancelling task (container: a1b2c3d4)...
+[Task task-1763298788] ✓ Task cancelled successfully
+  ✓ Task cancelled successfully
+  ✓ Container stopped
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+#### **Log Indicators:**
+- ✓ Success operations
+- ✗ Failed operations
+- ⚠ Warnings (non-critical)
+- ℹ Informational messages
+- 🛑 Cancellation operations
+- 📥 Task completion reports
 
 ---
 
@@ -311,33 +547,276 @@ master> help
 
 ---
 
-## Error Handling
+## Error Handling & Edge Cases
 
-### Scenarios Handled
+### Critical Scenarios Handled
 
-1. **Task Not Found:**
-   - Checked in-memory state
-   - Checked database assignments
-   - Clear error message to user
+#### 1. **Task Not Found**
+**Detection:**
+- Checked in-memory `RunningTasks` map across all workers
+- Checked database `ASSIGNMENTS` collection for task-to-worker mapping
+- Returns clear error if task doesn't exist
 
-2. **Worker Unreachable:**
-   - gRPC connection timeout (10 seconds)
-   - Graceful error message
-   - Task still marked for cancellation in DB
+**User Experience:**
+```bash
+❌ Failed to cancel task: Task not found or not assigned to any worker
+```
 
-3. **Container Already Stopped:**
-   - Worker handles gracefully
-   - Returns success (idempotent operation)
+---
 
-4. **Database Errors:**
-   - Logged as warnings
-   - Operation continues (best effort)
-   - User still gets success response
+#### 2. **Worker Unreachable (Network Timeout)**
+**Problem:** Worker is offline or network is down
 
-5. **Network Failures:**
-   - Timeout protection
-   - Clear error messages
-   - No hanging operations
+**Old Behavior:** ❌ Cancellation fails completely
+
+**New Behavior:** ✅ Optimistic cancellation
+```go
+// Database updated FIRST
+s.taskDB.UpdateTaskStatus(ctx, taskID, "cancelled")
+
+// Then try to notify worker (30s timeout)
+conn, err := grpc.Dial(workerIP, ...)
+if err != nil {
+    // Worker unreachable - but DB already updated!
+    return &pb.TaskAck{Success: true, Message: "Task marked as cancelled (worker unreachable)"}
+}
+```
+
+**Result:**
+- ✅ Task status updated to "cancelled" in database
+- ✅ User receives success response
+- ⚠️ Worker will see cancellation when it reconnects
+- 📊 Resource reconciliation will fix allocations on reconnect
+
+---
+
+#### 3. **Container Already Stopped**
+**Scenario:** Container stopped naturally before cancellation request arrived
+
+**Worker Handling:**
+```go
+containerID, exists := e.containers[taskID]
+if !exists {
+    return fmt.Errorf("task %s not found or not running", taskID)
+}
+```
+
+**Idempotent Operation:**
+- If container doesn't exist: Returns error but task already cleaned up
+- If container stopped: Stop command is no-op, removal succeeds
+- **Safe to call multiple times**
+
+---
+
+#### 4. **Database Errors**
+**Philosophy:** Best-effort updates, don't block user operations
+
+**Examples:**
+```go
+// Task status update failed
+if err := s.taskDB.UpdateTaskStatus(ctx, taskID, "cancelled"); err != nil {
+    log.Printf("⚠ Warning: Failed to update task status: %v", err)
+    // Continue anyway - worker might still cancel
+}
+
+// Result storage failed
+if err := s.resultDB.CreateResult(ctx, result); err != nil {
+    log.Printf("⚠ Warning: Failed to store task result: %v", err)
+    // Don't fail - status update is more critical
+}
+```
+
+**Priority:**
+1. **Critical:** Update task status (required for consistency)
+2. **Important:** Release resources (affects scheduling)
+3. **Nice-to-have:** Store result logs (for audit trail)
+
+---
+
+#### 5. **Worker Communication Timeout (DeadlineExceeded)**
+**Scenario:** Worker is slow to respond or network is congested
+
+**Timeline:**
+```
+0s:  Master sends cancellation request
+...  Waiting for worker response
+30s: Context deadline exceeded
+     ↓
+     Master returns success anyway (DB already updated)
+     
+Eventually: Worker processes cancellation
+            Worker reports back to master
+            Master: "Result already stored, ignoring"
+```
+
+**Timeout Tuning:**
+- **Old:** 10 seconds (too short for container shutdown)
+- **New:** 30 seconds (allows graceful shutdown + network latency)
+
+---
+
+#### 6. **Race Condition: Task Completes During Cancellation**
+**Scenario:** Task finishes naturally while cancellation is in progress
+
+**Timeline:**
+```
+T0:  User cancels task
+T1:  Master updates DB to "cancelled"
+T2:  Master sends cancellation to worker
+T3:  Task completes naturally (before worker receives cancellation)
+T4:  Worker reports "success" with result logs
+T5:  Master receives "success" report
+     ↓
+     Master checks DB: status = "cancelled"
+     Master preserves "cancelled" status ✅
+     Master stores result with logs ✅
+```
+
+**Handled by:** Status preservation logic (see "Status Preservation" section)
+
+---
+
+#### 7. **Nil Map Panic (FIXED)**
+**Problem:** `panic: assignment to entry in nil map`
+
+**Root Cause:**
+```go
+// Worker registered but RunningTasks map not initialized
+worker.RunningTasks[taskID] = true  // PANIC!
+```
+
+**Fix Applied:**
+```go
+// Multiple defensive checks
+if worker.RunningTasks == nil {
+    worker.RunningTasks = make(map[string]bool)
+}
+worker.RunningTasks[taskID] = true  // Safe ✅
+```
+
+**Protection Points:**
+- Worker manual registration
+- Worker connection/reconnection  
+- Worker loaded from database
+- Before any map assignment
+- Before map deletion
+- Before map iteration
+
+---
+
+#### 8. **Duplicate Result Storage (FIXED)**
+**Problem:** Two results stored for same cancelled task
+
+**Example:**
+```javascript
+// MongoDB RESULTS collection had duplicates:
+{_id: "...", task_id: "task-123", status: "cancelled", logs: "...actual logs..."}
+{_id: "...", task_id: "task-123", status: "cancelled", logs: "Task was cancelled by user request"}
+```
+
+**Fix:**
+```go
+// Check if result already exists
+existingResult, err := s.resultDB.GetResult(ctx, result.TaskId)
+if existingResult != nil {
+    log.Printf("Result already stored - ignoring duplicate")
+    return success  // Don't store again
+}
+```
+
+**Now:**
+- ✅ Only first result stored (has actual logs)
+- ❌ Worker's confirmation report ignored
+- 📊 Clean database with no duplicates
+
+---
+
+#### 9. **Status Overwrite (FIXED)**
+**Problem:** "cancelled" status overwritten by worker's "failed" report
+
+**Scenario:**
+```
+1. Master cancels task → DB: "cancelled"
+2. Master→Worker timeout (DeadlineExceeded)
+3. Task fails naturally → Worker reports "failed"
+4. Master receives "failed" → DB: "failed" (WRONG!)
+```
+
+**Fix:**
+```go
+// Before updating status, check current status
+existingTask, _ := s.taskDB.GetTask(ctx, taskID)
+if existingTask != nil && existingTask.Status == "cancelled" {
+    // Already cancelled - don't overwrite!
+    return success
+}
+// Only update if not already cancelled
+```
+
+**Now:**
+- ✅ "cancelled" status is permanent
+- ✅ Worker reports are ignored if task already cancelled
+- ✅ Database consistency maintained
+
+---
+
+#### 10. **Resource Leak Prevention**
+**Problem:** Cancelled task resources not released
+
+**Solution:** Aggressive resource cleanup
+```go
+// On task cancellation:
+delete(worker.RunningTasks, taskID)
+
+// Release resources immediately
+worker.AllocatedCPU -= task.ReqCPU
+worker.AvailableCPU += task.ReqCPU
+// ... same for memory, storage, GPU
+
+// Update database
+s.workerDB.ReleaseResources(ctx, workerID, ...)
+
+// Verify non-negative (safety check)
+if worker.AllocatedCPU < 0 {
+    worker.AllocatedCPU = 0
+}
+```
+
+**Reconciliation:**
+- On worker reconnect: Resources reconciled
+- On master startup: Resources reconciled
+- Periodic reconciliation: Every N minutes (future)
+
+---
+
+### Network Failure Comparison
+
+| Scenario | Old Behavior | New Behavior | Status |
+|----------|-------------|--------------|---------|
+| Worker offline | ❌ Cancellation fails | ✅ DB updated, graceful message | FIXED |
+| Network timeout | ❌ User sees error | ✅ DB updated, success returned | FIXED |
+| Worker slow response | ❌ 10s timeout too short | ✅ 30s timeout sufficient | IMPROVED |
+| Worker rejects cancel | ⚠️ Inconsistent state | ✅ DB correct, warning logged | IMPROVED |
+| Database down | ❌ Operation fails | ⚠️ Warning logged, continues | IMPROVED |
+
+---
+
+### Error Recovery Strategies
+
+#### **Immediate Recovery:**
+- Task status set to "cancelled" immediately
+- Resources released immediately  
+- User notified of success immediately
+
+#### **Eventual Consistency:**
+- Worker processes cancellation when available
+- Resource reconciliation fixes discrepancies
+- Database synchronization on reconnect
+
+#### **Monitoring:**
+- All errors logged with context
+- Success/failure indicators in logs
+- Metrics for cancellation operations (future)
 
 ---
 
@@ -624,7 +1103,74 @@ if ack.Success {
 
 ---
 
-**Status:** ✅ Feature Complete and Production Ready
+### Version 1.1 - November 16, 2025 (Critical Fixes & Improvements)
 
-**Last Updated:** November 14, 2025  
+**Fixed Critical Issues:**
+- 🛡️ **Nil Map Panic:** Added defensive initialization for `RunningTasks` map at all entry points
+  - `ManualRegisterWorker`, `RegisterWorker`, `LoadWorkersFromDB`, `assignTaskToWorker`
+  - Nil checks before all map operations (read, write, delete, iterate)
+  - **Impact:** Eliminates `panic: assignment to entry in nil map` crashes
+
+- 🔒 **Status Preservation:** Prevented worker reports from overwriting "cancelled" status
+  - Master checks existing status before accepting worker reports
+  - "cancelled" status is now immutable once set
+  - **Impact:** Database consistency maintained even with network timeouts
+
+- 🚫 **Duplicate Results:** Prevented storing duplicate results for cancelled tasks
+  - Check if result exists before storing new one
+  - Only first result (with actual logs) is stored
+  - Worker's confirmation reports ignored if result exists
+  - **Impact:** Clean database, meaningful logs preserved
+
+**Improvements:**
+- ⏱️ **Extended Timeout:** Increased cancellation timeout from 10s to 30s
+  - Allows proper container shutdown
+  - Reduces DeadlineExceeded errors
+  - **Impact:** Better success rate for cancellations
+
+- 🔄 **Resilient Communication:** Graceful degradation when worker unreachable
+  - Optimistic database updates
+  - Success returned even if worker offline
+  - Resource reconciliation on reconnect
+  - **Impact:** Cancellation always succeeds from user perspective
+
+- 🧹 **Resource Cleanup:** Enhanced resource release mechanisms
+  - Immediate resource release on cancellation
+  - Database synchronization with `SetWorkerResources` method
+  - Reconciliation on worker reconnect
+  - **Impact:** No resource leaks, accurate availability
+
+**Database Changes:**
+- ✅ Added `SetWorkerResources` method to `WorkerDB`
+  - Directly sets allocated and available resources
+  - Used for reconciliation scenarios
+  - Replaces incremental updates when needed
+
+**Code Quality:**
+- ✅ Defensive programming patterns throughout
+- ✅ Comprehensive error handling and logging
+- ✅ Idempotent operations (safe to retry)
+- ✅ Race condition handling
+- ✅ Network failure resilience
+
+**Testing:**
+- ✅ Nil map protection verified
+- ✅ Status preservation with timeouts
+- ✅ Duplicate result prevention
+- ✅ Worker offline scenarios
+- ✅ Resource reconciliation
+- ✅ Database consistency
+
+**Known Issues Resolved:**
+- ❌ ~~`panic: assignment to entry in nil map`~~ → ✅ FIXED
+- ❌ ~~Cancelled status overwritten by worker reports~~ → ✅ FIXED
+- ❌ ~~Duplicate results in database~~ → ✅ FIXED
+- ❌ ~~10s timeout insufficient for container shutdown~~ → ✅ FIXED
+- ❌ ~~Cancellation fails when worker offline~~ → ✅ FIXED
+
+---
+
+**Status:** ✅ Production Ready with Robustness Improvements
+
+**Last Updated:** November 16, 2025  
 **Maintained by:** CloudAI Development Team

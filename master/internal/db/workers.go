@@ -160,6 +160,53 @@ func (db *WorkerDB) UpdateWorkerInfo(ctx context.Context, info *pb.WorkerInfo) e
 	return nil
 }
 
+// UpdateWorkerResources updates worker resource specifications (called from manual registration)
+func (db *WorkerDB) UpdateWorkerResources(ctx context.Context, workerID string, totalCPU, totalMemory, totalStorage, totalGPU float64) error {
+	filter := bson.M{"worker_id": workerID}
+
+	// Get current allocated resources to calculate available
+	var currentWorker WorkerDocument
+	err := db.collection.FindOne(ctx, filter).Decode(&currentWorker)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return fmt.Errorf("worker %s not found", workerID)
+		}
+		return fmt.Errorf("find worker: %w", err)
+	}
+
+	// Calculate available resources: total - allocated
+	availableCPU := totalCPU - currentWorker.AllocatedCPU
+	availableMemory := totalMemory - currentWorker.AllocatedMemory
+	availableStorage := totalStorage - currentWorker.AllocatedStorage
+	availableGPU := totalGPU - currentWorker.AllocatedGPU
+
+	update := bson.M{
+		"$set": bson.M{
+			"total_cpu":         totalCPU,
+			"total_memory":      totalMemory,
+			"total_storage":     totalStorage,
+			"total_gpu":         totalGPU,
+			"available_cpu":     availableCPU,
+			"available_memory":  availableMemory,
+			"available_storage": availableStorage,
+			"available_gpu":     availableGPU,
+			"is_active":         true,
+			"updated_at":        time.Now(),
+		},
+	}
+
+	result, err := db.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("update worker resources: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("worker %s not found", workerID)
+	}
+
+	return nil
+}
+
 // UpdateHeartbeat updates the last heartbeat timestamp
 func (db *WorkerDB) UpdateHeartbeat(ctx context.Context, workerID string, timestamp int64) error {
 	filter := bson.M{"worker_id": workerID}
@@ -294,9 +341,9 @@ func (db *WorkerDB) ReleaseResources(ctx context.Context, workerID string, cpu, 
 	return nil
 }
 
-// SetWorkerResources sets the exact resource allocation values for a worker (used during reconciliation)
+// SetWorkerResources directly sets allocated and available resources (used for reconciliation)
 func (db *WorkerDB) SetWorkerResources(ctx context.Context, workerID string,
-	allocatedCPU, allocatedMemory, allocatedStorage, allocatedGPU,
+	allocatedCPU, allocatedMemory, allocatedStorage, allocatedGPU float64,
 	availableCPU, availableMemory, availableStorage, availableGPU float64) error {
 
 	filter := bson.M{"worker_id": workerID}
@@ -321,6 +368,31 @@ func (db *WorkerDB) SetWorkerResources(ctx context.Context, workerID string,
 
 	if result.MatchedCount == 0 {
 		return fmt.Errorf("worker %s not found", workerID)
+	}
+
+	return nil
+}
+
+// RegisterWorkerWithSpecs registers a new worker with full resource specifications (for manual registration)
+func (db *WorkerDB) RegisterWorkerWithSpecs(ctx context.Context, worker *WorkerDocument) error {
+	// Check if worker already exists
+	filter := bson.M{"worker_id": worker.WorkerID}
+	count, err := db.collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("check worker existence: %w", err)
+	}
+	if count > 0 {
+		return fmt.Errorf("worker %s already registered", worker.WorkerID)
+	}
+
+	// Set timestamps
+	worker.RegisteredAt = time.Now()
+	worker.UpdatedAt = time.Now()
+
+	// Insert worker document
+	_, err = db.collection.InsertOne(ctx, worker)
+	if err != nil {
+		return fmt.Errorf("insert worker: %w", err)
 	}
 
 	return nil

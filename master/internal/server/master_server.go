@@ -233,6 +233,36 @@ func (s *MasterServer) ManualRegisterWorker(ctx context.Context, workerID, worke
 	return nil
 }
 
+// UpdateWorkerResourcesInMemory updates worker resources in memory (called from HTTP API after manual registration)
+func (s *MasterServer) UpdateWorkerResourcesInMemory(workerID string, totalCPU, totalMemory, totalStorage, totalGPU float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	worker, exists := s.workers[workerID]
+	if !exists {
+		log.Printf("Warning: Cannot update resources for non-existent worker: %s", workerID)
+		return
+	}
+
+	// Update the worker's info with the provided resources
+	worker.Info.TotalCpu = totalCPU
+	worker.Info.TotalMemory = totalMemory
+	worker.Info.TotalStorage = totalStorage
+	worker.Info.TotalGpu = totalGPU
+
+	// Calculate available resources (total - allocated)
+	worker.AvailableCPU = totalCPU - worker.AllocatedCPU
+	worker.AvailableMemory = totalMemory - worker.AllocatedMemory
+	worker.AvailableStorage = totalStorage - worker.AllocatedStorage
+	worker.AvailableGPU = totalGPU - worker.AllocatedGPU
+
+	// Mark worker as active since it has been configured
+	worker.IsActive = true
+
+	log.Printf("Updated worker %s resources: CPU=%.2f, Memory=%.2f, Storage=%.2f, GPU=%.2f",
+		workerID, totalCPU, totalMemory, totalStorage, totalGPU)
+}
+
 // ReconcileWorkerResources reconciles allocated resources based on actual running tasks
 // This fixes stale resource allocations from completed tasks
 // Should be called: 1) On startup after loading workers, 2) Periodically, 3) After crashes
@@ -505,6 +535,11 @@ func (s *MasterServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) 
 	// Check if this is a new registration (worker connecting for the first time or reconnecting with new specs)
 	isNewConnection := existingWorker.Info.TotalCpu == 0 || !existingWorker.IsActive
 
+	// Ensure RunningTasks map is initialized (defensive programming)
+	if existingWorker.RunningTasks == nil {
+		existingWorker.RunningTasks = make(map[string]bool)
+	}
+
 	// Worker IS pre-registered - update with full specs but preserve the IP from manual registration
 	preservedIP := existingWorker.Info.WorkerIp
 	existingWorker.Info = info
@@ -621,7 +656,9 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 
 	// Remove task from worker's running tasks and release resources
 	if worker, exists := s.workers[result.WorkerId]; exists {
-		delete(worker.RunningTasks, result.TaskId)
+		if worker.RunningTasks != nil {
+			delete(worker.RunningTasks, result.TaskId)
+		}
 
 		// 🚨 RELEASE RESOURCES - Update both in-memory and database
 		if taskResources != nil {
@@ -666,6 +703,42 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 	// For cancelled tasks, master already updated this during CancelTask
 	// This provides redundancy and updates timestamp
 	if s.taskDB != nil {
+		// Check if task is already cancelled - do not overwrite cancelled status
+		existingTask, err := s.taskDB.GetTask(context.Background(), result.TaskId)
+		if err != nil {
+			log.Printf("  ⚠ Warning: Failed to get task status from database: %v", err)
+		} else if existingTask != nil && existingTask.Status == "cancelled" {
+			log.Printf("  ℹ Task %s is already cancelled - preserving status", result.TaskId)
+			// Check if result already exists - don't store duplicate
+			if s.resultDB != nil {
+				existingResult, err := s.resultDB.GetResult(context.Background(), result.TaskId)
+				if err == nil && existingResult != nil {
+					log.Printf("  ℹ Result already stored for cancelled task - ignoring worker's confirmation report")
+					return &pb.Ack{
+						Success: true,
+						Message: "Task result received (status preserved as cancelled, result already stored)",
+					}, nil
+				}
+				// No existing result, store this one (first report with actual logs)
+				log.Printf("  ℹ Storing first result for cancelled task")
+				taskResult := &db.TaskResult{
+					TaskID:   result.TaskId,
+					WorkerID: result.WorkerId,
+					Status:   "cancelled",
+					Logs:     result.Logs,
+				}
+				if err := s.resultDB.CreateResult(context.Background(), taskResult); err != nil {
+					log.Printf("  ⚠ Warning: Failed to store task result: %v", err)
+				} else {
+					log.Printf("  ✓ Task result stored with 'cancelled' status")
+				}
+			}
+			return &pb.Ack{
+				Success: true,
+				Message: "Task result received (status preserved as cancelled)",
+			}, nil
+		}
+
 		status := "completed"
 		if result.Status == "cancelled" {
 			status = "cancelled"
@@ -896,8 +969,10 @@ func (s *MasterServer) GetClusterSnapshot() *ClusterSnapshot {
 
 		// Extract running tasks
 		runningTasks := []string{}
-		for taskID := range worker.RunningTasks {
-			runningTasks = append(runningTasks, taskID)
+		if worker.RunningTasks != nil {
+			for taskID := range worker.RunningTasks {
+				runningTasks = append(runningTasks, taskID)
+			}
 		}
 
 		// Get resource totals
@@ -943,7 +1018,9 @@ func (s *MasterServer) GetClusterSnapshot() *ClusterSnapshot {
 		if worker.IsActive {
 			snapshot.ActiveWorkers++
 		}
-		snapshot.TotalTasks += len(worker.RunningTasks)
+		if worker.RunningTasks != nil {
+			snapshot.TotalTasks += len(worker.RunningTasks)
+		}
 		snapshot.TotalCPU += totalCPU
 		snapshot.TotalMemory += totalMemory
 		snapshot.TotalGPU += totalGPU
@@ -1387,7 +1464,7 @@ func (s *MasterServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.T
 
 	// First check in-memory running tasks
 	for workerID, worker := range s.workers {
-		if worker.RunningTasks[taskID.TaskId] {
+		if worker.RunningTasks != nil && worker.RunningTasks[taskID.TaskId] {
 			targetWorkerID = workerID
 			targetWorker = worker
 			break
@@ -1442,26 +1519,32 @@ func (s *MasterServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.T
 		log.Printf("  ⚠ Warning: No database configured, task status not persisted")
 	}
 
-	// Connect to worker and send cancel request
+	// Connect to worker and send cancel request with extended timeout
+	// Use a longer timeout for cancellation as it may involve stopping containers
+	cancelCtx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelFunc()
+
 	conn, err := grpc.Dial(targetWorker.Info.WorkerIp, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Printf("  ✗ Failed to connect to worker: %v", err)
 		log.Printf("  ⚠ Database updated but worker not reachable")
+		// This is not a critical failure - DB is updated, worker will see it
 		return &pb.TaskAck{
-			Success: false,
-			Message: fmt.Sprintf("Database updated but failed to connect to worker: %v", err),
+			Success: true,
+			Message: fmt.Sprintf("Task marked as cancelled in database (worker unreachable: %v)", err),
 		}, nil
 	}
 	defer conn.Close()
 
 	client := pb.NewMasterWorkerClient(conn)
-	ack, err := client.CancelTask(ctx, taskID)
+	ack, err := client.CancelTask(cancelCtx, taskID)
 	if err != nil {
 		log.Printf("  ✗ Failed to cancel task on worker: %v", err)
 		log.Printf("  ⚠ Database updated but worker communication failed")
+		// This is not a critical failure - DB is updated correctly
 		return &pb.TaskAck{
-			Success: false,
-			Message: fmt.Sprintf("Database updated but failed to cancel on worker: %v", err),
+			Success: true,
+			Message: fmt.Sprintf("Task marked as cancelled in database (worker communication failed: %v)", err),
 		}, nil
 	}
 
@@ -1472,7 +1555,9 @@ func (s *MasterServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.T
 	}
 
 	// Remove task from worker's running tasks
-	delete(targetWorker.RunningTasks, taskID.TaskId)
+	if targetWorker.RunningTasks != nil {
+		delete(targetWorker.RunningTasks, taskID.TaskId)
+	}
 
 	log.Printf("  ✓ Task cancelled successfully on worker")
 	log.Printf("  ✓ Container stopped and database updated")
@@ -1693,6 +1778,10 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 
 	if ack.Success {
 		s.mu.Lock()
+		// Ensure RunningTasks map is initialized (defensive programming)
+		if worker.RunningTasks == nil {
+			worker.RunningTasks = make(map[string]bool)
+		}
 		// Mark task as running on worker
 		worker.RunningTasks[task.TaskId] = true
 
