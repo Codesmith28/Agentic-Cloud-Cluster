@@ -1,9 +1,9 @@
 {
   "Theta": {
-    "Theta1": 0.1,
-    "Theta2": 0.1,
-    "Theta3": 0.3,
-    "Theta4": 0.2
+    "Theta1": 0,
+    "Theta2": 0,
+    "Theta3": 0,
+    "Theta4": 0
   },
   "Risk": {
     "Alpha": 10,
@@ -19,6 +19,41 @@
     "G2": 1,
     "G3": 0.5
   },
-  "AffinityMatrix": {},
-  "PenaltyVector": {}
+  "AffinityMatrix": {
+    "cpu-heavy": {
+      "NullPointer": -5,
+      "Shehzada": -5,
+      "kiwi": 0
+    },
+    "cpu-light": {
+      "NullPointer": 0,
+      "Shehzada": 0,
+      "kiwi": 0
+    },
+    "gpu-inference": {
+      "NullPointer": 0,
+      "Shehzada": 0,
+      "kiwi": 0
+    },
+    "gpu-training": {
+      "NullPointer": 0,
+      "Shehzada": 0,
+      "kiwi": 0
+    },
+    "memory-heavy": {
+      "NullPointer": -5,
+      "Shehzada": 0,
+      "kiwi": 0
+    },
+    "mixed": {
+      "NullPointer": 0,
+      "Shehzada": 0,
+      "kiwi": 0
+    }
+  },
+  "PenaltyVector": {
+    "NullPointer": 0.6944088872354497,
+    "Shehzada": 0.04063970968876561,
+    "kiwi": 0.04945076418336296
+  }
 }
