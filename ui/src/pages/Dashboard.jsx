@@ -13,11 +13,13 @@ import WifiIcon from '@mui/icons-material/Wifi';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 import { useRealTimeTasks } from '../hooks/useRealTimeTasks';
 import { useTelemetry } from '../hooks/useTelemetry';
+import { useAuth } from '../context/AuthContext';
 import { workersAPI } from '../api/workers';
 
 const Dashboard = () => {
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
   
   // Real-time tasks
   const { tasks } = useRealTimeTasks(3000);
@@ -58,6 +60,25 @@ const Dashboard = () => {
             cpu_usage: telemetry.cpu_usage,
             memory_usage: telemetry.memory_usage,
             gpu_usage: telemetry.gpu_usage,
+            // Update resource allocations from telemetry
+            total_resources: {
+              cpu: telemetry.total_resources?.cpu || worker.total_resources?.cpu || 0,
+              memory: telemetry.total_resources?.memory || worker.total_resources?.memory || 0,
+              storage: telemetry.total_resources?.storage || worker.total_resources?.storage || 0,
+              gpu: telemetry.total_resources?.gpu || worker.total_resources?.gpu || 0,
+            },
+            allocated_resources: {
+              cpu: telemetry.allocated_resources?.cpu || worker.allocated_resources?.cpu || 0,
+              memory: telemetry.allocated_resources?.memory || worker.allocated_resources?.memory || 0,
+              storage: telemetry.allocated_resources?.storage || worker.allocated_resources?.storage || 0,
+              gpu: telemetry.allocated_resources?.gpu || worker.allocated_resources?.gpu || 0,
+            },
+            available_resources: {
+              cpu: telemetry.available_resources?.cpu || worker.available_resources?.cpu || 0,
+              memory: telemetry.available_resources?.memory || worker.available_resources?.memory || 0,
+              storage: telemetry.available_resources?.storage || worker.available_resources?.storage || 0,
+              gpu: telemetry.available_resources?.gpu || worker.available_resources?.gpu || 0,
+            },
           };
         }
         return worker;
@@ -171,8 +192,15 @@ const Dashboard = () => {
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+      {/* Welcome Message */}
+      <Box mb={4}>
+        <Typography variant="h4" gutterBottom>
+          Welcome back, {user?.name || 'User'}!
+        </Typography>
+      </Box>
+
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Dashboard</Typography>
+        <Typography variant="h5">Cluster Overview</Typography>
         <Tooltip title={wsConnected ? 'Real-time updates active' : 'Connecting...'}>
           <Chip
             icon={wsConnected ? <WifiIcon /> : <WifiOffIcon />}

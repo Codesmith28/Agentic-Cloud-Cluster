@@ -70,6 +70,7 @@ func main() {
 	var assignmentDB *db.AssignmentDB
 	var resultDB *db.ResultDB
 	var fileMetadataDB *db.FileMetadataDB
+	var userDB *db.UserDB
 	var fileStorage *storage.FileStorageService
 
 	if err := db.EnsureCollections(ctx, cfg); err != nil {
@@ -119,6 +120,17 @@ func main() {
 			log.Println("✓ ResultDB initialized")
 			defer resultDB.Close(context.Background())
 		}
+
+		// Create user database handler
+		userDB, err = db.NewUserDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create UserDB: %v", err)
+			userDB = nil
+		} else {
+			log.Println("✓ UserDB initialized")
+			defer userDB.Close(context.Background())
+		}
+
 
 		// Create file metadata database handler
 		fileMetadataDB, err = db.NewFileMetadataDB(ctx, cfg)
@@ -285,6 +297,13 @@ func main() {
 			fileHandler := httpserver.NewFileAPIHandler(fileStorage)
 			httpTelemetryServer.RegisterFileHandlers(fileHandler)
 			log.Println("✓ File API handlers registered")
+		}
+
+		// Register auth handlers if user database is available
+		if userDB != nil {
+			authHandler := httpserver.NewAuthHandler(userDB)
+			httpTelemetryServer.RegisterAuthHandlers(authHandler)
+			log.Println("✓ Auth API handlers registered")
 		}
 
 		go func() {
