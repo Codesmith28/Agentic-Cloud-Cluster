@@ -9,11 +9,15 @@ import {
   ListItemText,
   Toolbar,
   Divider,
+  Box,
+  Typography,
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import ComputerIcon from '@mui/icons-material/Computer';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
+import LogoutIcon from '@mui/icons-material/Logout';
+import { useAuth } from '../../context/AuthContext';
 
 const drawerWidth = 240;
 
@@ -27,6 +31,7 @@ const menuItems = [
 const Sidebar = ({ open, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout, user } = useAuth();
 
   const handleNavigation = (path) => {
     navigate(path);
@@ -35,11 +40,19 @@ const Sidebar = ({ open, onClose }) => {
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+    if (window.innerWidth < 600) {
+      onClose();
+    }
+  };
+
   const drawer = (
-    <>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Toolbar />
       <Divider />
-      <List>
+      <List sx={{ flexGrow: 1 }}>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton
@@ -52,7 +65,23 @@ const Sidebar = ({ open, onClose }) => {
           </ListItem>
         ))}
       </List>
-    </>
+      <Divider />
+      {/* User info and logout */}
+      <Box sx={{ p: 2 }}>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Logged in as
+        </Typography>
+        <Typography variant="body1" fontWeight="bold" gutterBottom>
+          {user?.email}
+        </Typography>
+        <ListItemButton onClick={handleLogout} sx={{ borderRadius: 1, bgcolor: 'error.50' }}>
+          <ListItemIcon>
+            <LogoutIcon color="error" />
+          </ListItemIcon>
+          <ListItemText primary="Logout" primaryTypographyProps={{ color: 'error.main' }} />
+        </ListItemButton>
+      </Box>
+    </Box>
   );
 
   return (
