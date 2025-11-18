@@ -80,9 +80,10 @@ func NewTelemetryServer(port int, telemetryMgr *telemetry.TelemetryManager) *Tel
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000") // Vite dev server
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true") // Allow cookies
 
 		// Handle preflight requests
 		if r.Method == "OPTIONS" {
@@ -451,6 +452,9 @@ func (ts *TelemetryServer) RegisterTaskHandlers(handler *TaskAPIHandler) {
 		}
 	})
 
+	// WebSocket endpoint for live task logs
+	ts.mux.HandleFunc("/ws/tasks/", handler.HandleTaskLogsStream)
+
 	ts.mux.HandleFunc("/api/tasks/", func(w http.ResponseWriter, r *http.Request) {
 		// Check if this is a /logs or /retry request
 		if strings.Contains(r.URL.Path, "/logs") {
@@ -516,4 +520,15 @@ func (ts *TelemetryServer) RegisterFileHandlers(handler *FileAPIHandler) {
 			}
 		}
 	})
+}
+
+// RegisterAuthHandlers registers authentication API handlers
+func (ts *TelemetryServer) RegisterAuthHandlers(handler *AuthHandler) {
+	// Public endpoints (no auth required)
+	ts.mux.HandleFunc("/api/auth/register", handler.HandleRegister)
+	ts.mux.HandleFunc("/api/auth/login", handler.HandleLogin)
+	ts.mux.HandleFunc("/api/auth/logout", handler.HandleLogout)
+
+	// Protected endpoint (requires auth)
+	ts.mux.HandleFunc("/api/auth/me", handler.AuthMiddleware(handler.HandleMe))
 }

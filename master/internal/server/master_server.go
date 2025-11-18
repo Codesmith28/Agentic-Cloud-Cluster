@@ -61,6 +61,10 @@ type MasterServer struct {
 
 	// Telemetry manager for handling worker telemetry in separate threads
 	telemetryManager *telemetry.TelemetryManager
+
+	// Worker reconnection
+	reconnectTicker *time.Ticker
+	reconnectStop   chan bool
 }
 
 // WorkerState tracks the current state of a worker
@@ -468,6 +472,89 @@ func (s *MasterServer) ManualRegisterAndNotify(ctx context.Context, workerID, wo
 	}()
 
 	return nil
+}
+
+// StartWorkerReconnectionMonitor starts a background process that periodically attempts
+// to reconnect to inactive workers
+func (s *MasterServer) StartWorkerReconnectionMonitor() {
+	s.reconnectTicker = time.NewTicker(30 * time.Second) // Check every 30 seconds
+	s.reconnectStop = make(chan bool)
+
+	go func() {
+		log.Println("🔄 Worker reconnection monitor started")
+		for {
+			select {
+			case <-s.reconnectTicker.C:
+				s.attemptWorkerReconnections()
+			case <-s.reconnectStop:
+				log.Println("🛑 Worker reconnection monitor stopped")
+				return
+			}
+		}
+	}()
+}
+
+// StopWorkerReconnectionMonitor stops the reconnection monitor
+func (s *MasterServer) StopWorkerReconnectionMonitor() {
+	if s.reconnectTicker != nil {
+		s.reconnectTicker.Stop()
+	}
+	if s.reconnectStop != nil {
+		close(s.reconnectStop)
+	}
+}
+
+// attemptWorkerReconnections tries to reconnect to all inactive workers
+func (s *MasterServer) attemptWorkerReconnections() {
+	s.mu.RLock()
+	masterID := s.masterID
+	masterAddress := s.masterAddress
+
+	// Collect inactive workers
+	inactiveWorkers := make(map[string]string) // workerID -> workerIP
+	for workerID, worker := range s.workers {
+		if !worker.IsActive && worker.Info != nil && worker.Info.WorkerIp != "" {
+			inactiveWorkers[workerID] = worker.Info.WorkerIp
+		}
+	}
+	s.mu.RUnlock()
+
+	// If there are inactive workers, attempt to reconnect
+	if len(inactiveWorkers) > 0 {
+		log.Printf("🔄 Attempting to reconnect to %d inactive worker(s)...", len(inactiveWorkers))
+
+		for workerID, workerIP := range inactiveWorkers {
+			// Launch reconnection attempt in goroutine (non-blocking)
+			go s.attemptSingleWorkerReconnection(workerID, workerIP, masterID, masterAddress)
+		}
+	}
+}
+
+// attemptSingleWorkerReconnection attempts to reconnect to a single worker
+func (s *MasterServer) attemptSingleWorkerReconnection(workerID, workerIP, masterID, masterAddress string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, workerIP,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock())
+	if err != nil {
+		// Worker still offline, silently skip (don't spam logs)
+		return
+	}
+	defer conn.Close()
+
+	client := pb.NewMasterWorkerClient(conn)
+	mi := &pb.MasterInfo{MasterId: masterID, MasterAddress: masterAddress}
+	ack, err := client.MasterRegister(ctx, mi)
+	if err != nil {
+		// Failed to register, worker may not be fully ready yet
+		return
+	}
+
+	if ack != nil && ack.Success {
+		log.Printf("✓ Successfully reconnected to worker %s (%s)", workerID, workerIP)
+	}
 }
 
 // UnregisterWorker removes a worker from the system

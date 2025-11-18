@@ -68,6 +68,7 @@ func main() {
 	var assignmentDB *db.AssignmentDB
 	var resultDB *db.ResultDB
 	var fileMetadataDB *db.FileMetadataDB
+	var userDB *db.UserDB
 	var fileStorage *storage.FileStorageService
 
 	if err := db.EnsureCollections(ctx, cfg); err != nil {
@@ -118,6 +119,17 @@ func main() {
 			defer resultDB.Close(context.Background())
 		}
 
+		// Create user database handler
+		userDB, err = db.NewUserDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create UserDB: %v", err)
+			userDB = nil
+		} else {
+			log.Println("✓ UserDB initialized")
+			defer userDB.Close(context.Background())
+		}
+
+
 		// Create file metadata database handler
 		fileMetadataDB, err = db.NewFileMetadataDB(ctx, cfg)
 		if err != nil {
@@ -164,6 +176,10 @@ func main() {
 		}
 	}
 
+	// Start worker reconnection monitor
+	masterServer.StartWorkerReconnectionMonitor()
+	log.Println("✓ Worker reconnection monitor started")
+
 	// Start gRPC server in background
 	grpcServer := grpc.NewServer()
 	pb.RegisterMasterWorkerServer(grpcServer, masterServer)
@@ -197,6 +213,13 @@ func main() {
 			log.Println("✓ File API handlers registered")
 		}
 
+		// Register auth handlers if user database is available
+		if userDB != nil {
+			authHandler := httpserver.NewAuthHandler(userDB)
+			httpTelemetryServer.RegisterAuthHandlers(authHandler)
+			log.Println("✓ Auth API handlers registered")
+		}
+
 		go func() {
 			if err := httpTelemetryServer.Start(); err != nil && err != http.ErrServerClosed {
 				log.Printf("HTTP API server error: %v", err)
@@ -225,6 +248,9 @@ func main() {
 
 		// Stop queue processor
 		masterServer.StopQueueProcessor()
+
+		// Stop worker reconnection monitor
+		masterServer.StopWorkerReconnectionMonitor()
 
 		// Shutdown HTTP server
 		if httpTelemetryServer != nil {
