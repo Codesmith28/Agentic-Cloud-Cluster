@@ -15,6 +15,34 @@ if ! docker ps | grep -q mongo; then
     echo ""
 fi
 
+# Start the frontend in the background
+echo "Starting UI (npm run dev) in background..."
+(
+    cd ui || exit
+    npm run dev
+) &
+UI_PID=$!
+echo "Frontend started on port 3000 (PID: $UI_PID)"
+
+# Function to safely cleanup UI
+cleanup() {
+    echo ""
+    echo "Shutting down UI server..."
+
+    # Kill ONLY the npm process we started
+    kill "$UI_PID" 2>/dev/null
+    wait "$UI_PID" 2>/dev/null
+
+    echo "✓ UI server stopped"
+
+    pgrep -f "ui/.*(node|vite|npm)" | xargs -r kill -9 2>/dev/null
+
+    exit 0
+}
+
+# Trap EXIT, INT, TERM signals
+trap cleanup EXIT INT TERM
+
 # Build master node
 make master
 
@@ -37,3 +65,5 @@ fi
 # Start the master node
 echo "Launching master node..."
 ./masterNode
+
+# After master exits, cleanup will be called automatically

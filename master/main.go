@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"master/internal/db"
 	httpserver "master/internal/http"
 	"master/internal/server"
+	"master/internal/storage"
 	"master/internal/system"
 	"master/internal/telemetry"
 	pb "master/proto"
@@ -26,6 +28,27 @@ import (
 func main() {
 	// Load configuration
 	cfg := config.LoadConfig()
+
+	// Determine file storage base directory with fallback
+	fileStorageBaseDir := "/var/cloudai/files"
+	if err := os.MkdirAll(fileStorageBaseDir, 0700); err != nil {
+		// If /var/cloudai/files fails (permission denied), fallback to ~/.cloudai/files
+		log.Printf("Warning: Cannot create %s: %v", fileStorageBaseDir, err)
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatalf("Failed to get home directory: %v", err)
+		}
+		fileStorageBaseDir = filepath.Join(homeDir, ".cloudai", "files")
+		if err := os.MkdirAll(fileStorageBaseDir, 0700); err != nil {
+			log.Fatalf("Failed to create fallback directory %s: %v", fileStorageBaseDir, err)
+		}
+		log.Printf("✓ Using fallback file storage directory: %s", fileStorageBaseDir)
+	} else {
+		log.Printf("✓ File storage directory ready (secure): %s", fileStorageBaseDir)
+	}
+
+	// Set environment variable for file storage components
+	os.Setenv("CLOUDAI_FILES_DIR", fileStorageBaseDir)
 
 	// Collect system information
 	sysInfo, err := system.CollectSystemInfo()
@@ -44,6 +67,9 @@ func main() {
 	var taskDB *db.TaskDB
 	var assignmentDB *db.AssignmentDB
 	var resultDB *db.ResultDB
+	var fileMetadataDB *db.FileMetadataDB
+	var userDB *db.UserDB
+	var fileStorage *storage.FileStorageService
 
 	if err := db.EnsureCollections(ctx, cfg); err != nil {
 		log.Printf("Warning: MongoDB initialization failed: %v", err)
@@ -92,6 +118,38 @@ func main() {
 			log.Println("✓ ResultDB initialized")
 			defer resultDB.Close(context.Background())
 		}
+
+		// Create user database handler
+		userDB, err = db.NewUserDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create UserDB: %v", err)
+			userDB = nil
+		} else {
+			log.Println("✓ UserDB initialized")
+			defer userDB.Close(context.Background())
+		}
+
+
+		// Create file metadata database handler
+		fileMetadataDB, err = db.NewFileMetadataDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create FileMetadataDB: %v", err)
+			fileMetadataDB = nil
+		} else {
+			log.Println("✓ FileMetadataDB initialized")
+			defer fileMetadataDB.Close(context.Background())
+		}
+	}
+
+	// Initialize file storage service
+	fileStorage, err = storage.NewFileStorageService(fileStorageBaseDir)
+	if err != nil {
+		log.Printf("Warning: Failed to create FileStorageService: %v", err)
+		log.Println("Continuing without file storage...")
+		fileStorage = nil
+	} else {
+		log.Printf("✓ FileStorageService initialized (base: %s)", fileStorageBaseDir)
+		defer fileStorage.Close()
 	}
 
 	// Create master server
@@ -100,12 +158,16 @@ func main() {
 	telemetryMgr.Start()
 	log.Println("✓ Telemetry manager started")
 
-	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, resultDB, telemetryMgr)
+	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, resultDB, fileMetadataDB, fileStorage, telemetryMgr)
 
 	// Set master info
 	masterID := "master-1"
 	masterAddress := sysInfo.GetMasterAddress() + cfg.GRPCPort
 	masterServer.SetMasterInfo(masterID, masterAddress)
+
+	// Start task queue processor
+	masterServer.StartQueueProcessor()
+	log.Println("✓ Task queue processor started")
 
 	// Load workers from database
 	if workerDB != nil {
@@ -113,6 +175,10 @@ func main() {
 			log.Printf("Warning: Failed to load workers from DB: %v", err)
 		}
 	}
+
+	// Start worker reconnection monitor
+	masterServer.StartWorkerReconnectionMonitor()
+	log.Println("✓ Worker reconnection monitor started")
 
 	// Start gRPC server in background
 	grpcServer := grpc.NewServer()
@@ -129,13 +195,46 @@ func main() {
 			fmt.Sscanf(cfg.HTTPPort, ":%d", &port)
 		}
 
+		// Create telemetry server with WebSocket support
 		httpTelemetryServer = httpserver.NewTelemetryServer(port, telemetryMgr)
+
+		// Create task and worker API handlers
+		taskHandler := httpserver.NewTaskAPIHandler(masterServer, taskDB, assignmentDB, resultDB)
+		workerHandler := httpserver.NewWorkerAPIHandler(masterServer, workerDB, assignmentDB, telemetryMgr)
+
+		// Add API routes
+		httpTelemetryServer.RegisterTaskHandlers(taskHandler)
+		httpTelemetryServer.RegisterWorkerHandlers(workerHandler)
+
+		// Register file handlers if file storage is available
+		if fileStorage != nil {
+			fileHandler := httpserver.NewFileAPIHandler(fileStorage)
+			httpTelemetryServer.RegisterFileHandlers(fileHandler)
+			log.Println("✓ File API handlers registered")
+		}
+
+		// Register auth handlers if user database is available
+		if userDB != nil {
+			authHandler := httpserver.NewAuthHandler(userDB)
+			httpTelemetryServer.RegisterAuthHandlers(authHandler)
+			log.Println("✓ Auth API handlers registered")
+		}
+
 		go func() {
 			if err := httpTelemetryServer.Start(); err != nil && err != http.ErrServerClosed {
-				log.Printf("WebSocket telemetry server error: %v", err)
+				log.Printf("HTTP API server error: %v", err)
 			}
 		}()
-		log.Printf("✓ WebSocket telemetry server started on port %d", port)
+		log.Printf("✓ HTTP API server started on port %d", port)
+		log.Printf("  - Telemetry: GET /health, /telemetry, /workers")
+		log.Printf("  - WebSocket: WS /ws/telemetry, /ws/telemetry/{worker_id}")
+		log.Printf("  - Tasks: POST/GET/DELETE /api/tasks, GET /api/tasks/{id}")
+		log.Printf("  - Workers: GET /api/workers, /api/workers/{id}")
+		if fileStorage != nil {
+			log.Printf("  - Files: GET /api/files, /api/files/{task_id}")
+			log.Printf("           GET /api/files/{task_id}/download/{file_path}")
+			log.Printf("           DELETE /api/files/{task_id}")
+		}
 	}
 
 	// Setup graceful shutdown
@@ -146,6 +245,12 @@ func main() {
 	go func() {
 		<-sigChan
 		log.Println("\n\nShutting down master node...")
+
+		// Stop queue processor
+		masterServer.StopQueueProcessor()
+
+		// Stop worker reconnection monitor
+		masterServer.StopWorkerReconnectionMonitor()
 
 		// Shutdown HTTP server
 		if httpTelemetryServer != nil {
@@ -177,7 +282,7 @@ func main() {
 	log.Println("\n✓ Master node started successfully")
 	log.Printf("✓ Starting gRPC server on %s\n", masterAddress)
 
-	cliInterface := cli.NewCLI(masterServer)
+	cliInterface := cli.NewCLI(masterServer, fileStorage)
 	cliInterface.Run()
 }
 

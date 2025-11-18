@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"runtime"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"worker/internal/executor"
+	"worker/internal/system"
 	"worker/internal/telemetry"
 	pb "worker/proto"
 
@@ -93,14 +95,32 @@ func (s *WorkerServer) registerWithMaster() {
 
 	client := pb.NewMasterWorkerClient(conn)
 
-	// Get system resources
+	// Get actual system resources
+	resources, err := system.GetSystemResources()
+	if err != nil {
+		log.Printf("Warning: Failed to get system resources: %v. Using defaults.", err)
+		resources = &system.ResourceInfo{
+			TotalCPU:     4.0,
+			TotalMemory:  8.0,
+			TotalStorage: 100.0,
+			TotalGPU:     0.0,
+		}
+	}
+
+	// Log the detected resources
+	log.Printf("Detected System Resources:")
+	log.Printf("  CPU:     %.2f cores", resources.TotalCPU)
+	log.Printf("  Memory:  %.2f GB", resources.TotalMemory)
+	log.Printf("  Storage: %.2f GB", resources.TotalStorage)
+	log.Printf("  GPU:     %.2f cores", resources.TotalGPU)
+
 	workerInfo := &pb.WorkerInfo{
 		WorkerId:     s.workerID,
 		WorkerIp:     "", // Will be filled by master based on connection
-		TotalCpu:     float64(runtime.NumCPU()),
-		TotalMemory:  8.0,   // Simplified - in real implementation, get actual memory
-		TotalStorage: 100.0, // Simplified
-		TotalGpu:     0.0,   // Simplified
+		TotalCpu:     resources.TotalCPU,
+		TotalMemory:  resources.TotalMemory,
+		TotalStorage: resources.TotalStorage,
+		TotalGpu:     resources.TotalGPU,
 	}
 
 	ack, err := client.RegisterWorker(ctx, workerInfo)
@@ -130,7 +150,8 @@ func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	}
 
 	// Print comprehensive task details with all system requirements
-	log.Println("\n═══════════════════════════════════════════════════════")
+	log.Println(" ")
+	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("  📥 TASK RECEIVED FROM MASTER")
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Printf("  Task ID:           %s", task.TaskId)
@@ -172,6 +193,16 @@ func (s *WorkerServer) executeTask(task *pb.Task) {
 	// Remove from monitoring
 	s.monitor.RemoveTask(task.TaskId)
 
+	// Upload output files to master if any were generated
+	if len(result.OutputFiles) > 0 {
+		log.Printf("[Task %s] Uploading %d output file(s) to master...", task.TaskId, len(result.OutputFiles))
+		if err := s.uploadOutputFiles(task, result); err != nil {
+			log.Printf("[Task %s] Warning: failed to upload output files: %v", task.TaskId, err)
+		} else {
+			log.Printf("[Task %s] ✓ Output files uploaded successfully", task.TaskId)
+		}
+	}
+
 	// Report result to master with a timeout
 	reportCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -181,7 +212,8 @@ func (s *WorkerServer) executeTask(task *pb.Task) {
 		WorkerId:       s.workerID,
 		Status:         result.Status,
 		Logs:           result.Logs,
-		ResultLocation: "", // Not implemented yet
+		ResultLocation: result.ResultLocation,
+		OutputFiles:    result.OutputFiles,
 	}
 
 	s.mu.RLock()
@@ -193,19 +225,92 @@ func (s *WorkerServer) executeTask(task *pb.Task) {
 	}
 }
 
-// CancelTask handles task cancellation requests (not implemented)
+// CancelTask handles task cancellation requests
 func (s *WorkerServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.TaskAck, error) {
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Printf("  🛑 TASK CANCELLATION REQUEST")
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Printf("  Task ID: %s", taskID.TaskId)
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	// Cancel the task using executor
+	if err := s.executor.CancelTask(ctx, taskID.TaskId); err != nil {
+		log.Printf("  ✗ Failed to cancel task: %v", err)
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Failed to cancel task: %v", err),
+		}, nil
+	}
+
+	// Remove from monitoring
+	s.monitor.RemoveTask(taskID.TaskId)
+
+	log.Printf("  ✓ Task cancelled successfully")
+	log.Printf("  ✓ Container stopped")
+	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	// Report cancellation to master asynchronously (fire-and-forget with retries)
+	// This provides redundancy - master already updated DB, this is confirmation
+	go s.reportCancellationWithRetry(taskID.TaskId, 3)
+
 	return &pb.TaskAck{
-		Success: false,
-		Message: "Task cancellation not implemented",
+		Success: true,
+		Message: "Task cancelled",
 	}, nil
+}
+
+// reportCancellationWithRetry reports task cancellation to master with retry logic
+// This is a confirmation/redundancy mechanism - master already updated DB optimistically
+func (s *WorkerServer) reportCancellationWithRetry(taskID string, maxRetries int) error {
+	s.mu.RLock()
+	masterAddr := s.masterAddr
+	s.mu.RUnlock()
+
+	if masterAddr == "" {
+		log.Printf("[Task %s] ⚠ Cannot report cancellation: no master address", taskID)
+		return fmt.Errorf("no master address configured")
+	}
+
+	taskResult := &pb.TaskResult{
+		TaskId:   taskID,
+		WorkerId: s.workerID,
+		Status:   "cancelled",
+		Logs:     "Task was cancelled by user request",
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err := telemetry.ReportTaskResult(ctx, masterAddr, taskResult)
+		cancel()
+
+		if err == nil {
+			log.Printf("[Task %s] ✓ Cancellation confirmed with master (attempt %d/%d)", taskID, attempt, maxRetries)
+			log.Printf("[Task %s] ✓ Result stored in RESULTS collection", taskID)
+			return nil
+		}
+
+		lastErr = err
+		log.Printf("[Task %s] ⚠ Failed to confirm cancellation with master (attempt %d/%d): %v", taskID, attempt, maxRetries, err)
+
+		if attempt < maxRetries {
+			// Exponential backoff: 1s, 2s, 4s
+			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
+			log.Printf("[Task %s] Retrying in %v...", taskID, backoff)
+			time.Sleep(backoff)
+		}
+	}
+
+	log.Printf("[Task %s] ⚠ Failed to confirm cancellation after %d attempts", taskID, maxRetries)
+	log.Printf("[Task %s] ℹ Database was already updated by master - this is not critical", taskID)
+	return fmt.Errorf("failed after %d attempts: %w", maxRetries, lastErr)
 }
 
 // StreamTaskLogs streams live logs for a task
 func (s *WorkerServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWorker_StreamTaskLogsServer) error {
 	log.Printf("Log stream request for task: %s (user: %s, follow: %v)", req.TaskId, req.UserId, req.Follow)
 
-	// Get container ID for this task
+	// Verify task exists on this worker
 	containerID, exists := s.executor.GetContainerID(req.TaskId)
 	if !exists {
 		// Task not running, send error
@@ -228,8 +333,8 @@ func (s *WorkerServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWo
 		})
 	}
 
-	// Stream logs
-	logChan, errChan := s.executor.StreamLogs(stream.Context(), containerID)
+	// Stream logs using taskID (the broadcaster will handle multiple subscribers)
+	logChan, errChan := s.executor.StreamLogs(stream.Context(), req.TaskId)
 
 	for {
 		select {
@@ -249,7 +354,7 @@ func (s *WorkerServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWo
 			if err := stream.Send(&pb.LogChunk{
 				TaskId:     req.TaskId,
 				Content:    line,
-				Timestamp:  "", // Could parse from Docker timestamp
+				Timestamp:  "", // Could add timestamp from LogLine
 				IsComplete: false,
 				Status:     status,
 			}); err != nil {
@@ -276,6 +381,133 @@ func (s *WorkerServer) StreamTaskLogs(req *pb.TaskLogRequest, stream pb.MasterWo
 // Close cleans up resources
 func (s *WorkerServer) Close() error {
 	return s.executor.Close()
+}
+
+// Shutdown handles graceful shutdown by reporting all running tasks as failed
+func (s *WorkerServer) Shutdown() {
+	fmt.Println("╔═══════════════════════════════════════════════════════")
+	fmt.Println("║  Worker Shutdown - Cleaning up running tasks...")
+	fmt.Println("╚═══════════════════════════════════════════════════════")
+
+	// Get all running tasks
+	runningTasks := s.executor.GetRunningTasks()
+
+	if len(runningTasks) == 0 {
+		fmt.Println("  ✓ No running tasks to clean up")
+		return
+	}
+
+	fmt.Printf("  Found %d running task(s) to report as failed\n", len(runningTasks))
+
+	s.mu.RLock()
+	masterAddr := s.masterAddr
+	s.mu.RUnlock()
+
+	if masterAddr == "" {
+		log.Println("  ⚠ No master address - cannot report task failures")
+		return
+	}
+
+	// Report each task as failed to master
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	for _, taskID := range runningTasks {
+		log.Printf("  📤 Reporting task %s as failed due to worker shutdown...", taskID)
+
+		taskResult := &pb.TaskResult{
+			TaskId:         taskID,
+			WorkerId:       s.workerID,
+			Status:         "failed",
+			Logs:           "Task failed: Worker was terminated while task was running",
+			ResultLocation: "",
+		}
+
+		if err := telemetry.ReportTaskResult(ctx, masterAddr, taskResult); err != nil {
+			log.Printf("  ⚠ Failed to report task %s: %v", taskID, err)
+		} else {
+			log.Printf("  ✓ Successfully reported task %s as failed", taskID)
+		}
+	}
+
+	log.Println("╔═══════════════════════════════════════════════════════")
+	log.Println("║  Task cleanup complete")
+	log.Println("╚═══════════════════════════════════════════════════════")
+}
+
+// uploadOutputFiles uploads task output files to master
+func (s *WorkerServer) uploadOutputFiles(task *pb.Task, result *executor.TaskResult) error {
+	s.mu.RLock()
+	masterAddr := s.masterAddr
+	s.mu.RUnlock()
+
+	if masterAddr == "" {
+		return fmt.Errorf("no master address available")
+	}
+
+	// Connect to master
+	conn, err := grpc.Dial(masterAddr, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
+	if err != nil {
+		return fmt.Errorf("failed to connect to master: %w", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewMasterWorkerClient(conn)
+	stream, err := client.UploadTaskFiles(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to create upload stream: %w", err)
+	}
+
+	// Upload each file
+	for i, relPath := range result.OutputFiles {
+		filePath := filepath.Join(result.ResultLocation, relPath)
+
+		// Read file
+		fileData, err := os.ReadFile(filePath)
+		if err != nil {
+			log.Printf("[Task %s] Warning: failed to read file %s: %v", task.TaskId, relPath, err)
+			continue
+		}
+
+		// Split file into chunks (max 1MB per chunk)
+		const chunkSize = 1024 * 1024 // 1MB
+		for offset := 0; offset < len(fileData); offset += chunkSize {
+			end := offset + chunkSize
+			if end > len(fileData) {
+				end = len(fileData)
+			}
+
+			chunk := &pb.FileChunk{
+				TaskId:      task.TaskId,
+				UserId:      task.UserId,
+				TaskName:    task.TaskName,
+				FilePath:    relPath,
+				Data:        fileData[offset:end],
+				IsLastChunk: end == len(fileData),
+				IsLastFile:  (i == len(result.OutputFiles)-1) && (end == len(fileData)),
+				Timestamp:   task.SubmittedAt,
+			}
+
+			if err := stream.Send(chunk); err != nil {
+				return fmt.Errorf("failed to send chunk: %w", err)
+			}
+		}
+
+		log.Printf("[Task %s] ✓ Uploaded file: %s (%d bytes)", task.TaskId, relPath, len(fileData))
+	}
+
+	// Close stream and get response
+	ack, err := stream.CloseAndRecv()
+	if err != nil {
+		return fmt.Errorf("failed to close stream: %w", err)
+	}
+
+	if !ack.Success {
+		return fmt.Errorf("upload failed: %s", ack.Message)
+	}
+
+	log.Printf("[Task %s] ✓ Uploaded %d file(s) successfully", task.TaskId, ack.FilesReceived)
+	return nil
 }
 
 // Not implemented RPCs (worker doesn't receive these)

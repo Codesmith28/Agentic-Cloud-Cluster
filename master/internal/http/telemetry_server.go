@@ -32,6 +32,7 @@ type WSClient struct {
 type TelemetryServer struct {
 	telemetryManager *telemetry.TelemetryManager
 	server           *http.Server
+	mux              *http.ServeMux
 	clients          map[*WSClient]bool
 	clientsMu        sync.RWMutex
 	ctx              context.Context
@@ -43,28 +44,55 @@ type TelemetryServer struct {
 func NewTelemetryServer(port int, telemetryMgr *telemetry.TelemetryManager) *TelemetryServer {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	mux := http.NewServeMux()
+
 	ts := &TelemetryServer{
 		telemetryManager: telemetryMgr,
+		mux:              mux,
 		clients:          make(map[*WSClient]bool),
 		ctx:              ctx,
 		cancel:           cancel,
 		quietMode:        true, // Enable quiet mode by default
 	}
 
-	mux := http.NewServeMux()
+	// WebSocket endpoints
 	mux.HandleFunc("/ws/telemetry", ts.handleAllWorkersWS)
 	mux.HandleFunc("/ws/telemetry/", ts.handleWorkerTelemetryWS)
+
+	// REST endpoints
 	mux.HandleFunc("/health", ts.handleHealth)
+	mux.HandleFunc("/telemetry", ts.handleTelemetryREST)
+	mux.HandleFunc("/telemetry/", ts.handleWorkerTelemetryREST)
+	mux.HandleFunc("/workers", ts.handleWorkersREST)
 
 	ts.server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
-		Handler: mux,
+		Handler: corsMiddleware(mux),
 	}
 
 	// Set callback on telemetry manager to broadcast updates
 	telemetryMgr.SetUpdateCallback(ts.onTelemetryUpdate)
 
 	return ts
+}
+
+// corsMiddleware adds CORS headers to all responses
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000") // Vite dev server
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true") // Allow cookies
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 // SetQuietMode enables or disables verbose logging
@@ -115,6 +143,77 @@ func (ts *TelemetryServer) handleHealth(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// handleTelemetryREST returns telemetry for all workers (REST endpoint)
+func (ts *TelemetryServer) handleTelemetryREST(w http.ResponseWriter, r *http.Request) {
+	// Only handle exact /telemetry path, not /telemetry/something
+	if r.URL.Path != "/telemetry" {
+		http.NotFound(w, r)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	allTelemetry := ts.telemetryManager.GetAllWorkerTelemetry()
+	jsonData := make(map[string]interface{})
+	for workerID, data := range allTelemetry {
+		jsonData[workerID] = convertTelemetryToJSON(data)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(jsonData)
+}
+
+// handleWorkerTelemetryREST returns telemetry for a specific worker (REST endpoint)
+func (ts *TelemetryServer) handleWorkerTelemetryREST(w http.ResponseWriter, r *http.Request) {
+	// Extract worker ID from path
+	workerID := strings.TrimPrefix(r.URL.Path, "/telemetry/")
+	if workerID == "" || workerID == "telemetry" {
+		http.NotFound(w, r)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	workerTelemetry, exists := ts.telemetryManager.GetWorkerTelemetry(workerID)
+	if !exists {
+		http.Error(w, fmt.Sprintf("Worker %s not found", workerID), http.StatusNotFound)
+		return
+	}
+
+	jsonData := convertTelemetryToJSON(workerTelemetry)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(jsonData)
+}
+
+// handleWorkersREST returns basic info for all workers (REST endpoint)
+func (ts *TelemetryServer) handleWorkersREST(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	allTelemetry := ts.telemetryManager.GetAllWorkerTelemetry()
+	workersInfo := make(map[string]interface{})
+
+	for workerID, data := range allTelemetry {
+		workersInfo[workerID] = map[string]interface{}{
+			"worker_id":           data.WorkerID,
+			"is_active":           data.IsActive,
+			"running_tasks_count": len(data.RunningTasks),
+			"last_update":         data.LastUpdate,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(workersInfo)
 }
 
 // handleAllWorkersWS handles WebSocket connections for streaming all workers' telemetry
@@ -338,4 +437,98 @@ func (ts *TelemetryServer) getClientCount() int {
 	ts.clientsMu.RLock()
 	defer ts.clientsMu.RUnlock()
 	return len(ts.clients)
+}
+
+// RegisterTaskHandlers registers task API handlers
+func (ts *TelemetryServer) RegisterTaskHandlers(handler *TaskAPIHandler) {
+	ts.mux.HandleFunc("/api/tasks", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			handler.HandleCreateTask(w, r)
+		case http.MethodGet:
+			handler.HandleListTasks(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// WebSocket endpoint for live task logs
+	ts.mux.HandleFunc("/ws/tasks/", handler.HandleTaskLogsStream)
+
+	ts.mux.HandleFunc("/api/tasks/", func(w http.ResponseWriter, r *http.Request) {
+		// Check if this is a /logs or /retry request
+		if strings.Contains(r.URL.Path, "/logs") {
+			handler.HandleGetTaskLogs(w, r)
+		} else {
+			// Handle GET /api/tasks/{id} or DELETE /api/tasks/{id}
+			switch r.Method {
+			case http.MethodGet:
+				handler.HandleGetTask(w, r)
+			case http.MethodDelete:
+				handler.HandleDeleteTask(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		}
+	})
+}
+
+// RegisterWorkerHandlers registers worker API handlers
+func (ts *TelemetryServer) RegisterWorkerHandlers(handler *WorkerAPIHandler) {
+	ts.mux.HandleFunc("/api/workers", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			handler.HandleRegisterWorker(w, r)
+		} else {
+			handler.HandleListWorkers(w, r)
+		}
+	})
+	ts.mux.HandleFunc("/api/workers/", func(w http.ResponseWriter, r *http.Request) {
+		// Check if this is a /metrics request
+		if strings.Contains(r.URL.Path, "/metrics") {
+			handler.HandleGetWorkerMetrics(w, r)
+		} else {
+			handler.HandleGetWorker(w, r)
+		}
+	})
+}
+
+// RegisterFileHandlers registers file API handlers
+func (ts *TelemetryServer) RegisterFileHandlers(handler *FileAPIHandler) {
+	// List all files for a user
+	ts.mux.HandleFunc("/api/files", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handler.HandleListFiles(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Handle specific file operations: get task files, download file, delete files
+	ts.mux.HandleFunc("/api/files/", func(w http.ResponseWriter, r *http.Request) {
+		// Check if this is a download request: /api/files/{task_id}/download/{file_path}
+		if strings.Contains(r.URL.Path, "/download") {
+			handler.HandleDownloadFile(w, r)
+		} else {
+			// /api/files/{task_id} - get task files or delete task files
+			switch r.Method {
+			case http.MethodGet:
+				handler.HandleGetTaskFiles(w, r)
+			case http.MethodDelete:
+				handler.HandleDeleteTaskFiles(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		}
+	})
+}
+
+// RegisterAuthHandlers registers authentication API handlers
+func (ts *TelemetryServer) RegisterAuthHandlers(handler *AuthHandler) {
+	// Public endpoints (no auth required)
+	ts.mux.HandleFunc("/api/auth/register", handler.HandleRegister)
+	ts.mux.HandleFunc("/api/auth/login", handler.HandleLogin)
+	ts.mux.HandleFunc("/api/auth/logout", handler.HandleLogout)
+
+	// Protected endpoint (requires auth)
+	ts.mux.HandleFunc("/api/auth/me", handler.AuthMiddleware(handler.HandleMe))
 }
