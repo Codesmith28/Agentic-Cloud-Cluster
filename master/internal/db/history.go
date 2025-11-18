@@ -144,14 +144,49 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 			{Key: "$project", Value: bson.D{
 				{Key: "task_id", Value: "$task_id"},
 				{Key: "worker_id", Value: "$assignment.worker_id"},
-				{Key: "type", Value: "$task_type"},
+				{Key: "type", Value: "$tag"}, // Changed from $task_type to $tag
 				{Key: "arrival_time", Value: "$created_at"},
 				{Key: "deadline", Value: bson.D{
 					{Key: "$add", Value: bson.A{
 						"$created_at",
 						bson.D{{Key: "$multiply", Value: bson.A{
-							"$sla_multiplier",
-							"$tau",
+							// Use k_value if sla_multiplier is 0
+							bson.D{{Key: "$cond", Value: bson.D{
+								{Key: "if", Value: bson.D{{Key: "$gt", Value: bson.A{"$sla_multiplier", 0}}}},
+								{Key: "then", Value: "$sla_multiplier"},
+								{Key: "else", Value: bson.D{
+									{Key: "$ifNull", Value: bson.A{"$k_value", 2.0}},
+								}},
+							}}},
+							bson.D{{Key: "$ifNull", Value: bson.A{
+								"$tau",
+								// Task-type-specific tau defaults
+								bson.D{{Key: "$switch", Value: bson.D{
+									{Key: "branches", Value: bson.A{
+										bson.D{
+											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "cpu-light"}}}},
+											{Key: "then", Value: 5.0},
+										},
+										bson.D{
+											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "cpu-heavy"}}}},
+											{Key: "then", Value: 60.0},
+										},
+										bson.D{
+											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "memory-heavy"}}}},
+											{Key: "then", Value: 30.0},
+										},
+										bson.D{
+											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "gpu-heavy"}}}},
+											{Key: "then", Value: 45.0},
+										},
+										bson.D{
+											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "mixed"}}}},
+											{Key: "then", Value: 20.0},
+										},
+									}},
+									{Key: "default", Value: 30.0},
+								}}},
+							}}},
 							1000, // Convert seconds to milliseconds
 						}}},
 					}},
@@ -170,8 +205,43 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 						bson.D{{Key: "$add", Value: bson.A{
 							"$created_at",
 							bson.D{{Key: "$multiply", Value: bson.A{
-								"$sla_multiplier",
-								"$tau",
+								// Use k_value if sla_multiplier is 0
+								bson.D{{Key: "$cond", Value: bson.D{
+									{Key: "if", Value: bson.D{{Key: "$gt", Value: bson.A{"$sla_multiplier", 0}}}},
+									{Key: "then", Value: "$sla_multiplier"},
+									{Key: "else", Value: bson.D{
+										{Key: "$ifNull", Value: bson.A{"$k_value", 2.0}},
+									}},
+								}}},
+								bson.D{{Key: "$ifNull", Value: bson.A{
+									"$tau",
+									// Task-type-specific tau defaults
+									bson.D{{Key: "$switch", Value: bson.D{
+										{Key: "branches", Value: bson.A{
+											bson.D{
+												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "cpu-light"}}}},
+												{Key: "then", Value: 5.0},
+											},
+											bson.D{
+												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "cpu-heavy"}}}},
+												{Key: "then", Value: 60.0},
+											},
+											bson.D{
+												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "memory-heavy"}}}},
+												{Key: "then", Value: 30.0},
+											},
+											bson.D{
+												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "gpu-heavy"}}}},
+												{Key: "then", Value: 45.0},
+											},
+											bson.D{
+												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "mixed"}}}},
+												{Key: "then", Value: 20.0},
+											},
+										}},
+										{Key: "default", Value: 30.0},
+									}}},
+								}}},
 								1000,
 							}}},
 						}}},
@@ -185,10 +255,44 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 					{Key: "$ifNull", Value: bson.A{"$assignment.load_at_start", 0.0}},
 				}},
 				{Key: "tau", Value: bson.D{
-					{Key: "$ifNull", Value: bson.A{"$tau", 10.0}}, // Default tau if not set
+					{Key: "$ifNull", Value: bson.A{
+						"$tau",
+						// Use task-type-specific defaults if tau not set
+						bson.D{{Key: "$switch", Value: bson.D{
+							{Key: "branches", Value: bson.A{
+								bson.D{
+									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "cpu-light"}}}},
+									{Key: "then", Value: 5.0},
+								},
+								bson.D{
+									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "cpu-heavy"}}}},
+									{Key: "then", Value: 60.0},
+								},
+								bson.D{
+									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "memory-heavy"}}}},
+									{Key: "then", Value: 30.0},
+								},
+								bson.D{
+									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "gpu-heavy"}}}},
+									{Key: "then", Value: 45.0},
+								},
+								bson.D{
+									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "mixed"}}}},
+									{Key: "then", Value: 20.0},
+								},
+							}},
+							{Key: "default", Value: 30.0}, // Generic default
+						}}},
+					}},
 				}},
 				{Key: "sla_multiplier", Value: bson.D{
-					{Key: "$ifNull", Value: bson.A{"$sla_multiplier", 2.0}}, // Default k=2.0
+					{Key: "$cond", Value: bson.D{
+						{Key: "if", Value: bson.D{{Key: "$gt", Value: bson.A{"$sla_multiplier", 0}}}},
+						{Key: "then", Value: "$sla_multiplier"},
+						{Key: "else", Value: bson.D{
+							{Key: "$ifNull", Value: bson.A{"$k_value", 2.0}}, // Use k_value if sla_multiplier is 0
+						}},
+					}},
 				}},
 			}},
 		},
@@ -199,7 +303,7 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 				{Key: "type", Value: bson.D{
 					{Key: "$in", Value: bson.A{
 						"cpu-light", "cpu-heavy", "memory-heavy",
-						"gpu-inference", "gpu-training", "mixed",
+						"gpu-heavy", "gpu-inference", "gpu-training", "mixed",
 					}},
 				}},
 			}},

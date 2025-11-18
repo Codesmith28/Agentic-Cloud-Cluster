@@ -19,6 +19,34 @@
     "G2": 1,
     "G3": 0.5
   },
-  "AffinityMatrix": {},
-  "PenaltyVector": {}
+  "AffinityMatrix": {
+    "cpu-heavy": {
+      "NullPointer": 2.972201844733316,
+      "Shehzada": 3.0370660197720216
+    },
+    "cpu-light": {
+      "NullPointer": 0,
+      "Shehzada": 0
+    },
+    "gpu-inference": {
+      "NullPointer": 0,
+      "Shehzada": 0
+    },
+    "gpu-training": {
+      "NullPointer": 0,
+      "Shehzada": 0
+    },
+    "memory-heavy": {
+      "NullPointer": 0,
+      "Shehzada": 0
+    },
+    "mixed": {
+      "NullPointer": 0,
+      "Shehzada": 0
+    }
+  },
+  "PenaltyVector": {
+    "NullPointer": 0.5,
+    "Shehzada": 0.47563670921822715
+  }
 }
