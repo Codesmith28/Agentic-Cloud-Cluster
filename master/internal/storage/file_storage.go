@@ -117,8 +117,8 @@ func (s *FileStorageService) ReceiveFileStream(stream pb.MasterWorker_UploadTask
 				return nil, fmt.Errorf("failed to create storage directory: %w", err)
 			}
 
-			log.Printf("[FileStorage] 🔒 Receiving files for task %s (user: %s, secure storage)",
-				chunk.TaskId, chunk.UserId)
+			// Receiving files - intentionally silent on master to avoid
+			// flooding CLI. Detailed progress is shown on the worker.
 		}
 
 		// New file in the stream
@@ -145,7 +145,6 @@ func (s *FileStorageService) ReceiveFileStream(stream pb.MasterWorker_UploadTask
 			}
 
 			metadata.FilePaths = append(metadata.FilePaths, chunk.FilePath)
-			log.Printf("[FileStorage] 📄 Receiving file: %s (secure)", chunk.FilePath)
 		}
 
 		// Write chunk data
@@ -158,14 +157,13 @@ func (s *FileStorageService) ReceiveFileStream(stream pb.MasterWorker_UploadTask
 		if chunk.IsLastChunk {
 			currentFile.Close()
 			filesReceived++
-			log.Printf("[FileStorage] ✓ File complete: %s", chunk.FilePath)
 			currentFile = nil
 			currentFilePath = ""
 		}
 
 		// All files received
 		if chunk.IsLastFile {
-			log.Printf("[FileStorage] ✓ All files received (%d files) for task %s", filesReceived, chunk.TaskId)
+			// All files received - silent success on master
 			break
 		}
 	}

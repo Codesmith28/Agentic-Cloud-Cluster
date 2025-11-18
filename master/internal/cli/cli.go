@@ -33,6 +33,12 @@ func NewCLI(srv *server.MasterServer, fs *storage.FileStorageService) *CLI {
 	if err != nil {
 		log.Fatalf("Failed to create readline instance: %v", err)
 	}
+	
+	// Configure the standard logger to use readline's stdout
+	// This ensures background goroutine logs don't interfere with the prompt
+	// and readline can automatically redraw the prompt after each log message
+	log.SetOutput(rl.Stdout())
+	
 	return &CLI{
 		masterServer: srv,
 		fileStorage:  fs,

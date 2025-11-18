@@ -859,12 +859,14 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 
 // UploadTaskFiles handles file uploads from workers via streaming RPC
 func (s *MasterServer) UploadTaskFiles(stream pb.MasterWorker_UploadTaskFilesServer) error {
-	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	log.Printf("  📤 FILE UPLOAD REQUEST")
-	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	// Keep file upload handling silent on success to avoid interrupting
+	// the interactive CLI. Only emit warnings/errors here; detailed
+	// per-file progress should be shown on the worker side.
 
 	if s.fileStorage == nil {
-		log.Printf("  ✗ File storage service not initialized")
+		// Log an error — this is unexpected and useful to surface
+		// because files cannot be processed without storage.
+		log.Printf("⚠ File storage service not initialized")
 		return stream.SendAndClose(&pb.FileUploadAck{
 			Success:       false,
 			Message:       "File storage service not available",
@@ -872,10 +874,11 @@ func (s *MasterServer) UploadTaskFiles(stream pb.MasterWorker_UploadTaskFilesSer
 		})
 	}
 
-	// Receive file stream and store files
+	// Receive file stream and store files (fileStorage may log to its own
+	// internal logger; master stays quiet on success)
 	metadata, err := s.fileStorage.ReceiveFileStream(stream)
 	if err != nil {
-		log.Printf("  ✗ Failed to receive files: %v", err)
+		log.Printf("⚠ Failed to receive files: %v", err)
 		return stream.SendAndClose(&pb.FileUploadAck{
 			Success:       false,
 			Message:       fmt.Sprintf("Failed to receive files: %v", err),
@@ -883,7 +886,7 @@ func (s *MasterServer) UploadTaskFiles(stream pb.MasterWorker_UploadTaskFilesSer
 		})
 	}
 
-	// Store metadata in database
+	// Store metadata in database; log failures only
 	if s.fileMetadataDB != nil {
 		dbMetadata := &db.FileMetadata{
 			UserID:      metadata.UserID,
@@ -895,18 +898,12 @@ func (s *MasterServer) UploadTaskFiles(stream pb.MasterWorker_UploadTaskFilesSer
 		}
 
 		if err := s.fileMetadataDB.CreateFileMetadata(context.Background(), dbMetadata); err != nil {
-			log.Printf("  ⚠ Warning: Failed to store file metadata in database: %v", err)
-		} else {
-			log.Printf("  ✓ File metadata stored in database")
+			log.Printf("⚠ Warning: Failed to store file metadata in database: %v", err)
 		}
+		// Success case intentionally silent to avoid CLI noise
 	}
 
-	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	log.Printf("  ✓ FILE UPLOAD COMPLETE")
-	log.Printf("  Task: %s | User: %s | Files: %d", metadata.TaskID, metadata.UserID, len(metadata.FilePaths))
-	log.Printf("  Storage Path: %s", metadata.StoragePath)
-	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
+	// Success: keep silent (worker will show detailed progress). Return ack.
 	return stream.SendAndClose(&pb.FileUploadAck{
 		Success:       true,
 		Message:       "Files uploaded successfully",
