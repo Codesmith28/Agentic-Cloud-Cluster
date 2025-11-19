@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 
+# Build argument for process number
+ARG PROCESS_NUM=1
+
 LABEL maintainer="cloudai"
 LABEL description="IO-Intensive Process Container"
 
@@ -12,15 +15,16 @@ RUN pip install --no-cache-dir \
 RUN mkdir -p /results
 
 # Copy all IO processes
-COPY io_process_1.py /app/io_process_1.py
-COPY io_process_2.py /app/io_process_2.py
-COPY io_process_3.py /app/io_process_3.py
-COPY io_process_4.py /app/io_process_4.py
-COPY io_process_5.py /app/io_process_5.py
-COPY io_process_6.py /app/io_process_6.py
-COPY io_process_7.py /app/io_process_7.py
+COPY io_process_*.py /app/
 
 WORKDIR /app
 
-# Default command (can be overridden)
-CMD ["python", "io_process_1.py"]
+# Make scripts executable
+RUN chmod +x /app/*.py
+
+# Create a build-time entrypoint script (PROCESS_NUM substituted at build time)
+RUN printf '%s\n' '#!/bin/sh' "exec python3 io_process_${PROCESS_NUM}.py \"$@\"" > /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
+
+# Use the baked entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
