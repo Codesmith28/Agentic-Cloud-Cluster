@@ -144,6 +144,27 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 			result.Error = fmt.Errorf("container exited with code %d", status.StatusCode)
 			log.Printf("[Task %s] ✗ Failed with exit code %d", taskID, status.StatusCode)
 		}
+
+		// Print task completion banner
+		log.Println(" ")
+		log.Println("═══════════════════════════════════════════════════════")
+		if status.StatusCode == 0 {
+			log.Println("  ✅ TASK COMPLETED SUCCESSFULLY")
+		} else {
+			log.Println("  ❌ TASK FAILED")
+		}
+		log.Println("═══════════════════════════════════════════════════════")
+		log.Printf("  Task ID:           %s", taskID)
+		log.Printf("  Docker Image:      %s", dockerImage)
+		log.Printf("  Command:           %s", command)
+		log.Printf("  Exit Code:         %d", status.StatusCode)
+		log.Println("───────────────────────────────────────────────────────")
+		log.Println("  Resources Released:")
+		log.Printf("    • CPU Cores:     %.2f cores", reqCPU)
+		log.Printf("    • Memory:        %.2f GB", reqMemory)
+		log.Printf("    • GPU Cores:     %.2f cores", reqGPU)
+		log.Println("═══════════════════════════════════════════════════════")
+		log.Println("")
 	}
 
 	// Collect output files
