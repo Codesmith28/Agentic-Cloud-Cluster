@@ -36,18 +36,17 @@ def main():
     start_time = time.time()
     
     try:
-        # Optimized for 70-80 seconds on 12 cores at peak CPU
-        # Fewer operations but much larger matrices for intense CPU load
-        num_operations = random.randint(25, 35)
-        base_size = random.randint(800, 1200)
+        # Dynamic sizing
+        num_operations = random.randint(50, 150)
+        base_size = random.randint(200, 500)
         
         print(f"Performing {num_operations} matrix operations starting from {base_size}x{base_size}...")
         
         results = []
         
         for i in range(num_operations):
-            # Larger increments for intense workload
-            size = base_size + (i * random.randint(50, 80))
+            # Gradually increase matrix size
+            size = base_size + (i * random.randint(10, 50))
             
             # Generate random matrices
             A = np.random.rand(size, size)
@@ -68,7 +67,7 @@ def main():
             determinant = np.linalg.det(C[:min(50, size), :min(50, size)])
             
             # Track metrics
-            cpu_percent = process.cpu_percent(interval=0.1) / psutil.cpu_count()
+            cpu_percent = process.cpu_percent()
             mem_mb = process.memory_info().rss / (1024 * 1024)
             
             stats["peak_cpu_percent"] = max(stats["peak_cpu_percent"], cpu_percent)

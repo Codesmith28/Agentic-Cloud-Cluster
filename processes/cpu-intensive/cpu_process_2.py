@@ -72,7 +72,7 @@ def main():
     
     try:
         # Phase 1: Generate primes using sieve
-        limit = random.randint(8000000, 9000000)  # 8M-9M for consistent high intensity
+        limit = random.randint(1000000, 5000000)
         print(f"Phase 1: Generating primes up to {limit:,}...")
         
         primes = sieve_of_eratosthenes(limit)
@@ -80,7 +80,7 @@ def main():
         stats["largest_prime"] = primes[-1] if primes else 0
         
         mem_mb = process.memory_info().rss / (1024 * 1024)
-        cpu_percent = process.cpu_percent(interval=0.1) / psutil.cpu_count()
+        cpu_percent = process.cpu_percent()
         stats["peak_memory_mb"] = max(stats["peak_memory_mb"], mem_mb)
         stats["peak_cpu_percent"] = max(stats["peak_cpu_percent"], cpu_percent)
         
@@ -91,18 +91,18 @@ def main():
         # Phase 2: Test primality of random large numbers
         print(f"\nPhase 2: Testing primality of large numbers...")
         
-        primality_tests = random.randint(450, 500)  # Small range, more tests
+        primality_tests = random.randint(100, 500)
         prime_count = 0
         
         for i in range(primality_tests):
             # Generate large random number
-            num = random.randint(5 * 10**7, 10**8)  # 50M-100M for higher intensity
+            num = random.randint(10**6, 10**8)
             
             if is_prime(num):
                 prime_count += 1
             
             if (i + 1) % 50 == 0:
-                cpu_percent = process.cpu_percent(interval=0.1) / psutil.cpu_count()
+                cpu_percent = process.cpu_percent()
                 stats["peak_cpu_percent"] = max(stats["peak_cpu_percent"], cpu_percent)
                 print(f"  Tested {i+1}/{primality_tests} numbers, "
                       f"Found {prime_count} primes, CPU: {cpu_percent:.1f}%")
@@ -112,7 +112,7 @@ def main():
         # Phase 3: Factorize composite numbers
         print(f"\nPhase 3: Factorizing composite numbers...")
         
-        num_factorizations = random.randint(180, 200)  # Small range, more factorizations
+        num_factorizations = random.randint(50, 200)
         factorization_results = []
         
         for i in range(num_factorizations):
@@ -124,7 +124,7 @@ def main():
                 num = p1 * p2
             else:
                 # Random composite
-                num = random.randint(5 * 10**8, 10**9)  # 500M-1B for higher intensity
+                num = random.randint(10**6, 10**9)
             
             factors = factorize(num)
             stats["numbers_factorized"] += 1
@@ -136,12 +136,14 @@ def main():
             })
             
             if (i + 1) % 25 == 0:
-                cpu_percent = process.cpu_percent(interval=0.1) / psutil.cpu_count()
+                cpu_percent = process.cpu_percent()
                 mem_mb = process.memory_info().rss / (1024 * 1024)
                 stats["peak_cpu_percent"] = max(stats["peak_cpu_percent"], cpu_percent)
                 stats["peak_memory_mb"] = max(stats["peak_memory_mb"], mem_mb)
                 print(f"  Factorized {i+1}/{num_factorizations} numbers, "
                       f"CPU: {cpu_percent:.1f}%, Memory: {mem_mb:.2f}MB")
+            
+            time.sleep(random.uniform(0.01, 0.03))
         
         # Phase 4: Find prime gaps
         print(f"\nPhase 4: Analyzing prime gaps...")

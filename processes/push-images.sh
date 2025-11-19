@@ -36,14 +36,6 @@ for i in {1..12}; do
 done
 docker push "${DOCKER_USERNAME}/${IMAGE_PREFIX}-cpu-intensive:latest" || true
 
-# Push GPU-intensive images
-echo "Pushing GPU-intensive images..."
-for i in {1..6}; do
-    echo "  Pushing gpu-intensive process $i..."
-    docker push "${DOCKER_USERNAME}/${IMAGE_PREFIX}-gpu-intensive:$i"
-done
-docker push "${DOCKER_USERNAME}/${IMAGE_PREFIX}-gpu-intensive:latest" || true
-
 echo ""
 echo "All images pushed successfully!"
 echo ""
