@@ -1,8 +1,0 @@
-{
-  "process_type": "CPU-Intensive-14",
-  "integrations_computed": 15,
-  "derivatives_computed": 53072,
-  "peak_cpu_percent": 54.7,
-  "peak_memory_mb": 115.984375,
-  "duration_seconds": 12.908748149871826
-}

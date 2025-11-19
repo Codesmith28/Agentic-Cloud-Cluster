@@ -1,8 +1,0 @@
-{
-  "process_type": "IO-Intensive-20",
-  "files_processed": 35,
-  "bytes_written": 406847488,
-  "bytes_read": 406847488,
-  "peak_memory_mb": 49.30078125,
-  "duration_seconds": 13.414293050765991
-}
