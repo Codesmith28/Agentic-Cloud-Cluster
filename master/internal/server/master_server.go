@@ -485,7 +485,7 @@ func (s *MasterServer) ManualRegisterAndNotify(ctx context.Context, workerID, wo
 // StartWorkerReconnectionMonitor starts a background process that periodically attempts
 // to reconnect to inactive workers
 func (s *MasterServer) StartWorkerReconnectionMonitor() {
-	s.reconnectTicker = time.NewTicker(30 * time.Second) // Check every 30 seconds
+	s.reconnectTicker = time.NewTicker(5 * time.Second) // Check every 5 seconds
 	s.reconnectStop = make(chan bool)
 
 	go func() {
