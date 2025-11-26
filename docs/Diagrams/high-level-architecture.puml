@@ -1,0 +1,88 @@
+@startuml high-level-architecture
+
+skinparam componentStyle rectangle
+skinparam defaultTextAlignment center
+
+title CloudAI System - High-Level Architecture
+
+rectangle "User Interfaces" as UI {
+    component "CLI Tool\n(Interactive)" as CLI
+    component "Web Dashboard\n(React/Vite)" as WebUI
+    component "REST API\n(HTTP + WS)" as RestAPI
+}
+
+rectangle "Master Node (Go)" as MasterBox {
+    component "CLI Interface" as MasterCLI
+    component "HTTP Server\n(Port 8080)" as HTTPServer
+    component "Auth/JWT\nHandler" as Auth
+    component "gRPC Server\n(Port 50051)" as gRPCServer
+    component "Telemetry Mgr\n(WebSocket)" as TelemetryMgr
+    component "Scheduler\n(Round-Robin)" as Scheduler
+    component "File Storage\nService" as FileStorage
+    component "Task Queue\nManager" as TaskQueue
+    component "Database\n(MongoDB)" as DB
+}
+
+rectangle "Worker Nodes (Go)" as WorkerBox {
+    rectangle "Worker Node 1" as W1 {
+        component "gRPC Server\n(Port 50052)" as W1gRPC
+        component "Docker\nExecutor" as W1Docker
+        component "Log Stream\nManager" as W1Log
+        component "Telemetry\nMonitor" as W1Tele
+    }
+    
+    rectangle "Worker Node 2" as W2 {
+        component "gRPC Server\n(Port 50053)" as W2gRPC
+        component "Docker\nExecutor" as W2Docker
+        component "Log Stream\nManager" as W2Log
+        component "Telemetry\nMonitor" as W2Tele
+    }
+    
+    rectangle "Worker Node N" as WN {
+        component "gRPC Server\n(Port 5005X)" as WNgRPC
+        component "Docker\nExecutor" as WNDocker
+        component "Log Stream\nManager" as WNLog
+        component "Telemetry\nMonitor" as WNTele
+    }
+}
+
+cloud "Docker Engine\n(Container Runtime)" as DockerEngine
+
+cloud "Docker Hub/Registry\n(Task Images)" as DockerHub
+
+CLI --> MasterCLI
+WebUI --> HTTPServer
+RestAPI --> HTTPServer
+
+MasterCLI --> gRPCServer
+HTTPServer --> TelemetryMgr
+HTTPServer --> Auth
+gRPCServer --> Scheduler
+gRPCServer --> FileStorage
+gRPCServer --> TaskQueue
+TaskQueue --> DB
+FileStorage --> DB
+
+gRPCServer --> W1gRPC : "gRPC"
+gRPCServer --> W2gRPC
+gRPCServer --> WNgRPC
+
+W1gRPC --> W1Docker
+W1Docker --> W1Log
+W1Log --> W1Tele
+
+W2gRPC --> W2Docker
+W2Docker --> W2Log
+W2Log --> W2Tele
+
+WNgRPC --> WNDocker
+WNDocker --> WNLog
+WNLog --> WNTele
+
+W1Docker --> DockerEngine
+W2Docker --> DockerEngine
+WNDocker --> DockerEngine
+
+DockerEngine --> DockerHub
+
+@enduml

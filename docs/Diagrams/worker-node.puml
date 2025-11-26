@@ -1,0 +1,62 @@
+@startuml worker-node
+
+skinparam componentStyle rectangle
+
+title Worker Node Components
+
+package "Worker Node" {
+    
+    package "gRPC Server (internal/server/)" as gRPCPkg {
+        component "Inbound RPCs" as InboundRPC
+        component "Outbound RPCs" as OutboundRPC
+    }
+    
+    package "Task Executor (internal/executor/)" as ExecutorPkg {
+        component "Docker Executor" as DockerExec
+    }
+    
+    package "Log Stream Manager (internal/logstream/)" as LogPkg {
+        component "Log Manager" as LogMgr
+    }
+    
+    package "Telemetry Monitor (internal/telemetry/)" as TelePkg {
+        component "Telemetry Monitor" as TeleMon
+    }
+    
+    gRPCPkg --> ExecutorPkg
+    ExecutorPkg --> LogPkg
+    LogPkg --> TelePkg
+    TelePkg --> gRPCPkg : "Heartbeats"
+}
+
+note right of gRPCPkg
+    Inbound from Master:
+    AssignTask, CancelTask, StreamTaskLogs
+    
+    Outbound to Master:
+    RegisterWorker, SendHeartbeat,
+    ReportTaskCompletion, UploadTaskFiles
+end note
+
+note right of ExecutorPkg
+    - Docker client management
+    - Image pulling from registries
+    - Container creation with resource limits
+    - Container lifecycle management
+    - Output directory handling (/output)
+    - Container cleanup
+end note
+
+note right of LogPkg
+    - Real-time log broadcasting
+    - Log buffer management
+    - Multi-subscriber support
+end note
+
+note right of TelePkg
+    - System metrics (CPU, Memory, GPU)
+    - Heartbeat every 5 seconds
+    - Running task tracking
+end note
+
+@enduml

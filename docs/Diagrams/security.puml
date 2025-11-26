@@ -1,0 +1,36 @@
+@startuml security
+
+skinparam componentStyle rectangle
+
+title Security Architecture (Current Implementation)
+
+package "JWT Authentication" {
+    component "User Registration/Login" as UserAuth
+    component "JWT Token Generation" as TokenGen
+    component "Token Validation" as TokenVal
+    component "JWT_SECRET (env config)" as Secret
+    component "Token Expiration" as Expiry
+    
+    UserAuth --> TokenGen
+    TokenGen --> Secret
+    TokenVal --> Secret
+    TokenVal --> Expiry
+}
+
+package "File Access Control" {
+    component "Per-user File Isolation" as UserIsolation
+    component "Task Ownership Verification" as TaskOwner
+    component "Access Control on Operations" as AccessCtrl
+    
+    UserIsolation --> TaskOwner
+    TaskOwner --> AccessCtrl
+}
+
+package "CORS Configuration" {
+    component "Configurable Allowed Origins" as Origins
+    component "Preflight Request Handling" as Preflight
+    
+    Origins --> Preflight
+}
+
+@enduml

@@ -2,767 +2,221 @@
 
 **Last Updated:** November 26, 2025
 
+> **Note:** Architecture diagrams are available as PlantUML files in `docs/Diagrams/`. You can render them using any PlantUML viewer or IDE plugin. Pre-rendered PNG images are also available.
+
 ## High-Level Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         User Interfaces                         │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   CLI Tool      │  │   Web Dashboard │  │   REST API      │  │
-│  │ (Interactive)   │  │   (React/Vite)  │  │ (HTTP + WS)     │  │
-│  └─────────┬───────┘  └─────────┬───────┘  └─────────┬───────┘  │
-│            │                    │                    │          │
-└────────────┼────────────────────┼────────────────────┼──────────┘
-             │                    │                    │
-             ▼                    ▼                    ▼
-┌────────────────────────────────────────────────────────────────┐
-│                        Master Node (Go)                        │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │     CLI      │  │  HTTP Server │  │  Auth/JWT    │          │
-│  │  Interface   │  │  (Port 8080) │  │   Handler    │          │
-│  └──────────────┘  └──────┬───────┘  └──────────────┘          │
-│                           │                                    │
-│  ┌──────────────┐  ┌──────▼──────┐  ┌──────────────┐           │
-│  │  gRPC Server │  │Telemetry Mgr│  │  Scheduler   │           │
-│  │ (Port 50051) │  │ (WebSocket) │  │(Round-Robin) │           │
-│  └──────┬───────┘  └─────────────┘  └──────────────┘           │
-│                                                                │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │File Storage  │  │  Task Queue  │  │   Database   │          │
-│  │  Service     │  │   Manager    │  │   (MongoDB)  │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
-└─────────┼──────────────────────────────────────────────────────┘
-          │
-          │ gRPC (Task Assignment, Heartbeats, File Upload)
-          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       Worker Nodes (Go)                         │
-│  ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐ │
-│  │   Worker Node 1  │ │   Worker Node 2  │ │   Worker Node N  │ │
-│  │                  │ │                  │ │                  │ │
-│  │  ┌────────────┐  │ │  ┌────────────┐  │ │  ┌────────────┐  │ │
-│  │  │gRPC Server │  │ │  │gRPC Server │  │ │  │gRPC Server │  │ │
-│  │  │(Port 50052)│  │ │  │(Port 50053)│  │ │  │(Port 5005X)│  │ │
-│  │  └─────┬──────┘  │ │  └─────┬──────┘  │ │  └─────┬──────┘  │ │
-│  │        │         │ │        │         │ │        │         │ │
-│  │  ┌─────▼─────┐   │ │  ┌─────▼─────┐   │ │  ┌─────▼─────┐   │ │
-│  │  │  Docker   │   │ │  │  Docker   │   │ │  │  Docker   │   │ │
-│  │  │ Executor  │   │ │  │ Executor  │   │ │  │ Executor  │   │ │
-│  │  └─────┬──────┘  │ │  └─────┬──────┘  │ │  └─────┬──────┘  │ │
-│  │        │         │ │        │         │ │        │         │ │
-│  │  ┌─────▼─────┐   │ │  ┌─────▼─────┐   │ │  ┌─────▼─────┐   │ │
-│  │  │Log Stream │   │ │  │Log Stream │   │ │  │Log Stream │   │ │
-│  │  │  Manager  │   │ │  │  Manager  │   │ │  │  Manager  │   │ │
-│  │  └─────┬──────┘  │ │  └─────┬──────┘  │ │  └─────┬──────┘  │ │
-│  │        │         │ │        │         │ │        │         │ │
-│  │  ┌─────▼─────┐   │ │  ┌─────▼─────┐   │ │  ┌─────▼─────┐   │ │
-│  │  │ Telemetry │   │ │  │ Telemetry │   │ │  │ Telemetry │   │ │
-│  │  │  Monitor  │   │ │  │  Monitor  │   │ │  │  Monitor  │   │ │
-│  │  └────────────┘  │ │  └────────────┘  │ │  └────────────┘  │ │
-│  │                  │ │                  │ │                  │ │
-│  └────────┬─────────┘ └────────┬─────────┘ └────────┬─────────┘ │
-│           │                    │                    │           │
-└───────────┼────────────────────┼────────────────────┼───────────┘
-            │                    │                    │
-            └────────────────────┴────────────────────┘
-                           │
-                           ▼
-                ┌────────────────────┐
-                │  Docker Engine     │
-                │  (Container Runtime)│
-                └────────────────────┘
-                           │
-                           ▼
-                ┌────────────────────┐
-                │ Docker Hub/Registry│
-                │  (Task Images)     │
-                └────────────────────┘
-```
+![High-Level Architecture](Diagrams/high-level-architecture.png)
+
+The CloudAI system follows a master-worker distributed architecture:
+
+- **User Interfaces**: CLI Tool, Web Dashboard (React/Vite), REST API
+- **Master Node (Go)**: Central coordinator handling task scheduling, worker management, and client requests
+- **Worker Nodes (Go)**: Distributed execution nodes running Docker containers
+- **Docker Engine**: Container runtime for task execution
+- **MongoDB**: Persistent storage for tasks, workers, results, and metadata
 
 ## Component Details
 
 ### Master Node Components
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                       Master Node                               │
-│                                                                 │
-│  ┌────────────────────────────────────────────────────────┐     │
-│  │              CLI Interface (internal/cli/)              │     │
-│  │  - Interactive command prompt (readline-based)         │     │
-│  │  - Task submission: task, dispatch commands            │     │
-│  │  - Worker management: workers, register, unregister    │     │
-│  │  - Monitoring: status, stats, monitor, queue           │     │
-│  │  - File operations: files, task-files, download        │     │
-│  │  - Resource management: fix-resources, internal-state  │     │
-│  └──────────────────────┬─────────────────────────────────┘     │
-│                         │                                       │
-│  ┌──────────────────────▼─────────────────────────────────┐     │
-│  │         HTTP/WebSocket Server (internal/http/)          │     │
-│  │  REST Endpoints:                                        │     │
-│  │  - Authentication: /api/auth/register, /api/auth/login │     │
-│  │  - Tasks: /api/tasks (CRUD operations)                 │     │
-│  │  - Workers: /api/workers (list, details, metrics)      │     │
-│  │  - Files: /api/files (list, download with access ctrl) │     │
-│  │  - Telemetry: /telemetry, /health                      │     │
-│  │  WebSocket:                                             │     │
-│  │  - /ws/telemetry - Real-time streaming                 │     │
-│  │  - /ws/telemetry/{workerID} - Per-worker streaming     │     │
-│  └──────────────────────┬─────────────────────────────────┘     │
-│                         │                                       │
-│  ┌──────────────────────▼─────────────────────────────────┐     │
-│  │           gRPC Server (internal/server/)               │     │
-│  │  Worker → Master RPCs:                                 │     │
-│  │  - RegisterWorker() - Worker registration              │     │
-│  │  - SendHeartbeat() - Periodic health updates           │     │
-│  │  - ReportTaskCompletion() - Task results               │     │
-│  │  - UploadTaskFiles() - File streaming from workers     │     │
-│  │  Master → Worker RPCs:                                 │     │
-│  │  - AssignTask() - Send task to worker                  │     │
-│  │  - CancelTask() - Request task cancellation            │     │
-│  │  - StreamTaskLogs() - Live log streaming               │     │
-│  │  - MasterRegister() - Master registration with worker  │     │
-│  └──────────────────────┬─────────────────────────────────┘     │
-│                         │                                       │
-│  ┌──────────────────────▼─────────────────────────────────┐     │
-│  │        Scheduler (internal/scheduler/)                 │     │
-│  │  - Scheduler interface for pluggable algorithms        │     │
-│  │  - Round-Robin scheduler (current implementation)      │     │
-│  │  - Resource-aware worker selection                     │     │
-│  │  - Active worker filtering                             │     │
-│  └──────────────────────┬─────────────────────────────────┘     │
-│                         │                                       │
-│  ┌──────────────────────▼─────────────────────────────────┐     │
-│  │       Telemetry Manager (internal/telemetry/)          │     │
-│  │  - Per-worker thread-safe data structures              │     │
-│  │  - WebSocket connection management                     │     │
-│  │  - Real-time data broadcasting                         │     │
-│  │  - Telemetry aggregation and caching                   │     │
-│  └──────────────────────┬─────────────────────────────────┘     │
-│                         │                                       │
-│  ┌──────────────────────▼─────────────────────────────────┐     │
-│  │        File Storage (internal/storage/)                │     │
-│  │  - Secure file storage with access control             │     │
-│  │  - Per-user, per-task file organization                │     │
-│  │  - File upload/download handlers                       │     │
-│  │  - File metadata tracking                              │     │
-│  └──────────────────────┬─────────────────────────────────┘     │
-│                         │                                       │
-│  ┌──────────────────────▼─────────────────────────────────┐     │
-│  │          Database Layer (internal/db/)                 │     │
-│  │  Collections:                                           │     │
-│  │  - USERS: User accounts and authentication             │     │
-│  │  - WORKER_REGISTRY: Worker registration data           │     │
-│  │  - TASKS: Task definitions and status                  │     │
-│  │  - ASSIGNMENTS: Task-to-worker assignments             │     │
-│  │  - RESULTS: Task execution results and logs            │     │
-│  │  - FILE_METADATA: File storage metadata                │     │
-│  └────────────────────────────────────────────────────────┘     │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Master Node](Diagrams/master-node.png)
+
+| Component | Location | Description |
+|-----------|----------|-------------|
+| CLI Interface | `internal/cli/` | Interactive readline-based command prompt for task submission, worker management, monitoring, and file operations |
+| HTTP/WebSocket Server | `internal/http/` | REST API endpoints for tasks, workers, files, auth; WebSocket for real-time telemetry |
+| gRPC Server | `internal/server/` | Worker ↔ Master communication: registration, heartbeats, task assignment, file uploads |
+| Scheduler | `internal/scheduler/` | Pluggable scheduling algorithms (Round-Robin implemented) with resource-aware worker selection |
+| Telemetry Manager | `internal/telemetry/` | Per-worker telemetry data, WebSocket broadcasting, real-time monitoring |
+| File Storage | `internal/storage/` | Secure file storage with per-user/per-task isolation and access control |
+| Database Layer | `internal/db/` | MongoDB operations for users, workers, tasks, assignments, results, file metadata |
 
 ### Worker Node Components
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                       Worker Node                               │
-│                                                                 │
-│  ┌────────────────────────────────────────────────────────┐     │
-│  │          gRPC Server (internal/server/)                │     │
-│  │  Inbound RPCs from Master:                             │     │
-│  │  - AssignTask() - Receive task assignments             │     │
-│  │  - CancelTask() - Handle cancellation requests         │     │
-│  │  - StreamTaskLogs() - Stream live logs to master       │     │
-│  │  Outbound RPCs to Master:                              │     │
-│  │  - RegisterWorker() - Register on startup              │     │
-│  │  - SendHeartbeat() - Periodic health updates           │     │
-│  │  - ReportTaskCompletion() - Report task results        │     │
-│  │  - UploadTaskFiles() - Upload output files             │     │
-│  └──────────────────────┬─────────────────────────────────┘     │
-│                         │                                       │
-│  ┌──────────────────────▼─────────────────────────────────┐     │
-│  │       Task Executor (internal/executor/)               │     │
-│  │  - Docker client management                            │     │
-│  │  - Image pulling from registries                       │     │
-│  │  - Container creation with resource limits             │     │
-│  │  - Container lifecycle management                      │     │
-│  │  - Output directory handling (/output)                 │     │
-│  │  - Log streaming integration                           │     │
-│  │  - Container cleanup                                   │     │
-│  └──────────────────────┬─────────────────────────────────┘     │
-│                         │                                       │
-│  ┌──────────────────────▼─────────────────────────────────┐     │
-│  │      Log Stream Manager (internal/logstream/)          │     │
-│  │  - Real-time log broadcasting                          │     │
-│  │  - Log buffer management                               │     │
-│  │  - Multi-subscriber support                            │     │
-│  │  - Log persistence for completed tasks                 │     │
-│  └──────────────────────┬─────────────────────────────────┘     │
-│                         │                                       │
-│  ┌──────────────────────▼─────────────────────────────────┐     │
-│  │       Telemetry Monitor (internal/telemetry/)          │     │
-│  │  - System metrics collection (CPU, Memory, GPU)        │     │
-│  │  - Periodic heartbeat sending (5s interval)            │     │
-│  │  - Running task tracking                               │     │
-│  │  - Master registration on startup                      │     │
-│  │  - Result reporting                                    │     │
-│  └────────────────────────────────────────────────────────┘     │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Worker Node](Diagrams/worker-node.png)
+
+| Component | Location | Description |
+|-----------|----------|-------------|
+| gRPC Server | `internal/server/` | Handles task assignments, cancellations, log streaming from master |
+| Task Executor | `internal/executor/` | Docker client management, image pulling, container lifecycle, resource limits |
+| Log Stream Manager | `internal/logstream/` | Real-time log broadcasting, buffer management, multi-subscriber support |
+| Telemetry Monitor | `internal/telemetry/` | System metrics (CPU, Memory, GPU), heartbeats (5s interval), result reporting |
 
 ### Web UI Components
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Web Dashboard (React/Vite)                   │
-│                                                                 │
-│  ┌────────────────────────────────────────────────────────┐     │
-│  │                Authentication Layer                     │     │
-│  │  - JWT-based authentication                            │     │
-│  │  - Login/Register pages                                │     │
-│  │  - Protected route wrapper                             │     │
-│  │  - Auth context provider                               │     │
-│  └──────────────────────┬─────────────────────────────────┘     │
-│                         │                                       │
-│  ┌──────────────────────▼─────────────────────────────────┐     │
-│  │                   Page Components                       │     │
-│  │  - Dashboard: Cluster overview and statistics          │     │
-│  │  - TasksPage: Task list with filtering and logs        │     │
-│  │  - WorkersPage: Worker status and resource usage       │     │
-│  │  - SubmitTaskPage: Task submission with tag/k-value    │     │
-│  └──────────────────────┬─────────────────────────────────┘     │
-│                         │                                       │
-│  ┌──────────────────────▼─────────────────────────────────┐     │
-│  │                   API Integration                       │     │
-│  │  - Axios HTTP client for REST APIs                     │     │
-│  │  - WebSocket client for real-time telemetry            │     │
-│  │  - Custom hooks: useRealTimeTasks, useTelemetry        │     │
-│  └────────────────────────────────────────────────────────┘     │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Web UI](Diagrams/web-ui.png)
+
+| Component | Location | Description |
+|-----------|----------|-------------|
+| Authentication | `src/context/`, `src/pages/auth/` | JWT-based auth, login/register pages, protected routes |
+| Page Components | `src/pages/` | Dashboard, TasksPage, WorkersPage, SubmitTaskPage |
+| API Integration | `src/api/`, `src/hooks/` | Axios HTTP client, WebSocket client, custom hooks |
 
 ## Communication Flow
 
 ### 1. Worker Registration
 
-```
-Worker                    Master
-  │                         │
-  │──RegisterWorker────────▶│
-  │   (WorkerInfo:          │
-  │    worker_id,           │
-  │    worker_ip,           │──┐
-  │    total_cpu,           │  │ Store worker info
-  │    total_memory,        │  │ in DB + memory
-  │    total_storage,       │◀─┘
-  │    total_gpu)           │
-  │                         │
-  │◀────RegisterAck─────────│
-  │   (success: true)       │
-  │                         │
-  │◀───MasterRegister───────│
-  │   (master_id,           │
-  │    master_address)      │
-  │                         │
-```
+![Worker Registration](Diagrams/worker-registration.png)
+
+1. Worker sends `RegisterWorker()` with WorkerInfo (worker_id, worker_ip, total_cpu, total_memory, total_storage, total_gpu)
+2. Master stores worker info in database and memory
+3. Master responds with `RegisterAck(success: true)`
+4. Master sends `MasterRegister()` to worker with master_id and master_address
 
 ### 2. Heartbeat Monitoring
 
-```
-Worker                    Master                TelemetryManager
-  │                         │                         │
-  ├──┐                      │                         │
-  │  │ Every 5s             │                         │
-  │◀─┘                      │                         │
-  │                         │                         │
-  │──SendHeartbeat─────────▶│                         │
-  │   (worker_id,           │                         │
-  │    cpu_usage,           │─────────────────────────▶│
-  │    memory_usage,        │   Update worker         │
-  │    gpu_usage,           │   telemetry data        │
-  │    running_tasks[])     │                         │
-  │                         │◀────────────────────────│
-  │                         │                         │
-  │◀────HeartbeatAck────────│                         │
-  │                         │                         │
-  │                         │─────WebSocket Push─────▶│ Clients
-  │                         │                         │
-```
+![Heartbeat](Diagrams/heartbeat.png)
+
+1. Worker sends `SendHeartbeat()` every 5 seconds with telemetry data (worker_id, cpu_usage, memory_usage, gpu_usage, running_tasks[])
+2. Master updates TelemetryManager with worker data
+3. Master responds with `HeartbeatAck`
+4. TelemetryManager pushes updates to WebSocket clients
 
 ### 3. Task Assignment and Execution
 
-```
-User      Master         Scheduler        Worker          Docker
-  │         │               │               │                │
-  │─task───▶│               │               │                │
-  │  cmd    │               │               │                │
-  │         │──SelectWorker▶│               │                │
-  │         │   (task,      │               │                │
-  │         │    workers)   │               │                │
-  │         │◀──workerID────│               │                │
-  │         │               │               │                │
-  │         │───────AssignTask─────────────▶│                │
-  │         │   (Task: task_id,             │                │
-  │         │    docker_image,              │                │
-  │         │    command,                   │                │
-  │         │    req_cpu, req_memory,       │                │
-  │         │    req_gpu, user_id,          │                │
-  │         │    task_name)                 │                │
-  │         │                               │                │
-  │         │◀──────────TaskAck─────────────│                │
-  │         │                               │                │
-  │◀─ack────│                               │──Pull Image───▶│
-  │         │                               │                │
-  │         │                               │◀──Image────────│
-  │         │                               │                │
-  │         │                               │──Create Container─▶│
-  │         │                               │  (with resource     │
-  │         │                               │   limits)           │
-  │         │                               │                │
-  │         │                               │◀──Container ID──│
-  │         │                               │                │
-  │         │◀──StreamTaskLogs──────────────│◀──Logs─────────│
-  │         │   (live streaming)            │                │
-  │         │                               │                │
-  │         │                               │◀──Exit Code────│
-  │         │                               │                │
-  │         │                               │──Cleanup───────▶│
-  │         │                               │                │
-  │         │◀─ReportTaskCompletion─────────│                │
-  │         │   (TaskResult: task_id,       │                │
-  │         │    worker_id, status,         │                │
-  │         │    logs, output_files[])      │                │
-  │         │                               │                │
-  │         │◀──UploadTaskFiles─────────────│                │
-  │         │   (FileChunk stream)          │                │
-  │         │                               │                │
-  │         │──────Ack─────────────────────▶│                │
-  │         │                               │                │
-  │◀─logs───│                               │                │
-  │  output │                               │                │
-  │         │                               │                │
-```
+![Task Execution](Diagrams/task-execution.png)
+
+**Task Submission Phase:**
+1. User submits task via CLI/REST/Web UI
+2. Master's Scheduler selects appropriate worker based on resources
+3. Master sends `AssignTask()` to selected worker with Task details (task_id, docker_image, command, req_cpu, req_memory, req_gpu, user_id, task_name)
+4. Worker acknowledges with `TaskAck`
+5. Master confirms submission to user
+
+**Task Execution Phase:**
+1. Worker pulls Docker image from registry
+2. Worker creates container with resource limits
+3. Worker starts container and begins execution
+4. Worker streams logs to Master via `StreamTaskLogs()`
+5. Container completes with exit code
+6. Worker cleans up container
+
+**Result Reporting Phase:**
+1. Worker sends `ReportTaskCompletion()` with TaskResult (task_id, worker_id, status, logs, output_files[])
+2. Worker uploads output files via `UploadTaskFiles()` (FileChunk stream)
+3. Master stores results and files in database
+4. Master acknowledges completion to worker
+5. Results available to user
 
 ### 4. Task Queuing Flow
 
-```
-User         Master              TaskQueue         Worker
-  │            │                     │               │
-  │──Submit───▶│                     │               │
-  │   Task     │                     │               │
-  │            │─Check Resources────▶│               │
-  │            │                     │               │
-  │            │◀─No Worker Avail────│               │
-  │            │                     │               │
-  │            │──Add to Queue──────▶│               │
-  │            │                     │               │
-  │◀─Queued────│                     │               │
-  │  Position  │                     │               │
-  │            │                     │               │
-  │            │     [Worker becomes available]      │
-  │            │                     │               │
-  │            │◀──Process Queue─────│               │
-  │            │                     │               │
-  │            │────────AssignTask──────────────────▶│
-  │            │                     │               │
-```
+![Task Queuing](Diagrams/task-queuing.png)
+
+When no worker is available:
+1. User submits task
+2. Master checks resources via TaskQueue
+3. If no worker available, task is added to queue
+4. User receives queued position
+5. When worker becomes available, TaskQueue triggers processing
+6. Master assigns task to available worker
 
 ## Data Flow
 
 ### Task Lifecycle
 
-```
-┌──────────────┐
-│ Task Created │ (CLI/REST API/Web UI)
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│Task Queued   │ (If no worker available)
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│Task Assigned │ (Scheduler selects worker → gRPC AssignTask)
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│ Image Pulled │ (Worker → Docker Registry)
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│ Container    │ (Created with resource limits)
-│   Created    │
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│   Running    │ (Docker Container + Log Streaming)
-└──────┬───────┘
-       │
-       ├─────────────┐
-       │             │
-       ▼             ▼
-┌──────────┐  ┌──────────┐
-│ Success  │  │  Failed  │
-└────┬─────┘  └────┬─────┘
-     │             │
-     └──────┬──────┘
-            │
-            ▼
-   ┌────────────────┐
-   │ Collect Output │ (Files from /output directory)
-   └────────┬───────┘
-            │
-            ▼
-   ┌────────────────┐
-   │ Upload Files   │ (Worker → Master via gRPC stream)
-   └────────┬───────┘
-            │
-            ▼
-   ┌────────────────┐
-   │ Report Result  │ (Worker → Master gRPC)
-   └────────┬───────┘
-            │
-            ▼
-   ┌────────────────┐
-   │ Store in DB    │ (Master → MongoDB)
-   └────────────────┘
-```
+![Task Lifecycle](Diagrams/task-lifecycle.png)
+
+| State | Description |
+|-------|-------------|
+| Created | Task submitted via CLI/REST API/Web UI |
+| Queued | No worker available, waiting in queue |
+| Assigned | Scheduler selected worker, gRPC AssignTask sent |
+| ImagePulled | Worker pulled image from Docker Registry |
+| ContainerCreated | Container created with resource limits |
+| Running | Docker container executing + log streaming active |
+| Success/Failed | Container exited (code 0 = success, else failed) |
+| CollectOutput | Files collected from /output directory |
+| UploadFiles | Worker → Master via gRPC streaming |
+| ReportResult | gRPC ReportTaskCompletion sent |
+| Stored | Results persisted in MongoDB |
 
 ### File Storage Flow
 
-```
-┌─────────────────┐
-│ Task Completes  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Worker collects │
-│ /output files   │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ UploadTaskFiles │ (gRPC streaming)
-│ FileChunk:      │
-│  - task_id      │
-│  - user_id      │
-│  - file_path    │
-│  - data chunks  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Master stores   │
-│ files in:       │
-│ /files/{user}/  │
-│   {task_id}/    │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ File metadata   │
-│ saved to DB     │
-└─────────────────┘
-```
+![File Storage](Diagrams/file-storage.png)
+
+1. Task completes in container
+2. Worker collects files from `/output` directory
+3. Worker sends `UploadTaskFiles()` (gRPC streaming) with FileChunk (task_id, user_id, file_path, data chunks)
+4. Master stores files in `/files/{user}/{task_id}/`
+5. Master saves file metadata to database
 
 ## Network Architecture
 
+![Network](Diagrams/network.png)
+
 ### Port Assignments
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                  Network Layout                                 │
-│                                                                 │
-│  Master Node:                                                   │
-│    ├─ gRPC Server:     0.0.0.0:50051                           │
-│    ├─ HTTP/WS Server:  0.0.0.0:8080                            │
-│    │   ├─ REST API:    /api/tasks, /api/workers, /api/files   │
-│    │   ├─ Auth:        /api/auth/login, /api/auth/register    │
-│    │   ├─ Telemetry:   /telemetry, /health                    │
-│    │   └─ WebSocket:   /ws/telemetry, /ws/telemetry/{id}      │
-│    └─ MongoDB:         localhost:27017                         │
-│                                                                 │
-│  Worker Node 1:                                                 │
-│    └─ gRPC Server:     0.0.0.0:50052                           │
-│                                                                 │
-│  Worker Node 2:                                                 │
-│    └─ gRPC Server:     0.0.0.0:50053                           │
-│                                                                 │
-│  Worker Node N:                                                 │
-│    └─ gRPC Server:     0.0.0.0:5005N                           │
-│                                                                 │
-│  Web UI (Development):                                          │
-│    └─ Vite Dev Server: localhost:3000                          │
-│                                                                 │
-│  External Services:                                             │
-│    ├─ Docker Hub:      registry.hub.docker.com:443             │
-│    └─ Docker Engine:   unix:///var/run/docker.sock             │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Component | Port | Description |
+|-----------|------|-------------|
+| Master gRPC | 0.0.0.0:50051 | Worker communication |
+| Master HTTP/WS | 0.0.0.0:8080 | REST API, WebSocket, Auth |
+| MongoDB | localhost:27017 | Database |
+| Worker 1 gRPC | 0.0.0.0:50052 | Task execution |
+| Worker 2 gRPC | 0.0.0.0:50053 | Task execution |
+| Worker N gRPC | 0.0.0.0:5005N | Task execution |
+| Web UI (Dev) | localhost:3000 | Vite dev server |
+
+### REST API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `/api/auth/register` | User registration |
+| `/api/auth/login` | User authentication |
+| `/api/tasks` | Task CRUD operations |
+| `/api/workers` | Worker list, details, metrics |
+| `/api/files` | File list, download with access control |
+| `/telemetry`, `/health` | System telemetry and health checks |
+| `/ws/telemetry` | Real-time telemetry streaming |
+| `/ws/telemetry/{id}` | Per-worker telemetry streaming |
 
 ### Protocol Stack
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Protocol Architecture                        │
-│                                                                 │
-│  Layer 7 (Application):                                         │
-│    ├─ gRPC (Master ↔ Worker)                                   │
-│    │   └─ Protobuf messages (master_worker.proto)              │
-│    ├─ HTTP/REST (Clients → Master)                             │
-│    │   └─ JSON payloads                                        │
-│    ├─ WebSocket (Real-time telemetry)                          │
-│    │   └─ JSON messages                                        │
-│    └─ JWT (Authentication tokens)                               │
-│                                                                 │
-│  Layer 4 (Transport):                                           │
-│    ├─ HTTP/2 (gRPC)                                            │
-│    └─ HTTP/1.1 + WebSocket Upgrade                             │
-│                                                                 │
-│  Future: TLS/mTLS for secure communication                      │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Layer | Protocols |
+|-------|-----------|
+| Layer 7 (Application) | gRPC (Protobuf), HTTP/REST (JSON), WebSocket (JSON), JWT |
+| Layer 4 (Transport) | HTTP/2 (gRPC), HTTP/1.1 + WebSocket Upgrade |
 
 ## Scalability Model
 
 ### Horizontal Scaling
 
-```
-                    ┌──────────────┐
-                    │    Master    │
-                    │  (Stateful)  │
-                    └──────┬───────┘
-                           │
-        ┌──────────────────┼──────────────────┐
-        │                  │                  │
-        ▼                  ▼                  ▼
-   ┌─────────┐       ┌─────────┐       ┌─────────┐
-   │Worker-1 │       │Worker-2 │  ...  │Worker-N │
-   │         │       │         │       │         │
-   │ 4 CPU   │       │ 8 CPU   │       │ 16 CPU  │
-   │ 8 GB    │       │ 16 GB   │       │ 32 GB   │
-   └─────────┘       └─────────┘       └─────────┘
+![Deployment](Diagrams/deployment.png)
 
-   Scale by adding more workers:
-   - Each worker independent
-   - No inter-worker communication
-   - Linear scalability
-```
-
-### Multi-Master (Future)
-
-```
-   ┌──────────┐         ┌──────────┐
-   │ Master-1 │◀───────▶│ Master-2 │
-   │ (Active) │  Sync   │(Standby) │
-   └────┬─────┘         └────┬─────┘
-        │                    │
-        │     Shared State   │
-        │          │         │
-        └──────────┼─────────┘
-                   ▼
-            ┌────────────┐
-            │  MongoDB   │
-            │ (Replica)  │
-            └────────────┘
-```
+- **Master**: Stateful, single instance (coordinates all workers)
+- **Workers**: Stateless, add more for increased capacity
+- **Scaling**: Linear scalability by adding workers
+- **Independence**: No inter-worker communication required
 
 ## Security Architecture
 
+![Security](Diagrams/security.png)
+
 ### Current Implementation
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│               Current Security Features                         │
-│                                                                 │
-│  ┌────────────────────────────────────────────────────────┐     │
-│  │         JWT Authentication (Implemented)                │     │
-│  │  - User registration and login                         │     │
-│  │  - JWT token generation and validation                 │     │
-│  │  - Configurable JWT_SECRET via environment             │     │
-│  │  - Token expiration handling                           │     │
-│  └────────────────────────────────────────────────────────┘     │
-│                                                                 │
-│  ┌────────────────────────────────────────────────────────┐     │
-│  │         File Access Control (Implemented)               │     │
-│  │  - Per-user file isolation                             │     │
-│  │  - Task ownership verification                         │     │
-│  │  - Access control on file operations                   │     │
-│  └────────────────────────────────────────────────────────┘     │
-│                                                                 │
-│  ┌────────────────────────────────────────────────────────┐     │
-│  │         CORS Configuration (Implemented)                │     │
-│  │  - Configurable allowed origins                        │     │
-│  │  - Preflight request handling                          │     │
-│  └────────────────────────────────────────────────────────┘     │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Future Security Enhancements
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│            Planned Security Features                            │
-│                                                                 │
-│  Client ◀──TLS 1.3──▶ Master ◀──TLS 1.3──▶ Worker              │
-│           (mTLS)                 (mTLS)                         │
-│                                                                 │
-│  ┌────────────────────────────────────────────────────────┐     │
-│  │         Enhanced Authentication                         │     │
-│  │  - API keys for programmatic access                    │     │
-│  │  - Worker certificates                                 │     │
-│  │  - OAuth2 integration                                  │     │
-│  └────────────────────────────────────────────────────────┘     │
-│                                                                 │
-│  ┌────────────────────────────────────────────────────────┐     │
-│  │         Authorization Layer                             │     │
-│  │  - Role-based access control (RBAC)                    │     │
-│  │  - Resource quotas per user                            │     │
-│  │  - Task permissions and isolation                      │     │
-│  └────────────────────────────────────────────────────────┘     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Feature | Description |
+|---------|-------------|
+| JWT Authentication | User registration/login, token generation/validation, configurable JWT_SECRET, token expiration |
+| File Access Control | Per-user file isolation, task ownership verification, access control on operations |
+| CORS Configuration | Configurable allowed origins, preflight request handling |
 
 ## Deployment Topologies
 
 ### Single Machine (Development)
 
 ```
-┌────────────────────────────────────────────┐
-│          localhost                          │
-│                                            │
-│  ┌──────────┐                              │
-│  │  Master  │  127.0.0.1:50051            │
-│  └──────────┘                              │
-│       ▲                                    │
-│       │                                    │
-│  ┌────┴──────┐                             │
-│  │  Worker   │  127.0.0.1:50052           │
-│  └───────────┘                             │
-│       │                                    │
-│  ┌────▼──────┐                             │
-│  │  Docker   │  /var/run/docker.sock      │
-│  └───────────┘                             │
-│                                            │
-└────────────────────────────────────────────┘
+localhost
+├── Master (127.0.0.1:50051)
+├── Worker (127.0.0.1:50052)
+└── Docker (/var/run/docker.sock)
 ```
 
 ### Multi-Machine (Production)
 
 ```
-┌──────────────────┐
-│  Master Server   │
-│  10.0.1.10:50051│
-└────────┬─────────┘
-         │
-    ┌────┴────────────────┐
-    │                     │
-┌───▼────────┐    ┌──────▼──────┐
-│  Worker-1  │    │  Worker-2   │
-│ 10.0.1.20  │    │ 10.0.1.30   │
-│ :50052     │    │ :50052      │
-└────────────┘    └─────────────┘
-```
-
-### Cloud Deployment
-
-```
-┌─────────────────────────────────────────────┐
-│              Cloud Provider                  │
-│  ┌──────────────────────────────────────┐  │
-│  │         Virtual Network              │  │
-│  │  ┌────────────────────────────────┐  │  │
-│  │  │      Master VM                 │  │  │
-│  │  │  - Public IP: xxx.xxx.xxx.xxx │  │  │
-│  │  │  - Private IP: 10.0.1.10      │  │  │
-│  │  └────────────────────────────────┘  │  │
-│  │              ▲                        │  │
-│  │              │                        │  │
-│  │  ┌───────────┴───────────┐          │  │
-│  │  │                       │          │  │
-│  │  ▼                       ▼          │  │
-│  │  ┌──────────┐     ┌──────────┐    │  │
-│  │  │Worker VM1│     │Worker VM2│    │  │
-│  │  │10.0.1.20 │     │10.0.1.30 │    │  │
-│  │  └──────────┘     └──────────┘    │  │
-│  └────────────────────────────────────┘  │
-└─────────────────────────────────────────────┘
-```
-
-## Future Architecture Extensions
-
-### With AI Agent (proto/master_agent.proto)
-
-```
-┌────────────┐
-│  Master    │◀─────gRPC─────┐
-│   (Go)     │  FetchCluster │
-└─────┬──────┘  State        │
-      │                ┌─────┴──────┐
-      │                │ AI Agent   │
-      │                │  (Python)  │
-      │                │            │
-      │                │ Analyzes:  │
-      │                │ - Workers  │
-      │                │ - Tasks    │
-      │                │ - Resources│
-      │                └─────┬──────┘
-      │                      │
-      │◀─SubmitAssignments───┘
-      │   (Task → Worker)
-      ▼
-┌────────────┐
-│  Workers   │
-│ (Pool of N)│   AI-Optimized
-└────────────┘   Scheduling
-```
-
-### Web Dashboard (Implemented)
-
-```
-┌────────────────────┐
-│     Browser        │
-│  (React + Vite)    │
-└─────────┬──────────┘
-          │ HTTP/WebSocket
-          ▼
-┌────────────────────┐
-│   Master Node      │
-│   HTTP Server      │
-│   (Port 8080)      │
-│                    │
-│  - REST API        │
-│  - WebSocket       │
-│  - Auth endpoints  │
-└─────────┬──────────┘
-          │ gRPC
-          ▼
-┌────────────────────┐
-│   Workers          │
-└────────────────────┘
-```
-
-## Monitoring Architecture (Future)
-
-```
-┌─────────────────────────────────────────┐
-│          Monitoring Stack                │
-│                                         │
-│  Workers ──▶ Prometheus ──▶ Grafana    │
-│    │            │              │        │
-│    │            ▼              ▼        │
-│    │         AlertManager   Dashboard   │
-│    │                                    │
-│    └──▶ Logs ──▶ Loki ──▶ Grafana     │
-│                                         │
-└─────────────────────────────────────────┘
+Master Server (10.0.1.10:50051)
+├── Worker-1 (10.0.1.20:50052)
+└── Worker-2 (10.0.1.30:50052)
 ```
 
 ---
@@ -771,98 +225,179 @@ User         Master              TaskQueue         Worker
 
 ```
 CloudAI/
-├── master/                      # Master Node (Go)
-│   ├── main.go                  # Entry point
-│   ├── go.mod                   # Go module definition
+├── master/                          # Master Node (Go)
+│   ├── main.go                      # Entry point
+│   ├── go.mod                       # Go module definition
+│   ├── go.sum                       # Go dependencies checksum
+│   ├── .env                         # Environment variables
+│   ├── .env.example                 # Environment template
 │   └── internal/
-│       ├── cli/                 # Interactive CLI (readline-based)
-│       ├── config/              # Configuration management
-│       ├── db/                  # MongoDB database operations
-│       │   ├── init.go          # Collection setup
-│       │   ├── tasks.go         # Task CRUD
-│       │   ├── workers.go       # Worker registry
-│       │   ├── assignments.go   # Task assignments
-│       │   ├── results.go       # Task results
-│       │   ├── users.go         # User management
-│       │   └── file_metadata.go # File tracking
-│       ├── http/                # HTTP/WebSocket handlers
-│       │   ├── task_handler.go  # Task REST API
-│       │   ├── worker_handler.go# Worker REST API
-│       │   ├── file_handler.go  # File REST API
-│       │   ├── auth_handler.go  # JWT authentication
-│       │   ├── middleware.go    # CORS, auth middleware
-│       │   └── telemetry_server.go # WebSocket telemetry
-│       ├── scheduler/           # Task scheduling
-│       │   ├── scheduler.go     # Scheduler interface
-│       │   └── round_robin.go   # Round-robin implementation
-│       ├── server/              # gRPC server implementation
-│       │   ├── master_server.go # Main server logic
-│       │   └── log_streaming_helper.go # Log stream helpers
-│       ├── storage/             # File storage service
-│       │   ├── file_storage.go  # File operations
-│       │   ├── file_storage_secure.go # Secure file storage
-│       │   └── access_control.go# File access control
-│       ├── system/              # System utilities
-│       └── telemetry/           # Telemetry management
+│       ├── cli/
+│       │   └── cli.go               # Interactive CLI
+│       ├── config/
+│       │   └── config.go            # Configuration management
+│       ├── db/
+│       │   ├── init.go              # Database initialization
+│       │   ├── tasks.go             # Task CRUD operations
+│       │   ├── tasks_test.go        # Task tests
+│       │   ├── workers.go           # Worker registry
+│       │   ├── assignments.go       # Task-worker assignments
+│       │   ├── results.go           # Task execution results
+│       │   ├── users.go             # User management
+│       │   └── file_metadata.go     # File metadata tracking
+│       ├── http/
+│       │   ├── task_handler.go      # Task REST API
+│       │   ├── worker_handler.go    # Worker REST API
+│       │   ├── file_handler.go      # File REST API
+│       │   ├── auth_handler.go      # JWT authentication
+│       │   ├── middleware.go        # CORS, auth middleware
+│       │   └── telemetry_server.go  # WebSocket telemetry
+│       ├── scheduler/
+│       │   ├── scheduler.go         # Scheduler interface
+│       │   └── round_robin.go       # Round-robin implementation
+│       ├── server/
+│       │   ├── master_server.go     # gRPC server logic
+│       │   └── log_streaming_helper.go
+│       ├── storage/
+│       │   ├── file_storage.go      # File operations
+│       │   ├── file_storage_secure.go
+│       │   ├── access_control.go    # File access control
+│       │   └── access_control_test.go
+│       ├── system/
+│       │   └── system.go            # System utilities
+│       └── telemetry/
+│           └── telemetry_manager.go # Telemetry management
 │
-├── worker/                      # Worker Node (Go)
-│   ├── main.go                  # Entry point
-│   ├── go.mod                   # Go module definition
+├── worker/                          # Worker Node (Go)
+│   ├── main.go                      # Entry point
+│   ├── go.mod                       # Go module definition
+│   ├── go.sum                       # Go dependencies checksum
 │   └── internal/
-│       ├── executor/            # Docker task executor
-│       ├── logstream/           # Log streaming
-│       │   ├── log_manager.go   # Log management
-│       │   └── log_broadcaster.go # Multi-client broadcast
-│       ├── server/              # gRPC server
-│       ├── system/              # System metrics
-│       └── telemetry/           # Heartbeat sending
+│       ├── executor/
+│       │   └── executor.go          # Docker task executor
+│       ├── logstream/
+│       │   ├── log_manager.go       # Log management
+│       │   └── log_broadcaster.go   # Multi-client broadcast
+│       ├── server/
+│       │   └── worker_server.go     # gRPC server
+│       ├── system/
+│       │   └── system.go            # System metrics
+│       └── telemetry/
+│           └── telemetry.go         # Heartbeat & telemetry
 │
-├── proto/                       # Protocol Buffers
-│   ├── master_worker.proto      # Master ↔ Worker communication
-│   ├── master_agent.proto       # Master ↔ AI Agent (future)
-│   ├── generate.sh              # Code generation script
-│   ├── pb/                      # Generated Go code
-│   └── py/                      # Generated Python code
+├── proto/                           # Protocol Buffers
+│   ├── master_worker.proto          # Master ↔ Worker communication
+│   ├── master_agent.proto           # Master ↔ Agent communication
+│   ├── generate.sh                  # Code generation script
+│   ├── pb/                          # Generated Go code
+│   │   ├── master_worker.pb.go
+│   │   ├── master_worker_grpc.pb.go
+│   │   ├── master_agent.pb.go
+│   │   └── master_agent_grpc.pb.go
+│   └── py/                          # Generated Python code
+│       ├── __init__.py
+│       ├── master_agent_pb2.py
+│       └── master_agent_pb2_grpc.py
 │
-├── ui/                          # Web Dashboard (React)
-│   ├── src/
-│   │   ├── api/                 # API clients
-│   │   ├── components/          # React components
-│   │   ├── context/             # Auth context
-│   │   ├── hooks/               # Custom hooks
-│   │   ├── pages/               # Page components
-│   │   ├── styles/              # CSS styles
-│   │   └── utils/               # Utilities
-│   ├── package.json             # npm dependencies
-│   └── vite.config.js           # Vite configuration
+├── ui/                              # Web Dashboard (React/Vite)
+│   ├── index.html                   # HTML entry point
+│   ├── package.json                 # npm dependencies
+│   ├── package-lock.json            # npm lock file
+│   ├── vite.config.js               # Vite configuration
+│   └── src/
+│       ├── main.jsx                 # React entry point
+│       ├── App.jsx                  # Root component
+│       ├── api/
+│       │   ├── client.js            # Axios HTTP client
+│       │   ├── auth.js              # Auth API calls
+│       │   ├── tasks.js             # Task API calls
+│       │   ├── workers.js           # Worker API calls
+│       │   └── websocket.js         # WebSocket client
+│       ├── components/
+│       │   ├── WorkerRegistrationDialog.jsx
+│       │   ├── auth/
+│       │   │   └── ProtectedRoute.jsx
+│       │   ├── layout/
+│       │   │   ├── Navbar.jsx
+│       │   │   └── Sidebar.jsx
+│       │   └── tasks/
+│       │       ├── SubmitTask.jsx
+│       │       └── TaskLogsDialog.jsx
+│       ├── context/
+│       │   └── AuthContext.jsx      # Auth state management
+│       ├── hooks/
+│       │   ├── useRealTimeTasks.js
+│       │   ├── useTelemetry.js
+│       │   └── useWebSocket.js
+│       ├── pages/
+│       │   ├── Dashboard.jsx
+│       │   ├── TasksPage.jsx
+│       │   ├── WorkersPage.jsx
+│       │   ├── SubmitTaskPage.jsx
+│       │   └── auth/
+│       │       ├── LoginPage.jsx
+│       │       └── RegisterPage.jsx
+│       ├── styles/
+│       │   └── global.css
+│       └── utils/
+│           ├── constants.js
+│           └── formatters.js
 │
-├── database/                    # MongoDB Docker setup
-│   └── docker-compose.yml       # MongoDB container
+├── database/                        # Database Setup
+│   ├── docker-compose.yml           # MongoDB container
+│   └── README.md
 │
-├── docs/                        # Documentation
-│   ├── ARCHITECTURE.md          # This file
-│   ├── DOCUMENTATION.md         # Complete reference
-│   ├── GETTING_STARTED.md       # Quick start guide
-│   └── EXAMPLE.md               # Usage examples
+├── docs/                            # Documentation
+│   ├── ARCHITECTURE.md              # This file
+│   ├── DOCUMENTATION.md             # Complete reference
+│   ├── GETTING_STARTED.md           # Quick start guide
+│   ├── EXAMPLE.md                   # Usage examples
+│   └── Diagrams/                    # PlantUML diagrams
+│       ├── high-level-architecture.puml
+│       ├── high-level-architecture.png
+│       ├── master-node.puml
+│       ├── master-node.png
+│       ├── worker-node.puml
+│       ├── worker-node.png
+│       ├── web-ui.puml
+│       ├── web-ui.png
+│       ├── worker-registration.puml
+│       ├── worker-registration.png
+│       ├── heartbeat.puml
+│       ├── heartbeat.png
+│       ├── task-execution.puml
+│       ├── task-execution.png
+│       ├── task-queuing.puml
+│       ├── task-queuing.png
+│       ├── task-lifecycle.puml
+│       ├── task-lifecycle.png
+│       ├── file-storage.puml
+│       ├── file-storage.png
+│       ├── network.puml
+│       ├── network.png
+│       ├── deployment.puml
+│       ├── deployment.png
+│       ├── security.puml
+│       └── security.png
 │
-├── Makefile                     # Build automation
-├── requirements.txt             # Python dependencies (for future agent)
-├── runMaster.sh                 # Master startup script
-└── runWorker.sh                 # Worker startup script
+├── Makefile                         # Build automation
+├── README.md                        # Project README
+├── requirements.txt                 # Python dependencies
+├── runMaster.sh                     # Master startup script
+└── runWorker.sh                     # Worker startup script
 ```
 
 ---
 
+## Architecture Capabilities
+
 This architecture supports:
 
-- Horizontal scaling (add more workers)
-- Fault tolerance (worker failures handled gracefully)
-- Real-time monitoring (heartbeat system + WebSocket)
-- Flexible deployment (local to cloud)
-- Authentication (JWT-based user auth)
-- File management (secure upload/download)
-- Task queuing (when no workers available)
-- Web dashboard (React-based UI)
-- High availability (multi-master) - Planned
-- TLS encryption (secure communication) - Planned
-- Advanced scheduling (AI agent integration) - Planned
+- **Horizontal Scaling**: Add more workers for increased capacity
+- **Fault Tolerance**: Worker failures handled gracefully with task re-queuing
+- **Real-time Monitoring**: Heartbeat system + WebSocket telemetry
+- **Flexible Deployment**: Local development to cloud production
+- **Authentication**: JWT-based user authentication
+- **File Management**: Secure per-user/per-task file upload/download
+- **Task Queuing**: Automatic queuing when no workers available
+- **Web Dashboard**: React-based UI for monitoring and management

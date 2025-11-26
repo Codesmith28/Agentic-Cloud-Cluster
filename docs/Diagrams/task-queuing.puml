@@ -1,0 +1,28 @@
+@startuml task-queuing
+
+
+title Task Queuing Flow
+
+actor "User" as U
+participant "Master" as M
+participant "TaskQueue" as Q
+participant "Worker" as W
+
+U -> M : Submit Task
+M -> Q : Check Resources
+
+alt No Worker Available
+    Q --> M : No Worker Available
+    M -> Q : Add to Queue
+    M --> U : Queued (Position)
+    
+    ... Worker becomes available ...
+    
+    Q -> M : Process Queue
+    M -> W : AssignTask
+else Worker Available
+    M -> W : AssignTask
+    M --> U : Task Assigned
+end
+
+@enduml
