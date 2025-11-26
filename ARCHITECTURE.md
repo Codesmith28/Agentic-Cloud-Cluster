@@ -6,7 +6,7 @@
 
 ## High-Level Architecture
 
-![High-Level Architecture](Diagrams/high-level-architecture.png)
+![High-Level Architecture](docs/Diagrams/high-level-architecture.png)
 
 The CloudAI system follows a master-worker distributed architecture:
 
@@ -20,7 +20,7 @@ The CloudAI system follows a master-worker distributed architecture:
 
 ### Master Node Components
 
-![Master Node](Diagrams/master-node.png)
+![Master Node](docs/Diagrams/master-node.png)
 
 | Component | Location | Description |
 |-----------|----------|-------------|
@@ -34,7 +34,7 @@ The CloudAI system follows a master-worker distributed architecture:
 
 ### Worker Node Components
 
-![Worker Node](Diagrams/worker-node.png)
+![Worker Node](docs/Diagrams/worker-node.png)
 
 | Component | Location | Description |
 |-----------|----------|-------------|
@@ -45,7 +45,7 @@ The CloudAI system follows a master-worker distributed architecture:
 
 ### Web UI Components
 
-![Web UI](Diagrams/web-ui.png)
+![Web UI](docs/Diagrams/web-ui.png)
 
 | Component | Location | Description |
 |-----------|----------|-------------|
@@ -57,7 +57,7 @@ The CloudAI system follows a master-worker distributed architecture:
 
 ### 1. Worker Registration
 
-![Worker Registration](Diagrams/worker-registration.png)
+![Worker Registration](docs/Diagrams/worker-registration.png)
 
 1. Worker sends `RegisterWorker()` with WorkerInfo (worker_id, worker_ip, total_cpu, total_memory, total_storage, total_gpu)
 2. Master stores worker info in database and memory
@@ -66,7 +66,7 @@ The CloudAI system follows a master-worker distributed architecture:
 
 ### 2. Heartbeat Monitoring
 
-![Heartbeat](Diagrams/heartbeat.png)
+![Heartbeat](docs/Diagrams/heartbeat.png)
 
 1. Worker sends `SendHeartbeat()` every 5 seconds with telemetry data (worker_id, cpu_usage, memory_usage, gpu_usage, running_tasks[])
 2. Master updates TelemetryManager with worker data
@@ -75,7 +75,7 @@ The CloudAI system follows a master-worker distributed architecture:
 
 ### 3. Task Assignment and Execution
 
-![Task Execution](Diagrams/task-execution.png)
+![Task Execution](docs/Diagrams/task-execution.png)
 
 **Task Submission Phase:**
 1. User submits task via CLI/REST/Web UI
@@ -101,7 +101,7 @@ The CloudAI system follows a master-worker distributed architecture:
 
 ### 4. Task Queuing Flow
 
-![Task Queuing](Diagrams/task-queuing.png)
+![Task Queuing](docs/Diagrams/task-queuing.png)
 
 When no worker is available:
 1. User submits task
@@ -115,7 +115,7 @@ When no worker is available:
 
 ### Task Lifecycle
 
-![Task Lifecycle](Diagrams/task-lifecycle.png)
+![Task Lifecycle](docs/Diagrams/task-lifecycle.png)
 
 | State | Description |
 |-------|-------------|
@@ -133,7 +133,7 @@ When no worker is available:
 
 ### File Storage Flow
 
-![File Storage](Diagrams/file-storage.png)
+![File Storage](docs/Diagrams/file-storage.png)
 
 1. Task completes in container
 2. Worker collects files from `/output` directory
@@ -143,7 +143,7 @@ When no worker is available:
 
 ## Network Architecture
 
-![Network](Diagrams/network.png)
+![Network](docs/Diagrams/network.png)
 
 ### Port Assignments
 
@@ -181,7 +181,7 @@ When no worker is available:
 
 ### Horizontal Scaling
 
-![Deployment](Diagrams/deployment.png)
+![Deployment](docs/Diagrams/deployment.png)
 
 - **Master**: Stateful, single instance (coordinates all workers)
 - **Workers**: Stateless, add more for increased capacity
@@ -190,7 +190,7 @@ When no worker is available:
 
 ## Security Architecture
 
-![Security](Diagrams/security.png)
+![Security](docs/Diagrams/security.png)
 
 ### Current Implementation
 
