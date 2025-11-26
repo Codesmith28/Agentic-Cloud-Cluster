@@ -4,11 +4,14 @@ Beautiful React-based web interface for the CloudAI distributed task scheduler.
 
 ## Features
 
-✅ **Dashboard** - Real-time cluster overview with task and worker statistics
-✅ **Task Submission** - Submit Docker tasks with resource requirements
-✅ **Task Management** - View, monitor, and cancel tasks
-✅ **Worker Monitoring** - Real-time worker status and resource utilization
-✅ **Enhanced Task Model** - New tag classification and K-value priority system
+- **Dashboard** - Real-time cluster overview with task and worker statistics
+- **Task Submission** - Submit Docker tasks with resource requirements
+- **Task Management** - View, monitor, and cancel tasks
+- **Worker Monitoring** - Real-time worker status and resource utilization
+- **Task Logs Viewer** - View task execution logs in real-time
+- **Authentication** - User registration and JWT-based login
+- **Worker Registration** - Register new workers via UI
+- **Enhanced Task Model** - Tag classification and K-value priority system
 
 ## New Task Model Fields
 
@@ -79,15 +82,36 @@ VITE_WS_BASE_URL=ws://localhost:8080
 ```
 ui/
 ├── src/
-│   ├── api/           # API clients (tasks, workers, websocket)
-│   ├── components/    # React components
-│   │   ├── layout/    # Navbar, Sidebar
-│   │   └── tasks/     # SubmitTask (with tag & k-value)
-│   ├── pages/         # Page components
+│   ├── api/           # API clients
+│   │   ├── auth.js    # Authentication API
+│   │   ├── client.js  # Base HTTP client
+│   │   ├── tasks.js   # Task API
+│   │   ├── websocket.js # WebSocket client
+│   │   └── workers.js # Worker API
+│   ├── components/
+│   │   ├── auth/      # Auth components
+│   │   │   └── ProtectedRoute.jsx
+│   │   ├── layout/    # Layout components
+│   │   │   ├── Navbar.jsx
+│   │   │   └── Sidebar.jsx
+│   │   ├── tasks/     # Task components
+│   │   │   ├── SubmitTask.jsx
+│   │   │   └── TaskLogsDialog.jsx
+│   │   └── WorkerRegistrationDialog.jsx
+│   ├── context/
+│   │   └── AuthContext.jsx  # Auth state management
+│   ├── hooks/         # Custom React hooks
+│   │   ├── useRealTimeTasks.js
+│   │   ├── useTelemetry.js
+│   │   └── useWebSocket.js
+│   ├── pages/
 │   │   ├── Dashboard.jsx
 │   │   ├── TasksPage.jsx
 │   │   ├── WorkersPage.jsx
-│   │   └── SubmitTaskPage.jsx
+│   │   ├── SubmitTaskPage.jsx
+│   │   └── auth/
+│   │       ├── LoginPage.jsx
+│   │       └── RegisterPage.jsx
 │   ├── utils/         # Constants, formatters
 │   ├── styles/        # Global CSS
 │   ├── App.jsx        # Main app with routing
@@ -126,18 +150,25 @@ ui/
 
 ## API Endpoints Used
 
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login (returns JWT token)
+
+### Tasks
 - `POST /api/tasks` - Submit task (with tag & k_value)
 - `GET /api/tasks` - List all tasks
 - `GET /api/tasks/:id` - Get task details
 - `DELETE /api/tasks/:id` - Cancel task
+
+### Workers
 - `GET /api/workers` - List all workers
 - `GET /api/workers/:id` - Get worker details
-- `WS /ws/telemetry` - Real-time telemetry (future)
+
+### Real-time
+- `WS /ws/telemetry` - Real-time telemetry updates
 
 ## Future Enhancements
 
-- WebSocket integration for live updates
-- Task logs viewer
 - Resource usage charts (using Recharts)
 - Worker details page with metrics
 - Task filtering and search

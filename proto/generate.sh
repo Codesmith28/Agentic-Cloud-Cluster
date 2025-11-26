@@ -23,12 +23,12 @@ protoc --go_out=./pb --go_opt=paths=source_relative \
     --go-grpc_out=./pb --go-grpc_opt=paths=source_relative \
     master_agent.proto
 
-echo "-> Generating Python code for master_agent.proto (Agent side -> Python)..."
-python3 -m grpc_tools.protoc \
-    --python_out=./py \
-    --grpc_python_out=./py \
-    --proto_path=. \
-    master_agent.proto
+# echo "-> Generating Python code for master_agent.proto (Agent side -> Python)..."
+# python3 -m grpc_tools.protoc \
+#     --python_out=./py \
+#     --grpc_python_out=./py \
+#     --proto_path=. \
+#     master_agent.proto
 
 # Create __init__.py to make py directory a Python package
 echo "-> Creating Python package __init__.py..."

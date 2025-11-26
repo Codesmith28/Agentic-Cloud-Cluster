@@ -1,4 +1,4 @@
-.PHONY: help all proto master worker sample-task clean setup test
+.PHONY: help all proto master worker clean setup test
 
 # Default target
 help:
@@ -9,13 +9,12 @@ help:
 	@echo "  make proto        - Generate gRPC code from proto files"
 	@echo "  make master       - Build master node"
 	@echo "  make worker       - Build worker node"
-	@echo "  make sample-task  - Build sample Docker task"
 	@echo "  make setup        - Complete setup (proto + symlinks + deps)"
 	@echo "  make clean        - Clean generated files and binaries"
 	@echo "  make test         - Run basic connectivity tests"
 	@echo ""
 	@echo "Quick start:"
-	@echo "  make setup        # One-time setup (includes agentic_scheduler)"
+	@echo "  make setup        # One-time setup"
 	@echo "  make all          # Build everything"
 	@echo "  make master       # Build master"
 	@echo "  make worker       # Build worker"
@@ -33,9 +32,9 @@ setup: proto
 	@echo "🔗 Creating symlinks..."
 	@cd master && (test -L proto || ln -s ../proto/pb proto)
 	@cd worker && (test -L proto || ln -s ../proto/pb proto)
-	@echo "� Creating agentic_scheduler proto symlink..."
-	@cd agentic_scheduler && (test -L proto && rm proto || true) && ln -s ../proto/py proto
-	@echo "�📦 Installing Go dependencies..."
+	# @echo "Creating agentic_scheduler proto symlink..."
+	# @cd agentic_scheduler && (test -L proto && rm proto || true) && ln -s ../proto/py proto
+	@echo "📦 Installing Go dependencies..."
 	cd master && go mod tidy
 	cd worker && go mod tidy
 	@echo "✅ Setup complete!"
@@ -52,21 +51,6 @@ worker:
 	cd worker && go build -o workerNode .
 	@echo "✅ Worker built: worker/workerNode"
 
-# Build sample task Docker image
-sample-task:
-	@echo "🐳 Building sample task Docker images..."
-	@read -p "Enter your Docker Hub username: " username; \
-	for task_dir in sample_tasks/*/; do \
-		task_name=$$(basename $$task_dir); \
-		echo "Building $$task_name..."; \
-		cd $$task_dir && \
-		docker build -t $$username/cloudai-$$task_name:latest . && \
-		echo "✅ $$task_name built: $$username/cloudai-$$task_name:latest"; \
-		cd ../..; \
-	done && \
-	echo "✅ All sample tasks built successfully!" && \
-	echo "To push: docker push $$username/cloudai-<task_name>:latest"
-
 # Clean generated files
 clean:
 	@echo "🧹 Cleaning..."
@@ -75,7 +59,7 @@ clean:
 	rm -f worker/worker-node
 	cd master && (test -L proto && rm proto || true)
 	cd worker && (test -L proto && rm proto || true)
-	cd agentic_scheduler && (test -L proto && rm proto || true)
+	# cd agentic_scheduler && (test -L proto && rm proto || true)
 	@echo "✅ Clean complete"
 
 # Run basic tests

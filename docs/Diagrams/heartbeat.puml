@@ -1,0 +1,30 @@
+@startuml heartbeat
+
+
+title Heartbeat Monitoring Flow
+
+participant "Worker" as W
+participant "Master" as M
+participant "TelemetryManager" as TM
+participant "WebSocket Clients" as WS
+
+loop Every 5 seconds
+    W -> M : SendHeartbeat(HeartbeatData)
+    note right of W
+        HeartbeatData:
+        - worker_id
+        - cpu_usage
+        - memory_usage
+        - gpu_usage
+        - running_tasks[]
+    end note
+    
+    M -> TM : Update worker telemetry data
+    TM --> M : OK
+    
+    M --> W : HeartbeatAck
+    
+    TM -> WS : WebSocket Push (telemetry update)
+end
+
+@enduml

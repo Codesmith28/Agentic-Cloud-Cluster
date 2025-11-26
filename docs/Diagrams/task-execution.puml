@@ -1,0 +1,73 @@
+@startuml task-execution
+
+
+title Task Assignment and Execution Flow
+
+actor "User" as U
+participant "Master" as M
+participant "Scheduler" as S
+participant "Worker" as W
+participant "Docker" as D
+database "Database" as DB
+
+== Task Submission ==
+U -> M : Submit Task (cmd)
+
+M -> S : SelectWorker(task, workers)
+S --> M : workerID
+
+M -> W : AssignTask(Task)
+note right of M
+    Task:
+    - task_id
+    - docker_image
+    - command
+    - req_cpu, req_memory, req_gpu
+    - user_id
+    - task_name
+end note
+
+W --> M : TaskAck
+
+M --> U : Task Submitted (ack)
+
+== Task Execution ==
+W -> D : Pull Image
+D --> W : Image Ready
+
+W -> D : Create Container (with resource limits)
+D --> W : Container ID
+
+W -> D : Start Container
+D --> W : Container Running
+
+loop While container running
+    D -> W : Logs
+    W -> M : StreamTaskLogs (live streaming)
+end
+
+D --> W : Exit Code
+
+W -> D : Cleanup Container
+D --> W : Cleanup Complete
+
+== Result Reporting ==
+W -> M : ReportTaskCompletion(TaskResult)
+note right of W
+    TaskResult:
+    - task_id
+    - worker_id
+    - status
+    - logs
+    - output_files[]
+end note
+
+W -> M : UploadTaskFiles (FileChunk stream)
+
+M -> DB : Store result and files
+
+M --> W : Ack
+
+M --> U : Task Complete (logs, output)
+
+@enduml

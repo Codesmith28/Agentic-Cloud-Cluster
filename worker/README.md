@@ -4,19 +4,25 @@ Distributed task executor with Docker integration and gRPC communication.
 
 ## Features
 
-- 🚀 **Task Execution**: Runs Docker containers for assigned tasks
-- 📊 **Telemetry**: Sends periodic heartbeat with resource stats
-- 🔄 **Auto-Registration**: Registers with master on startup
-- 📝 **Log Collection**: Captures and reports container logs
-- ⚡ **Async Execution**: Non-blocking task processing
+- **Task Execution**: Runs Docker containers for assigned tasks
+- **Telemetry**: Sends periodic heartbeat with resource stats
+- **Auto-Registration**: Registers with master on startup
+- **Log Streaming**: Real-time log streaming to master via gRPC
+- **File Upload**: Upload task output files to master
+- **Async Execution**: Non-blocking task processing
+- **Task Cancellation**: Cancel running tasks on request
 
 ## Architecture
 
 ```
 Worker Node
 ├── gRPC Server (receives tasks from master)
+│   ├── AssignTask
+│   └── CancelTask
 ├── Telemetry Monitor (sends heartbeats)
 ├── Task Executor (runs Docker containers)
+├── Log Manager (streams logs to master)
+├── File Uploader (uploads task files)
 └── Result Reporter (sends completion status)
 ```
 
@@ -68,11 +74,19 @@ Handles Docker container lifecycle:
 
 - Pull images from registry
 - Create and start containers
-- Stream logs
+- Stream logs in real-time
 - Monitor completion
+- Upload output files
 - Cleanup resources
 
-### 2. Telemetry Monitor (`internal/telemetry/`)
+### 2. Log Manager (`internal/logstream/`)
+
+Manages log streaming:
+
+- **log_manager.go**: Coordinates log collection
+- **log_broadcaster.go**: Broadcasts logs to master via gRPC
+
+### 3. Telemetry Monitor (`internal/telemetry/`)
 
 Manages communication with master:
 
@@ -81,7 +95,7 @@ Manages communication with master:
 - Track running tasks
 - Register on startup
 
-### 3. Worker Server (`internal/server/`)
+### 4. Worker Server (`internal/server/`)
 
 gRPC server handling:
 
@@ -99,11 +113,13 @@ gRPC server handling:
    ↓
 4. Container starts and runs
    ↓
-5. Logs are collected
+5. Logs are streamed to master in real-time
    ↓
-6. Result is reported to master
+6. Output files are uploaded to master
    ↓
-7. Container is cleaned up
+7. Result is reported to master
+   ↓
+8. Container is cleaned up
 ```
 
 ## Requirements
@@ -158,7 +174,6 @@ The worker automatically:
 
 ## Future Enhancements
 
-- [ ] Task cancellation support
 - [ ] Parallel task execution
 - [ ] GPU support
 - [ ] Resource limits per container

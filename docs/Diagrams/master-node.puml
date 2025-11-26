@@ -1,0 +1,78 @@
+@startuml master-node
+
+skinparam componentStyle rectangle
+
+title Master Node Components
+
+package "Master Node" {
+    
+    package "CLI Interface (internal/cli/)" as CLIPkg {
+        component "Interactive CLI" as CLIPrompt
+    }
+    
+    package "HTTP/WebSocket Server (internal/http/)" as HTTPPkg {
+        component "REST Endpoints" as REST
+        component "WebSocket" as WS
+    }
+    
+    package "gRPC Server (internal/server/)" as gRPCPkg {
+        component "Worker to Master RPCs" as W2M
+        component "Master to Worker RPCs" as M2W
+    }
+    
+    package "Scheduler (internal/scheduler/)" as SchedulerPkg {
+        component "Scheduler Interface" as SchedInterface
+        component "Round-Robin Scheduler" as RoundRobin
+    }
+    
+    package "Telemetry Manager (internal/telemetry/)" as TelePkg {
+        component "Telemetry Manager" as TeleMgr
+    }
+    
+    package "File Storage (internal/storage/)" as StoragePkg {
+        component "File Storage Service" as FileStore
+    }
+    
+    package "Database Layer (internal/db/)" as DBPkg {
+        component "MongoDB Collections" as Collections
+    }
+    
+    CLIPkg --> gRPCPkg
+    HTTPPkg --> TelePkg
+    gRPCPkg --> SchedulerPkg
+    gRPCPkg --> StoragePkg
+    SchedulerPkg --> DBPkg
+    StoragePkg --> DBPkg
+    TelePkg --> DBPkg
+}
+
+note right of CLIPkg
+    Commands:
+    - task, dispatch
+    - workers, register, unregister
+    - status, stats, monitor, queue
+    - files, task-files, download
+end note
+
+note right of HTTPPkg
+    REST: /api/tasks, /api/workers, /api/files
+    Auth: /api/auth/login, /api/auth/register
+    WebSocket: /ws/telemetry
+end note
+
+note right of gRPCPkg
+    Worker to Master:
+    RegisterWorker, SendHeartbeat,
+    ReportTaskCompletion, UploadTaskFiles
+    
+    Master to Worker:
+    AssignTask, CancelTask, StreamTaskLogs
+end note
+
+note right of DBPkg
+    Collections:
+    USERS, WORKER_REGISTRY, TASKS,
+    ASSIGNMENTS, RESULTS, FILE_METADATA
+end note
+
+@enduml

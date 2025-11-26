@@ -1,0 +1,51 @@
+@startuml web-ui
+
+skinparam componentStyle rectangle
+
+title Web Dashboard Components (React/Vite)
+
+package "Web Dashboard" {
+    
+    package "Authentication Layer" as AuthPkg {
+        component "Auth Components" as AuthComp
+    }
+    
+    package "Page Components" as PagesPkg {
+        component "Dashboard" as Dashboard
+        component "TasksPage" as TasksPage
+        component "WorkersPage" as WorkersPage
+        component "SubmitTaskPage" as SubmitPage
+    }
+    
+    package "API Integration" as APIPkg {
+        component "HTTP Client (Axios)" as HTTPClient
+        component "WebSocket Client" as WSClient
+        component "Custom Hooks" as Hooks
+    }
+    
+    AuthPkg --> PagesPkg
+    PagesPkg --> APIPkg
+}
+
+note right of AuthPkg
+    - JWT-based authentication
+    - Login/Register pages
+    - Protected route wrapper
+    - Auth context provider
+end note
+
+note right of PagesPkg
+    Dashboard: Cluster overview
+    TasksPage: Task list with filtering
+    WorkersPage: Worker status
+    SubmitTaskPage: Task submission
+end note
+
+note right of APIPkg
+    Hooks:
+    - useRealTimeTasks
+    - useTelemetry
+    - useWebSocket
+end note
+
+@enduml
