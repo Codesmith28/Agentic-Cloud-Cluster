@@ -8,30 +8,33 @@
 
 ---
 
-## 📖 Overview
+## Overview
 
 CloudAI is a distributed computing platform for executing Docker-based workloads across a cluster of worker nodes. Built with **Go** for high performance.
 
 **Use Cases:** ML training, batch processing, CI/CD pipelines, scientific computing, microservices testing
 
-**📚 [Complete Documentation](DOCUMENTATION.md)** | **🚀 [Getting Started Guide](GETTING_STARTED.md)** 
+**[Complete Documentation](docs/DOCUMENTATION.md)** | **[Getting Started Guide](docs/GETTING_STARTED.md)** 
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 - **Interactive CLI** - Manage cluster from command-line
-- **Web Dashboard** - Real-time UI for monitoring and management
+- **Web Dashboard** - Real-time React UI for monitoring and management
 - **Real-Time Telemetry** - WebSocket streaming of cluster metrics
 - **Docker Native** - Run any containerized workload
 - **REST & gRPC APIs** - Full programmatic access
 - **MongoDB Persistence** - Task history and results
 - **Auto-Registration** - Workers connect automatically
+- **Task Scheduling** - Round-robin scheduler with resource awareness
+- **Task Queuing** - Automatic queuing when resources unavailable
 - **Task Cancellation** - Graceful and forceful termination
 - **Resource Tracking** - CPU, Memory, GPU, Storage
-- **File Storage** - Secure file upload and download for tasks
+- **File Storage** - Secure file upload/download for task outputs
+- **JWT Authentication** - User registration and login
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 User Interface (CLI/API)
@@ -57,7 +60,7 @@ User Interface (CLI/API)
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -108,28 +111,37 @@ cd database && docker-compose up -d
 ```bash
 # In master CLI
 master> workers                              # List workers
-master> task worker-1 hello-world:latest    # Submit task
-master> monitor task-<id>                   # Watch execution
+master> task hello-world:latest              # Submit task (scheduler picks worker)
+master> monitor task-<id>                    # Watch execution
+master> list-tasks                           # View all tasks
 ```
 
-**📚 See [GETTING_STARTED.md](GETTING_STARTED.md) for detailed walkthrough**
+**See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) for detailed walkthrough**
 
 ---
 
-## 📚 Usage Examples
+## Usage Examples
 
 ### CLI Commands
 
 ```bash
 # Cluster management
-master> status                                    # Cluster overview
+master> status                                    # Cluster overview (live)
 master> workers                                   # List all workers
 master> register worker-3 192.168.1.102:50052    # Manual registration
 
-# Task operations
-master> task worker-1 python:3.9 -cpu_cores 2.0 -mem 4.0    # Submit task
-master> monitor task-<id>                                     # Watch logs
-master> cancel task-<id>                                      # Cancel task
+# Task operations (scheduler picks worker)
+master> task python:3.9 -name my-task -cpu_cores 2.0 -mem 4.0
+master> dispatch worker-1 ubuntu:latest           # Direct assignment
+master> monitor task-<id>                         # Watch logs
+master> cancel task-<id>                          # Cancel task
+master> queue                                     # View queued tasks
+master> list-tasks running                        # Filter by status
+
+# File management
+master> files alice                               # List user's files
+master> task-files task-<id> alice                # View task files
+master> download task-<id> alice ./output         # Download files
 ```
 
 ### Monitoring
@@ -139,32 +151,55 @@ master> cancel task-<id>                                      # Cancel task
 curl http://localhost:8080/telemetry | jq
 curl http://localhost:8080/workers | jq
 
-# REST API - Tasks
-curl http://localhost:8080/api/tasks | jq
-curl http://localhost:8080/api/workers | jq
+# REST API - Tasks (requires auth)
+curl http://localhost:8080/api/tasks \
+  -H "Authorization: Bearer <token>" | jq
 
 # WebSocket (real-time)
 wscat -c ws://localhost:8080/ws/telemetry
 
 # Submit Task via REST API
 curl -X POST http://localhost:8080/api/tasks \
+  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d '{"docker_image":"ubuntu:latest","command":"echo hello","cpu_required":1.0,"memory_required":512.0}'
+  -d '{
+    "docker_image": "ubuntu:latest",
+    "command": "echo hello",
+    "cpu_required": 1.0,
+    "memory_required": 512.0,
+    "tag": "batch-job",
+    "k_value": 3
+  }'
 ```
 
-**📖 See [DOCUMENTATION.md](DOCUMENTATION.md) for complete API reference**
+### Authentication
+
+```bash
+# Register new user
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"secure123"}'
+
+# Login (returns JWT token)
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"secure123"}'
+```
+
+**See [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md) for complete API reference**
 
 ---
 
-## 📚 Documentation
+## Documentation
 
-- **[GETTING_STARTED.md](GETTING_STARTED.md)** - 5-minute setup guide
-- **[DOCUMENTATION.md](DOCUMENTATION.md)** - Complete reference
-- **[Example.md](Example.md)** - Usage examples
+- **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** - 5-minute setup guide
+- **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)** - Complete reference
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture
+- **[docs/EXAMPLE.md](docs/EXAMPLE.md)** - Usage examples
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -173,6 +208,7 @@ curl -X POST http://localhost:8080/api/tasks \
 | **Worker not connecting** | Check `netstat -tuln \| grep 50051`, verify firewall |
 | **Task fails** | Run `docker pull <image>` to test, check logs with `monitor` |
 | **MongoDB error** | Run `docker-compose ps` in database/, restart if needed |
+| **Authentication error** | Check JWT_SECRET env, ensure token is valid |
 
 **Debug Logging:**
 ```bash
@@ -180,11 +216,11 @@ export LOG_LEVEL=debug
 ./masterNode
 ```
 
-**📚 See [DOCUMENTATION.md](DOCUMENTATION.md) Section 12 for detailed troubleshooting**
+**See [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md) Section 12 for detailed troubleshooting**
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions welcome! Areas of interest:
 - New scheduling algorithms
@@ -197,26 +233,26 @@ Contributions welcome! Areas of interest:
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
 **Current (v2.0)**
-- ✅ Master-Worker architecture  
-- ✅ Real-time telemetry
-- ✅ Interactive CLI
-- ✅ Task cancellation
-- ✅ Web dashboard
-- ✅ File storage
+- Master-Worker architecture  
+- Real-time telemetry
+- Interactive CLI
+- Task cancellation
+- Web dashboard
+- File storage
 
 **Planned (v2.1)**
-- 🔜 Task queuing improvements
-- 🔜 Authentication enhancements
-- 🔜 Cluster auto-scaling
+- Task queuing improvements
+- Authentication enhancements
+- Cluster auto-scaling
 
 ---
 
 <div align="center">
 
-**⭐ Star this repo if you find it useful!**
+**Star this repo if you find it useful!**
 
 Built with [gRPC](https://grpc.io/) • [MongoDB](https://www.mongodb.com/) • [Docker](https://www.docker.com/)
 
