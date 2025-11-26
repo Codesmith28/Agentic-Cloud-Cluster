@@ -194,7 +194,7 @@ curl -X POST http://localhost:8080/api/auth/login \
 
 - **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** - 5-minute setup guide
 - **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)** - Complete reference
-- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture
 - **[docs/EXAMPLE.md](docs/EXAMPLE.md)** - Usage examples
 
 ---
