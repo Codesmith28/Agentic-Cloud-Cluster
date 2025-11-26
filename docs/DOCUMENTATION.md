@@ -2390,32 +2390,6 @@ See `proto/master_worker.proto` for full definitions.
 
 ---
 
-## Appendix C: Performance Benchmarks
-
-### Scheduler Performance Comparison
-
-Based on test workload: 100 tasks, 5 workers, mixed resource requirements
-
-| Scheduler | Makespan | Waiting Time | Utilization | Load Variance |
-|-----------|----------|--------------|-------------|---------------|
-| Greedy (baseline) | 180s | 45s | 62% | 0.25 |
-| Round Robin | 195s | 52s | 58% | 0.18 |
-| Balanced | 175s | 41s | 65% | 0.15 |
-| AI Multi-Objective | 126s (-30%) | 29s (-36%) | 78% (+26%) | 0.12 |
-| AI Aggressive | 108s (-40%) | 23s (-49%) | 91% (+47%) | 0.08 |
-| AI Predictive | 115s (-36%) | 26s (-42%) | 82% (+32%) | 0.14 |
-| AI Load-Balanced | 132s (-27%) | 31s (-31%) | 75% (+21%) | 0.06 |
-
-### System Performance Metrics
-
-- **Master throughput:** 1000+ tasks/minute
-- **Worker execution latency:** <100ms (container start overhead excluded)
-- **Heartbeat overhead:** <1% CPU per worker
-- **WebSocket latency:** <50ms (LAN), <200ms (WAN)
-- **Database write latency:** <10ms (local MongoDB)
-
----
-
 ## Appendix D: FAQ
 
 **Q: Can I use private Docker registries?**  
