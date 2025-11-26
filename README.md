@@ -12,8 +12,6 @@
 
 CloudAI is a distributed computing platform for executing Docker-based workloads across a cluster of worker nodes. Built with **Go** for high performance.
 
-**Use Cases:** ML training, batch processing, CI/CD pipelines, scientific computing, microservices testing
-
 **[Complete Documentation](docs/DOCUMENTATION.md)** | **[Getting Started Guide](docs/GETTING_STARTED.md)** 
 
 ---
