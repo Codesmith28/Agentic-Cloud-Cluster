@@ -15,14 +15,16 @@ make all
 
 # 3. Start services (in separate terminals)
 cd database && docker-compose up -d                     # Terminal 1
-cd master && ./masterNode                               # Terminal 2
-cd worker && ./workerNode                               # Terminal 3
+./runMaster.sh                                          # Terminal 2 (includes Web UI)
+./runWorker.sh                                          # Terminal 3
 
 # 4. Use it!
 # In master CLI:
 master> workers
 master> task worker-1 hello-world:latest
 master> monitor task-<id>
+
+# Or open the Web UI at http://localhost:3000
 ```
 
 ---
@@ -35,7 +37,8 @@ Ensure you have:
 - ✅ **Docker**: `docker --version`
 - ✅ **Docker Compose**: `docker-compose --version`
 - ✅ **Protocol Buffers**: `protoc --version`
-- ✅ **Python 3.8+**: `python3 --version` (for AI Scheduler)
+- ✅ **Node.js 18+**: `node --version` (for Web UI)
+- ✅ **Python 3.8+**: `python3 --version` (for future agent extensibility)
 
 ### Install Missing Tools
 
@@ -79,11 +82,22 @@ export PATH=$PATH:$(go env GOPATH)/bin
 ### Step 1: Clone Repository
 
 ```bash
-git clone --recurse-submodules https://github.com/Codesmith28/CloudAI.git
+git clone https://github.com/Codesmith28/CloudAI.git
 cd CloudAI
 ```
 
-### Step 2: One-Time Setup
+### Step 2: Set Up Python Environment
+
+```bash
+# Create and activate virtual environment (for future Python agent extensibility)
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+This installs gRPC dependencies needed for Python agents via `master_agent.proto`.
+
+### Step 3: One-Time Setup
 
 ```bash
 # Generates proto code, creates symlinks, installs dependencies
@@ -92,11 +106,10 @@ make setup
 
 This command:
 - Generates Go code from `.proto` files
-- Generates Python code from `.proto` files
-- Creates symlinks in master/worker/agentic_scheduler
+- Creates symlinks in master/worker directories
 - Installs Go module dependencies
 
-### Step 3: Build Binaries
+### Step 4: Build Binaries
 
 ```bash
 # Build both master and worker
@@ -107,12 +120,12 @@ make master   # Creates master/masterNode
 make worker   # Creates worker/workerNode
 ```
 
-### Step 4: Install Python Dependencies (Optional)
+### Step 5: Install UI Dependencies (Optional)
 
 ```bash
-# Only needed if using AI Scheduler
-cd agentic_scheduler
-pip install -r requirements.txt
+# Only needed if you want to use the Web UI
+cd ui
+npm install
 cd ..
 ```
 
@@ -140,12 +153,11 @@ mongodb            docker-entrypoint.sh mongod   Up      0.0.0.0:27017->27017/tc
 ### Terminal 2: Start Master Node
 
 ```bash
-cd master
-./masterNode
-
-# Or use convenience script
-cd ..
+# Use the convenience script (also starts Web UI)
 ./runMaster.sh
+
+# Or run manually:
+cd master && ./masterNode
 ```
 
 Expected output:
@@ -166,12 +178,11 @@ master>
 ### Terminal 3: Start Worker Node
 
 ```bash
-cd worker
-./workerNode
-
-# Or use convenience script with custom settings
-cd ..
+# Use the convenience script
 ./runWorker.sh
+
+# Or run manually:
+cd worker && ./workerNode
 ```
 
 Expected output:
@@ -314,49 +325,6 @@ master> workers
 # Submit tasks to different workers
 master> task worker-1 python:3.9
 master> task worker-2 node:18
-```
-
----
-
-## 🤖 Using the AI Scheduler (Optional)
-
-The AI Scheduler provides intelligent task assignment using multiple optimization strategies.
-
-### Step 1: Prepare Test Data
-
-```bash
-cd agentic_scheduler
-
-# Test data is already provided in tests/ directory:
-# - tests/workers.csv
-# - tests/tasks1.csv
-```
-
-### Step 2: Run the Scheduler
-
-```bash
-# Multi-Objective (recommended)
-python main.py ai
-
-# Aggressive Utilization (max resources)
-python main.py ai_aggressive
-
-# Predictive (minimize completion time)
-python main.py ai_predictive
-
-# Compare all strategies
-python test_schedulers.py
-```
-
-### Step 3: View Results
-
-```bash
-ls -la reports/
-
-# Each strategy has a directory with:
-# - performance_metrics.txt
-# - assignments.csv
-# - plots (if matplotlib installed)
 ```
 
 ---
@@ -528,24 +496,21 @@ docker run --rm <image-name>
 Now that you have CloudAI running, explore:
 
 1. **[README.md](README.md)** - Full feature overview
-2. **[DOCUMENTATION.md](DOCUMENTATION.md)** - Comprehensive documentation (50+ pages)
-3. **[docs/architecture.md](docs/architecture.md)** - System architecture
-4. **[docs/TELEMETRY_QUICK_REFERENCE.md](docs/TELEMETRY_QUICK_REFERENCE.md)** - Telemetry system
-5. **[agentic_scheduler/AI_SCHEDULER_USAGE.md](agentic_scheduler/AI_SCHEDULER_USAGE.md)** - AI scheduler guide
+2. **[DOCUMENTATION.md](DOCUMENTATION.md)** - Comprehensive documentation
+3. **[Example.md](Example.md)** - More usage examples
 
 ### Learn More
 
-- **Submitting tasks**: See [docs/TASK_EXECUTION_QUICK_REFERENCE.md](docs/TASK_EXECUTION_QUICK_REFERENCE.md)
-- **Monitoring**: See [docs/WEBSOCKET_TELEMETRY.md](docs/WEBSOCKET_TELEMETRY.md)
-- **Database**: See [docs/DATABASE_WORKER_REGISTRY.md](docs/DATABASE_WORKER_REGISTRY.md)
-- **Development**: See [DOCUMENTATION.md](DOCUMENTATION.md) Section 11
+- **Submitting tasks**: See [DOCUMENTATION.md](DOCUMENTATION.md) Section 6
+- **Monitoring**: See [DOCUMENTATION.md](DOCUMENTATION.md) Section 8
+- **Development**: See [DOCUMENTATION.md](DOCUMENTATION.md) Section 10
 
 ### Try Advanced Features
 
 1. **Add more workers** to scale horizontally
-2. **Use AI Scheduler** for optimal task placement
+2. **Use the Web UI** at http://localhost:3000
 3. **Build custom Docker tasks** for your workload
-4. **Integrate WebSocket API** into your dashboard
+4. **Integrate WebSocket API** into your applications
 5. **Test task cancellation** functionality
 
 ---
@@ -558,7 +523,7 @@ You now have a fully functional distributed task execution system!
 - ✅ Submit Docker-based tasks
 - ✅ Monitor tasks in real-time
 - ✅ Scale with multiple workers
-- ✅ Use AI-powered scheduling
+- ✅ Use the Web Dashboard
 - ✅ Access via CLI, HTTP, and WebSocket APIs
 
 **Need help?**

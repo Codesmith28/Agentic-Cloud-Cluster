@@ -1,7 +1,7 @@
 # CloudAI - Comprehensive Documentation
 
-**Version:** 2.0  
-**Last Updated:** November 15, 2025  
+**Version:** 2.1  
+**Last Updated:** November 26, 2025  
 **Authors:** CloudAI Development Team
 
 ---
@@ -15,13 +15,12 @@
 5. [Installation & Setup](#5-installation--setup)
 6. [Usage Guide](#6-usage-guide)
 7. [API Reference](#7-api-reference)
-8. [AI Scheduler](#8-ai-scheduler)
-9. [Telemetry & Monitoring](#9-telemetry--monitoring)
-10. [Database Schema](#10-database-schema)
-11. [Development Guide](#11-development-guide)
-12. [Troubleshooting](#12-troubleshooting)
-13. [Performance Tuning](#13-performance-tuning)
-14. [Security Considerations](#14-security-considerations)
+8. [Telemetry & Monitoring](#8-telemetry--monitoring)
+9. [Database Schema](#9-database-schema)
+10. [Development Guide](#10-development-guide)
+11. [Troubleshooting](#11-troubleshooting)
+12. [Performance Tuning](#12-performance-tuning)
+13. [Security Considerations](#13-security-considerations)
 
 ---
 
@@ -29,17 +28,18 @@
 
 ### 1.1 What is CloudAI?
 
-CloudAI is a distributed computing platform designed for orchestrating Docker-based task execution across a cluster of worker nodes. Built with **Go** for the core infrastructure and **Python** for AI-powered scheduling, it provides a robust, scalable foundation for distributed workload processing.
+CloudAI is a distributed computing platform designed for orchestrating Docker-based task execution across a cluster of worker nodes. Built with **Go** for high performance, it provides a robust, scalable foundation for distributed workload processing.
 
 ### 1.2 Key Capabilities
 
 - **Distributed Task Execution**: Run containerized workloads across multiple worker nodes
-- **AI-Powered Scheduling**: Intelligent task assignment using multiple optimization strategies
 - **Real-time Monitoring**: WebSocket-based telemetry streaming for cluster health and task status
 - **Resource Management**: Track and optimize CPU, memory, storage, and GPU allocation
 - **Interactive Management**: Command-line interface for cluster administration
+- **Web Dashboard**: React-based UI for monitoring and management
 - **Persistent Storage**: MongoDB-backed data persistence for tasks, workers, and results
 - **Docker Integration**: Native Docker support for running any containerized application
+- **File Storage**: Secure file upload and download for task inputs/outputs
 
 ### 1.3 Use Cases
 
@@ -108,13 +108,13 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
                     └────────────────┘
 
 ┌───────────────────────────────────────────────────────────────┐
-│                   AI Scheduler (Python)                       │
+│                    Web Dashboard (React)                      │
 │  ┌──────────────────────────────────────────────────────────┐ │
-│  │  gRPC Client (connects to Master)                        │ │
+│  │  WebSocket Client (connects to Master :8080)             │ │
 │  └──────────────────────────────────────────────────────────┘ │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │ Multi-       │  │  Aggressive  │  │  Predictive  │         │
-│  │ Objective    │  │  Utilization │  │  Scheduling  │         │
+│  │   Worker     │  │    Task      │  │   Real-time  │         │
+│  │   Status     │  │  Management  │  │   Telemetry  │         │
 │  └──────────────┘  └──────────────┘  └──────────────┘         │
 └───────────────────────────────────────────────────────────────┘
 
@@ -176,11 +176,11 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 #### Task Submission Flow
 
 ```
-1. User submits task via CLI or REST API
+1. User submits task via CLI, REST API, or Web UI
    ↓
 2. Master validates task and stores in MongoDB
    ↓
-3. AI Scheduler (optional) determines optimal worker
+3. Master determines target worker based on resources
    ↓
 4. Master assigns task to worker via gRPC
    ↓
@@ -256,31 +256,7 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 - Workers auto-populate specs on first connection
 - Persistent worker registry
 
-### 3.3 AI-Powered Scheduling
-
-**Multiple Strategies:**
-
-1. **Multi-Objective Scheduler** (Recommended)
-   - Balances resource utilization, makespan, and load distribution
-   - Best for general-purpose workloads
-   - 75-85% resource utilization
-
-2. **Aggressive Utilization Scheduler**
-   - Maximizes resource usage (85-95%)
-   - Multi-pass bin packing algorithm
-   - Best for cost-sensitive environments
-
-3. **Predictive Scheduler**
-   - Minimizes overall completion time
-   - Task execution time prediction
-   - Deadline-aware scheduling
-
-4. **Load-Balanced Scheduler**
-   - Evenly distributes tasks across workers
-   - Prevents hotspots
-   - Good for homogeneous workloads
-
-### 3.4 Real-Time Telemetry
+### 3.3 Real-Time Telemetry
 
 **WebSocket Streaming:**
 - Push-based updates (no polling overhead)
@@ -302,21 +278,24 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 - REST API for snapshot queries
 - CLI commands for interactive monitoring
 
-### 3.5 Database Persistence
+### 3.4 Database Persistence
 
 **MongoDB Collections:**
 
 1. **TASKS**: All task records with status and metadata
 2. **WORKER_REGISTRY**: Registered workers with specifications
 3. **RESULTS**: Task execution results and logs
+4. **FILE_METADATA**: File storage metadata
+5. **USERS**: User accounts and authentication
 
 **Features:**
 - Persistent task history
 - Worker registry with capacity tracking
 - Result storage for analysis
 - Context preservation across restarts
+- Secure file storage
 
-### 3.6 Interactive CLI
+### 3.5 Interactive CLI
 
 **Command Categories:**
 
@@ -405,37 +384,20 @@ worker/
 - Master address (for gRPC connection)
 - Server port (default: 50052)
 
-### 4.3 AI Scheduler (Python)
+### 4.3 Web UI
 
-**Location:** `agentic_scheduler/`
+**Location:** `ui/`
 
 **Responsibilities:**
-- Intelligent task assignment
-- Resource optimization
-- Load balancing
-- Performance optimization
+- Real-time cluster monitoring dashboard
+- Task submission and management
+- Worker status visualization
+- Telemetry display
 
-**Key Modules:**
-
-```
-agentic_scheduler/
-├── main.py                # Entry point
-├── grpcClient.py         # Master communication
-├── internalState.py      # State management
-├── inputHandler.py       # Data fetching
-├── performance_metrics.py # Performance tracking
-└── schedulers/           # Scheduling algorithms
-    ├── ai_scheduler.py           # Multi-objective
-    ├── greedy.py                 # Greedy baseline
-    ├── round_robin.py            # Round-robin
-    └── balanced.py               # Balanced scheduler
-```
-
-**Scheduler Strategies:**
-- `ai` / `ai_multi_objective`: Balanced multi-objective optimization
-- `ai_aggressive`: Maximum resource utilization
-- `ai_predictive`: Makespan minimization
-- `ai_load_balanced`: Even load distribution
+**Technology:**
+- React with Vite
+- WebSocket for real-time updates
+- Runs on port 3000
 
 ### 4.4 Protocol Definitions
 
@@ -443,11 +405,11 @@ agentic_scheduler/
 
 **Files:**
 - `master_worker.proto`: Master-Worker communication
-- `master_agent.proto`: Master-Agent communication (future)
+- `master_agent.proto`: Master-Agent communication
 
 **Generated Code:**
 - `proto/pb/`: Go generated code
-- `proto/py/`: Python generated code
+- `proto/py/`: Python generated code (for future agent extensibility)
 
 ---
 
@@ -470,6 +432,12 @@ docker-compose --version
 # Protocol Buffers Compiler
 protoc --version  # Should be 3.x or higher
 
+# Python (3.8 or higher) - for future agent extensibility
+python3 --version
+
+# Node.js (18 or higher) - for Web UI
+node --version
+
 # MongoDB (via Docker)
 # No separate installation needed if using docker-compose
 ```
@@ -481,18 +449,27 @@ go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 ```
 
-**Install Python Dependencies (for AI Scheduler):**
+**Set Up Python Environment:**
 
 ```bash
-cd agentic_scheduler
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install Python dependencies (gRPC for future agent support)
 pip install -r requirements.txt
 ```
+
+The `requirements.txt` includes gRPC dependencies for Python agents via `master_agent.proto`.
 
 ### 5.2 Quick Setup
 
 **Using Makefile (Recommended):**
 
 ```bash
+# Set up Python environment first
+python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+
 # One-time setup (generate proto code, create symlinks, install deps)
 make setup
 
@@ -516,7 +493,6 @@ cd ..
 # 2. Create symlinks
 cd master && ln -s ../proto/pb proto && cd ..
 cd worker && ln -s ../proto/pb proto && cd ..
-cd agentic_scheduler && ln -s ../proto/py proto && cd ..
 
 # 3. Install Go dependencies
 cd master && go mod tidy && cd ..
@@ -547,8 +523,8 @@ docker-compose ps
 
 - **Host:** localhost
 - **Port:** 27017
-- **Database:** cluster_db
-- **Collections:** TASKS, WORKER_REGISTRY, RESULTS
+- **Database:** cloudai
+- **Collections:** TASKS, WORKER_REGISTRY, RESULTS, FILE_METADATA, USERS
 
 ### 5.4 Configuration
 
@@ -800,59 +776,7 @@ master> quit
 
 Gracefully shuts down the master node.
 
-### 6.3 Using the AI Scheduler
-
-**Run with default strategy (Multi-Objective):**
-
-```bash
-cd agentic_scheduler
-python main.py ai
-```
-
-**Run with specific strategy:**
-
-```bash
-# Aggressive utilization (max resources)
-python main.py ai_aggressive
-
-# Predictive scheduling (minimize makespan)
-python main.py ai_predictive
-
-# Load balanced
-python main.py ai_load_balanced
-```
-
-**Compare all schedulers:**
-
-```bash
-python test_schedulers.py
-```
-
-Generates performance reports in `agentic_scheduler/reports/` directory.
-
-**Output:**
-
-```
-========================================
- AI Scheduler Performance Report
-========================================
-
-Strategy: ai_aggressive
-
-Metrics:
-  Average Makespan: 125.3s
-  Average Waiting Time: 12.5s
-  Resource Utilization: 89.2%
-  Tasks Scheduled: 50/50
-  Load Variance: 0.15
-
-Performance vs Baseline:
-  Makespan: -32% (better)
-  Waiting Time: -45% (better)
-  Utilization: +28% (better)
-```
-
-### 6.4 Monitoring via HTTP API
+### 6.3 Monitoring via HTTP API
 
 **Get all workers telemetry:**
 
@@ -1347,142 +1271,7 @@ Messages are sent only when the specified worker sends a heartbeat.
 
 ---
 
-## 8. AI Scheduler
-
-### 8.1 Architecture
-
-The AI Scheduler is a Python-based component that communicates with the Master via gRPC to make intelligent task assignment decisions.
-
-**Components:**
-
-```
-internalState.py       → Manages workers, tasks, assignments
-inputHandler.py        → Fetches data from Master (gRPC) or CSV (testing)
-grpcClient.py          → gRPC client wrapper for Master communication
-schedulers/            → Different scheduling algorithms
-performance_metrics.py → Performance tracking and reporting
-```
-
-### 8.2 Scheduling Strategies
-
-#### Multi-Objective Scheduler (Default)
-
-**Command:** `python main.py ai`
-
-**Algorithm:**
-- Weighted scoring function combining multiple objectives
-- Weights: Utilization (45%), Makespan (25%), Load Balance (20%), Starvation Prevention (10%)
-- Considers resource fragmentation
-- Prevents task starvation
-
-**Best For:**
-- General-purpose workloads
-- Production environments
-- Mixed task types
-
-**Performance:**
-- Resource Utilization: 75-85%
-- Throughput: +20-30% vs baseline
-- Waiting Time: -25-35% vs baseline
-
-#### Aggressive Utilization Scheduler
-
-**Command:** `python main.py ai_aggressive`
-
-**Algorithm:**
-- Multi-pass bin packing
-- Pass 1: Schedule large tasks (bin packing)
-- Pass 2: Fill gaps with smaller tasks
-- Pass 3: Opportunistic scheduling for remaining
-
-**Best For:**
-- Maximizing cluster utilization
-- Cost-sensitive environments
-- Batch processing workloads
-
-**Performance:**
-- Resource Utilization: 85-95% ⭐
-- Throughput: +30-40% vs baseline
-- Waiting Time: -40-50% vs baseline
-
-#### Predictive Scheduler
-
-**Command:** `python main.py ai_predictive`
-
-**Algorithm:**
-- Predicts task execution times
-- Minimizes overall makespan
-- Critical path scheduling
-
-**Best For:**
-- Time-critical workloads
-- Deadline-driven tasks
-- When completion time is paramount
-
-**Performance:**
-- Makespan: -35-45% vs baseline ⭐
-- Predictable completion times
-- Lower waiting time variance
-
-#### Load-Balanced Scheduler
-
-**Command:** `python main.py ai_load_balanced`
-
-**Algorithm:**
-- Minimizes load variance across workers
-- Round-robin with resource awareness
-- Prevents hotspots
-
-**Best For:**
-- Homogeneous workloads
-- Preventing worker overload
-- Fair resource distribution
-
-**Performance:**
-- Load Variance: Very low ⭐
-- Predictable performance
-- Good for long-running services
-
-### 8.3 Performance Metrics
-
-The scheduler tracks and reports:
-
-- **Makespan**: Total time to complete all tasks
-- **Average Waiting Time**: Average time tasks wait before execution
-- **Resource Utilization**: Percentage of cluster resources used
-- **Load Variance**: Standard deviation of load across workers
-- **Throughput**: Tasks completed per unit time
-- **Starvation Count**: Number of tasks that waited too long
-
-### 8.4 Testing and Benchmarking
-
-**Run comparison:**
-
-```bash
-cd agentic_scheduler
-python test_schedulers.py
-```
-
-**View reports:**
-
-```bash
-ls -la reports/
-# Output:
-# ai_scheduler/
-# ai_aggressive/
-# greedy/
-# round_robin/
-# balanced/
-```
-
-Each directory contains:
-- `performance_metrics.txt`: Detailed metrics
-- `assignments.csv`: Task-to-worker assignments
-- Visualization plots (if matplotlib installed)
-
----
-
-## 9. Telemetry & Monitoring
+## 8. Telemetry & Monitoring
 
 ### 9.1 Telemetry Architecture
 
@@ -1586,9 +1375,9 @@ Planned alerting capabilities:
 
 ---
 
-## 10. Database Schema
+## 9. Database Schema
 
-### 10.1 TASKS Collection
+### 9.1 TASKS Collection
 
 Stores all task submissions and their status.
 
@@ -1619,7 +1408,7 @@ Stores all task submissions and their status.
 - `status`: Index for status filtering
 - `assigned_worker`: Index for worker queries
 
-### 10.2 WORKER_REGISTRY Collection
+### 9.2 WORKER_REGISTRY Collection
 
 Stores registered workers and their specifications.
 
@@ -1645,7 +1434,7 @@ Stores registered workers and their specifications.
 - `worker_id`: Unique index
 - `is_active`: Index for active worker queries
 
-### 10.3 RESULTS Collection
+### 9.3 RESULTS Collection
 
 Stores task execution results and logs.
 
@@ -1671,9 +1460,9 @@ Stores task execution results and logs.
 
 ---
 
-## 11. Development Guide
+## 10. Development Guide
 
-### 11.1 Project Structure
+### 10.1 Project Structure
 
 ```
 CloudAI/
@@ -1704,38 +1493,21 @@ CloudAI/
 │   │   └── system/        # System metrics
 │   └── proto -> ../proto/pb
 │
-├── agentic_scheduler/     # AI Scheduler (Python)
-│   ├── main.py
-│   ├── grpcClient.py
-│   ├── internalState.py
-│   ├── inputHandler.py
-│   ├── schedulers/
-│   │   ├── ai_scheduler.py
-│   │   ├── greedy.py
-│   │   ├── round_robin.py
-│   │   └── balanced.py
-│   └── proto -> ../proto/py
+├── ui/                    # Web Dashboard (React)
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.js
 │
 ├── database/              # MongoDB setup
 │   ├── docker-compose.yml
 │   └── README.md
-│
-├── docs/                  # Documentation
-│   ├── architecture.md
-│   ├── SETUP.md
-│   ├── TELEMETRY_QUICK_REFERENCE.md
-│   └── ...
-│
-├── SAMPLE_TASKS/          # Example Docker tasks
-│   ├── task1/
-│   └── ...
 │
 ├── Makefile               # Build automation
 ├── README.md              # Project README
 └── DOCUMENTATION.md       # This file
 ```
 
-### 11.2 Adding New Features
+### 10.2 Adding New Features
 
 #### Adding a New CLI Command
 
@@ -1764,40 +1536,6 @@ switch parts[0] {
 // 3. Implement handler
 func handleMyCommand(args []string) {
     // Your implementation
-}
-```
-
-#### Adding a New Scheduler
-
-**File:** `agentic_scheduler/schedulers/my_scheduler.py`
-
-```python
-def my_scheduler(state):
-    """
-    Your custom scheduling logic.
-    
-    Args:
-        state: InternalState object with workers and tasks
-    
-    Returns:
-        List of (task_id, worker_id) assignments
-    """
-    assignments = []
-    
-    # Your scheduling algorithm here
-    for task in state.get_pending_tasks():
-        worker = select_best_worker(task, state)
-        assignments.append((task.task_id, worker.worker_id))
-    
-    return assignments
-```
-
-**Register in** `agentic_scheduler/main.py`:
-
-```python
-SCHEDULERS = {
-    # ... existing schedulers ...
-    'my_scheduler': my_scheduler,
 }
 ```
 
@@ -1841,7 +1579,7 @@ func (s *MasterServer) MyNewRPC(ctx context.Context, req *pb.MyRequest) (*pb.MyR
 }
 ```
 
-### 11.3 Testing
+### 10.3 Testing
 
 **Unit Tests:**
 
@@ -1849,9 +1587,6 @@ func (s *MasterServer) MyNewRPC(ctx context.Context, req *pb.MyRequest) (*pb.MyR
 # Go tests
 cd master && go test ./... -v
 cd worker && go test ./... -v
-
-# Python tests
-cd agentic_scheduler && pytest
 ```
 
 **Integration Tests:**
@@ -1861,18 +1596,12 @@ cd agentic_scheduler && pytest
 ./runMaster.sh &
 ./runWorker.sh &
 
-# Run test suite
-python test_integration.py
+# Run test tasks
+# In master CLI:
+master> task worker-1 hello-world:latest
 ```
 
-**Performance Tests:**
-
-```bash
-cd agentic_scheduler
-python test_schedulers.py
-```
-
-### 11.4 Debugging
+### 10.4 Debugging
 
 **Enable verbose logging:**
 
@@ -1880,10 +1609,6 @@ python test_schedulers.py
 # Go components
 export LOG_LEVEL=debug
 ./masterNode
-
-# Python components
-export LOG_LEVEL=DEBUG
-python main.py
 ```
 
 **Debug gRPC communication:**
@@ -1908,9 +1633,9 @@ db.TASKS.find().sort({created_at: -1}).limit(5)
 
 ---
 
-## 12. Troubleshooting
+## 11. Troubleshooting
 
-### 12.1 Common Issues
+### 11.1 Common Issues
 
 #### Worker Not Connecting
 
@@ -2055,7 +1780,7 @@ db.TASKS.find().sort({created_at: -1}).limit(5)
    };
    ```
 
-### 12.2 Logging
+### 11.2 Logging
 
 **Master logs location:**
 - Console output (stdout)
@@ -2073,9 +1798,9 @@ export LOG_LEVEL=debug
 
 ---
 
-## 13. Performance Tuning
+## 12. Performance Tuning
 
-### 13.1 Master Node Optimization
+### 12.1 Master Node Optimization
 
 **Increase database connection pool:**
 
@@ -2104,7 +1829,7 @@ server := &http.Server{
 }
 ```
 
-### 13.2 Worker Node Optimization
+### 12.2 Worker Node Optimization
 
 **Adjust heartbeat interval:**
 
@@ -2130,7 +1855,7 @@ docker pull node:18
 // Reduce sampling frequency if CPU usage is high
 ```
 
-### 13.3 Scheduler Optimization
+### 12.3 Scheduler Optimization
 
 **Batch scheduling:**
 
@@ -2152,7 +1877,7 @@ def calculate_worker_score(worker_id, task_requirements):
     pass
 ```
 
-### 13.4 Database Optimization
+### 12.4 Database Optimization
 
 **Create indexes:**
 
@@ -2176,9 +1901,9 @@ if len(logs) > maxLogSize {
 
 ---
 
-## 14. Security Considerations
+## 13. Security Considerations
 
-### 14.1 Network Security
+### 13.1 Network Security
 
 **Current State:**
 - gRPC communication currently uses **insecure connections** (no TLS)
@@ -2217,7 +1942,7 @@ TLS_KEY_FILE=/path/to/key.pem
   ssh -L 50051:localhost:50051 user@master-host
   ```
 
-### 14.2 Authentication & Authorization
+### 13.2 Authentication & Authorization
 
 **Current State:**
 - No authentication or authorization implemented
@@ -2243,7 +1968,7 @@ User → JWT Token → Master validates → Authorize action
 - Monitor task submissions via logs
 - Run in isolated network segments
 
-### 14.3 Container Security
+### 13.3 Container Security
 
 **Best practices:**
 
@@ -2272,7 +1997,7 @@ User → JWT Token → Master validates → Authorize action
    docker run --read-only ...
    ```
 
-### 14.4 Database Security
+### 13.4 Database Security
 
 **MongoDB authentication:**
 
@@ -2304,7 +2029,7 @@ networks:
     internal: true
 ```
 
-### 14.5 Input Validation
+### 13.5 Input Validation
 
 **Always validate user inputs:**
 
@@ -2351,14 +2076,7 @@ func validateTask(task *Task) error {
 | `MASTER_ADDR` | `localhost:50051` | Master server address | ✅ Implemented |
 | `HEARTBEAT_INTERVAL` | `5s` | Heartbeat send interval | ✅ Implemented |
 | `LOG_LEVEL` | `info` | Logging level | ✅ Implemented |
-
-### AI Scheduler Configuration
-
-| Variable | Default | Description | Status |
-|----------|---------|-------------|--------|
-| `MASTER_ADDR` | `localhost:50051` | Master gRPC address | ✅ Implemented |
-| `SCHEDULER_STRATEGY` | `ai` | Scheduler algorithm to use | ✅ Implemented |
-| `LOG_LEVEL` | `INFO` | Python logging level | ✅ Implemented |
+| `CLOUDAI_OUTPUT_DIR` | `/var/cloudai/outputs` | Task output directory | ✅ Implemented |
 
 ---
 

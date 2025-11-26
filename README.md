@@ -1,17 +1,16 @@
 # CloudAI - Distributed Task Execution System
 
-**Orchestrate Docker-based tasks across worker nodes with AI-powered scheduling and real-time monitoring.**
+**Orchestrate Docker-based tasks across worker nodes with real-time monitoring and a web dashboard.**
 
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://golang.org)
-[![Python Version](https://img.shields.io/badge/Python-3.8+-3776AB?style=flat&logo=python)](https://python.org)
 [![Docker](https://img.shields.io/badge/Docker-Required-2496ED?style=flat&logo=docker)](https://docker.com)
-[![MongoDB](https://img.shields.io/badge/MongoDB-6.0+-47A248?style=flat&logo=mongodb)](https://mongodb.com)
+[![MongoDB](https://img.shields.io/badge/MongoDB-7.0+-47A248?style=flat&logo=mongodb)](https://mongodb.com)
 
 ---
 
 ## 📖 Overview
 
-CloudAI is a distributed computing platform for executing Docker-based workloads across a cluster of worker nodes. Built with **Go** for performance and **Python** for AI-powered scheduling.
+CloudAI is a distributed computing platform for executing Docker-based workloads across a cluster of worker nodes. Built with **Go** for high performance.
 
 **Use Cases:** ML training, batch processing, CI/CD pipelines, scientific computing, microservices testing
 
@@ -22,7 +21,7 @@ CloudAI is a distributed computing platform for executing Docker-based workloads
 ## ✨ Key Features
 
 - **Interactive CLI** - Manage cluster from command-line
-- **AI Scheduling** - 4 optimization strategies (30-40% better throughput)
+- **Web Dashboard** - Real-time UI for monitoring and management
 - **Real-Time Telemetry** - WebSocket streaming of cluster metrics
 - **Docker Native** - Run any containerized workload
 - **REST & gRPC APIs** - Full programmatic access
@@ -30,6 +29,7 @@ CloudAI is a distributed computing platform for executing Docker-based workloads
 - **Auto-Registration** - Workers connect automatically
 - **Task Cancellation** - Graceful and forceful termination
 - **Resource Tracking** - CPU, Memory, GPU, Storage
+- **File Storage** - Secure file upload and download for tasks
 
 ## 🏗️ Architecture
 
@@ -45,17 +45,15 @@ User Interface (CLI/API)
 ```
 
 **Components:**
-- **Master**: Task assignment, worker management, telemetry aggregation (Port 50051)
+- **Master**: Task assignment, worker management, telemetry aggregation (gRPC: 50051, HTTP: 8080)
 - **Worker**: Docker execution, heartbeat monitoring (Port 50052+)
-- **AI Scheduler**: Intelligent task placement (Python, optional)
+- **Web UI**: React-based dashboard for monitoring (Port 3000)
 - **Database**: MongoDB for persistence
 
 **Communication:**
-- gRPC for Master <-> Worker
-- HTTP/WebSocket for monitoring (Port 8080)
+- gRPC for Master ↔ Worker
+- HTTP/WebSocket for monitoring and API (Port 8080)
 - MongoDB for data persistence
-
-See [architecture.md](docs/architecture.md) for detailed diagrams.
 
 ---
 
@@ -67,20 +65,29 @@ See [architecture.md](docs/architecture.md) for detailed diagrams.
 - Docker (daemon running)
 - Protocol Buffers compiler (`protoc`)
 - MongoDB (via Docker Compose)
-- Python 3.8+ (for AI Scheduler)
+- Node.js 18+ (for Web UI)
+- Python 3.8+ (for future agent extensibility)
 
 ### Installation
 
 ```bash
 # Clone repository
-git clone --recurse-submodules https://github.com/Codesmith28/CloudAI.git
+git clone https://github.com/Codesmith28/CloudAI.git
 cd CloudAI
+
+# Set up Python virtual environment (for future agent extensibility)
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 
 # One-time setup (generates proto code, creates symlinks, installs deps)
 make setup
 
 # Build master and worker
 make all
+
+# Install UI dependencies (optional)
+cd ui && npm install && cd ..
 ```
 
 ### Run the System
@@ -89,11 +96,11 @@ make all
 # Terminal 1: Start MongoDB
 cd database && docker-compose up -d
 
-# Terminal 2: Start Master
-cd master && ./masterNode
+# Terminal 2: Start Master (includes Web UI on port 3000)
+./runMaster.sh
 
 # Terminal 3: Start Worker  
-cd worker && ./workerNode
+./runWorker.sh
 ```
 
 ### Your First Task
@@ -125,17 +132,6 @@ master> monitor task-<id>                                     # Watch logs
 master> cancel task-<id>                                      # Cancel task
 ```
 
-### AI Scheduler
-
-```bash
-cd agentic_scheduler
-
-python main.py ai              # Multi-Objective (balanced)
-python main.py ai_aggressive   # Max resource utilization
-python main.py ai_predictive   # Min completion time
-python test_schedulers.py      # Compare all strategies
-```
-
 ### Monitoring
 
 ```bash
@@ -160,14 +156,11 @@ curl -X POST http://localhost:8080/api/tasks \
 
 ---
 
-## � Documentation
+## 📚 Documentation
 
 - **[GETTING_STARTED.md](GETTING_STARTED.md)** - 5-minute setup guide
-- **[DOCUMENTATION.md](DOCUMENTATION.md)** - Complete reference (50+ pages)
-- **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - Documentation navigator
-- **[docs/architecture.md](docs/architecture.md)** - System architecture
-- **[docs/TELEMETRY_QUICK_REFERENCE.md](docs/TELEMETRY_QUICK_REFERENCE.md)** - Monitoring guide
-- **[agentic_scheduler/AI_SCHEDULER_USAGE.md](agentic_scheduler/AI_SCHEDULER_USAGE.md)** - AI scheduler
+- **[DOCUMENTATION.md](DOCUMENTATION.md)** - Complete reference
+- **[Example.md](Example.md)** - Usage examples
 
 ---
 
@@ -208,15 +201,16 @@ Contributions welcome! Areas of interest:
 
 **Current (v2.0)**
 - ✅ Master-Worker architecture  
-- ✅ AI scheduling (4 strategies)
 - ✅ Real-time telemetry
 - ✅ Interactive CLI
 - ✅ Task cancellation
+- ✅ Web dashboard
+- ✅ File storage
 
 **Planned (v2.1)**
-- 🔜 Task queuing
-- 🔜 Web dashboard
-- 🔜 Authentication
+- 🔜 Task queuing improvements
+- 🔜 Authentication enhancements
+- 🔜 Cluster auto-scaling
 
 ---
 
