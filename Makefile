@@ -1,4 +1,4 @@
-.PHONY: help all proto master worker sample-task clean setup test
+.PHONY: help all proto master worker clean setup test
 
 # Default target
 help:
@@ -9,7 +9,6 @@ help:
 	@echo "  make proto        - Generate gRPC code from proto files"
 	@echo "  make master       - Build master node"
 	@echo "  make worker       - Build worker node"
-	@echo "  make sample-task  - Build sample Docker task"
 	@echo "  make setup        - Complete setup (proto + symlinks + deps)"
 	@echo "  make clean        - Clean generated files and binaries"
 	@echo "  make test         - Run basic connectivity tests"
@@ -51,21 +50,6 @@ worker:
 	@echo "🏗️  Building worker node..."
 	cd worker && go build -o workerNode .
 	@echo "✅ Worker built: worker/workerNode"
-
-# Build sample task Docker image
-sample-task:
-	@echo "🐳 Building sample task Docker images..."
-	@read -p "Enter your Docker Hub username: " username; \
-	for task_dir in sample_tasks/*/; do \
-		task_name=$$(basename $$task_dir); \
-		echo "Building $$task_name..."; \
-		cd $$task_dir && \
-		docker build -t $$username/cloudai-$$task_name:latest . && \
-		echo "✅ $$task_name built: $$username/cloudai-$$task_name:latest"; \
-		cd ../..; \
-	done && \
-	echo "✅ All sample tasks built successfully!" && \
-	echo "To push: docker push $$username/cloudai-<task_name>:latest"
 
 # Clean generated files
 clean:
