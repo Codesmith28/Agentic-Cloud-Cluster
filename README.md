@@ -233,23 +233,6 @@ Contributions welcome! Areas of interest:
 
 ---
 
-## Roadmap
-
-**Current (v2.0)**
-- Master-Worker architecture  
-- Real-time telemetry
-- Interactive CLI
-- Task cancellation
-- Web dashboard
-- File storage
-
-**Planned (v2.1)**
-- Task queuing improvements
-- Authentication enhancements
-- Cluster auto-scaling
-
----
-
 <div align="center">
 
 **Star this repo if you find it useful!**
