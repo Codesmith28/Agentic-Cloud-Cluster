@@ -217,30 +217,31 @@ func main() {
 		}
 	}
 
-	// Start AOD/GA epoch ticker for parameter optimization
+	// Start AOD training ticker for parameter optimization
 	if historyDB != nil {
-		// Start AOD epoch ticker (runs every 60 seconds)
-		aodEpochInterval := 60 * time.Second
+		// Start AOD training ticker (runs every 60 seconds)
+		aodTrainingInterval := 60 * time.Second
 		go func() {
-			ticker := time.NewTicker(aodEpochInterval)
+			ticker := time.NewTicker(aodTrainingInterval)
 			defer ticker.Stop()
 
-			log.Printf("✓ AOD epoch ticker started (interval: %s)", aodEpochInterval)
+			log.Printf("✓ AOD training ticker started (interval: %s)", aodTrainingInterval)
+			log.Printf("  - Training method: Linear regression (Theta) + Direct computation (Affinity/Penalty)")
 			log.Printf("  - Training data window: 24 hours")
 			log.Printf("  - Output: %s", paramsPath)
 			log.Printf("  - RTS hot-reload: every 30s")
 
 			for range ticker.C {
-				log.Println("🧬 Starting AOD training epoch...")
+				log.Println("🧬 Starting AOD training cycle...")
 				if err := aod.RunTraining(context.Background(), historyDB, paramsPath); err != nil {
 					log.Printf("❌ AOD training error: %v", err)
 				} else {
-					log.Println("✅ AOD training completed successfully")
+					log.Println("✅ AOD training cycle completed successfully")
 				}
 			}
 		}()
 	} else {
-		log.Println("⚠️  AOD/GA training disabled (HistoryDB not available)")
+		log.Println("⚠️  AOD training disabled (HistoryDB not available)")
 		log.Println("  - RTS will use default parameters from config/ga_output.json")
 	}
 
