@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"master/internal/config"
@@ -92,8 +93,23 @@ func (db *HistoryDB) Close(ctx context.Context) error {
 // Filters tasks completed between 'since' and 'until' timestamps
 // Returns only tasks with valid task types (one of the 6 standardized types)
 func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until time.Time) ([]TaskHistory, error) {
+	// DEBUG: Log the query parameters
+	log.Printf("🔍 DEBUG: Querying TASKS collection for completed_at between %s and %s", since.Format(time.RFC3339), until.Format(time.RFC3339))
+
 	// MongoDB aggregation pipeline to join collections
 	pipeline := mongo.Pipeline{
+		// Stage 0: Add computed field for task type (handles both task_type and tag fields)
+		{
+			{Key: "$addFields", Value: bson.D{
+				{Key: "computed_type", Value: bson.D{
+					{Key: "$ifNull", Value: bson.A{
+						"$task_type",     // Primary: task_type field (CLI/API)
+						"$computed_type", // Fallback: tag field (GUI)
+					}},
+				}},
+			}},
+		},
+
 		// Stage 1: Match tasks completed in the time range
 		{
 			{Key: "$match", Value: bson.D{
@@ -144,7 +160,7 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 			{Key: "$project", Value: bson.D{
 				{Key: "task_id", Value: "$task_id"},
 				{Key: "worker_id", Value: "$assignment.worker_id"},
-				{Key: "type", Value: "$tag"}, // Changed from $task_type to $tag
+				{Key: "type", Value: "$computed_type"}, // Use the computed type field from Stage 0
 				{Key: "arrival_time", Value: "$created_at"},
 				{Key: "deadline", Value: bson.D{
 					{Key: "$add", Value: bson.A{
@@ -164,23 +180,23 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 								bson.D{{Key: "$switch", Value: bson.D{
 									{Key: "branches", Value: bson.A{
 										bson.D{
-											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "cpu-light"}}}},
+											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "cpu-light"}}}},
 											{Key: "then", Value: 5.0},
 										},
 										bson.D{
-											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "cpu-heavy"}}}},
+											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "cpu-heavy"}}}},
 											{Key: "then", Value: 60.0},
 										},
 										bson.D{
-											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "memory-heavy"}}}},
+											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "memory-heavy"}}}},
 											{Key: "then", Value: 30.0},
 										},
 										bson.D{
-											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "gpu-heavy"}}}},
+											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-heavy"}}}},
 											{Key: "then", Value: 45.0},
 										},
 										bson.D{
-											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "mixed"}}}},
+											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "mixed"}}}},
 											{Key: "then", Value: 20.0},
 										},
 									}},
@@ -219,23 +235,23 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 									bson.D{{Key: "$switch", Value: bson.D{
 										{Key: "branches", Value: bson.A{
 											bson.D{
-												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "cpu-light"}}}},
+												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "cpu-light"}}}},
 												{Key: "then", Value: 5.0},
 											},
 											bson.D{
-												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "cpu-heavy"}}}},
+												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "cpu-heavy"}}}},
 												{Key: "then", Value: 60.0},
 											},
 											bson.D{
-												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "memory-heavy"}}}},
+												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "memory-heavy"}}}},
 												{Key: "then", Value: 30.0},
 											},
 											bson.D{
-												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "gpu-heavy"}}}},
+												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-heavy"}}}},
 												{Key: "then", Value: 45.0},
 											},
 											bson.D{
-												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "mixed"}}}},
+												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "mixed"}}}},
 												{Key: "then", Value: 20.0},
 											},
 										}},
@@ -261,23 +277,23 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 						bson.D{{Key: "$switch", Value: bson.D{
 							{Key: "branches", Value: bson.A{
 								bson.D{
-									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "cpu-light"}}}},
+									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "cpu-light"}}}},
 									{Key: "then", Value: 5.0},
 								},
 								bson.D{
-									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "cpu-heavy"}}}},
+									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "cpu-heavy"}}}},
 									{Key: "then", Value: 60.0},
 								},
 								bson.D{
-									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "memory-heavy"}}}},
+									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "memory-heavy"}}}},
 									{Key: "then", Value: 30.0},
 								},
 								bson.D{
-									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "gpu-heavy"}}}},
+									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-heavy"}}}},
 									{Key: "then", Value: 45.0},
 								},
 								bson.D{
-									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$tag", "mixed"}}}},
+									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "mixed"}}}},
 									{Key: "then", Value: 20.0},
 								},
 							}},
@@ -298,6 +314,7 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 		},
 
 		// Stage 5: Filter only valid task types (exclude empty or invalid types)
+		// DEBUG: This filter removes tasks with invalid/missing tags
 		{
 			{Key: "$match", Value: bson.D{
 				{Key: "type", Value: bson.D{
@@ -326,6 +343,13 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 	var history []TaskHistory
 	if err := cursor.All(ctx, &history); err != nil {
 		return nil, fmt.Errorf("decode task history: %w", err)
+	}
+
+	// DEBUG: Log what was found
+	log.Printf("🔍 DEBUG: Query returned %d task history records", len(history))
+	if len(history) > 0 {
+		log.Printf("🔍 DEBUG: Sample task: ID=%s, Worker=%s, Type=%s, Status at DB query time",
+			history[0].TaskID, history[0].WorkerID, history[0].Type)
 	}
 
 	return history, nil

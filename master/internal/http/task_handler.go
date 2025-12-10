@@ -112,16 +112,30 @@ func (h *TaskAPIHandler) HandleCreateTask(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Create task protobuf
+	// Validate K-value if provided (allowed range 1.5 to 2.5)
+	if taskReq.KValue != "" {
+		if kValue < 1.5 || kValue > 2.5 {
+			http.Error(w, "k_value must be between 1.5 and 2.5", http.StatusBadRequest)
+			return
+		}
+	} else {
+		kValue = 2.0 // Default SLA multiplier
+	}
+
+	// Create task protobuf with task_type and sla_multiplier
 	task := &pb.Task{
-		TaskId:      fmt.Sprintf("task-%d", time.Now().UnixNano()),
-		DockerImage: taskReq.DockerImage,
-		Command:     taskReq.Command,
-		ReqCpu:      cpuRequired,
-		ReqMemory:   memoryRequired,
-		ReqStorage:  storageRequired,
-		ReqGpu:      gpuRequired,
-		UserId:      taskReq.UserID,
+		TaskId:        fmt.Sprintf("task-%d", time.Now().UnixNano()),
+		DockerImage:   taskReq.DockerImage,
+		Command:       taskReq.Command,
+		ReqCpu:        cpuRequired,
+		ReqMemory:     memoryRequired,
+		ReqStorage:    storageRequired,
+		ReqGpu:        gpuRequired,
+		UserId:        taskReq.UserID,
+		TaskType:      taskReq.Tag,         // Set task_type from tag field
+		SlaMultiplier: kValue,              // Set SLA multiplier
+		TaskName:      taskReq.DockerImage, // Default task name
+		SubmittedAt:   time.Now().Unix(),
 	}
 
 	// Submit task to master server
@@ -138,18 +152,8 @@ func (h *TaskAPIHandler) HandleCreateTask(w http.ResponseWriter, r *http.Request
 		Message: ack.Message,
 	}
 
-	// Persist metadata (tag and k_value) to DB if available
-	if h.taskDB != nil {
-		// Validate K-value if provided (allowed range 1.5 to 2.5 step 0.1)
-		if taskReq.KValue != "" {
-			if kValue < 1.5 || kValue > 2.5 {
-				// log and continue, but return bad request to client
-				http.Error(w, "k_value must be between 1.5 and 2.5", http.StatusBadRequest)
-				return
-			}
-		}
-
-		// Update metadata on stored task (SubmitTask already created db entry)
+	// Also persist tag and k_value fields for backward compatibility with GUI
+	if h.taskDB != nil && (taskReq.Tag != "" || taskReq.KValue != "") {
 		if err := h.taskDB.UpdateTaskMetadata(ctx, task.TaskId, taskReq.Tag, kValue); err != nil {
 			// If update fails, log warning but don't fail the request
 			fmt.Printf("Warning: failed to update task metadata for %s: %v\n", task.TaskId, err)

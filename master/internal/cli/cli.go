@@ -625,9 +625,14 @@ func (c *CLI) submitTask(parts []string) {
 					i++ // Skip the value
 				}
 			}
-		case "-type", "-task_type":
+		case "-type", "-task_type", "-tag":
 			if i+1 < len(parts) {
 				taskType = parts[i+1]
+				i++ // Skip the value
+			}
+		case "-name":
+			if i+1 < len(parts) {
+				taskName = parts[i+1]
 				i++ // Skip the value
 			}
 		}

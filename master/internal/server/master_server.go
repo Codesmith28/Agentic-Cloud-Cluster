@@ -1239,17 +1239,19 @@ func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	// Store task in database as queued
 	if s.taskDB != nil {
 		dbTask := &db.Task{
-			TaskID:      task.TaskId,
-			UserID:      task.UserId,
-			TaskName:    task.TaskName,
-			SubmittedAt: task.SubmittedAt,
-			DockerImage: task.DockerImage,
-			Command:     task.Command,
-			ReqCPU:      task.ReqCpu,
-			ReqMemory:   task.ReqMemory,
-			ReqStorage:  task.ReqStorage,
-			ReqGPU:      task.ReqGpu,
-			Status:      "queued",
+			TaskID:        task.TaskId,
+			UserID:        task.UserId,
+			TaskName:      task.TaskName,
+			SubmittedAt:   task.SubmittedAt,
+			DockerImage:   task.DockerImage,
+			Command:       task.Command,
+			ReqCPU:        task.ReqCpu,
+			ReqMemory:     task.ReqMemory,
+			ReqStorage:    task.ReqStorage,
+			ReqGPU:        task.ReqGpu,
+			TaskType:      task.TaskType,      // NEW: Save task type for training
+			SLAMultiplier: task.SlaMultiplier, // NEW: Save SLA multiplier
+			Status:        "queued",
 		}
 		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
 			log.Printf("Warning: Failed to store task in database: %v", err)
@@ -1286,17 +1288,19 @@ func (s *MasterServer) DispatchTaskToWorker(ctx context.Context, task *pb.Task, 
 	// Store task in database as queued first
 	if s.taskDB != nil {
 		dbTask := &db.Task{
-			TaskID:      task.TaskId,
-			UserID:      task.UserId,
-			TaskName:    task.TaskName,
-			SubmittedAt: task.SubmittedAt,
-			DockerImage: task.DockerImage,
-			Command:     task.Command,
-			ReqCPU:      task.ReqCpu,
-			ReqMemory:   task.ReqMemory,
-			ReqStorage:  task.ReqStorage,
-			ReqGPU:      task.ReqGpu,
-			Status:      "queued",
+			TaskID:        task.TaskId,
+			UserID:        task.UserId,
+			TaskName:      task.TaskName,
+			SubmittedAt:   task.SubmittedAt,
+			DockerImage:   task.DockerImage,
+			Command:       task.Command,
+			ReqCPU:        task.ReqCpu,
+			ReqMemory:     task.ReqMemory,
+			ReqStorage:    task.ReqStorage,
+			ReqGPU:        task.ReqGpu,
+			TaskType:      task.TaskType,      // NEW: Save task type for training
+			SLAMultiplier: task.SlaMultiplier, // NEW: Save SLA multiplier
+			Status:        "queued",
 		}
 		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
 			log.Printf("Warning: Failed to store task in database: %v", err)
