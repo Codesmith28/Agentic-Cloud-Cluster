@@ -33,9 +33,11 @@ setup: proto
 	@echo "🔗 Creating symlinks..."
 	@cd master && (test -L proto || ln -s ../proto/pb proto)
 	@cd worker && (test -L proto || ln -s ../proto/pb proto)
-	@echo "� Creating agentic_scheduler proto symlink..."
-	@cd agentic_scheduler && (test -L proto && rm proto || true) && ln -s ../proto/py proto
-	@echo "�📦 Installing Go dependencies..."
+	@if [ -d agentic_scheduler ]; then \
+		echo "� Creating agentic_scheduler proto symlink..."; \
+		cd agentic_scheduler && (test -L proto && rm proto || true) && ln -s ../proto/py proto; \
+	fi
+	@echo "📦 Installing Go dependencies..."
 	cd master && go mod tidy
 	cd worker && go mod tidy
 	@echo "✅ Setup complete!"
