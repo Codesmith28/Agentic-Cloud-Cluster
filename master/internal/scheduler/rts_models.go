@@ -69,7 +69,7 @@ type GAParams struct {
 //   - pbTask: The protobuf task message
 //   - now: Current time (used as arrival time)
 //   - tau: Base runtime estimate in seconds
-//   - k: SLA multiplier (typically 1.5 or 2.0) - if 0, uses pbTask.SlaMultiplier or default 2.0
+//   - k: SLA multiplier (default: 2.0, valid range: 1.5-2.5) - if 0, uses pbTask.SlaMultiplier or default 2.0
 func NewTaskViewFromProto(pbTask *pb.Task, now time.Time, tau float64, k float64) TaskView {
 	// Determine task type: use explicit type if provided and valid, otherwise infer
 	taskType := ""
