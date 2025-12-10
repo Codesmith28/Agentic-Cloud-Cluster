@@ -18,6 +18,7 @@ type Assignment struct {
 	TaskID       string    `bson:"task_id"`
 	WorkerID     string    `bson:"worker_id"`
 	AssignedAt   time.Time `bson:"assigned_at"`
+	LoadAtStart  float64   `bson:"load_at_start,omitempty"` // Worker load (0-1) when task was assigned
 }
 
 // AssignmentDB handles assignment-related database operations

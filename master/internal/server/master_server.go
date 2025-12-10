@@ -129,6 +129,14 @@ func (s *MasterServer) GetMasterInfo() (string, string) {
 	return s.masterID, s.masterAddress
 }
 
+// SetScheduler sets the task scheduler
+func (s *MasterServer) SetScheduler(sched scheduler.Scheduler) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.scheduler = sched
+	log.Printf("Scheduler set: %s", sched.GetName())
+}
+
 // LoadWorkersFromDB loads registered workers from database into memory
 func (s *MasterServer) LoadWorkersFromDB(ctx context.Context) error {
 	if s.workerDB == nil {
@@ -485,6 +493,7 @@ func (s *MasterServer) StartWorkerReconnectionMonitor() {
 		for {
 			select {
 			case <-s.reconnectTicker.C:
+				s.checkAndMarkInactiveWorkers() // Check for inactive workers first
 				s.attemptWorkerReconnections()
 			case <-s.reconnectStop:
 				log.Println("🛑 Worker reconnection monitor stopped")
@@ -501,6 +510,25 @@ func (s *MasterServer) StopWorkerReconnectionMonitor() {
 	}
 	if s.reconnectStop != nil {
 		close(s.reconnectStop)
+	}
+}
+
+// checkAndMarkInactiveWorkers marks workers as inactive if they haven't sent heartbeat in 30 seconds
+func (s *MasterServer) checkAndMarkInactiveWorkers() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().Unix()
+	const heartbeatTimeout = 30 // 30 seconds timeout
+
+	for workerID, worker := range s.workers {
+		if worker.IsActive && worker.LastHeartbeat > 0 {
+			timeSinceLastHeartbeat := now - worker.LastHeartbeat
+			if timeSinceLastHeartbeat > heartbeatTimeout {
+				log.Printf("⚠️ Worker %s marked as inactive (no heartbeat for %d seconds)", workerID, timeSinceLastHeartbeat)
+				worker.IsActive = false
+			}
+		}
 	}
 }
 
@@ -920,8 +948,21 @@ func (s *MasterServer) GetWorkers() map[string]*WorkerState {
 	defer s.mu.RUnlock()
 
 	workers := make(map[string]*WorkerState)
+	now := time.Now().Unix()
+
 	for k, v := range s.workers {
-		workers[k] = v
+		// Create a copy to avoid modifying the original
+		workerCopy := *v
+
+		// Check if worker is truly active based on heartbeat timeout (30 seconds)
+		if workerCopy.LastHeartbeat > 0 {
+			timeSinceLastHeartbeat := now - workerCopy.LastHeartbeat
+			if timeSinceLastHeartbeat > 30 {
+				workerCopy.IsActive = false
+			}
+		}
+
+		workers[k] = &workerCopy
 	}
 	return workers
 }
@@ -1198,17 +1239,19 @@ func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	// Store task in database as queued
 	if s.taskDB != nil {
 		dbTask := &db.Task{
-			TaskID:      task.TaskId,
-			UserID:      task.UserId,
-			TaskName:    task.TaskName,
-			SubmittedAt: task.SubmittedAt,
-			DockerImage: task.DockerImage,
-			Command:     task.Command,
-			ReqCPU:      task.ReqCpu,
-			ReqMemory:   task.ReqMemory,
-			ReqStorage:  task.ReqStorage,
-			ReqGPU:      task.ReqGpu,
-			Status:      "queued",
+			TaskID:        task.TaskId,
+			UserID:        task.UserId,
+			TaskName:      task.TaskName,
+			SubmittedAt:   task.SubmittedAt,
+			DockerImage:   task.DockerImage,
+			Command:       task.Command,
+			ReqCPU:        task.ReqCpu,
+			ReqMemory:     task.ReqMemory,
+			ReqStorage:    task.ReqStorage,
+			ReqGPU:        task.ReqGpu,
+			TaskType:      task.TaskType,      // NEW: Save task type for training
+			SLAMultiplier: task.SlaMultiplier, // NEW: Save SLA multiplier
+			Status:        "queued",
 		}
 		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
 			log.Printf("Warning: Failed to store task in database: %v", err)
@@ -1245,17 +1288,19 @@ func (s *MasterServer) DispatchTaskToWorker(ctx context.Context, task *pb.Task, 
 	// Store task in database as queued first
 	if s.taskDB != nil {
 		dbTask := &db.Task{
-			TaskID:      task.TaskId,
-			UserID:      task.UserId,
-			TaskName:    task.TaskName,
-			SubmittedAt: task.SubmittedAt,
-			DockerImage: task.DockerImage,
-			Command:     task.Command,
-			ReqCPU:      task.ReqCpu,
-			ReqMemory:   task.ReqMemory,
-			ReqStorage:  task.ReqStorage,
-			ReqGPU:      task.ReqGpu,
-			Status:      "queued",
+			TaskID:        task.TaskId,
+			UserID:        task.UserId,
+			TaskName:      task.TaskName,
+			SubmittedAt:   task.SubmittedAt,
+			DockerImage:   task.DockerImage,
+			Command:       task.Command,
+			ReqCPU:        task.ReqCpu,
+			ReqMemory:     task.ReqMemory,
+			ReqStorage:    task.ReqStorage,
+			ReqGPU:        task.ReqGpu,
+			TaskType:      task.TaskType,      // NEW: Save task type for training
+			SLAMultiplier: task.SlaMultiplier, // NEW: Save SLA multiplier
+			Status:        "queued",
 		}
 		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
 			log.Printf("Warning: Failed to store task in database: %v", err)

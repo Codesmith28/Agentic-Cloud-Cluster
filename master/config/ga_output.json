@@ -1,0 +1,35 @@
+{
+  "Theta": {
+    "Theta1": 0,
+    "Theta2": 0,
+    "Theta3": 0,
+    "Theta4": 0
+  },
+  "Risk": {
+    "Alpha": 10,
+    "Beta": 1
+  },
+  "AffinityMatrix": {
+    "cpu-heavy": {
+      "Topology": 3.5186926054661503
+    },
+    "cpu-light": {
+      "Topology": 1
+    },
+    "gpu-heavy": {
+      "Topology": 1
+    },
+    "gpu-training": {
+      "Topology": 1
+    },
+    "memory-heavy": {
+      "Topology": 1
+    },
+    "mixed": {
+      "Topology": 1
+    }
+  },
+  "PenaltyVector": {
+    "Topology": 1.5714285714285714
+  }
+}

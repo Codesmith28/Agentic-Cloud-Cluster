@@ -33,6 +33,8 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 ### 1.2 Key Capabilities
 
 - **Distributed Task Execution**: Run containerized workloads across multiple worker nodes
+- **Risk-aware Scheduling**: RTS algorithm optimizes task placement to meet SLAs using historical data
+- **Adaptive Optimization**: Background AOD training continuously improves scheduling parameters
 - **Real-time Monitoring**: WebSocket-based telemetry streaming for cluster health and task status
 - **Resource Management**: Track and optimize CPU, memory, storage, and GPU allocation
 - **Interactive Management**: Command-line interface for cluster administration
@@ -320,6 +322,8 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 
 **Responsibilities:**
 - Central coordination and control
+- **Risk-aware Task Scheduling (RTS)** for SLA compliance
+- **Adaptive Online Decision (AOD)** training for parameter optimization
 - Worker registration and health monitoring
 - Task assignment and tracking
 - Database management
@@ -2119,17 +2123,27 @@ docker pull node:18
 ```go
 // worker/internal/system/resources.go
 // Reduce sampling frequency if CPU usage is high
-```
-
 ### 12.3 Scheduler Optimization
 
-**Batch scheduling:**
+**Risk-aware Task Scheduling (RTS):**
 
-```python
-# Schedule multiple tasks at once instead of one-by-one
-batch_size = 10
-for batch in chunk_tasks(pending_tasks, batch_size):
-    assignments = scheduler(batch, workers)
+The system uses a sophisticated RTS algorithm that:
+1.  **Estimates Execution Time**: Uses historical data (Tau) and current resource usage.
+2.  **Calculates Risk**: Determines the probability of a task exceeding its deadline (SLA).
+3.  **Optimizes Placement**: Selects the worker with the highest probability of success.
+
+**Adaptive Online Decision (AOD):**
+
+- **Continuous Learning**: A background process runs every 60 seconds.
+- **Linear Regression**: Trains `Theta` parameters to understand how CPU/Memory/GPU usage affects performance.
+- **Affinity & Penalty**: Builds worker profiles based on past successes and failures.
+- **Hot-Reload**: The scheduler automatically reloads optimized parameters (`config/ga_output.json`) every 30 seconds.
+
+**Configuration:**
+
+- `SCHED_SLA_MULTIPLIER`: Controls the strictness of the SLA (default: 2.0). Range: 1.5 - 2.5.
+  - Higher values = looser deadlines, more workers considered.
+  - Lower values = stricter deadlines, only high-performance workers considered. assignments = scheduler(batch, workers)
     submit_assignments(assignments)
 ```
 
