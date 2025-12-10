@@ -25,7 +25,8 @@ CloudAI is a distributed computing platform for executing Docker-based workloads
 - **REST & gRPC APIs** - Full programmatic access
 - **MongoDB Persistence** - Task history and results
 - **Auto-Registration** - Workers connect automatically
-- **Task Scheduling** - Round-robin scheduler with resource awareness
+- **Task Scheduling** - Risk-aware Task Scheduling (RTS) with Round-Robin fallback
+- **Adaptive Optimization** - AOD module trains scheduling parameters using historical data
 - **Task Queuing** - Automatic queuing when resources unavailable
 - **Task Cancellation** - Graceful and forceful termination
 - **Resource Tracking** - CPU, Memory, GPU, Storage
@@ -46,7 +47,7 @@ User Interface (CLI/API)
 ```
 
 **Components:**
-- **Master**: Task assignment, worker management, telemetry aggregation (gRPC: 50051, HTTP: 8080)
+- **Master**: Task assignment, worker management, telemetry aggregation, AOD training (gRPC: 50051, HTTP: 8080)
 - **Worker**: Docker execution, heartbeat monitoring (Port 50052+)
 - **Web UI**: React-based dashboard for monitoring (Port 3000)
 - **Database**: MongoDB for persistence

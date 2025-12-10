@@ -27,8 +27,9 @@ The CloudAI system follows a master-worker distributed architecture:
 | CLI Interface | `internal/cli/` | Interactive readline-based command prompt for task submission, worker management, monitoring, and file operations |
 | HTTP/WebSocket Server | `internal/http/` | REST API endpoints for tasks, workers, files, auth; WebSocket for real-time telemetry |
 | gRPC Server | `internal/server/` | Worker ↔ Master communication: registration, heartbeats, task assignment, file uploads |
-| Scheduler | `internal/scheduler/` | Pluggable scheduling algorithms (Round-Robin implemented) with resource-aware worker selection |
+| Scheduler | `internal/scheduler/` | Risk-aware Task Scheduler (RTS) with Round-Robin fallback. Optimizes for SLA compliance. |
 | Telemetry Manager | `internal/telemetry/` | Per-worker telemetry data, WebSocket broadcasting, real-time monitoring |
+| AOD Trainer | `internal/aod/` | Adaptive Online Decision module. Trains scheduling parameters (Theta, Affinity) using historical data (Linear Regression). |
 | File Storage | `internal/storage/` | Secure file storage with per-user/per-task isolation and access control |
 | Database Layer | `internal/db/` | MongoDB operations for users, workers, tasks, assignments, results, file metadata |
 
