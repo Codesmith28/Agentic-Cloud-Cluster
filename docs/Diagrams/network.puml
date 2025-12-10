@@ -1,0 +1,48 @@
+@startuml network
+
+skinparam componentStyle rectangle
+
+title Network Architecture
+
+package "Master Node" {
+    component "gRPC Server\n0.0.0.0:50051" as MasterGRPC
+    component "HTTP/WS Server\n0.0.0.0:8080" as MasterHTTP
+    database "MongoDB\nlocalhost:27017" as MongoDB
+}
+
+package "Worker Nodes" {
+    component "Worker 1\ngRPC: 0.0.0.0:50052" as W1
+    component "Worker 2\ngRPC: 0.0.0.0:50053" as W2
+    component "Worker N\ngRPC: 0.0.0.0:5005N" as WN
+}
+
+component "Web UI (Dev)\nVite: localhost:3000" as WebUI
+
+cloud "Docker Hub" as DockerHub
+component "Docker Engine" as DockerEngine
+
+MasterGRPC <--> W1 : gRPC
+MasterGRPC <--> W2 : gRPC
+MasterGRPC <--> WN : gRPC
+
+MasterHTTP <-- WebUI : HTTP/WS
+
+W1 --> DockerEngine
+W2 --> DockerEngine
+WN --> DockerEngine
+
+DockerEngine --> DockerHub
+
+note bottom of MasterHTTP
+    REST API: /api/tasks, /api/workers, /api/files
+    Auth: /api/auth/login, /api/auth/register
+    Telemetry: /telemetry, /health
+    WebSocket: /ws/telemetry
+end note
+
+note bottom of MasterGRPC
+    Protocol: gRPC over HTTP/2
+    Messages: Protobuf (master_worker.proto)
+end note
+
+@enduml

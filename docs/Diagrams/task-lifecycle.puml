@@ -1,0 +1,32 @@
+@startuml task-lifecycle
+
+
+title Task Lifecycle
+
+[*] --> Created : CLI/REST API/Web UI
+
+Created --> Queued : No worker available
+
+Queued --> Assigned : Scheduler selects worker
+
+Created --> Assigned : Worker available
+
+Assigned --> ImagePulled : Worker pulls from Docker Registry
+
+ImagePulled --> ContainerCreated : Created with resource limits
+
+ContainerCreated --> Running : Docker Container + Log Streaming
+
+Running --> Success : Exit code 0
+Running --> Failed : Exit code != 0
+
+Success --> CollectOutput
+Failed --> CollectOutput
+
+CollectOutput --> UploadFiles : Files from /output
+
+UploadFiles --> ReportResult : gRPC ReportTaskCompletion
+
+ReportResult --> [*] : Stored in MongoDB
+
+@enduml

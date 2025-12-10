@@ -1,0 +1,28 @@
+@startuml worker-registration
+
+
+title Worker Registration Flow
+
+participant "Worker" as W
+participant "Master" as M
+database "Database" as DB
+
+W -> M : RegisterWorker(WorkerInfo)
+note right of W
+    WorkerInfo:
+    - worker_id
+    - worker_ip
+    - total_cpu
+    - total_memory
+    - total_storage
+    - total_gpu
+end note
+
+M -> DB : Store worker info
+DB --> M : OK
+
+M --> W : RegisterAck(success: true)
+
+M -> W : MasterRegister(master_id, master_address)
+
+@enduml

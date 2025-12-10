@@ -1,0 +1,47 @@
+@startuml deployment
+
+skinparam componentStyle rectangle
+
+title Deployment Topologies
+
+rectangle "Single Machine (Development)" {
+    node "localhost" {
+        component "Master\n127.0.0.1:50051" as DevMaster
+        component "Worker\n127.0.0.1:50052" as DevWorker
+        component "Docker" as DevDocker
+        
+        DevMaster <--> DevWorker
+        DevWorker --> DevDocker
+    }
+}
+
+rectangle "Multi-Machine (Production)" {
+    node "Master Server\n10.0.1.10:50051" as ProdMaster
+    
+    node "Worker-1\n10.0.1.20:50052" as ProdW1
+    node "Worker-2\n10.0.1.30:50052" as ProdW2
+    
+    ProdMaster <--> ProdW1
+    ProdMaster <--> ProdW2
+}
+
+rectangle "Horizontal Scaling" {
+    node "Master (Stateful)" as ScaleMaster
+    
+    node "Worker-1\n4 CPU, 8 GB" as ScaleW1
+    node "Worker-2\n8 CPU, 16 GB" as ScaleW2
+    node "Worker-N\n16 CPU, 32 GB" as ScaleWN
+    
+    ScaleMaster --> ScaleW1
+    ScaleMaster --> ScaleW2
+    ScaleMaster --> ScaleWN
+}
+
+note bottom of ScaleWN
+    Scale by adding more workers:
+    - Each worker independent
+    - No inter-worker communication
+    - Linear scalability
+end note
+
+@enduml

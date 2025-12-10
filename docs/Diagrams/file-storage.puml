@@ -1,0 +1,31 @@
+@startuml file-storage
+
+
+title File Storage Flow
+
+participant "Task Container" as TC
+participant "Worker" as W
+participant "Master" as M
+database "File System" as FS
+database "MongoDB" as DB
+
+TC -> W : Task Completes
+
+W -> W : Collect /output files
+
+W -> M : UploadTaskFiles (gRPC streaming)
+note right of W
+    FileChunk:
+    - task_id
+    - user_id
+    - file_path
+    - data chunks
+end note
+
+M -> FS : Store files in /files/{user}/{task_id}/
+
+M -> DB : Save file metadata
+
+M --> W : Upload Complete
+
+@enduml

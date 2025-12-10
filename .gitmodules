@@ -1,4 +1,0 @@
-[submodule "agentic_scheduler"]
-	path = agentic_scheduler
-	url = git@github.com:Codesmith28/AgenticScheduler.git
-	branch = master
