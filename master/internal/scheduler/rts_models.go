@@ -55,26 +55,11 @@ type Risk struct {
 	Beta  float64 // Weight for worker load (Lⱼ)
 }
 
-// AffinityWeights contains weights for computing task-worker affinity
-type AffinityWeights struct {
-	A1 float64 // Weight for speed (runtime efficiency)
-	A2 float64 // Weight for SLA reliability
-	A3 float64 // Weight for overload rate (penalty)
-}
-
-// PenaltyWeights contains weights for computing worker penalties
-type PenaltyWeights struct {
-	G1 float64 // Weight for SLA failure rate
-	G2 float64 // Weight for overload rate
-	G3 float64 // Weight for energy consumption
-}
-
-// GAParams contains all parameters computed by the Genetic Algorithm / AOD module
+// GAParams contains all parameters computed by the AOD module
+// Simplified version - NO weights, only direct affinity/penalty computation
 type GAParams struct {
 	Theta          Theta                         // Execution time predictor weights
 	Risk           Risk                          // Risk model weights
-	AffinityW      AffinityWeights               // Affinity computation weights
-	PenaltyW       PenaltyWeights                // Penalty computation weights
 	AffinityMatrix map[string]map[string]float64 // [taskType][workerID] -> affinity score
 	PenaltyVector  map[string]float64            // [workerID] -> penalty score
 }

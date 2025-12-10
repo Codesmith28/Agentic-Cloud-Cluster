@@ -63,24 +63,10 @@ func GetDefaultGAParams() *GAParams {
 			Beta:  1.0,  // Worker load consideration
 		},
 
-		// Affinity computation weights (EDD §5.3)
-		AffinityW: AffinityWeights{
-			A1: 1.0, // Speed (runtime efficiency)
-			A2: 2.0, // SLA reliability (emphasized)
-			A3: 0.5, // Overload rate penalty (moderate)
-		},
-
-		// Penalty computation weights (EDD §5.4)
-		PenaltyW: PenaltyWeights{
-			G1: 2.0, // SLA failure rate (high penalty)
-			G2: 1.0, // Overload rate (moderate penalty)
-			G3: 0.5, // Energy consumption (low penalty)
-		},
-
-		// Initialize empty maps (will be populated by GA training)
+		// Initialize empty maps (will be populated by AOD training)
 		// Affinity matrix structure: map[taskType]map[workerID]affinity
 		// Should have 6 task types: cpu-light, cpu-heavy, memory-heavy,
-		// gpu-inference, gpu-training, mixed
+		// gpu-heavy, gpu-training, mixed
 		AffinityMatrix: make(map[string]map[string]float64),
 
 		// Penalty vector structure: map[workerID]penalty
@@ -110,28 +96,6 @@ func validateGAParams(params *GAParams) error {
 	}
 	if params.Risk.Beta < 0 || params.Risk.Beta > 100 {
 		return fmt.Errorf("Beta out of range [0, 100]: %.2f", params.Risk.Beta)
-	}
-
-	// Validate Affinity weights (should be reasonable)
-	if params.AffinityW.A1 < 0 || params.AffinityW.A1 > 10 {
-		return fmt.Errorf("AffinityW.A1 out of range [0, 10]: %.2f", params.AffinityW.A1)
-	}
-	if params.AffinityW.A2 < 0 || params.AffinityW.A2 > 10 {
-		return fmt.Errorf("AffinityW.A2 out of range [0, 10]: %.2f", params.AffinityW.A2)
-	}
-	if params.AffinityW.A3 < 0 || params.AffinityW.A3 > 10 {
-		return fmt.Errorf("AffinityW.A3 out of range [0, 10]: %.2f", params.AffinityW.A3)
-	}
-
-	// Validate Penalty weights (should be reasonable)
-	if params.PenaltyW.G1 < 0 || params.PenaltyW.G1 > 10 {
-		return fmt.Errorf("PenaltyW.G1 out of range [0, 10]: %.2f", params.PenaltyW.G1)
-	}
-	if params.PenaltyW.G2 < 0 || params.PenaltyW.G2 > 10 {
-		return fmt.Errorf("PenaltyW.G2 out of range [0, 10]: %.2f", params.PenaltyW.G2)
-	}
-	if params.PenaltyW.G3 < 0 || params.PenaltyW.G3 > 10 {
-		return fmt.Errorf("PenaltyW.G3 out of range [0, 10]: %.2f", params.PenaltyW.G3)
 	}
 
 	// Validate Affinity matrix structure

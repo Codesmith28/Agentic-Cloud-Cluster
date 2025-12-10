@@ -131,7 +131,6 @@ func main() {
 			defer userDB.Close(context.Background())
 		}
 
-
 		// Create file metadata database handler
 		fileMetadataDB, err = db.NewFileMetadataDB(ctx, cfg)
 		if err != nil {
@@ -220,33 +219,23 @@ func main() {
 
 	// Start AOD/GA epoch ticker for parameter optimization
 	if historyDB != nil {
-		// Get GA configuration (can be overridden via env vars in future)
-		gaConfig := aod.GetDefaultGAConfig()
-		log.Printf("✓ GA configuration loaded:")
-		log.Printf("  - Population size: %d", gaConfig.PopulationSize)
-		log.Printf("  - Generations: %d", gaConfig.Generations)
-		log.Printf("  - Mutation rate: %.2f", gaConfig.MutationRate)
-		log.Printf("  - Crossover rate: %.2f", gaConfig.CrossoverRate)
-		log.Printf("  - Elitism count: %d", gaConfig.ElitismCount)
-		log.Printf("  - Tournament size: %d", gaConfig.TournamentSize)
-
-		// Start GA epoch ticker (runs every 60 seconds)
-		gaEpochInterval := 60 * time.Second
+		// Start AOD epoch ticker (runs every 60 seconds)
+		aodEpochInterval := 60 * time.Second
 		go func() {
-			ticker := time.NewTicker(gaEpochInterval)
+			ticker := time.NewTicker(aodEpochInterval)
 			defer ticker.Stop()
 
-			log.Printf("✓ AOD/GA epoch ticker started (interval: %s)", gaEpochInterval)
+			log.Printf("✓ AOD epoch ticker started (interval: %s)", aodEpochInterval)
 			log.Printf("  - Training data window: 24 hours")
 			log.Printf("  - Output: %s", paramsPath)
 			log.Printf("  - RTS hot-reload: every 30s")
 
 			for range ticker.C {
-				log.Println("🧬 Starting AOD/GA epoch...")
-				if err := aod.RunGAEpoch(context.Background(), historyDB, gaConfig, paramsPath); err != nil {
-					log.Printf("❌ AOD/GA epoch error: %v", err)
+				log.Println("🧬 Starting AOD training epoch...")
+				if err := aod.RunTraining(context.Background(), historyDB, paramsPath); err != nil {
+					log.Printf("❌ AOD training error: %v", err)
 				} else {
-					log.Println("✅ AOD/GA epoch completed successfully")
+					log.Println("✅ AOD training completed successfully")
 				}
 			}
 		}()

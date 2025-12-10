@@ -5,7 +5,6 @@ import (
 	"math"
 
 	"master/internal/db"
-	"master/internal/scheduler"
 )
 
 // BuildAffinityMatrix computes affinity scores for each (taskType, workerID) pair
@@ -15,13 +14,15 @@ import (
 //   - Positive affinity: worker is preferred (fast, reliable)
 //   - Negative affinity: worker should be avoided (slow, unreliable)
 //
-// Formula (EDD §5.3):
+// Formula (NO WEIGHTS):
 //
-//	A[taskType][workerID] = a1*speed + a2*SLA_reliability - a3*overload_rate
+//	Affinity = SpeedAdvantage + SLAReliability
+//	SpeedAdvantage = τ / worker_avg_runtime
+//	SLAReliability = sla_success_count / completed_tasks
 //
 // Returns a nested map: map[taskType][workerID]float64
 // Affinity values are clipped to [-5.0, +5.0] for numerical stability
-func BuildAffinityMatrix(history []db.TaskHistory, weights scheduler.AffinityWeights) map[string]map[string]float64 {
+func BuildAffinityMatrix(history []db.TaskHistory) map[string]map[string]float64 {
 	affinity := make(map[string]map[string]float64)
 
 	// Define the 6 standardized task types
@@ -29,7 +30,7 @@ func BuildAffinityMatrix(history []db.TaskHistory, weights scheduler.AffinityWei
 		"cpu-light",
 		"cpu-heavy",
 		"memory-heavy",
-		"gpu-inference",
+		"gpu-heavy", // Updated from gpu-inference
 		"gpu-training",
 		"mixed",
 	}
@@ -41,122 +42,88 @@ func BuildAffinityMatrix(history []db.TaskHistory, weights scheduler.AffinityWei
 	for _, taskType := range taskTypes {
 		affinity[taskType] = make(map[string]float64)
 
+		// Get baseline tau for this task type
+		baselineTau := getAverageTau(taskType, history)
+		if baselineTau <= 0 {
+			baselineTau = getDefaultTauForType(taskType)
+		}
+
 		for _, workerID := range workers {
 			// Filter history for this (taskType, workerID) pair
 			pairHistory := filterHistory(history, taskType, workerID)
 
-			// Need at least 3 data points for meaningful statistics
-			if len(pairHistory) < 3 {
-				// Default to neutral affinity (0.0) for insufficient data
-				affinity[taskType][workerID] = 0.0
+			// Need at least 2 data points for meaningful statistics
+			if len(pairHistory) < 2 {
+				// Default to neutral affinity (1.0) for insufficient data
+				affinity[taskType][workerID] = 1.0
 				continue
 			}
 
-			// Compute the three affinity components
-			speed := computeSpeed(taskType, workerID, history)
-			slaReliability := computeSLAReliability(taskType, workerID, pairHistory)
-			overloadRate := computeOverloadRate(taskType, workerID, pairHistory)
+			// Compute SpeedAdvantage = τ / worker_avg_runtime
+			workerAvgRuntime := computeWorkerAvgRuntime(taskType, workerID, history)
+			speedAdvantage := 0.0
+			if workerAvgRuntime > 0 {
+				speedAdvantage = baselineTau / workerAvgRuntime
+			}
 
-			// Compute raw affinity
-			rawAffinity := weights.A1*speed + weights.A2*slaReliability - weights.A3*overloadRate
+			// Compute SLAReliability = sla_success_count / completed_tasks
+			slaSuccessCount := 0
+			for _, record := range pairHistory {
+				if record.SLASuccess {
+					slaSuccessCount++
+				}
+			}
+			slaReliability := float64(slaSuccessCount) / float64(len(pairHistory))
+
+			// Compute affinity: NO WEIGHTS, direct sum
+			rawAffinity := speedAdvantage + slaReliability
 
 			// Clip to [-5, +5] for numerical stability
 			clippedAffinity := math.Max(-5.0, math.Min(5.0, rawAffinity))
 
 			affinity[taskType][workerID] = clippedAffinity
 
-			log.Printf("📊 Affinity[%s][%s] = %.3f (speed=%.3f, SLA=%.3f, overload=%.3f)",
-				taskType, workerID, clippedAffinity, speed, slaReliability, overloadRate)
+			log.Printf("📊 Affinity[%s][%s] = %.3f (speed=%.3f, SLA=%.3f)",
+				taskType, workerID, clippedAffinity, speedAdvantage, slaReliability)
 		}
 	}
 
 	return affinity
 }
 
-// computeSpeed calculates how fast a worker executes a specific task type
-// relative to the baseline (average across all workers for that type).
-//
-// Formula:
-//
-//	speed = baseline_runtime / worker_avg_runtime
-//
-// Returns:
-//   - > 1.0: worker is faster than average (positive affinity component)
-//   - < 1.0: worker is slower than average (negative affinity component)
-//   - 0.0: insufficient data or worker never ran this task type
-func computeSpeed(taskType, workerID string, history []db.TaskHistory) float64 {
-	// Get baseline runtime for this task type (average across all workers)
-	baseline := computeBaselineRuntime(taskType, history)
-	if baseline <= 0 {
-		return 0.0 // No data for this task type
-	}
-
-	// Get average runtime on this specific worker
-	workerRuntime := computeWorkerAvgRuntime(taskType, workerID, history)
-	if workerRuntime <= 0 {
-		return 0.0 // Worker never ran this task type
-	}
-
-	// Speed ratio: baseline / worker_runtime
-	// If worker is faster, ratio > 1.0
-	// If worker is slower, ratio < 1.0
-	speed := baseline / workerRuntime
-
-	return speed
-}
-
-// computeSLAReliability calculates the SLA success rate for a (taskType, workerID) pair.
-//
-// Formula:
-//
-//	SLA_reliability = 1 - (violations / total_tasks)
-//
-// Returns:
-//   - 1.0: perfect SLA compliance (all tasks met deadline)
-//   - 0.0: all tasks violated SLA
-//   - 0.5: half of tasks violated SLA
-func computeSLAReliability(taskType, workerID string, pairHistory []db.TaskHistory) float64 {
-	if len(pairHistory) == 0 {
+// getAverageTau computes the average tau (baseline runtime) for a task type
+func getAverageTau(taskType string, history []db.TaskHistory) float64 {
+	filtered := filterHistoryByType(history, taskType)
+	if len(filtered) == 0 {
 		return 0.0
 	}
 
-	violations := 0
-	for _, record := range pairHistory {
-		if !record.SLASuccess {
-			violations++
-		}
+	totalTau := 0.0
+	for _, record := range filtered {
+		totalTau += record.Tau
 	}
 
-	// SLA reliability = success rate
-	reliability := 1.0 - (float64(violations) / float64(len(pairHistory)))
-
-	return reliability
+	return totalTau / float64(len(filtered))
 }
 
-// computeOverloadRate calculates how often a worker was overloaded when executing
-// a specific task type.
-//
-// Formula:
-//
-//	overload_rate = avg(LoadAtStart) for this (taskType, workerID) pair
-//
-// Returns:
-//   - 0.0: worker was never loaded (bad - underutilized)
-//   - 0.5: worker was moderately loaded (good)
-//   - 1.0: worker was always at max capacity (bad - overloaded)
-func computeOverloadRate(taskType, workerID string, pairHistory []db.TaskHistory) float64 {
-	if len(pairHistory) == 0 {
-		return 0.0
+// getDefaultTauForType returns default tau values per task type
+func getDefaultTauForType(taskType string) float64 {
+	switch taskType {
+	case "cpu-light":
+		return 5.0
+	case "cpu-heavy":
+		return 60.0
+	case "memory-heavy":
+		return 30.0
+	case "gpu-heavy":
+		return 45.0
+	case "gpu-training":
+		return 120.0
+	case "mixed":
+		return 20.0
+	default:
+		return 30.0
 	}
-
-	totalLoad := 0.0
-	for _, record := range pairHistory {
-		totalLoad += record.LoadAtStart
-	}
-
-	avgLoad := totalLoad / float64(len(pairHistory))
-
-	return avgLoad
 }
 
 // computeBaselineRuntime computes the average runtime for a task type across ALL workers.

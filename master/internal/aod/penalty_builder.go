@@ -5,7 +5,6 @@ import (
 	"math"
 
 	"master/internal/db"
-	"master/internal/scheduler"
 )
 
 // BuildPenaltyVector computes penalty scores for each worker based on
@@ -16,13 +15,13 @@ import (
 //   - High overload rate: worker is frequently oversubscribed
 //   - High energy consumption: worker is inefficient
 //
-// Formula (EDD §5.4):
+// Formula (SIMPLIFIED - NO WEIGHTS):
 //
-//	P[workerID] = g1*SLA_fail_rate + g2*overload_rate + g3*energy_norm
+//	P[workerID] = SLA_fail_rate + overload_rate + energy_norm
 //
 // Returns: map[workerID]penalty
 // Penalty values are clipped to [0.0, 5.0] for numerical stability
-func BuildPenaltyVector(workerStats []db.WorkerStats, weights scheduler.PenaltyWeights) map[string]float64 {
+func BuildPenaltyVector(workerStats []db.WorkerStats) map[string]float64 {
 	penalty := make(map[string]float64)
 
 	// Need to compute normalized energy values across all workers
@@ -43,8 +42,8 @@ func BuildPenaltyVector(workerStats []db.WorkerStats, weights scheduler.PenaltyW
 		overloadRate := computeWorkerOverloadRate(stats)
 		energyNorm := computeEnergyNorm(stats, maxEnergy)
 
-		// Compute raw penalty
-		rawPenalty := weights.G1*slaFailRate + weights.G2*overloadRate + weights.G3*energyNorm
+		// Compute raw penalty: NO WEIGHTS, direct sum
+		rawPenalty := slaFailRate + overloadRate + energyNorm
 
 		// Clip to [0, 5] for numerical stability (penalties should be non-negative)
 		clippedPenalty := math.Max(0.0, math.Min(5.0, rawPenalty))
