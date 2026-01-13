@@ -28,7 +28,7 @@ proto:
 	cd proto && chmod +x generate.sh && ./generate.sh
 
 # Setup symlinks and dependencies
-setup: proto
+setup: deps proto
 	@echo "🔗 Creating symlinks..."
 	@cd master && (test -L proto || ln -s ../proto/pb proto)
 	@cd worker && (test -L proto || ln -s ../proto/pb proto)
@@ -40,6 +40,13 @@ setup: proto
 	cd master && go mod tidy
 	cd worker && go mod tidy
 	@echo "✅ Setup complete!"
+
+# Install external dependencies
+deps:
+	@echo "📦 Installing system and tool dependencies..."
+	chmod +x scripts/install_deps.sh
+	./scripts/install_deps.sh
+
 
 # Build master node
 master:
@@ -57,8 +64,9 @@ worker:
 clean:
 	@echo "🧹 Cleaning..."
 	rm -rf proto/pb proto/py
-	rm -f master/master-node
-	rm -f worker/worker-node
+	rm -f master/masterNode
+	rm -f worker/workerNode
+	rm -rf venv
 	cd master && (test -L proto && rm proto || true)
 	cd worker && (test -L proto && rm proto || true)
 	# cd agentic_scheduler && (test -L proto && rm proto || true)
