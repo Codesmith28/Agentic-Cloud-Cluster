@@ -162,6 +162,10 @@ func (c *CLI) Run() {
 			c.cancelTask(parts[1])
 		case "queue":
 			c.showQueue()
+		case "benchmark", "bench":
+			c.runBenchmark(parts)
+		case "workload-submit":
+			c.submitWorkload(parts)
 		case "files":
 			if len(parts) < 2 {
 				fmt.Println("Usage: files <user_id> [requesting_user]")
@@ -235,7 +239,7 @@ func (c *CLI) printHelp() {
 	fmt.Println("  stats <worker_id>              - Show detailed stats for a worker")
 	fmt.Println("  internal-state                 - Dump complete in-memory state of all workers")
 	fmt.Println("  fix-resources                  - Fix stale resource allocations")
-	fmt.Println("  list-tasks [status]            - List all tasks (or filter by: pending/running/completed/failed)")
+	fmt.Println("  list-tasks [status]            - List all tasks (or filter by: queued/pending/running/completed/failed/cancelled)")
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
 	fmt.Println("  task <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>] [-k <1.5-2.5>] [-type <task_type>]")
@@ -244,6 +248,8 @@ func (c *CLI) printHelp() {
 	fmt.Println("  monitor <task_id>              - Monitor live logs for a task (press any key to exit)")
 	fmt.Println("  cancel <task_id>               - Cancel a running task")
 	fmt.Println("  queue                          - Show pending tasks in the queue")
+	fmt.Println("  benchmark [profile|all]        - Run scheduler benchmark suite and generate report artifacts")
+	fmt.Println("  workload-submit <profile> [options] - Submit predefined workload to master at scheduled intervals")
 	fmt.Println("  files <user_id> [requesting_user]  - List all files for a user")
 	fmt.Println("  task-files <task_id> <user_id> [requesting_user]  - View files for a specific task")
 	fmt.Println("  download <task_id> <user_id> [requesting_user] [output_dir]  - Download all task files")
@@ -267,6 +273,9 @@ func (c *CLI) printHelp() {
 	fmt.Println("  monitor task-123")
 	fmt.Println("  cancel task-123")
 	fmt.Println("  queue")
+	fmt.Println("  benchmark all")
+	fmt.Println("  benchmark showcase -seed 42")
+	fmt.Println("  workload-submit showcase -speed 10 -limit 30")
 	fmt.Println("  files alice")
 	fmt.Println("  task-files task-123 alice")
 	fmt.Println("  download task-123 alice")

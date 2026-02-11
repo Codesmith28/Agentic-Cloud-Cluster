@@ -111,7 +111,7 @@ func (s *RTSScheduler) SelectWorker(task *pb.Task, workers map[string]*WorkerInf
 		eHat := s.predictExecTime(taskView, workerView, params.Theta)
 
 		// Compute base risk (EDD §3.7)
-		baseRisk := s.computeBaseRisk(taskView, workerView, eHat, params.Risk.Alpha, params.Risk.Beta)
+		baseRisk := s.computeBaseRisk(taskView, workerView, now, eHat, params.Risk.Alpha, params.Risk.Beta)
 
 		// Compute final risk with affinity and penalty (EDD §3.8)
 		finalRisk := s.computeFinalRisk(baseRisk, taskView.Type, workerView.ID, params)
@@ -137,13 +137,14 @@ func (s *RTSScheduler) SelectWorker(task *pb.Task, workers map[string]*WorkerInf
 
 // buildTaskView constructs a TaskView from a protobuf Task
 func (s *RTSScheduler) buildTaskView(task *pb.Task, now time.Time) TaskView {
-	// Use NewTaskViewFromProto which handles task type inference
-	tau := s.tauStore.GetTau(task.TaskType)
-	if tau == 0 {
-		// If task type not set, infer it first
-		taskType := InferTaskType(task)
-		tau = s.tauStore.GetTau(taskType)
+	taskType := task.TaskType
+	if taskType == "gpu-heavy" {
+		taskType = TaskTypeGPUInference
 	}
+	if !ValidateTaskType(taskType) {
+		taskType = InferTaskType(task)
+	}
+	tau := s.tauStore.GetTau(taskType)
 
 	return NewTaskViewFromProto(task, now, tau, s.slaMultiplier)
 }
@@ -233,9 +234,13 @@ func (s *RTSScheduler) predictExecTime(t TaskView, w WorkerView, theta Theta) fl
 // computeBaseRisk computes base risk score (EDD §3.7)
 // Formula: R_base = alpha * delta + beta * L
 // where delta = max(0, f_hat - deadline)
-func (s *RTSScheduler) computeBaseRisk(t TaskView, w WorkerView, eHat float64, alpha, beta float64) float64 {
-	// Predicted finish time
-	fHat := t.ArrivalTime.Add(time.Duration(eHat * float64(time.Second)))
+func (s *RTSScheduler) computeBaseRisk(t TaskView, w WorkerView, now time.Time, eHat float64, alpha, beta float64) float64 {
+	// Predicted finish time should start from scheduling time (or arrival if in the future).
+	startTime := now
+	if startTime.Before(t.ArrivalTime) {
+		startTime = t.ArrivalTime
+	}
+	fHat := startTime.Add(time.Duration(eHat * float64(time.Second)))
 
 	// Deadline violation delta (in seconds)
 	delta := 0.0

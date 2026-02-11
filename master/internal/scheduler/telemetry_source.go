@@ -44,6 +44,13 @@ func NewMasterTelemetrySource(telemetryMgr *telemetry.TelemetryManager, workerDB
 
 // GetWorkerViews returns the current state of all active workers
 func (mts *MasterTelemetrySource) GetWorkerViews(ctx context.Context) ([]WorkerView, error) {
+	if mts.telemetryMgr == nil {
+		return nil, fmt.Errorf("telemetry manager is not available")
+	}
+	if mts.workerDB == nil {
+		return nil, fmt.Errorf("worker database is not available")
+	}
+
 	// Get all workers from DB (for capacity information)
 	workers, err := mts.workerDB.GetAllWorkers(ctx)
 	if err != nil {
@@ -101,6 +108,10 @@ func (mts *MasterTelemetrySource) GetWorkerViews(ctx context.Context) ([]WorkerV
 
 // GetWorkerLoad returns the normalized load for a specific worker
 func (mts *MasterTelemetrySource) GetWorkerLoad(workerID string) float64 {
+	if mts.telemetryMgr == nil || mts.workerDB == nil {
+		return 0.0
+	}
+
 	// Get telemetry data for this worker
 	telData, exists := mts.telemetryMgr.GetWorkerTelemetry(workerID)
 	if !exists || !telData.IsActive {

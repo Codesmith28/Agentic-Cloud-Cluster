@@ -30,7 +30,7 @@ func BuildAffinityMatrix(history []db.TaskHistory) map[string]map[string]float64
 		"cpu-light",
 		"cpu-heavy",
 		"memory-heavy",
-		"gpu-heavy", // Updated from gpu-inference
+		"gpu-inference",
 		"gpu-training",
 		"mixed",
 	}
@@ -115,7 +115,7 @@ func getDefaultTauForType(taskType string) float64 {
 		return 60.0
 	case "memory-heavy":
 		return 30.0
-	case "gpu-heavy":
+	case "gpu-inference":
 		return 45.0
 	case "gpu-training":
 		return 120.0

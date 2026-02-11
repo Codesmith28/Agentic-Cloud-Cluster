@@ -24,17 +24,17 @@ type Task struct {
 	ReqMemory   float64 `bson:"req_memory"`
 	ReqStorage  float64 `bson:"req_storage"`
 	ReqGPU      float64 `bson:"req_gpu"`
-	
+
 	// GUI fields: generic tagging
-	Tag    string  `bson:"tag,omitempty"`    // Generic tag field from GUI
+	Tag    string  `bson:"tag,omitempty"`     // Generic tag field from GUI
 	KValue float64 `bson:"k_value,omitempty"` // K-value from GUI (same as SLAMultiplier)
-	
+
 	// Scheduler fields: SLA and task classification
-	TaskType      string    `bson:"task_type,omitempty"`    // Task type: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed
-	SLAMultiplier float64   `bson:"sla_multiplier"`         // k value: 1.5-2.5, default: 2.0 (prioritized over KValue if both set)
-	Deadline      time.Time `bson:"deadline,omitempty"`     // SLA deadline: arrival_time + k * tau
-	Tau           float64   `bson:"tau,omitempty"`          // Expected runtime baseline (seconds)
-	
+	TaskType      string    `bson:"task_type,omitempty"` // Task type: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed
+	SLAMultiplier float64   `bson:"sla_multiplier"`      // k value: 1.5-2.5, default: 2.0 (prioritized over KValue if both set)
+	Deadline      time.Time `bson:"deadline,omitempty"`  // SLA deadline: arrival_time + k * tau
+	Tau           float64   `bson:"tau,omitempty"`       // Expected runtime baseline (seconds)
+
 	Status      string    `bson:"status"` // pending, running, completed, failed
 	CreatedAt   time.Time `bson:"created_at"`
 	StartedAt   time.Time `bson:"started_at,omitempty"`
@@ -69,7 +69,9 @@ func NewTaskDB(ctx context.Context, cfg *config.Config) (*TaskDB, error) {
 // CreateTask inserts a new task into the database
 func (db *TaskDB) CreateTask(ctx context.Context, task *Task) error {
 	task.CreatedAt = time.Now()
-	task.Status = "pending"
+	if task.Status == "" {
+		task.Status = "pending"
+	}
 
 	_, err := db.collection.InsertOne(ctx, task)
 	if err != nil {

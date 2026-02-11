@@ -16,7 +16,7 @@
     "cpu-light": {
       "Topology": 1
     },
-    "gpu-heavy": {
+    "gpu-inference": {
       "Topology": 1
     },
     "gpu-training": {
