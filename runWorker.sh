@@ -14,7 +14,11 @@ echo ""
 # Check if Docker is running (required for task execution)
 if ! docker info >/dev/null 2>&1; then
     echo "⚠️  Warning: Docker is not running. Task execution will fail."
-    echo "   Start Docker first: sudo systemctl start docker"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "   Start Docker Desktop, then retry."
+    else
+        echo "   Start Docker first: sudo systemctl start docker"
+    fi
     echo ""
 fi
 
