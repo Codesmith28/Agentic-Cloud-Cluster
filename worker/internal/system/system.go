@@ -1,14 +1,11 @@
 package system
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"runtime"
-	"strconv"
-	"strings"
 	"syscall"
 )
 
@@ -147,55 +144,6 @@ func GetSystemResources() (*ResourceInfo, error) {
 	}
 
 	return resources, nil
-}
-
-// getTotalMemory returns the total system memory in GB
-func getTotalMemory() (float64, error) {
-	// Try reading from /proc/meminfo first (Linux)
-	file, err := os.Open("/proc/meminfo")
-	if err != nil {
-		// Fallback to sysinfo syscall
-		return getMemoryViaSysinfo()
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "MemTotal:") {
-			fields := strings.Fields(line)
-			if len(fields) >= 2 {
-				memKB, err := strconv.ParseUint(fields[1], 10, 64)
-				if err != nil {
-					return 0, fmt.Errorf("failed to parse memory value: %w", err)
-				}
-				// Convert KB to GB
-				memGB := float64(memKB) / (1024.0 * 1024.0)
-				return memGB, nil
-			}
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return getMemoryViaSysinfo()
-	}
-
-	return 0, fmt.Errorf("MemTotal not found in /proc/meminfo")
-}
-
-// getMemoryViaSysinfo gets memory using syscall.Sysinfo (fallback method)
-func getMemoryViaSysinfo() (float64, error) {
-	var info syscall.Sysinfo_t
-	err := syscall.Sysinfo(&info)
-	if err != nil {
-		return 0, fmt.Errorf("sysinfo syscall failed: %w", err)
-	}
-
-	// Total RAM in bytes = Totalram * Unit
-	totalRAM := info.Totalram * uint64(info.Unit)
-	// Convert bytes to GB
-	memGB := float64(totalRAM) / (1024.0 * 1024.0 * 1024.0)
-	return memGB, nil
 }
 
 // getTotalStorage returns the total available storage in GB for the root filesystem

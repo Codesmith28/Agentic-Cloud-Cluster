@@ -35,7 +35,10 @@ cleanup() {
 
     echo "✓ UI server stopped"
 
-    pgrep -f "ui/.*(node|vite|npm)" | xargs -r kill -9 2>/dev/null
+    PIDS="$(pgrep -f "ui/.*(node|vite|npm)" 2>/dev/null || true)"
+    if [ -n "$PIDS" ]; then
+        echo "$PIDS" | xargs kill -9 2>/dev/null || true
+    fi
 
     exit 0
 }
