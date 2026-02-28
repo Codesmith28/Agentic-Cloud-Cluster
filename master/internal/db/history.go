@@ -98,13 +98,32 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 
 	// MongoDB aggregation pipeline to join collections
 	pipeline := mongo.Pipeline{
-		// Stage 0: Add computed field for task type (handles both task_type and tag fields)
+		// Stage 0: Resolve task type from task_type/tag and normalize legacy aliases.
 		{
 			{Key: "$addFields", Value: bson.D{
 				{Key: "computed_type", Value: bson.D{
-					{Key: "$ifNull", Value: bson.A{
-						"$task_type",     // Primary: task_type field (CLI/API)
-						"$computed_type", // Fallback: tag field (GUI)
+					{Key: "$cond", Value: bson.D{
+						{Key: "if", Value: bson.D{{Key: "$eq", Value: bson.A{
+							bson.D{{Key: "$ifNull", Value: bson.A{
+								"$task_type", // Primary: task_type field (CLI/API)
+								"$tag",       // Fallback: tag field (GUI)
+							}}},
+							"gpu-heavy", // Legacy value
+						}}}},
+						{Key: "then", Value: "gpu-inference"},
+						{Key: "else", Value: bson.D{{Key: "$ifNull", Value: bson.A{
+							"$task_type",
+							"$tag",
+						}}}},
+					}},
+				}},
+				{Key: "computed_arrival", Value: bson.D{
+					{Key: "$cond", Value: bson.D{
+						{Key: "if", Value: bson.D{{Key: "$gt", Value: bson.A{"$submitted_at", 0}}}},
+						{Key: "then", Value: bson.D{{Key: "$toDate", Value: bson.D{
+							{Key: "$multiply", Value: bson.A{"$submitted_at", 1000}},
+						}}}},
+						{Key: "else", Value: "$created_at"},
 					}},
 				}},
 			}},
@@ -161,10 +180,10 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 				{Key: "task_id", Value: "$task_id"},
 				{Key: "worker_id", Value: "$assignment.worker_id"},
 				{Key: "type", Value: "$computed_type"}, // Use the computed type field from Stage 0
-				{Key: "arrival_time", Value: "$created_at"},
+				{Key: "arrival_time", Value: "$computed_arrival"},
 				{Key: "deadline", Value: bson.D{
 					{Key: "$add", Value: bson.A{
-						"$created_at",
+						"$computed_arrival",
 						bson.D{{Key: "$multiply", Value: bson.A{
 							// Use k_value if sla_multiplier is 0
 							bson.D{{Key: "$cond", Value: bson.D{
@@ -192,7 +211,7 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 											{Key: "then", Value: 30.0},
 										},
 										bson.D{
-											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-heavy"}}}},
+											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-inference"}}}},
 											{Key: "then", Value: 45.0},
 										},
 										bson.D{
@@ -219,7 +238,7 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 					{Key: "$lte", Value: bson.A{
 						"$completed_at",
 						bson.D{{Key: "$add", Value: bson.A{
-							"$created_at",
+							"$computed_arrival",
 							bson.D{{Key: "$multiply", Value: bson.A{
 								// Use k_value if sla_multiplier is 0
 								bson.D{{Key: "$cond", Value: bson.D{
@@ -247,7 +266,7 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 												{Key: "then", Value: 30.0},
 											},
 											bson.D{
-												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-heavy"}}}},
+												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-inference"}}}},
 												{Key: "then", Value: 45.0},
 											},
 											bson.D{
@@ -289,7 +308,7 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 									{Key: "then", Value: 30.0},
 								},
 								bson.D{
-									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-heavy"}}}},
+									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-inference"}}}},
 									{Key: "then", Value: 45.0},
 								},
 								bson.D{
@@ -320,7 +339,7 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 				{Key: "type", Value: bson.D{
 					{Key: "$in", Value: bson.A{
 						"cpu-light", "cpu-heavy", "memory-heavy",
-						"gpu-heavy", "gpu-inference", "gpu-training", "mixed",
+						"gpu-inference", "gpu-training", "mixed",
 					}},
 				}},
 			}},

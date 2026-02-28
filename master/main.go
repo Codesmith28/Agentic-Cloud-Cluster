@@ -199,10 +199,6 @@ func main() {
 	masterAddress := sysInfo.GetMasterAddress() + cfg.GRPCPort
 	masterServer.SetMasterInfo(masterID, masterAddress)
 
-	// Start task queue processor
-	masterServer.StartQueueProcessor()
-	log.Println("✓ Task queue processor started")
-
 	// Initialize HistoryDB for AOD/GA training
 	var historyDB *db.HistoryDB
 	if cfg.MongoDBURI != "" {
@@ -251,6 +247,15 @@ func main() {
 			log.Printf("Warning: Failed to load workers from DB: %v", err)
 		}
 	}
+
+	// Restore queued tasks from database before starting the processor.
+	if err := masterServer.RestoreQueuedTasks(ctx); err != nil {
+		log.Printf("Warning: Failed to restore queued tasks: %v", err)
+	}
+
+	// Start task queue processor
+	masterServer.StartQueueProcessor()
+	log.Println("✓ Task queue processor started")
 
 	// Start worker reconnection monitor
 	masterServer.StartWorkerReconnectionMonitor()

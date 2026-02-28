@@ -106,8 +106,14 @@ func NewTaskViewFromProto(pbTask *pb.Task, now time.Time, tau float64, k float64
 		slaMultiplier = 2.0
 	}
 
+	// Prefer the task submission time to avoid resetting SLA deadlines on re-scheduling.
+	arrivalTime := now
+	if pbTask != nil && pbTask.SubmittedAt > 0 {
+		arrivalTime = time.Unix(pbTask.SubmittedAt, 0)
+	}
+
 	// Compute deadline: D_i = ArrivalTime + k * tau
-	deadline := now.Add(time.Duration(slaMultiplier * tau * float64(time.Second)))
+	deadline := arrivalTime.Add(time.Duration(slaMultiplier * tau * float64(time.Second)))
 
 	return TaskView{
 		ID:          pbTask.TaskId,
@@ -116,7 +122,7 @@ func NewTaskViewFromProto(pbTask *pb.Task, now time.Time, tau float64, k float64
 		Mem:         pbTask.ReqMemory,
 		GPU:         pbTask.ReqGpu,
 		Storage:     pbTask.ReqStorage,
-		ArrivalTime: now,
+		ArrivalTime: arrivalTime,
 		Tau:         tau,
 		Deadline:    deadline,
 		UserID:      pbTask.UserId,

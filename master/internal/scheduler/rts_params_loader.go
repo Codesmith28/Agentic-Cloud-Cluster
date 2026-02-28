@@ -3,6 +3,7 @@ package scheduler
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 )
 
@@ -20,6 +21,9 @@ func LoadGAParams(filePath string) (*GAParams, error) {
 	if err := json.Unmarshal(data, &params); err != nil {
 		return nil, fmt.Errorf("failed to parse GA params JSON: %w", err)
 	}
+
+	// Normalize legacy task-type aliases before validation.
+	normalizeLegacyTaskTypeAliases(&params)
 
 	// Validate parameters
 	if err := validateGAParams(&params); err != nil {
@@ -66,7 +70,7 @@ func GetDefaultGAParams() *GAParams {
 		// Initialize empty maps (will be populated by AOD training)
 		// Affinity matrix structure: map[taskType]map[workerID]affinity
 		// Should have 6 task types: cpu-light, cpu-heavy, memory-heavy,
-		// gpu-heavy, gpu-training, mixed
+		// gpu-inference, gpu-training, mixed
 		AffinityMatrix: make(map[string]map[string]float64),
 
 		// Penalty vector structure: map[workerID]penalty
@@ -145,7 +149,38 @@ func LoadGAParamsOrDefault(filePath string) *GAParams {
 	if err != nil {
 		// Log the error but don't fail - use defaults
 		// This allows the system to start even without trained parameters
+		log.Printf("⚠️ RTS: falling back to default GA params (%v)", err)
 		return GetDefaultGAParams()
 	}
 	return params
+}
+
+// normalizeLegacyTaskTypeAliases rewrites historical task type keys to canonical names.
+func normalizeLegacyTaskTypeAliases(params *GAParams) {
+	if params == nil || params.AffinityMatrix == nil {
+		return
+	}
+
+	legacyKey := "gpu-heavy"
+	canonicalKey := TaskTypeGPUInference
+
+	legacyMap, hasLegacy := params.AffinityMatrix[legacyKey]
+	if !hasLegacy {
+		return
+	}
+
+	// Merge legacy values into canonical key (legacy values win on key collisions).
+	if existingCanonical, ok := params.AffinityMatrix[canonicalKey]; ok {
+		if existingCanonical == nil {
+			existingCanonical = make(map[string]float64)
+		}
+		for workerID, affinity := range legacyMap {
+			existingCanonical[workerID] = affinity
+		}
+		params.AffinityMatrix[canonicalKey] = existingCanonical
+	} else {
+		params.AffinityMatrix[canonicalKey] = legacyMap
+	}
+
+	delete(params.AffinityMatrix, legacyKey)
 }

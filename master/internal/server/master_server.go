@@ -52,9 +52,10 @@ type MasterServer struct {
 	taskChan chan *TaskAssignment
 
 	// Task queue for tasks waiting for resources
-	taskQueue   []*QueuedTask
-	queueMu     sync.RWMutex
-	queueTicker *time.Ticker
+	taskQueue       []*QueuedTask
+	processingTasks map[string]bool
+	queueMu         sync.RWMutex
+	queueTicker     *time.Ticker
 
 	// Task scheduler
 	scheduler scheduler.Scheduler
@@ -108,6 +109,7 @@ func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.
 		masterAddress:    "",
 		taskChan:         make(chan *TaskAssignment, 100),
 		taskQueue:        make([]*QueuedTask, 0),
+		processingTasks:  make(map[string]bool),
 		scheduler:        scheduler.NewRoundRobinScheduler(), // Use Round-Robin as default
 		telemetryManager: telemetryMgr,
 	}
@@ -325,6 +327,8 @@ func (s *MasterServer) ReconcileWorkerResources(ctx context.Context) error {
 
 			oldCPU := worker.AllocatedCPU
 			oldMem := worker.AllocatedMemory
+			oldStorage := worker.AllocatedStorage
+			oldGPU := worker.AllocatedGPU
 
 			// Fix the allocations
 			worker.AllocatedCPU = actual.CPU
@@ -343,9 +347,9 @@ func (s *MasterServer) ReconcileWorkerResources(ctx context.Context) error {
 
 			// Update in database
 			// First release all old allocations, then allocate the correct amount
-			if s.workerDB != nil && oldCPU > 0 {
+			if s.workerDB != nil && (oldCPU > 0 || oldMem > 0 || oldStorage > 0 || oldGPU > 0) {
 				if err := s.workerDB.ReleaseResources(ctx, workerID,
-					oldCPU, oldMem, worker.AllocatedStorage, worker.AllocatedGPU); err != nil {
+					oldCPU, oldMem, oldStorage, oldGPU); err != nil {
 					log.Printf("⚠ Failed to release old resources for %s in DB: %v", workerID, err)
 				}
 			}
@@ -1511,6 +1515,23 @@ func (s *MasterServer) BroadcastMasterRegistration(masterID, masterAddress strin
 }
 
 func (s *MasterServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.TaskAck, error) {
+	// Handle queued tasks first (no worker assignment yet).
+	if s.removeQueuedTaskByID(taskID.TaskId) {
+		if s.taskDB != nil {
+			if err := s.taskDB.UpdateTaskStatus(ctx, taskID.TaskId, "cancelled"); err != nil {
+				return &pb.TaskAck{
+					Success: false,
+					Message: fmt.Sprintf("Failed to cancel queued task in database: %v", err),
+				}, nil
+			}
+		}
+		log.Printf("✓ Cancelled queued task %s before assignment", taskID.TaskId)
+		return &pb.TaskAck{
+			Success: true,
+			Message: "Queued task cancelled successfully",
+		}, nil
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -1649,15 +1670,33 @@ func (s *MasterServer) StopQueueProcessor() {
 // This is the main scheduler that selects workers for tasks
 func (s *MasterServer) processQueue() {
 	for range s.queueTicker.C {
+		// Snapshot queue under lock and release before scheduling/RPC work.
 		s.queueMu.Lock()
 		if len(s.taskQueue) == 0 {
 			s.queueMu.Unlock()
 			continue
 		}
+		tasksToProcess := make([]*QueuedTask, len(s.taskQueue))
+		copy(tasksToProcess, s.taskQueue)
+		s.taskQueue = s.taskQueue[:0]
+		for _, qt := range tasksToProcess {
+			if qt != nil && qt.Task != nil {
+				s.processingTasks[qt.Task.TaskId] = true
+			}
+		}
+		s.queueMu.Unlock()
 
-		// Try to schedule and assign tasks from the queue
-		remainingTasks := make([]*QueuedTask, 0)
-		for _, qt := range s.taskQueue {
+		// Try to schedule and assign tasks from the queue.
+		remainingTasks := make([]*QueuedTask, 0, len(tasksToProcess))
+		for _, qt := range tasksToProcess {
+			if qt == nil || qt.Task == nil {
+				continue
+			}
+			// Task may have been cancelled while this queue cycle was in flight.
+			if !s.isTaskBeingProcessed(qt.Task.TaskId) {
+				continue
+			}
+
 			// Find the best worker for this task using the scheduler
 			selectedWorker := s.selectWorkerForTask(qt.Task)
 
@@ -1703,7 +1742,16 @@ func (s *MasterServer) processQueue() {
 			}
 		}
 
-		s.taskQueue = remainingTasks
+		// Preserve FIFO: retries from the current cycle stay ahead of new arrivals.
+		s.queueMu.Lock()
+		for _, qt := range tasksToProcess {
+			if qt != nil && qt.Task != nil {
+				delete(s.processingTasks, qt.Task.TaskId)
+			}
+		}
+		if len(remainingTasks) > 0 {
+			s.taskQueue = append(remainingTasks, s.taskQueue...)
+		}
 		s.queueMu.Unlock()
 	}
 }
@@ -1748,6 +1796,88 @@ func (s *MasterServer) EnqueueTask(task *pb.Task, reason string) {
 	s.taskQueue = append(s.taskQueue, qt)
 
 	log.Printf("📋 Task %s queued: %s", task.TaskId, reason)
+}
+
+// RestoreQueuedTasks loads persisted queued/pending tasks into the in-memory scheduler queue.
+// It is intended to be called once during startup.
+func (s *MasterServer) RestoreQueuedTasks(ctx context.Context) error {
+	if s.taskDB == nil {
+		return nil
+	}
+
+	statuses := []string{"queued", "pending"}
+	seen := make(map[string]bool)
+	restored := 0
+
+	for _, status := range statuses {
+		tasks, err := s.taskDB.GetTasksByStatus(ctx, status)
+		if err != nil {
+			return fmt.Errorf("restore queued tasks (status=%s): %w", status, err)
+		}
+
+		for _, task := range tasks {
+			if seen[task.TaskID] {
+				continue
+			}
+			seen[task.TaskID] = true
+
+			// Skip tasks that already have assignments.
+			if s.assignmentDB != nil {
+				if assignment, err := s.assignmentDB.GetAssignmentByTaskID(ctx, task.TaskID); err == nil && assignment != nil {
+					continue
+				}
+			}
+
+			s.EnqueueTask(&pb.Task{
+				TaskId:        task.TaskID,
+				UserId:        task.UserID,
+				TaskName:      task.TaskName,
+				SubmittedAt:   task.SubmittedAt,
+				DockerImage:   task.DockerImage,
+				Command:       task.Command,
+				ReqCpu:        task.ReqCPU,
+				ReqMemory:     task.ReqMemory,
+				ReqStorage:    task.ReqStorage,
+				ReqGpu:        task.ReqGPU,
+				TaskType:      task.TaskType,
+				SlaMultiplier: task.SLAMultiplier,
+			}, "Restored from persisted queue state")
+			restored++
+		}
+	}
+
+	if restored > 0 {
+		log.Printf("✓ Restored %d queued task(s) from database", restored)
+	}
+	return nil
+}
+
+// removeQueuedTaskByID removes a queued task if present and returns true when removed.
+func (s *MasterServer) removeQueuedTaskByID(taskID string) bool {
+	s.queueMu.Lock()
+	defer s.queueMu.Unlock()
+
+	for i, qt := range s.taskQueue {
+		if qt == nil || qt.Task == nil {
+			continue
+		}
+		if qt.Task.TaskId == taskID {
+			s.taskQueue = append(s.taskQueue[:i], s.taskQueue[i+1:]...)
+			return true
+		}
+	}
+	if s.processingTasks[taskID] {
+		delete(s.processingTasks, taskID)
+		return true
+	}
+	return false
+}
+
+// isTaskBeingProcessed returns true if a task is currently scheduled in this queue cycle.
+func (s *MasterServer) isTaskBeingProcessed(taskID string) bool {
+	s.queueMu.RLock()
+	defer s.queueMu.RUnlock()
+	return s.processingTasks[taskID]
 }
 
 // GetQueuedTasks returns a copy of the current task queue
@@ -1818,6 +1948,7 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 	}
 
 	workerIP := worker.Info.WorkerIp
+	loadAtStart := computeWorkerLoadAtStart(worker)
 	s.mu.Unlock()
 
 	// Connect to worker and assign task
@@ -1878,6 +2009,7 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 				AssignmentID: fmt.Sprintf("ass-%s", task.TaskId),
 				TaskID:       task.TaskId,
 				WorkerID:     workerID,
+				LoadAtStart:  loadAtStart,
 			}
 			if err := s.assignmentDB.CreateAssignment(ctx, assignment); err != nil {
 				log.Printf("Warning: Failed to store assignment in database: %v", err)
@@ -1902,4 +2034,24 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 	}
 
 	return ack, err
+}
+
+func computeWorkerLoadAtStart(worker *WorkerState) float64 {
+	if worker == nil || worker.Info == nil {
+		return 0.0
+	}
+
+	wCPU := worker.Info.TotalCpu
+	wMem := worker.Info.TotalMemory / 10.0
+	wGPU := worker.Info.TotalGpu * 2.0
+	totalWeight := wCPU + wMem + wGPU
+	if totalWeight <= 0 {
+		return 0.0
+	}
+
+	load := (wCPU*worker.LatestCPU + wMem*worker.LatestMemory + wGPU*worker.LatestGPU) / totalWeight
+	if load < 0 {
+		return 0.0
+	}
+	return load
 }

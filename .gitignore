@@ -1,3 +1,4 @@
+.vscode
 .env
 planner_py/venv
 node_modules
