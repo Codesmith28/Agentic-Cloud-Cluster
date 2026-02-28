@@ -47,6 +47,23 @@ var defaultTauValues = map[string]float64{
 	TaskTypeMixed:        10.0, // Mixed workloads use a moderate default
 }
 
+// DefaultTauForTaskType returns the default baseline runtime (seconds) for a task type.
+func DefaultTauForTaskType(taskType string) float64 {
+	if defaultTau, exists := defaultTauValues[taskType]; exists {
+		return defaultTau
+	}
+	return defaultTauValues[TaskTypeMixed]
+}
+
+// DefaultTauValues returns a copy of the default tau table.
+func DefaultTauValues() map[string]float64 {
+	result := make(map[string]float64, len(defaultTauValues))
+	for taskType, tau := range defaultTauValues {
+		result[taskType] = tau
+	}
+	return result
+}
+
 // NewInMemoryTauStore creates a new InMemoryTauStore with default tau values
 func NewInMemoryTauStore() *InMemoryTauStore {
 	store := &InMemoryTauStore{
@@ -80,13 +97,7 @@ func (s *InMemoryTauStore) GetTau(taskType string) float64 {
 		return tau
 	}
 
-	// Return task-type-specific default if not found
-	if defaultTau, exists := defaultTauValues[taskType]; exists {
-		return defaultTau
-	}
-
-	// Fallback to mixed type default for unknown task types
-	return defaultTauValues[TaskTypeMixed]
+	return DefaultTauForTaskType(taskType)
 }
 
 // UpdateTau updates the tau value for a task type using EMA based on actual runtime

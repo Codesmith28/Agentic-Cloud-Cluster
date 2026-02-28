@@ -52,10 +52,13 @@ type MasterServer struct {
 	taskChan chan *TaskAssignment
 
 	// Task queue for tasks waiting for resources
-	taskQueue       []*QueuedTask
-	processingTasks map[string]bool
-	queueMu         sync.RWMutex
-	queueTicker     *time.Ticker
+	taskQueue            []*QueuedTask
+	processingTasks      map[string]bool
+	cancellationRequests map[string]bool
+	queueMu              sync.RWMutex
+	queueTicker          *time.Ticker
+	queueStop            chan struct{}
+	queueWG              sync.WaitGroup
 
 	// Task scheduler
 	scheduler scheduler.Scheduler
@@ -98,20 +101,21 @@ type TaskAssignment struct {
 // NewMasterServer creates a new master server instance
 func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB, fileMetadataDB *db.FileMetadataDB, fileStorage *storage.FileStorageService, telemetryMgr *telemetry.TelemetryManager) *MasterServer {
 	return &MasterServer{
-		workers:          make(map[string]*WorkerState),
-		workerDB:         workerDB,
-		taskDB:           taskDB,
-		assignmentDB:     assignmentDB,
-		resultDB:         resultDB,
-		fileMetadataDB:   fileMetadataDB,
-		fileStorage:      fileStorage,
-		masterID:         "",
-		masterAddress:    "",
-		taskChan:         make(chan *TaskAssignment, 100),
-		taskQueue:        make([]*QueuedTask, 0),
-		processingTasks:  make(map[string]bool),
-		scheduler:        scheduler.NewRoundRobinScheduler(), // Use Round-Robin as default
-		telemetryManager: telemetryMgr,
+		workers:              make(map[string]*WorkerState),
+		workerDB:             workerDB,
+		taskDB:               taskDB,
+		assignmentDB:         assignmentDB,
+		resultDB:             resultDB,
+		fileMetadataDB:       fileMetadataDB,
+		fileStorage:          fileStorage,
+		masterID:             "",
+		masterAddress:        "",
+		taskChan:             make(chan *TaskAssignment, 100),
+		taskQueue:            make([]*QueuedTask, 0),
+		processingTasks:      make(map[string]bool),
+		cancellationRequests: make(map[string]bool),
+		scheduler:            scheduler.NewRoundRobinScheduler(), // Use Round-Robin as default
+		telemetryManager:     telemetryMgr,
 	}
 }
 
@@ -718,9 +722,9 @@ func (s *MasterServer) SendHeartbeat(ctx context.Context, hb *pb.Heartbeat) (*pb
 	worker.IsActive = true
 
 	// Store latest heartbeat metrics (keep minimal data in main thread)
-	worker.LatestCPU = hb.CpuUsage
-	worker.LatestMemory = hb.MemoryUsage
-	worker.LatestGPU = hb.GpuUsage
+	worker.LatestCPU = normalizeUsageFraction(hb.CpuUsage)
+	worker.LatestMemory = normalizeUsageFraction(hb.MemoryUsage)
+	worker.LatestGPU = normalizeUsageFraction(hb.GpuUsage)
 	worker.TaskCount = len(hb.RunningTasks)
 
 	// Update heartbeat in database
@@ -1100,9 +1104,9 @@ func (s *MasterServer) GetClusterSnapshot() *ClusterSnapshot {
 			Status:           status,
 			LastHeartbeat:    worker.LastHeartbeat,
 			HeartbeatAgo:     heartbeatAgo,
-			CPUUsage:         worker.LatestCPU,
-			MemoryUsage:      worker.LatestMemory,
-			GPUUsage:         worker.LatestGPU,
+			CPUUsage:         worker.LatestCPU * 100.0,
+			MemoryUsage:      worker.LatestMemory * 100.0,
+			GPUUsage:         worker.LatestGPU * 100.0,
 			TotalCPU:         totalCPU,
 			TotalMemory:      totalMemory,
 			TotalStorage:     totalStorage,
@@ -1237,9 +1241,60 @@ func joinTasks(tasks []string) string {
 	return result
 }
 
+type normalizedTaskMetadata struct {
+	taskType string
+	tau      float64
+	deadline time.Time
+}
+
+func normalizeTaskForScheduling(task *pb.Task) normalizedTaskMetadata {
+	if task == nil {
+		return normalizedTaskMetadata{
+			taskType: scheduler.TaskTypeMixed,
+			tau:      telemetry.DefaultTauForTaskType(scheduler.TaskTypeMixed),
+			deadline: time.Now(),
+		}
+	}
+
+	if task.SubmittedAt <= 0 {
+		task.SubmittedAt = time.Now().Unix()
+	}
+
+	if task.SlaMultiplier < 1.5 || task.SlaMultiplier > 2.5 {
+		task.SlaMultiplier = 2.0
+	}
+
+	taskType := task.TaskType
+	if taskType == "gpu-heavy" {
+		taskType = scheduler.TaskTypeGPUInference
+	}
+	if !scheduler.ValidateTaskType(taskType) {
+		taskType = scheduler.InferTaskType(task)
+	}
+	task.TaskType = taskType
+
+	tau := telemetry.DefaultTauForTaskType(taskType)
+	deadline := time.Unix(task.SubmittedAt, 0).Add(time.Duration(task.SlaMultiplier * tau * float64(time.Second)))
+
+	return normalizedTaskMetadata{
+		taskType: taskType,
+		tau:      tau,
+		deadline: deadline,
+	}
+}
+
 // SubmitTask submits a task to the system for scheduling
 // ALL tasks go through the queue first, then the scheduler assigns them to workers
 func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskAck, error) {
+	if task == nil {
+		return &pb.TaskAck{
+			Success: false,
+			Message: "task payload is required",
+		}, nil
+	}
+
+	taskMeta := normalizeTaskForScheduling(task)
+
 	// Store task in database as queued
 	if s.taskDB != nil {
 		dbTask := &db.Task{
@@ -1253,8 +1308,10 @@ func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 			ReqMemory:     task.ReqMemory,
 			ReqStorage:    task.ReqStorage,
 			ReqGPU:        task.ReqGpu,
-			TaskType:      task.TaskType,      // NEW: Save task type for training
-			SLAMultiplier: task.SlaMultiplier, // NEW: Save SLA multiplier
+			TaskType:      taskMeta.taskType,
+			SLAMultiplier: task.SlaMultiplier,
+			Tau:           taskMeta.tau,
+			Deadline:      taskMeta.deadline,
 			Status:        "queued",
 		}
 		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
@@ -1287,6 +1344,14 @@ func (s *MasterServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 // DispatchTaskToWorker directly dispatches a task to a specific worker, bypassing the scheduler
 // This is useful for testing and debugging purposes
 func (s *MasterServer) DispatchTaskToWorker(ctx context.Context, task *pb.Task, workerID string) (*pb.TaskAck, error) {
+	if task == nil {
+		return &pb.TaskAck{
+			Success: false,
+			Message: "task payload is required",
+		}, nil
+	}
+
+	taskMeta := normalizeTaskForScheduling(task)
 	log.Printf("🎯 Direct dispatch request: Task %s -> Worker %s", task.TaskId, workerID)
 
 	// Store task in database as queued first
@@ -1302,8 +1367,10 @@ func (s *MasterServer) DispatchTaskToWorker(ctx context.Context, task *pb.Task, 
 			ReqMemory:     task.ReqMemory,
 			ReqStorage:    task.ReqStorage,
 			ReqGPU:        task.ReqGpu,
-			TaskType:      task.TaskType,      // NEW: Save task type for training
-			SLAMultiplier: task.SlaMultiplier, // NEW: Save SLA multiplier
+			TaskType:      taskMeta.taskType,
+			SLAMultiplier: task.SlaMultiplier,
+			Tau:           taskMeta.tau,
+			Deadline:      taskMeta.deadline,
 			Status:        "queued",
 		}
 		if err := s.taskDB.CreateTask(ctx, dbTask); err != nil {
@@ -1314,6 +1381,7 @@ func (s *MasterServer) DispatchTaskToWorker(ctx context.Context, task *pb.Task, 
 	// Directly assign to the specified worker (bypassing queue and scheduler)
 	ack, err := s.assignTaskToWorker(ctx, task, workerID)
 	if err != nil {
+		s.updateTaskStatusSafe(task.TaskId, "failed")
 		return &pb.TaskAck{
 			Success: false,
 			Message: fmt.Sprintf("Failed to dispatch task to worker %s: %v", workerID, err),
@@ -1321,6 +1389,7 @@ func (s *MasterServer) DispatchTaskToWorker(ctx context.Context, task *pb.Task, 
 	}
 
 	if !ack.Success {
+		s.updateTaskStatusSafe(task.TaskId, "failed")
 		return ack, nil
 	}
 
@@ -1517,6 +1586,7 @@ func (s *MasterServer) BroadcastMasterRegistration(masterID, masterAddress strin
 func (s *MasterServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.TaskAck, error) {
 	// Handle queued tasks first (no worker assignment yet).
 	if s.removeQueuedTaskByID(taskID.TaskId) {
+		s.clearTaskCancellationRequest(taskID.TaskId)
 		if s.taskDB != nil {
 			if err := s.taskDB.UpdateTaskStatus(ctx, taskID.TaskId, "cancelled"); err != nil {
 				return &pb.TaskAck{
@@ -1529,6 +1599,23 @@ func (s *MasterServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.T
 		return &pb.TaskAck{
 			Success: true,
 			Message: "Queued task cancelled successfully",
+		}, nil
+	}
+
+	// If scheduling is currently in-flight for this task, mark it for cancellation.
+	// processQueue will honor this flag before or immediately after assignment.
+	if s.requestTaskCancellation(taskID.TaskId) {
+		if s.taskDB != nil {
+			if err := s.taskDB.UpdateTaskStatus(ctx, taskID.TaskId, "cancelled"); err != nil {
+				return &pb.TaskAck{
+					Success: false,
+					Message: fmt.Sprintf("Failed to mark in-flight task as cancelled in database: %v", err),
+				}, nil
+			}
+		}
+		return &pb.TaskAck{
+			Success: true,
+			Message: "Task cancellation requested while scheduling is in-flight",
 		}, nil
 	}
 
@@ -1644,6 +1731,7 @@ func (s *MasterServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.T
 	log.Printf("  ✓ Task cancelled successfully on worker")
 	log.Printf("  ✓ Container stopped and database updated")
 	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	s.clearTaskCancellationRequest(taskID.TaskId)
 
 	return &pb.TaskAck{
 		Success: true,
@@ -1653,23 +1741,51 @@ func (s *MasterServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.T
 
 // StartQueueProcessor starts the background task queue processor
 func (s *MasterServer) StartQueueProcessor() {
+	s.queueMu.Lock()
+	defer s.queueMu.Unlock()
+
+	if s.queueTicker != nil {
+		return
+	}
+
 	s.queueTicker = time.NewTicker(5 * time.Second) // Check queue every 5 seconds
-	go s.processQueue()
+	s.queueStop = make(chan struct{})
+	s.queueWG.Add(1)
+	go s.processQueue(s.queueTicker, s.queueStop)
 	log.Printf("✓ Task queue processor started (checking every 5s)")
 }
 
 // StopQueueProcessor stops the background task queue processor
 func (s *MasterServer) StopQueueProcessor() {
-	if s.queueTicker != nil {
-		s.queueTicker.Stop()
-		log.Printf("✓ Task queue processor stopped")
+	s.queueMu.Lock()
+	ticker := s.queueTicker
+	stopCh := s.queueStop
+	s.queueTicker = nil
+	s.queueStop = nil
+	s.queueMu.Unlock()
+
+	if ticker != nil {
+		ticker.Stop()
 	}
+	if stopCh != nil {
+		close(stopCh)
+	}
+	s.queueWG.Wait()
+	log.Printf("✓ Task queue processor stopped")
 }
 
 // processQueue continuously attempts to schedule and assign queued tasks
 // This is the main scheduler that selects workers for tasks
-func (s *MasterServer) processQueue() {
-	for range s.queueTicker.C {
+func (s *MasterServer) processQueue(ticker *time.Ticker, stopCh <-chan struct{}) {
+	defer s.queueWG.Done()
+
+	for {
+		select {
+		case <-stopCh:
+			return
+		case <-ticker.C:
+		}
+
 		// Snapshot queue under lock and release before scheduling/RPC work.
 		s.queueMu.Lock()
 		if len(s.taskQueue) == 0 {
@@ -1692,8 +1808,14 @@ func (s *MasterServer) processQueue() {
 			if qt == nil || qt.Task == nil {
 				continue
 			}
+			taskID := qt.Task.TaskId
 			// Task may have been cancelled while this queue cycle was in flight.
-			if !s.isTaskBeingProcessed(qt.Task.TaskId) {
+			if !s.isTaskBeingProcessed(taskID) {
+				continue
+			}
+			if s.isTaskCancellationRequested(taskID) {
+				s.clearTaskCancellationRequest(taskID)
+				s.updateTaskStatusSafe(taskID, "cancelled")
 				continue
 			}
 
@@ -1704,6 +1826,7 @@ func (s *MasterServer) processQueue() {
 				// No suitable worker available, keep in queue
 				qt.Retries++
 				qt.LastError = "No suitable worker available with sufficient resources"
+				s.updateTaskStatusSafe(taskID, "queued")
 				remainingTasks = append(remainingTasks, qt)
 
 				// Log only on first retry and every 10th retry to avoid spam
@@ -1717,19 +1840,29 @@ func (s *MasterServer) processQueue() {
 			// Set the selected worker as the target
 			qt.Task.TargetWorkerId = selectedWorker
 
+			// Re-check cancellation before sending gRPC assignment.
+			if s.isTaskCancellationRequested(taskID) {
+				s.clearTaskCancellationRequest(taskID)
+				s.updateTaskStatusSafe(taskID, "cancelled")
+				continue
+			}
+
 			// Try to assign the task to the selected worker
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			ack, err := s.assignTaskToWorker(ctx, qt.Task, selectedWorker)
 			cancel()
 
-			if err != nil || !ack.Success {
+			if err != nil || ack == nil || !ack.Success {
 				// Assignment failed, keep in queue and try again later
 				qt.Retries++
 				if err != nil {
 					qt.LastError = err.Error()
+				} else if ack == nil {
+					qt.LastError = "empty acknowledgment from worker"
 				} else {
 					qt.LastError = ack.Message
 				}
+				s.updateTaskStatusSafe(taskID, "queued")
 				remainingTasks = append(remainingTasks, qt)
 
 				if qt.Retries == 1 || qt.Retries%10 == 0 {
@@ -1739,6 +1872,17 @@ func (s *MasterServer) processQueue() {
 			} else {
 				log.Printf("✓ Queue: Task %s successfully assigned to %s after %d attempts",
 					qt.Task.TaskId, selectedWorker, qt.Retries)
+				if s.isTaskCancellationRequested(taskID) {
+					s.clearTaskCancellationRequest(taskID)
+					cancelCtx, cancelTask := context.WithTimeout(context.Background(), 30*time.Second)
+					cancelAck, cancelErr := s.CancelTask(cancelCtx, &pb.TaskID{TaskId: taskID})
+					if cancelErr != nil {
+						log.Printf("⚠️  Failed to cancel task %s after assignment: %v", taskID, cancelErr)
+					} else if cancelAck != nil && !cancelAck.Success {
+						log.Printf("⚠️  Task %s post-assignment cancellation was rejected: %s", taskID, cancelAck.Message)
+					}
+					cancelTask()
+				}
 			}
 		}
 
@@ -1747,6 +1891,7 @@ func (s *MasterServer) processQueue() {
 		for _, qt := range tasksToProcess {
 			if qt != nil && qt.Task != nil {
 				delete(s.processingTasks, qt.Task.TaskId)
+				delete(s.cancellationRequests, qt.Task.TaskId)
 			}
 		}
 		if len(remainingTasks) > 0 {
@@ -1828,7 +1973,7 @@ func (s *MasterServer) RestoreQueuedTasks(ctx context.Context) error {
 				}
 			}
 
-			s.EnqueueTask(&pb.Task{
+			restoredTask := &pb.Task{
 				TaskId:        task.TaskID,
 				UserId:        task.UserID,
 				TaskName:      task.TaskName,
@@ -1841,7 +1986,14 @@ func (s *MasterServer) RestoreQueuedTasks(ctx context.Context) error {
 				ReqGpu:        task.ReqGPU,
 				TaskType:      task.TaskType,
 				SlaMultiplier: task.SLAMultiplier,
-			}, "Restored from persisted queue state")
+			}
+			taskMeta := normalizeTaskForScheduling(restoredTask)
+			if s.taskDB != nil {
+				if err := s.taskDB.UpdateTaskWithSLA(ctx, restoredTask.TaskId, taskMeta.deadline, taskMeta.tau, taskMeta.taskType); err != nil {
+					log.Printf("Warning: Failed to enrich restored task %s with SLA metadata: %v", restoredTask.TaskId, err)
+				}
+			}
+			s.EnqueueTask(restoredTask, "Restored from persisted queue state")
 			restored++
 		}
 	}
@@ -1863,12 +2015,9 @@ func (s *MasterServer) removeQueuedTaskByID(taskID string) bool {
 		}
 		if qt.Task.TaskId == taskID {
 			s.taskQueue = append(s.taskQueue[:i], s.taskQueue[i+1:]...)
+			delete(s.cancellationRequests, taskID)
 			return true
 		}
-	}
-	if s.processingTasks[taskID] {
-		delete(s.processingTasks, taskID)
-		return true
 	}
 	return false
 }
@@ -1878,6 +2027,54 @@ func (s *MasterServer) isTaskBeingProcessed(taskID string) bool {
 	s.queueMu.RLock()
 	defer s.queueMu.RUnlock()
 	return s.processingTasks[taskID]
+}
+
+func (s *MasterServer) requestTaskCancellation(taskID string) bool {
+	s.queueMu.RLock()
+	processing := s.processingTasks[taskID]
+	s.queueMu.RUnlock()
+	if !processing {
+		return false
+	}
+
+	// If assignment already exists, task is no longer just "in-flight scheduling";
+	// let the normal cancellation path handle it.
+	if s.assignmentDB != nil {
+		if assignment, err := s.assignmentDB.GetAssignmentByTaskID(context.Background(), taskID); err == nil && assignment != nil {
+			return false
+		}
+	}
+
+	s.queueMu.Lock()
+	defer s.queueMu.Unlock()
+	if !s.processingTasks[taskID] {
+		return false
+	}
+	s.cancellationRequests[taskID] = true
+	return true
+}
+
+func (s *MasterServer) isTaskCancellationRequested(taskID string) bool {
+	s.queueMu.RLock()
+	defer s.queueMu.RUnlock()
+	return s.cancellationRequests[taskID]
+}
+
+func (s *MasterServer) clearTaskCancellationRequest(taskID string) {
+	s.queueMu.Lock()
+	defer s.queueMu.Unlock()
+	delete(s.cancellationRequests, taskID)
+}
+
+func (s *MasterServer) updateTaskStatusSafe(taskID, status string) {
+	if s.taskDB == nil || taskID == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := s.taskDB.UpdateTaskStatus(ctx, taskID, status); err != nil {
+		log.Printf("Warning: Failed to update task %s status to %s: %v", taskID, status, err)
+	}
 }
 
 // GetQueuedTasks returns a copy of the current task queue
@@ -1947,13 +2144,62 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 		}, nil
 	}
 
+	// Reserve resources before releasing lock to prevent oversubscription races.
+	worker.AllocatedCPU += task.ReqCpu
+	worker.AllocatedMemory += task.ReqMemory
+	worker.AllocatedStorage += task.ReqStorage
+	worker.AllocatedGPU += task.ReqGpu
+	worker.AvailableCPU -= task.ReqCpu
+	worker.AvailableMemory -= task.ReqMemory
+	worker.AvailableStorage -= task.ReqStorage
+	worker.AvailableGPU -= task.ReqGpu
+
 	workerIP := worker.Info.WorkerIp
 	loadAtStart := computeWorkerLoadAtStart(worker)
 	s.mu.Unlock()
 
+	resourcesReserved := true
+	rollbackReservation := func() {
+		if !resourcesReserved {
+			return
+		}
+		s.mu.Lock()
+		defer s.mu.Unlock()
+
+		currentWorker, ok := s.workers[workerID]
+		if !ok {
+			resourcesReserved = false
+			return
+		}
+
+		currentWorker.AllocatedCPU -= task.ReqCpu
+		currentWorker.AllocatedMemory -= task.ReqMemory
+		currentWorker.AllocatedStorage -= task.ReqStorage
+		currentWorker.AllocatedGPU -= task.ReqGpu
+		currentWorker.AvailableCPU += task.ReqCpu
+		currentWorker.AvailableMemory += task.ReqMemory
+		currentWorker.AvailableStorage += task.ReqStorage
+		currentWorker.AvailableGPU += task.ReqGpu
+
+		if currentWorker.AllocatedCPU < 0 {
+			currentWorker.AllocatedCPU = 0
+		}
+		if currentWorker.AllocatedMemory < 0 {
+			currentWorker.AllocatedMemory = 0
+		}
+		if currentWorker.AllocatedStorage < 0 {
+			currentWorker.AllocatedStorage = 0
+		}
+		if currentWorker.AllocatedGPU < 0 {
+			currentWorker.AllocatedGPU = 0
+		}
+		resourcesReserved = false
+	}
+
 	// Connect to worker and assign task
 	conn, err := grpc.Dial(workerIP, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
+		rollbackReservation()
 		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to connect to worker: %v", err)}, nil
 	}
 	defer conn.Close()
@@ -1961,79 +2207,77 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 	client := pb.NewMasterWorkerClient(conn)
 	ack, err := client.AssignTask(ctx, task)
 	if err != nil {
-		// Update task status to failed if assignment fails
-		if s.taskDB != nil {
-			s.taskDB.UpdateTaskStatus(ctx, task.TaskId, "failed")
-		}
+		rollbackReservation()
 		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to assign task: %v", err)}, nil
 	}
 
-	if ack.Success {
-		s.mu.Lock()
-		// Ensure RunningTasks map is initialized (defensive programming)
-		if worker.RunningTasks == nil {
-			worker.RunningTasks = make(map[string]bool)
+	if ack == nil || !ack.Success {
+		rollbackReservation()
+		if ack == nil {
+			return &pb.TaskAck{
+				Success: false,
+				Message: "Worker returned empty acknowledgment",
+			}, nil
 		}
-		// Mark task as running on worker
-		worker.RunningTasks[task.TaskId] = true
-
-		// 🚨 ALLOCATE RESOURCES - Update both in-memory and database
-		worker.AllocatedCPU += task.ReqCpu
-		worker.AllocatedMemory += task.ReqMemory
-		worker.AllocatedStorage += task.ReqStorage
-		worker.AllocatedGPU += task.ReqGpu
-		worker.AvailableCPU -= task.ReqCpu
-		worker.AvailableMemory -= task.ReqMemory
-		worker.AvailableStorage -= task.ReqStorage
-		worker.AvailableGPU -= task.ReqGpu
-		s.mu.Unlock()
-
-		// Update database
-		if s.workerDB != nil {
-			if err := s.workerDB.AllocateResources(ctx, workerID,
-				task.ReqCpu, task.ReqMemory, task.ReqStorage, task.ReqGpu); err != nil {
-				log.Printf("Warning: Failed to allocate resources in database: %v", err)
-			}
-		}
-
-		// Update task status to running
-		if s.taskDB != nil {
-			if err := s.taskDB.UpdateTaskStatus(ctx, task.TaskId, "running"); err != nil {
-				log.Printf("Warning: Failed to update task status: %v", err)
-			}
-		}
-
-		// Store assignment in database
-		if s.assignmentDB != nil {
-			assignment := &db.Assignment{
-				AssignmentID: fmt.Sprintf("ass-%s", task.TaskId),
-				TaskID:       task.TaskId,
-				WorkerID:     workerID,
-				LoadAtStart:  loadAtStart,
-			}
-			if err := s.assignmentDB.CreateAssignment(ctx, assignment); err != nil {
-				log.Printf("Warning: Failed to store assignment in database: %v", err)
-			}
-		}
-
-		log.Println("\n═══════════════════════════════════════════════════════")
-		log.Println("  📤 TASK ASSIGNED TO WORKER")
-		log.Println("═══════════════════════════════════════════════════════")
-		log.Printf("  Task ID:           %s", task.TaskId)
-		log.Printf("  User ID:           %s", task.UserId)
-		log.Printf("  Assigned Worker:   %s", workerID)
-		log.Printf("  Docker Image:      %s", task.DockerImage)
-		log.Println("───────────────────────────────────────────────────────")
-		log.Println("  Resource Requirements:")
-		log.Printf("    • CPU Cores:     %.2f cores", task.ReqCpu)
-		log.Printf("    • Memory:        %.2f GB", task.ReqMemory)
-		log.Printf("    • Storage:       %.2f GB", task.ReqStorage)
-		log.Printf("    • GPU Cores:     %.2f cores", task.ReqGpu)
-		log.Println("═══════════════════════════════════════════════════════")
-		log.Println("")
+		return ack, nil
 	}
 
-	return ack, err
+	s.mu.Lock()
+	currentWorker, ok := s.workers[workerID]
+	if ok {
+		if currentWorker.RunningTasks == nil {
+			currentWorker.RunningTasks = make(map[string]bool)
+		}
+		currentWorker.RunningTasks[task.TaskId] = true
+	}
+	s.mu.Unlock()
+	resourcesReserved = false
+
+	// Update database
+	if s.workerDB != nil {
+		if err := s.workerDB.AllocateResources(ctx, workerID,
+			task.ReqCpu, task.ReqMemory, task.ReqStorage, task.ReqGpu); err != nil {
+			log.Printf("Warning: Failed to allocate resources in database: %v", err)
+		}
+	}
+
+	// Update task status to running
+	if s.taskDB != nil {
+		if err := s.taskDB.UpdateTaskStatus(ctx, task.TaskId, "running"); err != nil {
+			log.Printf("Warning: Failed to update task status: %v", err)
+		}
+	}
+
+	// Store assignment in database
+	if s.assignmentDB != nil {
+		assignment := &db.Assignment{
+			AssignmentID: fmt.Sprintf("ass-%s", task.TaskId),
+			TaskID:       task.TaskId,
+			WorkerID:     workerID,
+			LoadAtStart:  loadAtStart,
+		}
+		if err := s.assignmentDB.CreateAssignment(ctx, assignment); err != nil {
+			log.Printf("Warning: Failed to store assignment in database: %v", err)
+		}
+	}
+
+	log.Println("\n═══════════════════════════════════════════════════════")
+	log.Println("  📤 TASK ASSIGNED TO WORKER")
+	log.Println("═══════════════════════════════════════════════════════")
+	log.Printf("  Task ID:           %s", task.TaskId)
+	log.Printf("  User ID:           %s", task.UserId)
+	log.Printf("  Assigned Worker:   %s", workerID)
+	log.Printf("  Docker Image:      %s", task.DockerImage)
+	log.Println("───────────────────────────────────────────────────────")
+	log.Println("  Resource Requirements:")
+	log.Printf("    • CPU Cores:     %.2f cores", task.ReqCpu)
+	log.Printf("    • Memory:        %.2f GB", task.ReqMemory)
+	log.Printf("    • Storage:       %.2f GB", task.ReqStorage)
+	log.Printf("    • GPU Cores:     %.2f cores", task.ReqGpu)
+	log.Println("═══════════════════════════════════════════════════════")
+	log.Println("")
+
+	return ack, nil
 }
 
 func computeWorkerLoadAtStart(worker *WorkerState) float64 {
@@ -2054,4 +2298,15 @@ func computeWorkerLoadAtStart(worker *WorkerState) float64 {
 		return 0.0
 	}
 	return load
+}
+
+func normalizeUsageFraction(value float64) float64 {
+	if value < 0 {
+		return 0.0
+	}
+	// Backward compatibility for older workers that still report 0-100.
+	if value > 1.0 {
+		value = value / 100.0
+	}
+	return value
 }

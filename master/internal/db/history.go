@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"master/internal/config"
+	"master/internal/telemetry"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -95,6 +96,13 @@ func (db *HistoryDB) Close(ctx context.Context) error {
 func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until time.Time) ([]TaskHistory, error) {
 	// DEBUG: Log the query parameters
 	log.Printf("🔍 DEBUG: Querying TASKS collection for completed_at between %s and %s", since.Format(time.RFC3339), until.Format(time.RFC3339))
+
+	cpuLightTau := telemetry.DefaultTauForTaskType(telemetry.TaskTypeCPULight)
+	cpuHeavyTau := telemetry.DefaultTauForTaskType(telemetry.TaskTypeCPUHeavy)
+	memoryHeavyTau := telemetry.DefaultTauForTaskType(telemetry.TaskTypeMemoryHeavy)
+	gpuInferenceTau := telemetry.DefaultTauForTaskType(telemetry.TaskTypeGPUInference)
+	gpuTrainingTau := telemetry.DefaultTauForTaskType(telemetry.TaskTypeGPUTraining)
+	mixedTau := telemetry.DefaultTauForTaskType(telemetry.TaskTypeMixed)
 
 	// MongoDB aggregation pipeline to join collections
 	pipeline := mongo.Pipeline{
@@ -255,26 +263,30 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 										{Key: "branches", Value: bson.A{
 											bson.D{
 												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "cpu-light"}}}},
-												{Key: "then", Value: 5.0},
+												{Key: "then", Value: cpuLightTau},
 											},
 											bson.D{
 												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "cpu-heavy"}}}},
-												{Key: "then", Value: 60.0},
+												{Key: "then", Value: cpuHeavyTau},
 											},
 											bson.D{
 												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "memory-heavy"}}}},
-												{Key: "then", Value: 30.0},
+												{Key: "then", Value: memoryHeavyTau},
 											},
 											bson.D{
 												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-inference"}}}},
-												{Key: "then", Value: 45.0},
+												{Key: "then", Value: gpuInferenceTau},
+											},
+											bson.D{
+												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-training"}}}},
+												{Key: "then", Value: gpuTrainingTau},
 											},
 											bson.D{
 												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "mixed"}}}},
-												{Key: "then", Value: 20.0},
+												{Key: "then", Value: mixedTau},
 											},
 										}},
-										{Key: "default", Value: 30.0},
+										{Key: "default", Value: mixedTau},
 									}}},
 								}}},
 								1000,
@@ -297,26 +309,30 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 							{Key: "branches", Value: bson.A{
 								bson.D{
 									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "cpu-light"}}}},
-									{Key: "then", Value: 5.0},
+									{Key: "then", Value: cpuLightTau},
 								},
 								bson.D{
 									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "cpu-heavy"}}}},
-									{Key: "then", Value: 60.0},
+									{Key: "then", Value: cpuHeavyTau},
 								},
 								bson.D{
 									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "memory-heavy"}}}},
-									{Key: "then", Value: 30.0},
+									{Key: "then", Value: memoryHeavyTau},
 								},
 								bson.D{
 									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-inference"}}}},
-									{Key: "then", Value: 45.0},
+									{Key: "then", Value: gpuInferenceTau},
+								},
+								bson.D{
+									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-training"}}}},
+									{Key: "then", Value: gpuTrainingTau},
 								},
 								bson.D{
 									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "mixed"}}}},
-									{Key: "then", Value: 20.0},
+									{Key: "then", Value: mixedTau},
 								},
 							}},
-							{Key: "default", Value: 30.0}, // Generic default
+							{Key: "default", Value: mixedTau},
 						}}},
 					}},
 				}},
