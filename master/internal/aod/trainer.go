@@ -20,15 +20,16 @@ import (
 // 2. Trains Theta parameters using linear regression
 // 3. Builds affinity matrix using direct computation (SpeedAdvantage + SLAReliability)
 // 4. Builds penalty vector using direct computation
-// 5. Saves the optimized parameters to a JSON file for RTS to load
+// 5. Saves the optimized parameters to persistent storage (MongoDB and/or JSON file) for RTS to load
 //
 // Parameters:
 //   - ctx: Context for cancellation and timeout
 //   - historyDB: Database connection for fetching historical data
 //   - paramsOutputPath: File path to save the optimized GAParams JSON
+//   - paramsStore: Optional persistent RTS params store (MongoDB)
 //
 // Returns: error if any step fails
-func RunTraining(ctx context.Context, historyDB *db.HistoryDB, paramsOutputPath string) error {
+func RunTraining(ctx context.Context, historyDB *db.HistoryDB, paramsOutputPath string, paramsStore scheduler.GAParamsStore) error {
 	log.Println("🧬 Starting AOD training cycle...")
 	startTime := time.Now()
 
@@ -54,7 +55,7 @@ func RunTraining(ctx context.Context, historyDB *db.HistoryDB, paramsOutputPath 
 	minDataPoints := 2 // Minimum tasks required for meaningful training
 	if len(history) < minDataPoints {
 		log.Printf("⚠️  Insufficient data (%d tasks < %d required), using default parameters", len(history), minDataPoints)
-		return saveDefaultParams(paramsOutputPath)
+		return saveDefaultParams(ctx, paramsOutputPath, paramsStore)
 	}
 
 	// Step 3: Train Theta using linear regression
@@ -81,8 +82,8 @@ func RunTraining(ctx context.Context, historyDB *db.HistoryDB, paramsOutputPath 
 		PenaltyVector:  penaltyVector,
 	}
 
-	// Step 6: Save to JSON file
-	if err := saveParams(params, paramsOutputPath); err != nil {
+	// Step 6: Persist parameters (MongoDB + JSON fallback path)
+	if err := saveParams(ctx, params, paramsOutputPath, paramsStore); err != nil {
 		return fmt.Errorf("save params: %w", err)
 	}
 
@@ -93,36 +94,78 @@ func RunTraining(ctx context.Context, historyDB *db.HistoryDB, paramsOutputPath 
 }
 
 // saveParams writes GAParams to a JSON file
-func saveParams(params scheduler.GAParams, filePath string) error {
-	data, err := json.MarshalIndent(params, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal json: %w", err)
+func saveParams(ctx context.Context, params scheduler.GAParams, filePath string, paramsStore scheduler.GAParamsStore) error {
+	if filePath == "" && paramsStore == nil {
+		return fmt.Errorf("no params persistence destination configured")
 	}
 
-	dir := filepath.Dir(filePath)
-	if dir != "." && dir != "" {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("create params directory: %w", err)
+	var fileErr error
+	var storeErr error
+
+	if filePath != "" {
+		data, err := json.MarshalIndent(params, "", "  ")
+		if err != nil {
+			fileErr = fmt.Errorf("marshal json: %w", err)
+		} else {
+			dir := filepath.Dir(filePath)
+			if dir != "." && dir != "" {
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					fileErr = fmt.Errorf("create params directory: %w", err)
+				}
+			}
+
+			if fileErr == nil {
+				if err := os.WriteFile(filePath, data, 0644); err != nil {
+					fileErr = fmt.Errorf("write file: %w", err)
+				} else {
+					log.Printf("✓ AOD parameters saved to %s", filePath)
+				}
+			}
 		}
 	}
 
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
-		return fmt.Errorf("write file: %w", err)
+	if paramsStore != nil {
+		if err := paramsStore.SaveGAParams(ctx, &params); err != nil {
+			storeErr = fmt.Errorf("save to mongodb: %w", err)
+		} else {
+			log.Printf("✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS")
+		}
 	}
 
-	log.Printf("✓ AOD parameters saved to %s", filePath)
-	return nil
+	// If at least one destination succeeded, continue and only warn for the other.
+	fileSucceeded := filePath == "" || fileErr == nil
+	storeSucceeded := paramsStore == nil || storeErr == nil
+	if fileSucceeded && storeSucceeded {
+		return nil
+	}
+
+	if fileErr != nil && paramsStore != nil && storeErr == nil {
+		log.Printf("⚠️  AOD: JSON persistence failed, MongoDB save succeeded (%v)", fileErr)
+		return nil
+	}
+	if storeErr != nil && filePath != "" && fileErr == nil {
+		log.Printf("⚠️  AOD: MongoDB persistence failed, JSON save succeeded (%v)", storeErr)
+		return nil
+	}
+
+	if fileErr != nil && storeErr != nil {
+		return fmt.Errorf("persist params failed (file: %v; mongo: %v)", fileErr, storeErr)
+	}
+	if fileErr != nil {
+		return fileErr
+	}
+	return storeErr
 }
 
 // saveDefaultParams writes default GAParams to JSON file
-func saveDefaultParams(filePath string) error {
+func saveDefaultParams(ctx context.Context, filePath string, paramsStore scheduler.GAParamsStore) error {
 	params := scheduler.GAParams{
 		Theta:          defaultTheta(),
 		Risk:           defaultRisk(),
 		AffinityMatrix: make(map[string]map[string]float64),
 		PenaltyVector:  make(map[string]float64),
 	}
-	return saveParams(params, filePath)
+	return saveParams(ctx, params, filePath, paramsStore)
 }
 
 // Helper functions for default values

@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"log"
 	"math"
 	"sync"
@@ -23,9 +24,10 @@ type RTSScheduler struct {
 	telemetrySource TelemetrySource
 
 	// GA parameters (thread-safe)
-	params     *GAParams
-	paramsMu   sync.RWMutex
-	paramsPath string
+	params      *GAParams
+	paramsMu    sync.RWMutex
+	paramsPath  string
+	paramsStore GAParamsStore
 
 	// SLA multiplier (k factor)
 	slaMultiplier float64
@@ -41,6 +43,7 @@ func NewRTSScheduler(
 	tauStore telemetry.TauStore,
 	telemetrySource TelemetrySource,
 	paramsPath string,
+	paramsStore GAParamsStore,
 	slaMultiplier float64,
 ) *RTSScheduler {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -50,14 +53,16 @@ func NewRTSScheduler(
 		tauStore:        tauStore,
 		telemetrySource: telemetrySource,
 		paramsPath:      paramsPath,
+		paramsStore:     paramsStore,
 		slaMultiplier:   slaMultiplier,
 		ctx:             ctx,
 		cancel:          cancel,
 	}
 
-	// Load initial parameters (or defaults if file doesn't exist)
-	s.params = LoadGAParamsOrDefault(paramsPath)
-	log.Printf("✓ RTS Scheduler initialized with params from %s", paramsPath)
+	// Load initial parameters (MongoDB preferred, JSON/default fallback).
+	initialParams, source := s.loadGAParamsWithFallback()
+	s.params = initialParams
+	log.Printf("✓ RTS Scheduler initialized with params from %s", source)
 
 	// Start background params reloader
 	s.startParamsReloader()
@@ -288,6 +293,22 @@ func (s *RTSScheduler) getGAParamsSafe() *GAParams {
 	return s.params
 }
 
+// loadGAParamsWithFallback loads GA params from MongoDB if configured,
+// then falls back to JSON file/defaults.
+func (s *RTSScheduler) loadGAParamsWithFallback() (*GAParams, string) {
+	if s.paramsStore != nil {
+		params, err := s.paramsStore.LoadGAParams(context.Background())
+		if err == nil {
+			return params, "mongodb collection RTS_WEIGHTS"
+		}
+		if !errors.Is(err, ErrNoStoredGAParams) {
+			log.Printf("⚠️ RTS: failed to load GA params from MongoDB: %v", err)
+		}
+	}
+
+	return LoadGAParamsOrDefault(s.paramsPath), s.paramsPath
+}
+
 // startParamsReloader starts a background goroutine to reload GA parameters periodically
 func (s *RTSScheduler) startParamsReloader() {
 	go func() {
@@ -297,15 +318,15 @@ func (s *RTSScheduler) startParamsReloader() {
 		for {
 			select {
 			case <-ticker.C:
-				// Reload parameters from file
-				newParams := LoadGAParamsOrDefault(s.paramsPath)
+				// Reload parameters from MongoDB (preferred) or file fallback.
+				newParams, source := s.loadGAParamsWithFallback()
 
 				// Update with write lock
 				s.paramsMu.Lock()
 				s.params = newParams
 				s.paramsMu.Unlock()
 
-				log.Printf("✓ RTS: Reloaded GA parameters from %s", s.paramsPath)
+				log.Printf("✓ RTS: Reloaded GA parameters from %s", source)
 
 			case <-s.ctx.Done():
 				return

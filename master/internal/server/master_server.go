@@ -193,9 +193,28 @@ func (s *MasterServer) ManualRegisterWorker(ctx context.Context, workerID, worke
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Check if already exists
-	if _, exists := s.workers[workerID]; exists {
-		return fmt.Errorf("worker %s already registered", workerID)
+	// If worker already exists, treat this as an address refresh/update.
+	if existing, exists := s.workers[workerID]; exists {
+		oldAddress := ""
+		if existing.Info == nil {
+			existing.Info = &pb.WorkerInfo{WorkerId: workerID}
+		} else {
+			oldAddress = existing.Info.WorkerIp
+		}
+
+		existing.Info.WorkerId = workerID
+		existing.Info.WorkerIp = workerIP
+		existing.IsActive = false // Will become active again after registration + heartbeat.
+		existing.LastHeartbeat = 0
+
+		if s.workerDB != nil {
+			if err := s.workerDB.UpdateWorkerAddress(ctx, workerID, workerIP); err != nil {
+				return fmt.Errorf("update worker address in db: %w", err)
+			}
+		}
+
+		log.Printf("Updated worker registration: %s (Address: %s -> %s)", workerID, oldAddress, workerIP)
+		return nil
 	}
 
 	// Add to database
@@ -205,11 +224,14 @@ func (s *MasterServer) ManualRegisterWorker(ctx context.Context, workerID, worke
 			return fmt.Errorf("check worker existence: %w", err)
 		}
 		if exists {
-			return fmt.Errorf("worker %s already exists in database", workerID)
-		}
-
-		if err := s.workerDB.RegisterWorker(ctx, workerID, workerIP); err != nil {
-			return fmt.Errorf("register worker in db: %w", err)
+			if err := s.workerDB.UpdateWorkerAddress(ctx, workerID, workerIP); err != nil {
+				return fmt.Errorf("update worker address in db: %w", err)
+			}
+			log.Printf("Updated existing worker in DB: %s (Address: %s)", workerID, workerIP)
+		} else {
+			if err := s.workerDB.RegisterWorker(ctx, workerID, workerIP); err != nil {
+				return fmt.Errorf("register worker in db: %w", err)
+			}
 		}
 	}
 
@@ -649,14 +671,19 @@ func (s *MasterServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) 
 		existingWorker.RunningTasks = make(map[string]bool)
 	}
 
-	// Worker IS pre-registered - update with full specs but preserve the IP from manual registration
+	// Worker IS pre-registered - update with full specs but preserve the admin-configured endpoint.
 	preservedIP := existingWorker.Info.WorkerIp
+	reportedIP := info.WorkerIp
 	existingWorker.Info = info
 
-	// If worker didn't provide IP or provided empty IP, use the one from manual registration
-	if existingWorker.Info.WorkerIp == "" {
+	if preservedIP != "" {
 		existingWorker.Info.WorkerIp = preservedIP
-		log.Printf("✓ Worker %s registered - using pre-configured address: %s", info.WorkerId, preservedIP)
+		if reportedIP != "" && reportedIP != preservedIP {
+			log.Printf("ℹ️ Worker %s reported address %s; keeping configured address %s",
+				info.WorkerId, reportedIP, preservedIP)
+		}
+	} else if existingWorker.Info.WorkerIp == "" {
+		existingWorker.Info.WorkerIp = reportedIP
 	}
 
 	existingWorker.IsActive = true
