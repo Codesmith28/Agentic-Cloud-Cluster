@@ -147,30 +147,30 @@ func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 
 	if ack.Success {
 		log.Printf("Heartbeat sent: CPU=%.1f%%, Memory=%.1f%%, GPU=%.1f%%, Tasks=%d",
-			cpuUsage, memUsage, gpuUsage, len(tasks))
+			cpuUsage*100.0, memUsage*100.0, gpuUsage*100.0, len(tasks))
 	}
 
 	return nil
 }
 
-// getResourceUsage returns actual CPU, memory, and GPU usage of the machine
-func (m *Monitor) getResourceUsage() (cpuPercent, memoryPercent, gpuPercent float64) {
+// getResourceUsage returns normalized usage fractions in [0.0, 1.0].
+func (m *Monitor) getResourceUsage() (cpuUsage, memoryUsage, gpuUsage float64) {
 	// CPU usage over a short sample interval
 	cpuPercents, err := cpu.Percent(time.Second, false)
 	if err == nil && len(cpuPercents) > 0 {
-		cpuPercent = cpuPercents[0]
+		cpuUsage = clampUnitInterval(cpuPercents[0] / 100.0)
 	}
 
 	// Memory usage
 	vmStat, err := mem.VirtualMemory()
 	if err == nil {
-		memoryPercent = vmStat.UsedPercent
+		memoryUsage = clampUnitInterval(vmStat.UsedPercent / 100.0)
 	}
 
 	// GPU usage (NVIDIA only via nvidia-smi)
-	gpuPercent = m.getGPUUsage()
+	gpuUsage = clampUnitInterval(m.getGPUUsage() / 100.0)
 
-	return cpuPercent, memoryPercent, gpuPercent
+	return cpuUsage, memoryUsage, gpuUsage
 }
 
 // getGPUUsage returns GPU utilization percentage using nvidia-smi
@@ -193,6 +193,16 @@ func (m *Monitor) getGPUUsage() float64 {
 	}
 
 	return 0.0
+}
+
+func clampUnitInterval(value float64) float64 {
+	if value < 0 {
+		return 0
+	}
+	if value > 1 {
+		return 1
+	}
+	return value
 }
 
 // RegisterWorker registers the worker with the master

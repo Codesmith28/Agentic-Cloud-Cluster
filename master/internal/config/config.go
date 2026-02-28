@@ -17,6 +17,7 @@ type Config struct {
 	MongoDBDatabase string
 	HTTPPort        string  // HTTP port for telemetry API
 	SLAMultiplier   float64 // SLA multiplier (k), range [1.5, 2.5], default 2.0
+	GAParamsPath    string  // GA parameter JSON path for RTS hot-reload/AOD output
 }
 
 // LoadConfig loads configuration from environment variables and .env file
@@ -29,6 +30,7 @@ func LoadConfig() *Config {
 	database := getEnv("MONGODB_DATABASE", "cluster_db")
 	port := getEnv("GRPC_PORT", ":50051")
 	httpPort := getEnv("HTTP_PORT", ":8080") // Default HTTP port for telemetry API
+	gaParamsPath := getEnv("SCHED_GA_PARAMS_PATH", "config/ga_output.json")
 
 	// Load SLA multiplier with validation
 	slaMultiplier := getEnvFloat("SCHED_SLA_MULTIPLIER", 2.0)
@@ -52,6 +54,7 @@ func LoadConfig() *Config {
 		MongoDBDatabase: database,
 		HTTPPort:        httpPort,
 		SLAMultiplier:   slaMultiplier,
+		GAParamsPath:    gaParamsPath,
 	}
 
 	return config

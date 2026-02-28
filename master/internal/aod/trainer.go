@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"master/internal/db"
@@ -96,6 +97,13 @@ func saveParams(params scheduler.GAParams, filePath string) error {
 	data, err := json.MarshalIndent(params, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal json: %w", err)
+	}
+
+	dir := filepath.Dir(filePath)
+	if dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("create params directory: %w", err)
+		}
 	}
 
 	if err := os.WriteFile(filePath, data, 0644); err != nil {

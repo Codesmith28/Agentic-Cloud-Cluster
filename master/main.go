@@ -183,7 +183,7 @@ func main() {
 	log.Println("✓ Telemetry source adapter created")
 
 	// Create RTS scheduler with Round-Robin fallback
-	paramsPath := "config/ga_output.json"
+	paramsPath := resolveGAParamsPath(cfg.GAParamsPath)
 	rtsScheduler := scheduler.NewRTSScheduler(rrScheduler, tauStore, telemetrySource, paramsPath, slaMultiplier)
 	log.Printf("✓ RTS scheduler initialized (params: %s)", paramsPath)
 	log.Printf("  - Scheduler: %s", rtsScheduler.GetName())
@@ -238,7 +238,7 @@ func main() {
 		}()
 	} else {
 		log.Println("⚠️  AOD training disabled (HistoryDB not available)")
-		log.Println("  - RTS will use default parameters from config/ga_output.json")
+		log.Printf("  - RTS will use default parameters from %s", paramsPath)
 	}
 
 	// Load workers from database
@@ -394,4 +394,25 @@ func startGRPCServer(grpcServer *grpc.Server, address string) {
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
+}
+
+func resolveGAParamsPath(configPath string) string {
+	if configPath == "" {
+		configPath = "config/ga_output.json"
+	}
+	if filepath.IsAbs(configPath) {
+		return configPath
+	}
+
+	exePath, err := os.Executable()
+	if err == nil {
+		return filepath.Clean(filepath.Join(filepath.Dir(exePath), configPath))
+	}
+
+	absPath, err := filepath.Abs(configPath)
+	if err == nil {
+		return absPath
+	}
+
+	return configPath
 }
