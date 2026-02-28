@@ -111,6 +111,30 @@ func (db *WorkerDB) RegisterWorker(ctx context.Context, workerID, workerIP strin
 	return nil
 }
 
+// UpdateWorkerAddress updates a worker's configured endpoint while preserving identity and resources.
+func (db *WorkerDB) UpdateWorkerAddress(ctx context.Context, workerID, workerIP string) error {
+	filter := bson.M{"worker_id": workerID}
+	update := bson.M{
+		"$set": bson.M{
+			"worker_ip":      workerIP,
+			"is_active":      false,
+			"last_heartbeat": int64(0),
+			"updated_at":     time.Now(),
+		},
+	}
+
+	result, err := db.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("update worker address: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("worker %s not found", workerID)
+	}
+
+	return nil
+}
+
 // UpdateWorkerInfo updates worker details (called when worker connects and sends full specs)
 func (db *WorkerDB) UpdateWorkerInfo(ctx context.Context, info *pb.WorkerInfo) error {
 	filter := bson.M{"worker_id": info.WorkerId}

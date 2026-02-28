@@ -317,7 +317,7 @@ func runProfile(profile WorkloadProfile, seed int64) (ProfileResult, error) {
 
 	rtsFallback := scheduler.NewRoundRobinScheduler()
 	rtsTelemetry := &simTelemetrySource{sim: newSimState(profile.Workers)}
-	rtsScheduler := scheduler.NewRTSScheduler(rtsFallback, tauStore, rtsTelemetry, paramsFile, 2.0)
+	rtsScheduler := scheduler.NewRTSScheduler(rtsFallback, tauStore, rtsTelemetry, paramsFile, nil, 2.0)
 	defer rtsScheduler.Shutdown()
 
 	rtsResult, err := runSimulationWithTelemetry(profile, rtsScheduler, "RTS", seed, rtsTelemetry)

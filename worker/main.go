@@ -59,12 +59,20 @@ func main() {
 	// Auto-detect IP address and port
 	workerIP := sysInfo.GetWorkerAddress()
 	workerPort := sysInfo.GetWorkerPort()
-	workerID := sysInfo.Hostname // Use hostname as worker ID
+	workerID, err := system.ResolveWorkerID(sysInfo.Hostname)
+	if err != nil {
+		log.Printf("⚠️  Failed to resolve persistent worker ID: %v", err)
+		workerID = sysInfo.Hostname
+		if workerID == "" {
+			workerID = "worker-unknown"
+		}
+	}
 
 	log.Println("")
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("  Worker Details (use these to register with master):")
 	log.Println("═══════════════════════════════════════════════════════")
+	log.Printf("  Hostname:       %s", sysInfo.Hostname)
 	log.Printf("  Worker ID:      %s", workerID)
 	log.Printf("  Worker Address: %s%s", workerIP, workerPort)
 	log.Println("═══════════════════════════════════════════════════════")

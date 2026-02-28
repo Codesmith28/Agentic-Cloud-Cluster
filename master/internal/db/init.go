@@ -20,6 +20,7 @@ var collections = []string{
 	"TASKS",
 	"ASSIGNMENTS",
 	"RESULTS",
+	"RTS_WEIGHTS",
 }
 
 // EnsureCollections connects to the MongoDB instance and makes sure the

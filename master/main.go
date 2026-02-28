@@ -182,9 +182,23 @@ func main() {
 	telemetrySource := scheduler.NewMasterTelemetrySource(telemetryMgr, workerDB)
 	log.Println("✓ Telemetry source adapter created")
 
+	// Initialize optional MongoDB store for RTS learned parameters.
+	var rtsParamsStore scheduler.GAParamsStore
+	if cfg.MongoDBURI != "" {
+		mongoParamsStore, storeErr := scheduler.NewMongoGAParamsStore(ctx, cfg.MongoDBURI, cfg.MongoDBDatabase)
+		if storeErr != nil {
+			log.Printf("Warning: Failed to initialize RTS params MongoDB store: %v", storeErr)
+			log.Println("RTS will fall back to JSON/default params only")
+		} else {
+			rtsParamsStore = mongoParamsStore
+			log.Println("✓ RTS params store initialized (MongoDB: RTS_WEIGHTS)")
+			defer mongoParamsStore.Close(context.Background())
+		}
+	}
+
 	// Create RTS scheduler with Round-Robin fallback
 	paramsPath := resolveGAParamsPath(cfg.GAParamsPath)
-	rtsScheduler := scheduler.NewRTSScheduler(rrScheduler, tauStore, telemetrySource, paramsPath, slaMultiplier)
+	rtsScheduler := scheduler.NewRTSScheduler(rrScheduler, tauStore, telemetrySource, paramsPath, rtsParamsStore, slaMultiplier)
 	log.Printf("✓ RTS scheduler initialized (params: %s)", paramsPath)
 	log.Printf("  - Scheduler: %s", rtsScheduler.GetName())
 	log.Printf("  - Fallback: Round-Robin")
@@ -225,11 +239,14 @@ func main() {
 			log.Printf("  - Training method: Linear regression (Theta) + Direct computation (Affinity/Penalty)")
 			log.Printf("  - Training data window: 24 hours")
 			log.Printf("  - Output: %s", paramsPath)
+			if rtsParamsStore != nil {
+				log.Printf("  - Persistent store: MongoDB collection RTS_WEIGHTS")
+			}
 			log.Printf("  - RTS hot-reload: every 30s")
 
 			for range ticker.C {
 				log.Println("🧬 Starting AOD training cycle...")
-				if err := aod.RunTraining(context.Background(), historyDB, paramsPath); err != nil {
+				if err := aod.RunTraining(context.Background(), historyDB, paramsPath, rtsParamsStore); err != nil {
 					log.Printf("❌ AOD training error: %v", err)
 				} else {
 					log.Println("✅ AOD training cycle completed successfully")
