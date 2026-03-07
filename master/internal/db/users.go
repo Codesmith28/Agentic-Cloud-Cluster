@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"master/internal/config"
@@ -19,11 +20,17 @@ import (
 type User struct {
 	Email        string    `bson:"email" json:"email"`
 	Name         string    `bson:"name" json:"name"`
+	Role         string    `bson:"role" json:"role"`
 	PasswordHash string    `bson:"password_hash" json:"-"` // Never return in JSON
 	VisitCount   int       `bson:"visit_count" json:"visit_count"`
 	CreatedAt    time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt    time.Time `bson:"updated_at" json:"updated_at"`
 }
+
+const (
+	RoleUser  = "user"
+	RoleAdmin = "admin"
+)
 
 // UserDB handles user database operations
 type UserDB struct {
@@ -89,9 +96,15 @@ func (db *UserDB) CreateUser(name, email, password string) error {
 		return err
 	}
 
+	role := RoleUser
+	if isAdminBootstrapEmail(email) {
+		role = RoleAdmin
+	}
+
 	user := User{
 		Email:        email,
 		Name:         name,
+		Role:         role,
 		PasswordHash: string(hashedPassword),
 		VisitCount:   0,
 		CreatedAt:    time.Now(),
@@ -158,4 +171,56 @@ func (db *UserDB) UpdateUser(email string, updates bson.M) error {
 
 	_, err := db.collection.UpdateOne(ctx, bson.M{"email": email}, bson.M{"$set": updates})
 	return err
+}
+
+// BootstrapAdminRoles promotes configured ADMIN_EMAILS users to admin role.
+func (db *UserDB) BootstrapAdminRoles(ctx context.Context) error {
+	adminEmails := getAdminBootstrapEmails()
+	if len(adminEmails) == 0 {
+		return nil
+	}
+
+	filter := bson.M{"email": bson.M{"$in": adminEmails}}
+	update := bson.M{
+		"$set": bson.M{
+			"role":       RoleAdmin,
+			"updated_at": time.Now(),
+		},
+	}
+
+	_, err := db.collection.UpdateMany(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("bootstrap admin roles: %w", err)
+	}
+	return nil
+}
+
+func isAdminBootstrapEmail(email string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(email))
+	if normalized == "" {
+		return false
+	}
+	for _, candidate := range getAdminBootstrapEmails() {
+		if normalized == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func getAdminBootstrapEmails() []string {
+	raw := os.Getenv("ADMIN_EMAILS")
+	if raw == "" {
+		return nil
+	}
+
+	parts := strings.Split(raw, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		email := strings.ToLower(strings.TrimSpace(part))
+		if email != "" {
+			result = append(result, email)
+		}
+	}
+	return result
 }

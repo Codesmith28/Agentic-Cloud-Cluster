@@ -64,7 +64,7 @@ const TaskLogsDialog = ({ open, onClose, taskId }) => {
               ...prev,
               {
                 type: 'system',
-                text: `Connected to task ${data.task_id} (User: ${data.user_id})`,
+                text: `Connected to task ${data.task_id}`,
                 timestamp: new Date().toISOString(),
               },
             ]);

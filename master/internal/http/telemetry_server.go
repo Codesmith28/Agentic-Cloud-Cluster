@@ -31,6 +31,7 @@ type WSClient struct {
 // TelemetryServer provides WebSocket endpoints to stream worker telemetry data
 type TelemetryServer struct {
 	telemetryManager *telemetry.TelemetryManager
+	authHandler      *AuthHandler
 	server           *http.Server
 	mux              *http.ServeMux
 	clients          map[*WSClient]bool
@@ -55,15 +56,15 @@ func NewTelemetryServer(port int, telemetryMgr *telemetry.TelemetryManager) *Tel
 		quietMode:        true, // Enable quiet mode by default
 	}
 
-	// WebSocket endpoints
-	mux.HandleFunc("/ws/telemetry", ts.handleAllWorkersWS)
-	mux.HandleFunc("/ws/telemetry/", ts.handleWorkerTelemetryWS)
+	// WebSocket endpoints (admin-only control-plane visibility).
+	mux.HandleFunc("/ws/telemetry", ts.withAuth(ts.handleAllWorkersWS, true))
+	mux.HandleFunc("/ws/telemetry/", ts.withAuth(ts.handleWorkerTelemetryWS, true))
 
 	// REST endpoints
 	mux.HandleFunc("/health", ts.handleHealth)
-	mux.HandleFunc("/telemetry", ts.handleTelemetryREST)
-	mux.HandleFunc("/telemetry/", ts.handleWorkerTelemetryREST)
-	mux.HandleFunc("/workers", ts.handleWorkersREST)
+	mux.HandleFunc("/telemetry", ts.withAuth(ts.handleTelemetryREST, true))
+	mux.HandleFunc("/telemetry/", ts.withAuth(ts.handleWorkerTelemetryREST, true))
+	mux.HandleFunc("/workers", ts.withAuth(ts.handleWorkersREST, true))
 
 	ts.server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
@@ -82,7 +83,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		// Set CORS headers
 		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000") // Vite dev server
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Breakglass-Reason")
 		w.Header().Set("Access-Control-Allow-Credentials", "true") // Allow cookies
 
 		// Handle preflight requests
@@ -98,6 +99,29 @@ func corsMiddleware(next http.Handler) http.Handler {
 // SetQuietMode enables or disables verbose logging
 func (ts *TelemetryServer) SetQuietMode(quiet bool) {
 	ts.quietMode = quiet
+}
+
+func (ts *TelemetryServer) withAuth(next http.HandlerFunc, adminOnly bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if ts.authHandler == nil {
+			http.Error(w, "Authentication not configured", http.StatusServiceUnavailable)
+			return
+		}
+
+		principal, err := ts.authHandler.AuthenticateRequest(r)
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		if adminOnly && !principal.IsAdmin() {
+			http.Error(w, "Forbidden: admin role required", http.StatusForbidden)
+			return
+		}
+
+		ctx := withAuthPrincipal(r.Context(), principal)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}
 }
 
 // Start starts the HTTP server with WebSocket support
@@ -441,7 +465,9 @@ func (ts *TelemetryServer) getClientCount() int {
 
 // RegisterTaskHandlers registers task API handlers
 func (ts *TelemetryServer) RegisterTaskHandlers(handler *TaskAPIHandler) {
-	ts.mux.HandleFunc("/api/tasks", func(w http.ResponseWriter, r *http.Request) {
+	protected := ts.withAuth
+
+	ts.mux.HandleFunc("/api/tasks", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
 			handler.HandleCreateTask(w, r)
@@ -450,12 +476,13 @@ func (ts *TelemetryServer) RegisterTaskHandlers(handler *TaskAPIHandler) {
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
-	})
+	}, false))
 
 	// WebSocket endpoint for live task logs
-	ts.mux.HandleFunc("/ws/tasks/", handler.HandleTaskLogsStream)
+	ts.mux.HandleFunc("/ws/tasks/", protected(handler.HandleTaskLogsStream, false))
+	ts.mux.HandleFunc("/ws/admin/tasks/", protected(handler.HandleAdminTaskLogsStream, true))
 
-	ts.mux.HandleFunc("/api/tasks/", func(w http.ResponseWriter, r *http.Request) {
+	ts.mux.HandleFunc("/api/tasks/", protected(func(w http.ResponseWriter, r *http.Request) {
 		// Check if this is a /logs or /retry request
 		if strings.Contains(r.URL.Path, "/logs") {
 			handler.HandleGetTaskLogs(w, r)
@@ -470,41 +497,58 @@ func (ts *TelemetryServer) RegisterTaskHandlers(handler *TaskAPIHandler) {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			}
 		}
-	})
+	}, false))
+
+	// Admin break-glass result endpoints
+	ts.mux.HandleFunc("/api/admin/tasks/", protected(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/logs") {
+			handler.HandleAdminGetTaskLogs(w, r)
+		} else {
+			if r.Method != http.MethodGet {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			handler.HandleAdminGetTask(w, r)
+		}
+	}, true))
 }
 
 // RegisterWorkerHandlers registers worker API handlers
 func (ts *TelemetryServer) RegisterWorkerHandlers(handler *WorkerAPIHandler) {
-	ts.mux.HandleFunc("/api/workers", func(w http.ResponseWriter, r *http.Request) {
+	protected := ts.withAuth
+
+	ts.mux.HandleFunc("/api/workers", protected(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			handler.HandleRegisterWorker(w, r)
 		} else {
 			handler.HandleListWorkers(w, r)
 		}
-	})
-	ts.mux.HandleFunc("/api/workers/", func(w http.ResponseWriter, r *http.Request) {
+	}, true))
+	ts.mux.HandleFunc("/api/workers/", protected(func(w http.ResponseWriter, r *http.Request) {
 		// Check if this is a /metrics request
 		if strings.Contains(r.URL.Path, "/metrics") {
 			handler.HandleGetWorkerMetrics(w, r)
 		} else {
 			handler.HandleGetWorker(w, r)
 		}
-	})
+	}, true))
 }
 
 // RegisterFileHandlers registers file API handlers
 func (ts *TelemetryServer) RegisterFileHandlers(handler *FileAPIHandler) {
+	protected := ts.withAuth
+
 	// List all files for a user
-	ts.mux.HandleFunc("/api/files", func(w http.ResponseWriter, r *http.Request) {
+	ts.mux.HandleFunc("/api/files", protected(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			handler.HandleListFiles(w, r)
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
-	})
+	}, false))
 
 	// Handle specific file operations: get task files, download file, delete files
-	ts.mux.HandleFunc("/api/files/", func(w http.ResponseWriter, r *http.Request) {
+	ts.mux.HandleFunc("/api/files/", protected(func(w http.ResponseWriter, r *http.Request) {
 		// Check if this is a download request: /api/files/{task_id}/download/{file_path}
 		if strings.Contains(r.URL.Path, "/download") {
 			handler.HandleDownloadFile(w, r)
@@ -519,11 +563,26 @@ func (ts *TelemetryServer) RegisterFileHandlers(handler *FileAPIHandler) {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			}
 		}
-	})
+	}, false))
+
+	// Admin break-glass result endpoints
+	ts.mux.HandleFunc("/api/admin/files/", protected(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/download") {
+			handler.HandleAdminDownloadFile(w, r)
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		handler.HandleAdminGetTaskFiles(w, r)
+	}, true))
 }
 
 // RegisterAuthHandlers registers authentication API handlers
 func (ts *TelemetryServer) RegisterAuthHandlers(handler *AuthHandler) {
+	ts.authHandler = handler
+
 	// Public endpoints (no auth required)
 	ts.mux.HandleFunc("/api/auth/register", handler.HandleRegister)
 	ts.mux.HandleFunc("/api/auth/login", handler.HandleLogin)

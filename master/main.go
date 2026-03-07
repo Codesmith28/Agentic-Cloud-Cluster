@@ -135,6 +135,11 @@ func main() {
 			userDB = nil
 		} else {
 			log.Println("✓ UserDB initialized")
+			if err := userDB.BootstrapAdminRoles(context.Background()); err != nil {
+				log.Printf("Warning: Failed to bootstrap admin roles: %v", err)
+			} else {
+				log.Println("✓ Admin role bootstrap complete")
+			}
 			defer userDB.Close(context.Background())
 		}
 
@@ -406,22 +411,23 @@ func main() {
 		taskHandler := httpserver.NewTaskAPIHandler(masterServer, taskDB, assignmentDB, resultDB)
 		workerHandler := httpserver.NewWorkerAPIHandler(masterServer, workerDB, assignmentDB, telemetryMgr)
 
-		// Add API routes
+		// Register auth handlers first so protected routes can authenticate requests.
+		if userDB != nil {
+			httpTelemetryServer.RegisterAuthHandlers(httpserver.NewAuthHandler(userDB))
+			log.Println("✓ Auth API handlers registered")
+		} else {
+			log.Println("⚠️  Auth API handlers not registered: UserDB unavailable")
+		}
+
+		// Add protected API routes.
 		httpTelemetryServer.RegisterTaskHandlers(taskHandler)
 		httpTelemetryServer.RegisterWorkerHandlers(workerHandler)
 
 		// Register file handlers if file storage is available
 		if fileStorage != nil {
-			fileHandler := httpserver.NewFileAPIHandler(fileStorage)
+			fileHandler := httpserver.NewFileAPIHandler(fileStorage, taskDB)
 			httpTelemetryServer.RegisterFileHandlers(fileHandler)
 			log.Println("✓ File API handlers registered")
-		}
-
-		// Register auth handlers if user database is available
-		if userDB != nil {
-			authHandler := httpserver.NewAuthHandler(userDB)
-			httpTelemetryServer.RegisterAuthHandlers(authHandler)
-			log.Println("✓ Auth API handlers registered")
 		}
 
 		go func() {

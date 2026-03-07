@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"master/internal/db"
 	"github.com/golang-jwt/jwt/v5"
+	"master/internal/db"
 )
 
 // AuthHandler handles authentication endpoints
@@ -33,6 +33,7 @@ func NewAuthHandler(userDB *db.UserDB) *AuthHandler {
 type Claims struct {
 	Email string `json:"email"`
 	Name  string `json:"name"`
+	Role  string `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -61,6 +62,7 @@ type AuthResponse struct {
 type UserInfo struct {
 	Email      string    `json:"email"`
 	Name       string    `json:"name"`
+	Role       string    `json:"role"`
 	VisitCount int       `json:"visit_count"`
 	CreatedAt  time.Time `json:"created_at"`
 }
@@ -125,6 +127,7 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		User: &UserInfo{
 			Email:      user.Email,
 			Name:       user.Name,
+			Role:       normalizeRole(user.Role),
 			VisitCount: user.VisitCount,
 			CreatedAt:  user.CreatedAt,
 		},
@@ -171,6 +174,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	claims := &Claims{
 		Email: user.Email,
 		Name:  user.Name,
+		Role:  normalizeRole(user.Role),
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -205,6 +209,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		User: &UserInfo{
 			Email:      user.Email,
 			Name:       user.Name,
+			Role:       normalizeRole(user.Role),
 			VisitCount: user.VisitCount,
 			CreatedAt:  user.CreatedAt,
 		},
@@ -242,8 +247,7 @@ func (h *AuthHandler) HandleMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get email from context (set by middleware)
-	email, ok := r.Context().Value("user_email").(string)
+	principal, ok := getAuthPrincipal(r.Context())
 	if !ok {
 		json.NewEncoder(w).Encode(AuthResponse{
 			Success: false,
@@ -253,7 +257,7 @@ func (h *AuthHandler) HandleMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user from database
-	user, err := h.userDB.GetUserByEmail(email)
+	user, err := h.userDB.GetUserByEmail(principal.Email)
 	if err != nil {
 		json.NewEncoder(w).Encode(AuthResponse{
 			Success: false,
@@ -269,6 +273,7 @@ func (h *AuthHandler) HandleMe(w http.ResponseWriter, r *http.Request) {
 		User: &UserInfo{
 			Email:      user.Email,
 			Name:       user.Name,
+			Role:       normalizeRole(user.Role),
 			VisitCount: user.VisitCount,
 			CreatedAt:  user.CreatedAt,
 		},

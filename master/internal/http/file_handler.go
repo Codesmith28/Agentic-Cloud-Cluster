@@ -1,44 +1,46 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 
+	"master/internal/db"
 	"master/internal/storage"
 )
 
-// FileAPIHandler handles HTTP REST API requests for file management
+// FileAPIHandler handles HTTP REST API requests for file management.
 type FileAPIHandler struct {
 	fileStorage *storage.FileStorageService
+	taskDB      *db.TaskDB
 	quietMode   bool
 }
 
-// NewFileAPIHandler creates a new file API handler
-func NewFileAPIHandler(fileStorage *storage.FileStorageService) *FileAPIHandler {
+// NewFileAPIHandler creates a new file API handler.
+func NewFileAPIHandler(fileStorage *storage.FileStorageService, taskDB *db.TaskDB) *FileAPIHandler {
 	return &FileAPIHandler{
 		fileStorage: fileStorage,
+		taskDB:      taskDB,
 		quietMode:   true,
 	}
 }
 
-// FileListResponse represents the JSON response for file listing
 type FileListResponse struct {
 	UserID string         `json:"user_id"`
 	Tasks  []TaskFileInfo `json:"tasks"`
 	Count  int            `json:"count"`
 }
 
-// FileInfo represents individual file information
 type FileInfoJSON struct {
 	Path string `json:"path"`
 	Size int64  `json:"size"`
 }
 
-// TaskFileInfo represents file information for a single task
 type TaskFileInfo struct {
 	TaskID    string         `json:"task_id"`
 	TaskName  string         `json:"task_name"`
@@ -47,7 +49,6 @@ type TaskFileInfo struct {
 	TotalSize int64          `json:"total_size"`
 }
 
-// FileDetailResponse represents the JSON response for task file details
 type FileDetailResponse struct {
 	TaskID    string         `json:"task_id"`
 	TaskName  string         `json:"task_name"`
@@ -56,58 +57,67 @@ type FileDetailResponse struct {
 	TotalSize int64          `json:"total_size"`
 }
 
-// HandleListFiles handles GET /api/files?user_id=<user>
-// Lists all files for a user with access control
-func (h *FileAPIHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
+func rejectLegacyIdentityQuery(r *http.Request) error {
+	q := r.URL.Query()
+	if q.Has("user_id") || q.Has("requesting_user") {
+		return fmt.Errorf("legacy identity query parameters are not supported")
 	}
+	return nil
+}
 
-	// Get requesting user from query parameters or auth header
-	// For now, using query parameter. In production, use proper authentication.
-	requestingUserID := r.URL.Query().Get("requesting_user")
-	targetUserID := r.URL.Query().Get("user_id")
-
-	if requestingUserID == "" {
-		http.Error(w, "Missing requesting_user parameter", http.StatusBadRequest)
-		return
+func (h *FileAPIHandler) requirePrincipal(w http.ResponseWriter, r *http.Request) (*AuthPrincipal, bool) {
+	principal, ok := getAuthPrincipal(r.Context())
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return nil, false
 	}
+	return principal, true
+}
 
-	if targetUserID == "" {
-		http.Error(w, "Missing user_id parameter", http.StatusBadRequest)
-		return
+func (h *FileAPIHandler) taskOwnerForTaskID(ctx context.Context, taskID string) (string, error) {
+	if h.taskDB == nil {
+		return "", fmt.Errorf("task database not available")
 	}
-
-	if h.fileStorage == nil {
-		http.Error(w, "File storage not available", http.StatusServiceUnavailable)
-		return
+	task, err := h.taskDB.GetTask(ctx, taskID)
+	if err != nil || task == nil {
+		return "", fmt.Errorf("task %s not found", taskID)
 	}
+	return task.UserID, nil
+}
 
-	// Use access-controlled method to list files
-	fileMetadataList, err := h.fileStorage.ListUserFilesWithAccess(requestingUserID, targetUserID)
-	if err != nil {
-		if strings.Contains(err.Error(), "access denied") {
-			http.Error(w, err.Error(), http.StatusForbidden)
-			return
-		}
-		log.Printf("Error listing files for user %s (requested by %s): %v", targetUserID, requestingUserID, err)
-		http.Error(w, fmt.Sprintf("Failed to list files: %v", err), http.StatusInternalServerError)
-		return
+func (h *FileAPIHandler) extractTaskID(path, prefix string) (string, error) {
+	if !strings.HasPrefix(path, prefix) {
+		return "", fmt.Errorf("invalid URL format")
 	}
+	trimmed := strings.Trim(strings.TrimPrefix(path, prefix), "/")
+	if trimmed == "" {
+		return "", fmt.Errorf("task ID required")
+	}
+	parts := strings.Split(trimmed, "/")
+	if len(parts) == 0 || parts[0] == "" {
+		return "", fmt.Errorf("task ID required")
+	}
+	return parts[0], nil
+}
 
-	// Convert to response format
+func (h *FileAPIHandler) authorizeRead(w http.ResponseWriter, r *http.Request, principal *AuthPrincipal, owner, resource string) bool {
+	if err := authorizeTaskResultRead(principal, owner, resource, r.Header.Get(breakglassReasonHeader)); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+func toJSONFileList(fileMetadataList []*storage.FileMetadata) []TaskFileInfo {
 	tasks := make([]TaskFileInfo, 0, len(fileMetadataList))
 	for _, metadata := range fileMetadataList {
-		// Convert []storage.FileInfo to []FileInfoJSON
+		if metadata == nil {
+			continue
+		}
 		files := make([]FileInfoJSON, 0, len(metadata.Files))
 		for _, f := range metadata.Files {
-			files = append(files, FileInfoJSON{
-				Path: f.Path,
-				Size: f.Size,
-			})
+			files = append(files, FileInfoJSON{Path: f.Path, Size: f.Size})
 		}
-
 		tasks = append(tasks, TaskFileInfo{
 			TaskID:    metadata.TaskID,
 			TaskName:  metadata.TaskName,
@@ -116,227 +126,252 @@ func (h *FileAPIHandler) HandleListFiles(w http.ResponseWriter, r *http.Request)
 			TotalSize: metadata.TotalSize,
 		})
 	}
-
-	response := FileListResponse{
-		UserID: targetUserID,
-		Tasks:  tasks,
-		Count:  len(tasks),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-
-	if !h.quietMode {
-		log.Printf("✓ Listed %d task(s) for user %s (requested by %s)", len(tasks), targetUserID, requestingUserID)
-	}
+	return tasks
 }
 
-// HandleGetTaskFiles handles GET /api/files/{task_id}?user_id=<user>&requesting_user=<user>
-// Gets file details for a specific task with access control
-func (h *FileAPIHandler) HandleGetTaskFiles(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Extract task ID from URL path
-	// Expected format: /api/files/{task_id}
-	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	if len(parts) < 3 {
-		http.Error(w, "Invalid URL format. Expected: /api/files/{task_id}", http.StatusBadRequest)
-		return
-	}
-	taskID := parts[2]
-
-	requestingUserID := r.URL.Query().Get("requesting_user")
-	targetUserID := r.URL.Query().Get("user_id")
-
-	if requestingUserID == "" {
-		http.Error(w, "Missing requesting_user parameter", http.StatusBadRequest)
-		return
-	}
-
-	if targetUserID == "" {
-		http.Error(w, "Missing user_id parameter", http.StatusBadRequest)
-		return
-	}
-
-	if h.fileStorage == nil {
-		http.Error(w, "File storage not available", http.StatusServiceUnavailable)
-		return
-	}
-
-	// Use access-controlled method to get task files
-	metadata, err := h.fileStorage.GetTaskFilesWithAccess(requestingUserID, targetUserID, taskID)
-	if err != nil {
-		if strings.Contains(err.Error(), "access denied") {
-			http.Error(w, err.Error(), http.StatusForbidden)
-			return
-		}
-		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		log.Printf("Error getting task files %s for user %s: %v", taskID, targetUserID, err)
-		http.Error(w, fmt.Sprintf("Failed to get task files: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Convert []storage.FileInfo to []FileInfoJSON
+func toJSONFileDetail(metadata *storage.FileMetadata) FileDetailResponse {
 	files := make([]FileInfoJSON, 0, len(metadata.Files))
 	for _, f := range metadata.Files {
-		files = append(files, FileInfoJSON{
-			Path: f.Path,
-			Size: f.Size,
-		})
+		files = append(files, FileInfoJSON{Path: f.Path, Size: f.Size})
 	}
-
-	response := FileDetailResponse{
+	return FileDetailResponse{
 		TaskID:    metadata.TaskID,
 		TaskName:  metadata.TaskName,
 		Timestamp: metadata.Timestamp.Format("2006-01-02 15:04:05"),
 		Files:     files,
 		TotalSize: metadata.TotalSize,
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-
-	if !h.quietMode {
-		log.Printf("✓ Retrieved task %s files for user %s (requested by %s)", taskID, targetUserID, requestingUserID)
-	}
 }
 
-// HandleDownloadFile handles GET /api/files/{task_id}/download/{file_path}?user_id=<user>&requesting_user=<user>
-// Downloads a specific file with access control
-func (h *FileAPIHandler) HandleDownloadFile(w http.ResponseWriter, r *http.Request) {
+// HandleListFiles handles GET /api/files.
+// Returns only authenticated user's files.
+func (h *FileAPIHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	// Extract task ID and file path from URL
-	// Expected format: /api/files/{task_id}/download/{file_path}
-	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	if len(parts) < 5 || parts[3] != "download" {
-		http.Error(w, "Invalid URL format. Expected: /api/files/{task_id}/download/{file_path}", http.StatusBadRequest)
+	if err := rejectLegacyIdentityQuery(r); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	taskID := parts[2]
-	// Join remaining parts as file path (handles paths with slashes)
-	filePath := strings.Join(parts[4:], "/")
-
-	requestingUserID := r.URL.Query().Get("requesting_user")
-	targetUserID := r.URL.Query().Get("user_id")
-
-	if requestingUserID == "" {
-		http.Error(w, "Missing requesting_user parameter", http.StatusBadRequest)
+	principal, ok := h.requirePrincipal(w, r)
+	if !ok {
 		return
 	}
-
-	if targetUserID == "" {
-		http.Error(w, "Missing user_id parameter", http.StatusBadRequest)
-		return
-	}
-
 	if h.fileStorage == nil {
 		http.Error(w, "File storage not available", http.StatusServiceUnavailable)
 		return
 	}
 
-	// Use access-controlled method to read file
-	fileData, err := h.fileStorage.ReadFileWithAccess(requestingUserID, targetUserID, taskID, filePath)
+	fileMetadataList, err := h.fileStorage.ListUserFilesWithAccess(principal.Email, principal.Email)
 	if err != nil {
-		if strings.Contains(err.Error(), "access denied") {
-			http.Error(w, err.Error(), http.StatusForbidden)
-			return
-		}
-		if strings.Contains(err.Error(), "not found") {
+		log.Printf("Error listing files for user %s: %v", principal.Email, err)
+		http.Error(w, fmt.Sprintf("Failed to list files: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	tasks := toJSONFileList(fileMetadataList)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(FileListResponse{
+		UserID: principal.Email,
+		Tasks:  tasks,
+		Count:  len(tasks),
+	})
+}
+
+// HandleGetTaskFiles handles GET /api/files/{task_id}.
+func (h *FileAPIHandler) HandleGetTaskFiles(w http.ResponseWriter, r *http.Request) {
+	h.handleGetTaskFilesWithPrefix(w, r, "/api/files/", false)
+}
+
+// HandleAdminGetTaskFiles handles GET /api/admin/files/{task_id}.
+func (h *FileAPIHandler) HandleAdminGetTaskFiles(w http.ResponseWriter, r *http.Request) {
+	h.handleGetTaskFilesWithPrefix(w, r, "/api/admin/files/", true)
+}
+
+func (h *FileAPIHandler) handleGetTaskFilesWithPrefix(w http.ResponseWriter, r *http.Request, prefix string, adminEndpoint bool) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := rejectLegacyIdentityQuery(r); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	principal, ok := h.requirePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if adminEndpoint && !principal.IsAdmin() {
+		http.Error(w, "Forbidden: admin role required", http.StatusForbidden)
+		return
+	}
+	if h.fileStorage == nil {
+		http.Error(w, "File storage not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	taskID, err := h.extractTaskID(r.URL.Path, prefix)
+	if err != nil {
+		http.Error(w, "Invalid URL format. Expected /api/files/{task_id}", http.StatusBadRequest)
+		return
+	}
+
+	owner, err := h.taskOwnerForTaskID(context.Background(), taskID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	if !h.authorizeRead(w, r, principal, owner, fmt.Sprintf("task_files:%s", taskID)) {
+		return
+	}
+
+	metadata, err := h.fileStorage.GetTaskFiles(owner, taskID)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		log.Printf("Error reading file %s for task %s: %v", filePath, taskID, err)
+		http.Error(w, fmt.Sprintf("Failed to get task files: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(toJSONFileDetail(metadata))
+}
+
+// HandleDownloadFile handles GET /api/files/{task_id}/download/{file_path}.
+func (h *FileAPIHandler) HandleDownloadFile(w http.ResponseWriter, r *http.Request) {
+	h.handleDownloadFileWithPrefix(w, r, "/api/files/", false)
+}
+
+// HandleAdminDownloadFile handles GET /api/admin/files/{task_id}/download/{file_path}.
+func (h *FileAPIHandler) HandleAdminDownloadFile(w http.ResponseWriter, r *http.Request) {
+	h.handleDownloadFileWithPrefix(w, r, "/api/admin/files/", true)
+}
+
+func (h *FileAPIHandler) handleDownloadFileWithPrefix(w http.ResponseWriter, r *http.Request, prefix string, adminEndpoint bool) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := rejectLegacyIdentityQuery(r); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	principal, ok := h.requirePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if adminEndpoint && !principal.IsAdmin() {
+		http.Error(w, "Forbidden: admin role required", http.StatusForbidden)
+		return
+	}
+	if h.fileStorage == nil {
+		http.Error(w, "File storage not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	pathRemainder := strings.Trim(strings.TrimPrefix(r.URL.Path, prefix), "/")
+	parts := strings.Split(pathRemainder, "/")
+	if len(parts) < 3 || parts[1] != "download" {
+		http.Error(w, "Invalid URL format. Expected /api/files/{task_id}/download/{file_path}", http.StatusBadRequest)
+		return
+	}
+	taskID := parts[0]
+	filePath := strings.Join(parts[2:], "/")
+
+	owner, err := h.taskOwnerForTaskID(context.Background(), taskID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if !h.authorizeRead(w, r, principal, owner, fmt.Sprintf("file_download:%s/%s", taskID, filePath)) {
+		return
+	}
+
+	if err := h.fileStorage.GetAccessControl().ValidateFilePath(filePath); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fullPath, err := h.fileStorage.GetFilePath(owner, taskID, filePath)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("Failed to locate file: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	fileData, err := os.ReadFile(fullPath)
+	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to read file: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Set headers for file download
 	filename := filepath.Base(filePath)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(fileData)))
-
-	// Write file data
-	_, err = w.Write(fileData)
-	if err != nil {
+	if _, err := w.Write(fileData); err != nil {
 		log.Printf("Error writing file data: %v", err)
-		return
-	}
-
-	if !h.quietMode {
-		log.Printf("✓ Downloaded file %s for task %s (user: %s, requested by: %s)", filePath, taskID, targetUserID, requestingUserID)
 	}
 }
 
-// HandleDeleteTaskFiles handles DELETE /api/files/{task_id}?user_id=<user>&requesting_user=<user>
-// Deletes all files for a specific task with access control
+// HandleDeleteTaskFiles handles DELETE /api/files/{task_id}.
 func (h *FileAPIHandler) HandleDeleteTaskFiles(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	// Extract task ID from URL path
-	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	if len(parts) < 3 {
-		http.Error(w, "Invalid URL format. Expected: /api/files/{task_id}", http.StatusBadRequest)
-		return
-	}
-	taskID := parts[2]
-
-	requestingUserID := r.URL.Query().Get("requesting_user")
-	targetUserID := r.URL.Query().Get("user_id")
-
-	if requestingUserID == "" {
-		http.Error(w, "Missing requesting_user parameter", http.StatusBadRequest)
+	if err := rejectLegacyIdentityQuery(r); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if targetUserID == "" {
-		http.Error(w, "Missing user_id parameter", http.StatusBadRequest)
+	principal, ok := h.requirePrincipal(w, r)
+	if !ok {
 		return
 	}
-
 	if h.fileStorage == nil {
 		http.Error(w, "File storage not available", http.StatusServiceUnavailable)
 		return
 	}
 
-	// Use access-controlled method to delete files
-	err := h.fileStorage.DeleteTaskFilesWithAccess(requestingUserID, targetUserID, taskID)
+	taskID, err := h.extractTaskID(r.URL.Path, "/api/files/")
 	if err != nil {
-		if strings.Contains(err.Error(), "access denied") {
-			http.Error(w, err.Error(), http.StatusForbidden)
-			return
-		}
-		if strings.Contains(err.Error(), "not found") {
+		http.Error(w, "Invalid URL format. Expected /api/files/{task_id}", http.StatusBadRequest)
+		return
+	}
+	owner, err := h.taskOwnerForTaskID(context.Background(), taskID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if !canOperateTask(principal, owner) {
+		http.Error(w, "Forbidden: cannot operate on another user's files", http.StatusForbidden)
+		return
+	}
+
+	if err := h.fileStorage.DeleteTaskFiles(owner, taskID); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		log.Printf("Error deleting files for task %s: %v", taskID, err)
 		http.Error(w, fmt.Sprintf("Failed to delete files: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	_ = json.NewEncoder(w).Encode(map[string]string{
 		"status":  "success",
 		"message": fmt.Sprintf("Deleted files for task %s", taskID),
 		"task_id": taskID,
 	})
-
-	if !h.quietMode {
-		log.Printf("✓ Deleted files for task %s (user: %s, requested by: %s)", taskID, targetUserID, requestingUserID)
-	}
 }

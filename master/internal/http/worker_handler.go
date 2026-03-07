@@ -33,10 +33,26 @@ func NewWorkerAPIHandler(ms *server.MasterServer, workerDB *db.WorkerDB, assignm
 	}
 }
 
+func requireAdminWorkerAccess(w http.ResponseWriter, r *http.Request) (*AuthPrincipal, bool) {
+	principal, ok := getAuthPrincipal(r.Context())
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return nil, false
+	}
+	if !principal.IsAdmin() {
+		http.Error(w, "Forbidden: admin role required", http.StatusForbidden)
+		return nil, false
+	}
+	return principal, true
+}
+
 // HandleListWorkers handles GET /api/workers
 func (h *WorkerAPIHandler) HandleListWorkers(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if _, ok := requireAdminWorkerAccess(w, r); !ok {
 		return
 	}
 
@@ -153,6 +169,9 @@ func (h *WorkerAPIHandler) HandleGetWorker(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if _, ok := requireAdminWorkerAccess(w, r); !ok {
+		return
+	}
 
 	// Extract worker ID from path
 	workerID := strings.TrimPrefix(r.URL.Path, "/api/workers/")
@@ -225,6 +244,10 @@ func (h *WorkerAPIHandler) HandleGetWorker(w http.ResponseWriter, r *http.Reques
 
 // HandleGetWorkerTasks handles GET /api/workers/:id/tasks
 func (h *WorkerAPIHandler) HandleGetWorkerTasks(w http.ResponseWriter, r *http.Request, workerID string) {
+	if _, ok := requireAdminWorkerAccess(w, r); !ok {
+		return
+	}
+
 	if h.assignmentDB == nil {
 		http.Error(w, "Database not available", http.StatusServiceUnavailable)
 		return
@@ -263,6 +286,9 @@ func (h *WorkerAPIHandler) HandleGetWorkerMetrics(w http.ResponseWriter, r *http
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if _, ok := requireAdminWorkerAccess(w, r); !ok {
+		return
+	}
 
 	// Extract worker ID from path - format is /api/workers/{id}/metrics
 	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/workers/"), "/")
@@ -297,6 +323,9 @@ func (h *WorkerAPIHandler) HandleGetWorkerMetrics(w http.ResponseWriter, r *http
 func (h *WorkerAPIHandler) HandleRegisterWorker(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if _, ok := requireAdminWorkerAccess(w, r); !ok {
 		return
 	}
 

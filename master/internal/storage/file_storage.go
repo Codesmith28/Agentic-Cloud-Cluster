@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -41,7 +40,7 @@ type FileMetadata struct {
 // NewFileStorageService creates a new file storage service
 func NewFileStorageService(baseDir string) (*FileStorageService, error) {
 	// Create base directory if it doesn't exist
-	if err := os.MkdirAll(baseDir, 0755); err != nil {
+	if err := os.MkdirAll(baseDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create storage directory: %w", err)
 	}
 
@@ -76,9 +75,71 @@ func (s *FileStorageService) GetTaskStoragePath(userID, taskName string, timesta
 	return filepath.Join(userDir, taskName, timestampStr, taskID)
 }
 
-// ReceiveFileStream handles streaming file uploads from workers
-func (s *FileStorageService) ReceiveFileStream(stream pb.MasterWorker_UploadTaskFilesServer) (*FileMetadata, error) {
-	var metadata FileMetadata
+func validateUploadFilePath(filePath string) error {
+	if filePath == "" {
+		return fmt.Errorf("invalid file path: empty")
+	}
+	if filepath.IsAbs(filePath) {
+		return fmt.Errorf("invalid file path: absolute path not allowed")
+	}
+	if strings.Contains(filePath, "..") {
+		return fmt.Errorf("invalid file path: path traversal detected")
+	}
+	cleaned := filepath.Clean(filePath)
+	if cleaned == "." || cleaned == "" || cleaned != filePath {
+		return fmt.Errorf("invalid file path: must be a clean relative path")
+	}
+	return nil
+}
+
+func ensurePathInsideBase(basePath, targetPath string) error {
+	baseClean := filepath.Clean(basePath)
+	targetClean := filepath.Clean(targetPath)
+
+	if targetClean == baseClean {
+		return nil
+	}
+
+	prefix := baseClean + string(filepath.Separator)
+	if !strings.HasPrefix(targetClean, prefix) {
+		return fmt.Errorf("invalid file path: escaped task storage directory")
+	}
+	return nil
+}
+
+// ReceiveFileStreamTrusted handles streaming file uploads from workers using trusted task metadata.
+// Ownership and task metadata are always derived from master-trusted values, not stream payload fields.
+func (s *FileStorageService) ReceiveFileStreamTrusted(
+	stream pb.MasterWorker_UploadTaskFilesServer,
+	firstChunk *pb.FileChunk,
+	trustedUserID, trustedTaskName string,
+	trustedTimestamp int64,
+) (*FileMetadata, error) {
+	if firstChunk == nil {
+		return nil, fmt.Errorf("missing first file chunk")
+	}
+	if firstChunk.TaskId == "" {
+		return nil, fmt.Errorf("missing task_id in upload stream")
+	}
+	if trustedUserID == "" {
+		return nil, fmt.Errorf("trusted user ID is required")
+	}
+	if trustedTaskName == "" {
+		trustedTaskName = firstChunk.TaskId
+	}
+	if trustedTimestamp <= 0 {
+		trustedTimestamp = time.Now().Unix()
+	}
+
+	metadata := FileMetadata{
+		UserID:      trustedUserID,
+		TaskID:      firstChunk.TaskId,
+		TaskName:    trustedTaskName,
+		Timestamp:   time.Unix(trustedTimestamp, 0),
+		FilePaths:   []string{},
+		StoragePath: s.GetTaskStoragePath(trustedUserID, trustedTaskName, trustedTimestamp, firstChunk.TaskId),
+	}
+
 	var currentFile *os.File
 	var currentFilePath string
 	filesReceived := 0
@@ -86,86 +147,94 @@ func (s *FileStorageService) ReceiveFileStream(stream pb.MasterWorker_UploadTask
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for {
-		chunk, err := stream.Recv()
-		if err == io.EOF {
-			// Close last file if open
-			if currentFile != nil {
-				currentFile.Close()
-			}
-			break
+	// Create storage directory with secure permissions (drwx------).
+	if err := os.MkdirAll(metadata.StoragePath, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create storage directory: %w", err)
+	}
+	log.Printf("[FileStorage] 🔒 Receiving files for task %s (trusted user: %s, secure storage)", metadata.TaskID, metadata.UserID)
+
+	processChunk := func(chunk *pb.FileChunk) (bool, error) {
+		if chunk.TaskId != metadata.TaskID {
+			return false, fmt.Errorf("invalid upload stream: multiple task IDs detected")
 		}
-		if err != nil {
-			// Clean up on error
-			if currentFile != nil {
-				currentFile.Close()
-			}
-			return nil, fmt.Errorf("error receiving file chunk: %w", err)
+		if err := validateUploadFilePath(chunk.FilePath); err != nil {
+			return false, err
 		}
 
-		// First chunk initializes metadata
-		if metadata.TaskID == "" {
-			metadata.UserID = chunk.UserId
-			metadata.TaskID = chunk.TaskId
-			metadata.TaskName = chunk.TaskName
-			metadata.Timestamp = time.Unix(chunk.Timestamp, 0)
-			metadata.StoragePath = s.GetTaskStoragePath(chunk.UserId, chunk.TaskName, chunk.Timestamp, chunk.TaskId)
-			metadata.FilePaths = []string{}
-
-			// Create storage directory with secure permissions (drwx------)
-			if err := os.MkdirAll(metadata.StoragePath, 0700); err != nil {
-				return nil, fmt.Errorf("failed to create storage directory: %w", err)
-			}
-
-			log.Printf("[FileStorage] 🔒 Receiving files for task %s (user: %s, secure storage)",
-				chunk.TaskId, chunk.UserId)
-		}
-
-		// New file in the stream
 		if currentFilePath != chunk.FilePath {
-			// Close previous file
 			if currentFile != nil {
-				currentFile.Close()
+				_ = currentFile.Close()
 				filesReceived++
 			}
 
-			// Open new file
 			currentFilePath = chunk.FilePath
 			fullPath := filepath.Join(metadata.StoragePath, chunk.FilePath)
-
-			// Create parent directories with secure permissions
-			if err := os.MkdirAll(filepath.Dir(fullPath), 0700); err != nil {
-				return nil, fmt.Errorf("failed to create directory for %s: %w", chunk.FilePath, err)
+			if err := ensurePathInsideBase(metadata.StoragePath, fullPath); err != nil {
+				return false, err
 			}
 
-			// Create file with secure permissions (rw-------)
+			if err := os.MkdirAll(filepath.Dir(fullPath), 0700); err != nil {
+				return false, fmt.Errorf("failed to create directory for %s: %w", chunk.FilePath, err)
+			}
+
+			var err error
 			currentFile, err = os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 			if err != nil {
-				return nil, fmt.Errorf("failed to create file %s: %w", fullPath, err)
+				return false, fmt.Errorf("failed to create file %s: %w", fullPath, err)
 			}
 
 			metadata.FilePaths = append(metadata.FilePaths, chunk.FilePath)
 			log.Printf("[FileStorage] 📄 Receiving file: %s (secure)", chunk.FilePath)
 		}
 
-		// Write chunk data
 		if _, err := currentFile.Write(chunk.Data); err != nil {
-			currentFile.Close()
-			return nil, fmt.Errorf("failed to write to file %s: %w", currentFilePath, err)
+			_ = currentFile.Close()
+			return false, fmt.Errorf("failed to write to file %s: %w", currentFilePath, err)
 		}
 
-		// Close file if this is the last chunk
 		if chunk.IsLastChunk {
-			currentFile.Close()
+			_ = currentFile.Close()
 			filesReceived++
 			log.Printf("[FileStorage] ✓ File complete: %s", chunk.FilePath)
 			currentFile = nil
 			currentFilePath = ""
 		}
 
-		// All files received
 		if chunk.IsLastFile {
 			log.Printf("[FileStorage] ✓ All files received (%d files) for task %s", filesReceived, chunk.TaskId)
+			return true, nil
+		}
+		return false, nil
+	}
+
+	done, err := processChunk(firstChunk)
+	if err != nil {
+		if currentFile != nil {
+			_ = currentFile.Close()
+		}
+		return nil, err
+	}
+	if done {
+		return &metadata, nil
+	}
+
+	for {
+		chunk, err := stream.Recv()
+		if err != nil {
+			if currentFile != nil {
+				_ = currentFile.Close()
+			}
+			return nil, fmt.Errorf("error receiving file chunk: %w", err)
+		}
+
+		done, err := processChunk(chunk)
+		if err != nil {
+			if currentFile != nil {
+				_ = currentFile.Close()
+			}
+			return nil, err
+		}
+		if done {
 			break
 		}
 	}

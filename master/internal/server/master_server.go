@@ -1048,8 +1048,43 @@ func (s *MasterServer) UploadTaskFiles(stream pb.MasterWorker_UploadTaskFilesSer
 		})
 	}
 
-	// Receive file stream and store files
-	metadata, err := s.fileStorage.ReceiveFileStream(stream)
+	if s.taskDB == nil {
+		log.Printf("  ✗ Task database not initialized")
+		return stream.SendAndClose(&pb.FileUploadAck{
+			Success:       false,
+			Message:       "Task database not available",
+			FilesReceived: 0,
+		})
+	}
+
+	firstChunk, err := stream.Recv()
+	if err != nil {
+		log.Printf("  ✗ Failed to receive first file chunk: %v", err)
+		return stream.SendAndClose(&pb.FileUploadAck{
+			Success:       false,
+			Message:       "Failed to receive file chunk",
+			FilesReceived: 0,
+		})
+	}
+	if firstChunk.TaskId == "" {
+		return stream.SendAndClose(&pb.FileUploadAck{
+			Success:       false,
+			Message:       "Missing task_id in file upload stream",
+			FilesReceived: 0,
+		})
+	}
+
+	task, err := s.taskDB.GetTask(context.Background(), firstChunk.TaskId)
+	if err != nil || task == nil {
+		log.Printf("  ✗ Unknown task for file upload: %s (%v)", firstChunk.TaskId, err)
+		return stream.SendAndClose(&pb.FileUploadAck{
+			Success:       false,
+			Message:       "Task not found for file upload",
+			FilesReceived: 0,
+		})
+	}
+
+	metadata, err := s.fileStorage.ReceiveFileStreamTrusted(stream, firstChunk, task.UserID, task.TaskName, task.SubmittedAt)
 	if err != nil {
 		log.Printf("  ✗ Failed to receive files: %v", err)
 		return stream.SendAndClose(&pb.FileUploadAck{
@@ -1070,7 +1105,7 @@ func (s *MasterServer) UploadTaskFiles(stream pb.MasterWorker_UploadTaskFilesSer
 			StoragePath: metadata.StoragePath,
 		}
 
-		if err := s.fileMetadataDB.CreateFileMetadata(context.Background(), dbMetadata); err != nil {
+		if err := s.fileMetadataDB.UpsertFileMetadata(context.Background(), dbMetadata); err != nil {
 			log.Printf("  ⚠ Warning: Failed to store file metadata in database: %v", err)
 		} else {
 			log.Printf("  ✓ File metadata stored in database")

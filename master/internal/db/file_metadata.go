@@ -94,6 +94,20 @@ func (db *FileMetadataDB) CreateFileMetadata(ctx context.Context, metadata *File
 	return nil
 }
 
+// UpsertFileMetadata inserts or replaces metadata for a task.
+func (db *FileMetadataDB) UpsertFileMetadata(ctx context.Context, metadata *FileMetadata) error {
+	metadata.UploadedAt = time.Now()
+
+	filter := bson.M{"task_id": metadata.TaskID}
+	update := bson.M{"$set": metadata}
+	_, err := db.collection.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
+	if err != nil {
+		log.Printf("Error upserting file metadata: %v", err)
+		return err
+	}
+	return nil
+}
+
 // GetFileMetadataByTask retrieves file metadata by task ID
 func (db *FileMetadataDB) GetFileMetadataByTask(ctx context.Context, taskID string) (*FileMetadata, error) {
 	var metadata FileMetadata
