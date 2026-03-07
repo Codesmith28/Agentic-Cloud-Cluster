@@ -28,7 +28,12 @@ import (
 //   - paramsOutputPath: File path to save the optimized GAParams JSON
 //
 // Returns: error if any step fails
-func RunTraining(ctx context.Context, historyDB *db.HistoryDB, paramsOutputPath string) error {
+func RunTraining(
+	ctx context.Context,
+	historyDB *db.HistoryDB,
+	paramsOutputPath string,
+	postSave func(context.Context, scheduler.GAParams) error,
+) error {
 	log.Println("🧬 Starting AOD training cycle...")
 	startTime := time.Now()
 
@@ -54,7 +59,21 @@ func RunTraining(ctx context.Context, historyDB *db.HistoryDB, paramsOutputPath 
 	minDataPoints := 2 // Minimum tasks required for meaningful training
 	if len(history) < minDataPoints {
 		log.Printf("⚠️  Insufficient data (%d tasks < %d required), using default parameters", len(history), minDataPoints)
-		return saveDefaultParams(paramsOutputPath)
+		params := scheduler.GAParams{
+			Theta:          defaultTheta(),
+			Risk:           defaultRisk(),
+			AffinityMatrix: make(map[string]map[string]float64),
+			PenaltyVector:  make(map[string]float64),
+		}
+		if err := saveParams(params, paramsOutputPath); err != nil {
+			return err
+		}
+		if postSave != nil {
+			if err := postSave(ctx, params); err != nil {
+				log.Printf("⚠️  Failed to persist default RTS params to Mongo: %v", err)
+			}
+		}
+		return nil
 	}
 
 	// Step 3: Train Theta using linear regression
@@ -85,6 +104,11 @@ func RunTraining(ctx context.Context, historyDB *db.HistoryDB, paramsOutputPath 
 	if err := saveParams(params, paramsOutputPath); err != nil {
 		return fmt.Errorf("save params: %w", err)
 	}
+	if postSave != nil {
+		if err := postSave(ctx, params); err != nil {
+			log.Printf("⚠️  Failed to persist RTS params to Mongo: %v", err)
+		}
+	}
 
 	elapsed := time.Since(startTime)
 	log.Printf("✅ AOD training completed in %s, parameters saved to %s", elapsed, paramsOutputPath)
@@ -106,8 +130,29 @@ func saveParams(params scheduler.GAParams, filePath string) error {
 		}
 	}
 
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
-		return fmt.Errorf("write file: %w", err)
+	tempFile, err := os.CreateTemp(dir, "ga_params_*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temp params file: %w", err)
+	}
+	tempPath := tempFile.Name()
+	if _, err := tempFile.Write(data); err != nil {
+		tempFile.Close()
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("write temp file: %w", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("close temp file: %w", err)
+	}
+
+	if err := os.Chmod(tempPath, 0644); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("chmod temp file: %w", err)
+	}
+
+	if err := os.Rename(tempPath, filePath); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("rename temp file: %w", err)
 	}
 
 	log.Printf("✓ AOD parameters saved to %s", filePath)

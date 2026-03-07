@@ -16,6 +16,13 @@ type WorkerInfo struct {
 	AvailableMemory  float64
 	AvailableStorage float64
 	AvailableGPU     float64
+	TotalCPU         float64
+	TotalMemory      float64
+	TotalStorage     float64
+	TotalGPU         float64
+	CurrentCPUUsage  float64
+	CurrentMemUsage  float64
+	CurrentGPUUsage  float64
 }
 
 // RoundRobinScheduler implements a simple round-robin scheduling algorithm

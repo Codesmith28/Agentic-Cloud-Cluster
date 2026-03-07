@@ -1,14 +1,19 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -24,6 +29,7 @@ import (
 	"master/internal/telemetry"
 	pb "master/proto"
 
+	"go.mongodb.org/mongo-driver/mongo"
 	"google.golang.org/grpc"
 )
 
@@ -70,6 +76,7 @@ func main() {
 	var assignmentDB *db.AssignmentDB
 	var resultDB *db.ResultDB
 	var fileMetadataDB *db.FileMetadataDB
+	var schedulerModelDB *db.SchedulerModelDB
 	var userDB *db.UserDB
 	var fileStorage *storage.FileStorageService
 
@@ -140,6 +147,16 @@ func main() {
 			log.Println("✓ FileMetadataDB initialized")
 			defer fileMetadataDB.Close(context.Background())
 		}
+
+		// Create scheduler model persistence handler (PPO + RTS checkpoints)
+		schedulerModelDB, err = db.NewSchedulerModelDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create SchedulerModelDB: %v", err)
+			schedulerModelDB = nil
+		} else {
+			log.Println("✓ SchedulerModelDB initialized")
+			defer schedulerModelDB.Close(context.Background())
+		}
 	}
 
 	// Initialize file storage service
@@ -173,26 +190,85 @@ func main() {
 	}
 	log.Printf("✓ SLA multiplier (k): %.1f", slaMultiplier)
 
-	// Create scheduler with RTS (Risk-aware Task Scheduling)
-	// Create Round-Robin as fallback
-	rrScheduler := scheduler.NewRoundRobinScheduler()
-	log.Println("✓ Round-Robin scheduler created (fallback)")
+	paramsPath := resolveGAParamsPath(cfg.GAParamsPath)
+	rtsFingerprintHash, rtsFingerprintPayload := deriveRTSFingerprintFromWorkerDB(context.Background(), workerDB)
+	if schedulerModelDB != nil {
+		if err := hydrateRTSParamsFromMongo(context.Background(), schedulerModelDB, rtsFingerprintHash, rtsFingerprintPayload, paramsPath); err != nil {
+			log.Printf("⚠️  RTS Mongo hydration failed; using cache/default params: %v", err)
+		}
+	}
 
-	// Create telemetry source adapter for RTS
+	// Create scheduler stack: RR -> RTS -> PPO (optional)
+	rrScheduler := scheduler.NewRoundRobinScheduler()
+	log.Println("✓ Round-Robin scheduler created")
+
 	telemetrySource := scheduler.NewMasterTelemetrySource(telemetryMgr, workerDB)
 	log.Println("✓ Telemetry source adapter created")
 
-	// Create RTS scheduler with Round-Robin fallback
-	paramsPath := resolveGAParamsPath(cfg.GAParamsPath)
 	rtsScheduler := scheduler.NewRTSScheduler(rrScheduler, tauStore, telemetrySource, paramsPath, slaMultiplier)
 	log.Printf("✓ RTS scheduler initialized (params: %s)", paramsPath)
-	log.Printf("  - Scheduler: %s", rtsScheduler.GetName())
-	log.Printf("  - Fallback: Round-Robin")
-	log.Printf("  - Parameter hot-reload: enabled (every 30s)")
+	log.Printf("  - Fallback: %s", rrScheduler.GetName())
+	log.Printf("  - Parameter hot-reload: enabled (every 30s from local cache)")
+
+	selectedAlgo := chooseSchedulerAlgorithm(cfg.SchedulerAlgo)
+	activeScheduler := scheduler.Scheduler(rtsScheduler)
+	var ppoScheduler *scheduler.PPOScheduler
+	var ppoServiceCmd *exec.Cmd
+
+	switch selectedAlgo {
+	case "RR":
+		activeScheduler = rrScheduler
+		log.Printf("✓ Selected scheduler: %s", rrScheduler.GetName())
+	case "PPO":
+		if cfg.PPOAutostart {
+			cmd, err := startPPOServiceIfNeeded(cfg)
+			if err != nil {
+				log.Printf("⚠️  Failed to auto-start PPO service: %v", err)
+			} else {
+				ppoServiceCmd = cmd
+				log.Printf("✓ PPO Python service auto-started (pid=%d)", cmd.Process.Pid)
+			}
+		}
+
+		ppoSchedulerCandidate, err := scheduler.NewPPOScheduler(
+			cfg.PPOGRPCAddr,
+			time.Duration(cfg.PPORequestTimeoutMS)*time.Millisecond,
+			rtsScheduler,
+			cfg.PPOModelPath,
+		)
+		if err != nil {
+			log.Printf("⚠️  Failed to initialize PPO scheduler: %v", err)
+			log.Printf("  Falling back to %s scheduler", rtsScheduler.GetName())
+			if ppoServiceCmd != nil {
+				stopExternalProcess(ppoServiceCmd, 3*time.Second)
+				ppoServiceCmd = nil
+			}
+			activeScheduler = rtsScheduler
+		} else {
+			ppoScheduler = ppoSchedulerCandidate
+			if err := waitForPPOHealth(ppoScheduler, 10*time.Second); err != nil {
+				log.Printf("⚠️  PPO health check failed: %v", err)
+				log.Printf("  Falling back to %s scheduler", rtsScheduler.GetName())
+				_ = ppoScheduler.Close()
+				ppoScheduler = nil
+				if ppoServiceCmd != nil {
+					stopExternalProcess(ppoServiceCmd, 3*time.Second)
+					ppoServiceCmd = nil
+				}
+				activeScheduler = rtsScheduler
+			} else {
+				activeScheduler = ppoScheduler
+				log.Printf("✓ Selected scheduler: %s (fallback=%s)", ppoScheduler.GetName(), rtsScheduler.GetName())
+			}
+		}
+	default:
+		activeScheduler = rtsScheduler
+		log.Printf("✓ Selected scheduler: %s", rtsScheduler.GetName())
+	}
 
 	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, resultDB, fileMetadataDB, fileStorage, telemetryMgr)
-	masterServer.SetScheduler(rtsScheduler)
-	log.Printf("✓ Master server configured with %s scheduler", rtsScheduler.GetName())
+	masterServer.SetScheduler(activeScheduler)
+	log.Printf("✓ Master server configured with %s scheduler", activeScheduler.GetName())
 
 	// Set master info
 	masterID := "master-1"
@@ -214,6 +290,35 @@ func main() {
 	}
 
 	// Start AOD training ticker for parameter optimization
+	persistRTSParams := func(ctx context.Context, params scheduler.GAParams) error {
+		if schedulerModelDB == nil {
+			return nil
+		}
+
+		encoded, err := json.MarshalIndent(params, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal RTS params: %w", err)
+		}
+
+		hash, payload := deriveRTSFingerprintFromWorkerDB(ctx, workerDB)
+		_, err = schedulerModelDB.SaveAndActivateModel(
+			ctx,
+			"RTS",
+			hash,
+			payload,
+			encoded,
+			"go-aod",
+			map[string]any{
+				"source":      "aod-training",
+				"params_path": paramsPath,
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("save RTS params to Mongo: %w", err)
+		}
+		return nil
+	}
+
 	if historyDB != nil {
 		// Start AOD training ticker (runs every 60 seconds)
 		aodTrainingInterval := 60 * time.Second
@@ -229,7 +334,7 @@ func main() {
 
 			for range ticker.C {
 				log.Println("🧬 Starting AOD training cycle...")
-				if err := aod.RunTraining(context.Background(), historyDB, paramsPath); err != nil {
+				if err := aod.RunTraining(context.Background(), historyDB, paramsPath, persistRTSParams); err != nil {
 					log.Printf("❌ AOD training error: %v", err)
 				} else {
 					log.Println("✅ AOD training cycle completed successfully")
@@ -346,6 +451,15 @@ func main() {
 			log.Println("⏹️  Shutting down RTS scheduler...")
 			rtsScheduler.Shutdown()
 		}
+		if ppoScheduler != nil {
+			log.Println("⏹️  Shutting down PPO scheduler client...")
+			if err := ppoScheduler.Close(); err != nil {
+				log.Printf("Warning: failed to close PPO scheduler client: %v", err)
+			}
+		}
+		if ppoServiceCmd != nil {
+			stopExternalProcess(ppoServiceCmd, 5*time.Second)
+		}
 
 		// Shutdown gRPC server
 		grpcServer.GracefulStop()
@@ -415,4 +529,318 @@ func resolveGAParamsPath(configPath string) string {
 	}
 
 	return configPath
+}
+
+func chooseSchedulerAlgorithm(configValue string) string {
+	defaultAlgo := normalizeSchedulerAlgorithm(configValue)
+
+	// Honor explicit environment override in non-interactive environments.
+	if envValue := strings.TrimSpace(os.Getenv("SCHED_ALGO")); envValue != "" {
+		return normalizeSchedulerAlgorithm(envValue)
+	}
+	if !isInteractiveTerminal() {
+		return defaultAlgo
+	}
+
+	fmt.Println("\nScheduler Selection")
+	fmt.Println("  1. Round-Robin (RR)")
+	fmt.Println("  2. RTS (risk-aware)")
+	fmt.Println("  3. PPO (Python gRPC)")
+	fmt.Printf("Choose scheduler [default: %s]: ", defaultAlgo)
+
+	reader := bufio.NewReader(os.Stdin)
+	choice, err := reader.ReadString('\n')
+	if err != nil {
+		return defaultAlgo
+	}
+	choice = strings.TrimSpace(strings.ToUpper(choice))
+
+	switch choice {
+	case "1", "RR", "ROUND-ROBIN", "ROUNDROBIN":
+		return "RR"
+	case "2", "RTS":
+		return "RTS"
+	case "3", "PPO":
+		return "PPO"
+	default:
+		return defaultAlgo
+	}
+}
+
+func normalizeSchedulerAlgorithm(value string) string {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "RR", "ROUND-ROBIN", "ROUNDROBIN":
+		return "RR"
+	case "PPO":
+		return "PPO"
+	default:
+		return "RTS"
+	}
+}
+
+func isInteractiveTerminal() bool {
+	info, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return (info.Mode() & os.ModeCharDevice) != 0
+}
+
+func waitForPPOHealth(ppoScheduler *scheduler.PPOScheduler, timeout time.Duration) error {
+	if ppoScheduler == nil {
+		return fmt.Errorf("nil PPO scheduler")
+	}
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	deadline := time.Now().Add(timeout)
+
+	var lastErr error
+	for time.Now().Before(deadline) {
+		ctx, cancel := context.WithTimeout(context.Background(), 1200*time.Millisecond)
+		resp, err := ppoScheduler.Ping(ctx)
+		cancel()
+		if err == nil && resp != nil && resp.Healthy {
+			log.Printf("✓ PPO service healthy (model=%s, fingerprint=%s)", resp.ModelVersion, resp.FingerprintHash)
+			return nil
+		}
+		if err != nil {
+			lastErr = err
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("timeout waiting for healthy PPO service")
+	}
+	return lastErr
+}
+
+func startPPOServiceIfNeeded(cfg *config.Config) (*exec.Cmd, error) {
+	projectRoot := detectProjectRoot()
+	if projectRoot == "" {
+		return nil, fmt.Errorf("unable to locate project root for PPO autostart")
+	}
+
+	modelPath := cfg.PPOModelPath
+	if modelPath == "" {
+		modelPath = "agentic_scheduler/models/ppo_latest.pt"
+	}
+
+	cmd := exec.Command(
+		"python3",
+		"-m",
+		"agentic_scheduler.server",
+		"--grpc-addr", cfg.PPOGRPCAddr,
+		"--mongo-uri", cfg.MongoDBURI,
+		"--mongo-db", cfg.MongoDBDatabase,
+		"--model-path", modelPath,
+	)
+	cmd.Dir = projectRoot
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	env := os.Environ()
+	pythonPath := mergePythonPath(os.Getenv("PYTHONPATH"), projectRoot)
+	env = append(env, fmt.Sprintf("PYTHONPATH=%s", pythonPath))
+	cmd.Env = env
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("start PPO python service: %w", err)
+	}
+
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			log.Printf("⚠️  PPO python service exited: %v", err)
+		} else {
+			log.Printf("ℹ️  PPO python service exited")
+		}
+	}()
+	return cmd, nil
+}
+
+func stopExternalProcess(cmd *exec.Cmd, timeout time.Duration) {
+	if cmd == nil || cmd.Process == nil {
+		return
+	}
+	if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+		return
+	}
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+
+	_ = cmd.Process.Signal(syscall.SIGTERM)
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+			return
+		}
+		time.Sleep(150 * time.Millisecond)
+	}
+	_ = cmd.Process.Kill()
+}
+
+func detectProjectRoot() string {
+	candidates := make([]string, 0, 6)
+	if cwd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, cwd, filepath.Dir(cwd))
+	}
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		candidates = append(candidates, exeDir, filepath.Dir(exeDir), filepath.Dir(filepath.Dir(exeDir)))
+	}
+
+	seen := map[string]bool{}
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+		candidate = filepath.Clean(candidate)
+		if seen[candidate] {
+			continue
+		}
+		seen[candidate] = true
+		if hasProjectLayout(candidate) {
+			return candidate
+		}
+	}
+	return ""
+}
+
+func hasProjectLayout(root string) bool {
+	required := []string{
+		filepath.Join(root, "master"),
+		filepath.Join(root, "proto"),
+		filepath.Join(root, "agentic_scheduler"),
+	}
+	for _, path := range required {
+		info, err := os.Stat(path)
+		if err != nil || !info.IsDir() {
+			return false
+		}
+	}
+	return true
+}
+
+func mergePythonPath(existing string, prepend string) string {
+	if existing == "" {
+		return prepend
+	}
+	parts := strings.Split(existing, string(os.PathListSeparator))
+	for _, part := range parts {
+		if part == prepend {
+			return existing
+		}
+	}
+	return prepend + string(os.PathListSeparator) + existing
+}
+
+func deriveRTSFingerprintFromWorkerDB(ctx context.Context, workerDB *db.WorkerDB) (string, string) {
+	workers := make(map[string]*scheduler.WorkerInfo)
+	if workerDB != nil {
+		docs, err := workerDB.GetAllWorkers(ctx)
+		if err != nil {
+			log.Printf("⚠️  Failed to read workers for RTS fingerprint: %v", err)
+		} else {
+			for _, doc := range docs {
+				workers[doc.WorkerID] = &scheduler.WorkerInfo{
+					WorkerID:     doc.WorkerID,
+					TotalCPU:     doc.TotalCPU,
+					TotalMemory:  doc.TotalMemory,
+					TotalStorage: doc.TotalStorage,
+					TotalGPU:     doc.TotalGPU,
+				}
+			}
+		}
+	}
+	return scheduler.BuildClusterFingerprint(workers)
+}
+
+func hydrateRTSParamsFromMongo(
+	ctx context.Context,
+	schedulerModelDB *db.SchedulerModelDB,
+	fingerprintHash string,
+	fingerprintPayload string,
+	paramsPath string,
+) error {
+	if schedulerModelDB == nil {
+		return nil
+	}
+
+	payload, metadata, err := schedulerModelDB.LoadActiveModel(ctx, "RTS", fingerprintHash)
+	if err == nil && len(payload) > 0 {
+		if err := writeFileAtomic(paramsPath, payload, 0644); err != nil {
+			return fmt.Errorf("write RTS cache from Mongo: %w", err)
+		}
+		version := int64(0)
+		if metadata != nil {
+			version = metadata.Version
+		}
+		log.Printf("✓ RTS params loaded from Mongo (version v%d, fingerprint=%s)", version, fingerprintHash)
+		return nil
+	}
+
+	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
+		return fmt.Errorf("load RTS params from Mongo: %w", err)
+	}
+
+	// No active Mongo checkpoint for this fingerprint. Migrate local cache if present.
+	cachePayload, readErr := os.ReadFile(paramsPath)
+	if readErr != nil {
+		if errors.Is(readErr, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("read local RTS cache for migration: %w", readErr)
+	}
+
+	_, saveErr := schedulerModelDB.SaveAndActivateModel(
+		ctx,
+		"RTS",
+		fingerprintHash,
+		fingerprintPayload,
+		cachePayload,
+		"go-rts-cache",
+		map[string]any{
+			"source":      "startup-file-migration",
+			"params_path": paramsPath,
+		},
+	)
+	if saveErr != nil {
+		return fmt.Errorf("migrate local RTS cache to Mongo: %w", saveErr)
+	}
+
+	log.Printf("✓ Migrated local RTS cache to Mongo for fingerprint=%s", fingerprintHash)
+	return nil
+}
+
+func writeFileAtomic(path string, payload []byte, mode os.FileMode) error {
+	dir := filepath.Dir(path)
+	if dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
+	}
+	tempFile, err := os.CreateTemp(dir, "scheduler_cache_*.tmp")
+	if err != nil {
+		return err
+	}
+	tempPath := tempFile.Name()
+	if _, err := tempFile.Write(payload); err != nil {
+		tempFile.Close()
+		_ = os.Remove(tempPath)
+		return err
+	}
+	if err := tempFile.Close(); err != nil {
+		_ = os.Remove(tempPath)
+		return err
+	}
+	if err := os.Chmod(tempPath, mode); err != nil {
+		_ = os.Remove(tempPath)
+		return err
+	}
+	if err := os.Rename(tempPath, path); err != nil {
+		_ = os.Remove(tempPath)
+		return err
+	}
+	return nil
 }
