@@ -20,6 +20,9 @@ var collections = []string{
 	"TASKS",
 	"ASSIGNMENTS",
 	"RESULTS",
+	"SCHEDULER_MODELS",
+	"scheduler_models.files",
+	"scheduler_models.chunks",
 	"RTS_WEIGHTS",
 }
 

@@ -1,6 +1,11 @@
 package scheduler
 
-import pb "master/proto"
+import (
+	"context"
+	"time"
+
+	pb "master/proto"
+)
 
 // Scheduler is the interface that all scheduling algorithms must implement
 type Scheduler interface {
@@ -13,4 +18,23 @@ type Scheduler interface {
 
 	// Reset resets any internal state (useful for testing)
 	Reset()
+}
+
+// TaskOutcome is fed back to schedulers that support online learning.
+type TaskOutcome struct {
+	TaskID           string
+	WorkerID         string
+	Status           string
+	Reward           float64
+	RuntimeSeconds   float64
+	SLASuccess       bool
+	Task             *pb.Task
+	ClusterHash      string
+	ModelVersionHint string
+	CompletedAt      time.Time
+}
+
+// OutcomeReporter is implemented by schedulers that accept post-execution feedback.
+type OutcomeReporter interface {
+	ReportOutcome(ctx context.Context, outcome TaskOutcome) error
 }

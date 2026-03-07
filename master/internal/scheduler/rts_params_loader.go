@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 )
 
 // LoadGAParams loads GAParams from a JSON file
@@ -41,9 +42,36 @@ func (p *GAParams) SaveToFile(filePath string) error {
 		return fmt.Errorf("failed to marshal GA params: %w", err)
 	}
 
-	// Write to file with appropriate permissions
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write GA params file: %w", err)
+	dir := filepath.Dir(filePath)
+	if dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create GA params directory: %w", err)
+		}
+	}
+
+	tempFile, err := os.CreateTemp(dir, "ga_params_*.tmp")
+	if err != nil {
+		return fmt.Errorf("failed to create temp GA params file: %w", err)
+	}
+	tempPath := tempFile.Name()
+	if _, err := tempFile.Write(data); err != nil {
+		tempFile.Close()
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("failed to write temp GA params file: %w", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("failed to close temp GA params file: %w", err)
+	}
+
+	if err := os.Chmod(tempPath, 0644); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("failed to chmod temp GA params file: %w", err)
+	}
+
+	if err := os.Rename(tempPath, filePath); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("failed to atomically replace GA params file: %w", err)
 	}
 
 	return nil

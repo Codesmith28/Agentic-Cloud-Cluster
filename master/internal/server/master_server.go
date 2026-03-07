@@ -850,6 +850,7 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 				existingResult, err := s.resultDB.GetResult(context.Background(), result.TaskId)
 				if err == nil && existingResult != nil {
 					log.Printf("  ℹ Result already stored for cancelled task - ignoring worker's confirmation report")
+					s.reportSchedulingOutcomeAsync(taskResources, result)
 					return &pb.Ack{
 						Success: true,
 						Message: "Task result received (status preserved as cancelled, result already stored)",
@@ -869,6 +870,7 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 					log.Printf("  ✓ Task result stored with 'cancelled' status")
 				}
 			}
+			s.reportSchedulingOutcomeAsync(taskResources, result)
 			return &pb.Ack{
 				Success: true,
 				Message: "Task result received (status preserved as cancelled)",
@@ -914,10 +916,121 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 		}
 	}
 
+	s.reportSchedulingOutcomeAsync(taskResources, result)
+
 	return &pb.Ack{
 		Success: true,
 		Message: "Task result received and processed",
 	}, nil
+}
+
+func (s *MasterServer) reportSchedulingOutcomeAsync(taskResources *db.Task, result *pb.TaskResult) {
+	if result == nil {
+		return
+	}
+	reporter, ok := s.scheduler.(scheduler.OutcomeReporter)
+	if !ok {
+		return
+	}
+
+	normalizedStatus := normalizeOutcomeStatus(result.Status)
+	now := time.Now()
+	runtimeSeconds := 0.0
+	slaSuccess := false
+	clusterHash := ""
+
+	var taskPB *pb.Task
+	if taskResources != nil {
+		taskPB = &pb.Task{
+			TaskId:        taskResources.TaskID,
+			UserId:        taskResources.UserID,
+			TaskName:      taskResources.TaskName,
+			SubmittedAt:   taskResources.SubmittedAt,
+			DockerImage:   taskResources.DockerImage,
+			Command:       taskResources.Command,
+			ReqCpu:        taskResources.ReqCPU,
+			ReqMemory:     taskResources.ReqMemory,
+			ReqStorage:    taskResources.ReqStorage,
+			ReqGpu:        taskResources.ReqGPU,
+			TaskType:      taskResources.TaskType,
+			SlaMultiplier: taskResources.SLAMultiplier,
+		}
+
+		if !taskResources.StartedAt.IsZero() {
+			runtimeSeconds = now.Sub(taskResources.StartedAt).Seconds()
+		}
+		if !taskResources.StartedAt.IsZero() && !taskResources.CompletedAt.IsZero() {
+			runtimeSeconds = taskResources.CompletedAt.Sub(taskResources.StartedAt).Seconds()
+		}
+		if runtimeSeconds < 0 {
+			runtimeSeconds = 0
+		}
+		if !taskResources.Deadline.IsZero() {
+			slaSuccess = !now.After(taskResources.Deadline)
+		}
+	}
+
+	reward := computeOutcomeReward(normalizedStatus, runtimeSeconds, slaSuccess)
+	outcome := scheduler.TaskOutcome{
+		TaskID:         result.TaskId,
+		WorkerID:       result.WorkerId,
+		Status:         normalizedStatus,
+		Reward:         reward,
+		RuntimeSeconds: runtimeSeconds,
+		SLASuccess:     slaSuccess,
+		Task:           taskPB,
+		ClusterHash:    clusterHash,
+		CompletedAt:    now,
+	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := reporter.ReportOutcome(ctx, outcome); err != nil {
+			log.Printf("⚠️  Scheduler outcome report failed for task %s: %v", outcome.TaskID, err)
+		}
+	}()
+}
+
+func normalizeOutcomeStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "success", "completed":
+		return "success"
+	case "cancelled", "canceled":
+		return "cancelled"
+	default:
+		return "failed"
+	}
+}
+
+func computeOutcomeReward(status string, runtimeSeconds float64, slaSuccess bool) float64 {
+	reward := 0.0
+	switch status {
+	case "success":
+		reward += 1.0
+	case "cancelled":
+		reward -= 0.5
+	default:
+		reward -= 1.0
+	}
+
+	if slaSuccess {
+		reward += 0.5
+	} else {
+		reward -= 0.25
+	}
+
+	if runtimeSeconds > 0 {
+		reward -= minFloat(runtimeSeconds/600.0, 0.5)
+	}
+	return reward
+}
+
+func minFloat(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // UploadTaskFiles handles file uploads from workers via streaming RPC
@@ -1944,6 +2057,13 @@ func (s *MasterServer) selectWorkerForTask(task *pb.Task) string {
 			AvailableMemory:  worker.AvailableMemory,
 			AvailableStorage: worker.AvailableStorage,
 			AvailableGPU:     worker.AvailableGPU,
+			TotalCPU:         worker.Info.TotalCpu,
+			TotalMemory:      worker.Info.TotalMemory,
+			TotalStorage:     worker.Info.TotalStorage,
+			TotalGPU:         worker.Info.TotalGpu,
+			CurrentCPUUsage:  worker.LatestCPU,
+			CurrentMemUsage:  worker.LatestMemory,
+			CurrentGPUUsage:  worker.LatestGPU,
 		}
 	}
 
