@@ -205,7 +205,22 @@ func main() {
 	telemetrySource := scheduler.NewMasterTelemetrySource(telemetryMgr, workerDB)
 	log.Println("✓ Telemetry source adapter created")
 
-	rtsScheduler := scheduler.NewRTSScheduler(rrScheduler, tauStore, telemetrySource, paramsPath, slaMultiplier)
+	// Initialize optional MongoDB store for RTS learned parameters.
+	var rtsParamsStore scheduler.GAParamsStore
+	if cfg.MongoDBURI != "" {
+		mongoParamsStore, storeErr := scheduler.NewMongoGAParamsStore(ctx, cfg.MongoDBURI, cfg.MongoDBDatabase)
+		if storeErr != nil {
+			log.Printf("Warning: Failed to initialize RTS params MongoDB store: %v", storeErr)
+			log.Println("RTS will fall back to JSON/default params only")
+		} else {
+			rtsParamsStore = mongoParamsStore
+			log.Println("✓ RTS params store initialized (MongoDB: RTS_WEIGHTS)")
+			defer mongoParamsStore.Close(context.Background())
+		}
+	}
+
+	// Create RTS scheduler with Round-Robin fallback
+	rtsScheduler := scheduler.NewRTSScheduler(rrScheduler, tauStore, telemetrySource, paramsPath, rtsParamsStore, slaMultiplier)
 	log.Printf("✓ RTS scheduler initialized (params: %s)", paramsPath)
 	log.Printf("  - Fallback: %s", rrScheduler.GetName())
 	log.Printf("  - Parameter hot-reload: enabled (every 30s from local cache)")
@@ -330,11 +345,14 @@ func main() {
 			log.Printf("  - Training method: Linear regression (Theta) + Direct computation (Affinity/Penalty)")
 			log.Printf("  - Training data window: 24 hours")
 			log.Printf("  - Output: %s", paramsPath)
+			if rtsParamsStore != nil {
+				log.Printf("  - Persistent store: MongoDB collection RTS_WEIGHTS")
+			}
 			log.Printf("  - RTS hot-reload: every 30s")
 
 			for range ticker.C {
 				log.Println("🧬 Starting AOD training cycle...")
-				if err := aod.RunTraining(context.Background(), historyDB, paramsPath, persistRTSParams); err != nil {
+				if err := aod.RunTraining(context.Background(), historyDB, paramsPath, rtsParamsStore, persistRTSParams); err != nil {
 					log.Printf("❌ AOD training error: %v", err)
 				} else {
 					log.Println("✅ AOD training cycle completed successfully")

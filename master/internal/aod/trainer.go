@@ -20,18 +20,21 @@ import (
 // 2. Trains Theta parameters using linear regression
 // 3. Builds affinity matrix using direct computation (SpeedAdvantage + SLAReliability)
 // 4. Builds penalty vector using direct computation
-// 5. Saves the optimized parameters to a JSON file for RTS to load
+// 5. Saves the optimized parameters to persistent storage (MongoDB and/or JSON file) for RTS to load
 //
 // Parameters:
 //   - ctx: Context for cancellation and timeout
 //   - historyDB: Database connection for fetching historical data
 //   - paramsOutputPath: File path to save the optimized GAParams JSON
+//   - paramsStore: Optional persistent RTS params store (MongoDB)
+//   - postSave: Optional callback for additional persistence/versioning
 //
-// Returns: error if any step fails
+// Returns: error if all persistence destinations fail.
 func RunTraining(
 	ctx context.Context,
 	historyDB *db.HistoryDB,
 	paramsOutputPath string,
+	paramsStore scheduler.GAParamsStore,
 	postSave func(context.Context, scheduler.GAParams) error,
 ) error {
 	log.Println("🧬 Starting AOD training cycle...")
@@ -59,21 +62,7 @@ func RunTraining(
 	minDataPoints := 2 // Minimum tasks required for meaningful training
 	if len(history) < minDataPoints {
 		log.Printf("⚠️  Insufficient data (%d tasks < %d required), using default parameters", len(history), minDataPoints)
-		params := scheduler.GAParams{
-			Theta:          defaultTheta(),
-			Risk:           defaultRisk(),
-			AffinityMatrix: make(map[string]map[string]float64),
-			PenaltyVector:  make(map[string]float64),
-		}
-		if err := saveParams(params, paramsOutputPath); err != nil {
-			return err
-		}
-		if postSave != nil {
-			if err := postSave(ctx, params); err != nil {
-				log.Printf("⚠️  Failed to persist default RTS params to Mongo: %v", err)
-			}
-		}
-		return nil
+		return saveDefaultParams(ctx, paramsOutputPath, paramsStore, postSave)
 	}
 
 	// Step 3: Train Theta using linear regression
@@ -100,14 +89,9 @@ func RunTraining(
 		PenaltyVector:  penaltyVector,
 	}
 
-	// Step 6: Save to JSON file
-	if err := saveParams(params, paramsOutputPath); err != nil {
+	// Step 7: Persist parameters
+	if err := saveParams(ctx, params, paramsOutputPath, paramsStore, postSave); err != nil {
 		return fmt.Errorf("save params: %w", err)
-	}
-	if postSave != nil {
-		if err := postSave(ctx, params); err != nil {
-			log.Printf("⚠️  Failed to persist RTS params to Mongo: %v", err)
-		}
 	}
 
 	elapsed := time.Since(startTime)
@@ -116,14 +100,80 @@ func RunTraining(
 	return nil
 }
 
-// saveParams writes GAParams to a JSON file
-func saveParams(params scheduler.GAParams, filePath string) error {
-	data, err := json.MarshalIndent(params, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal json: %w", err)
+// saveParams writes GAParams to configured persistent destinations.
+func saveParams(
+	ctx context.Context,
+	params scheduler.GAParams,
+	filePath string,
+	paramsStore scheduler.GAParamsStore,
+	postSave func(context.Context, scheduler.GAParams) error,
+) error {
+	if filePath == "" && paramsStore == nil && postSave == nil {
+		return fmt.Errorf("no params persistence destination configured")
 	}
 
-	dir := filepath.Dir(filePath)
+	attempted := 0
+	succeeded := 0
+
+	var fileErr error
+	if filePath != "" {
+		attempted++
+		data, err := json.MarshalIndent(params, "", "  ")
+		if err != nil {
+			fileErr = fmt.Errorf("marshal json: %w", err)
+		} else if err := writeFileAtomic(filePath, data, 0644); err != nil {
+			fileErr = fmt.Errorf("write file: %w", err)
+		} else {
+			succeeded++
+			log.Printf("✓ AOD parameters saved to %s", filePath)
+		}
+	}
+
+	var storeErr error
+	if paramsStore != nil {
+		attempted++
+		if err := paramsStore.SaveGAParams(ctx, &params); err != nil {
+			storeErr = fmt.Errorf("save to mongodb: %w", err)
+		} else {
+			succeeded++
+			log.Printf("✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS")
+		}
+	}
+
+	var callbackErr error
+	if postSave != nil {
+		attempted++
+		if err := postSave(ctx, params); err != nil {
+			callbackErr = fmt.Errorf("post-save hook failed: %w", err)
+		} else {
+			succeeded++
+		}
+	}
+
+	if attempted == 0 {
+		return fmt.Errorf("no params persistence destination configured")
+	}
+	if succeeded == attempted {
+		return nil
+	}
+	if succeeded > 0 {
+		if fileErr != nil {
+			log.Printf("⚠️  AOD: JSON persistence failed (%v)", fileErr)
+		}
+		if storeErr != nil {
+			log.Printf("⚠️  AOD: MongoDB persistence failed (%v)", storeErr)
+		}
+		if callbackErr != nil {
+			log.Printf("⚠️  AOD: post-save callback failed (%v)", callbackErr)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("persist params failed (file: %v; mongo: %v; callback: %v)", fileErr, storeErr, callbackErr)
+}
+
+func writeFileAtomic(path string, data []byte, mode os.FileMode) error {
+	dir := filepath.Dir(path)
 	if dir != "." && dir != "" {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("create params directory: %w", err)
@@ -144,30 +194,31 @@ func saveParams(params scheduler.GAParams, filePath string) error {
 		_ = os.Remove(tempPath)
 		return fmt.Errorf("close temp file: %w", err)
 	}
-
-	if err := os.Chmod(tempPath, 0644); err != nil {
+	if err := os.Chmod(tempPath, mode); err != nil {
 		_ = os.Remove(tempPath)
 		return fmt.Errorf("chmod temp file: %w", err)
 	}
-
-	if err := os.Rename(tempPath, filePath); err != nil {
+	if err := os.Rename(tempPath, path); err != nil {
 		_ = os.Remove(tempPath)
 		return fmt.Errorf("rename temp file: %w", err)
 	}
-
-	log.Printf("✓ AOD parameters saved to %s", filePath)
 	return nil
 }
 
-// saveDefaultParams writes default GAParams to JSON file
-func saveDefaultParams(filePath string) error {
+// saveDefaultParams writes default GAParams to configured persistence backends.
+func saveDefaultParams(
+	ctx context.Context,
+	filePath string,
+	paramsStore scheduler.GAParamsStore,
+	postSave func(context.Context, scheduler.GAParams) error,
+) error {
 	params := scheduler.GAParams{
 		Theta:          defaultTheta(),
 		Risk:           defaultRisk(),
 		AffinityMatrix: make(map[string]map[string]float64),
 		PenaltyVector:  make(map[string]float64),
 	}
-	return saveParams(params, filePath)
+	return saveParams(ctx, params, filePath, paramsStore, postSave)
 }
 
 // Helper functions for default values
