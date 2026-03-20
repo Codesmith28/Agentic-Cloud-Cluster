@@ -513,6 +513,11 @@ func main() {
 	log.Println("\n✓ Master node started successfully")
 	log.Printf("✓ Starting gRPC server on %s\n", masterAddress)
 
+	if cfg.Headless {
+		log.Println("✓ Headless mode enabled (CLOUDAI_HEADLESS=true), CLI disabled")
+		select {}
+	}
+
 	cliInterface := cli.NewCLI(masterServer, fileStorage)
 	cliInterface.Run()
 }

@@ -1,0 +1,200 @@
+services:
+  mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - cloudai
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  master:
+    build:
+      context: ..
+      dockerfile: testbench/docker/Dockerfile.master
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGODB_HOST: mongo:27017
+      MONGODB_DATABASE: cluster_db
+      GRPC_PORT: ":50051"
+      HTTP_PORT: ":8080"
+      CLOUDAI_HEADLESS: "true"
+      SCHED_ALGO: RTS
+      PPO_AUTOSTART: "false"
+    ports:
+      - "50051:50051"
+      - "8080:8080"
+    volumes:
+      - master-files:/var/cloudai/files
+    networks:
+      - cloudai
+
+  worker-small-dind:
+    image: docker:27.3-dind
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+      DOCKER_HOST: tcp://127.0.0.1:2375
+    command: ["--host=tcp://0.0.0.0:2375"]
+    cpus: 1.0
+    mem_limit: 1536m
+    pids_limit: 512
+    volumes:
+      - worker-small-docker:/var/lib/docker
+      - worker-small-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+    healthcheck:
+      test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  worker-small:
+    build:
+      context: ..
+      dockerfile: testbench/docker/Dockerfile.worker
+    restart: unless-stopped
+    hostname: worker-small
+    depends_on:
+      master:
+        condition: service_started
+      worker-small-dind:
+        condition: service_healthy
+    environment:
+      WORKER_ID: worker-small
+      WORKER_PORT: "50052"
+      WORKER_BIND_IP: "0.0.0.0"
+      WORKER_TOTAL_CPU: "1.0"
+      WORKER_TOTAL_MEMORY_GB: "1.5"
+      WORKER_TOTAL_STORAGE_GB: "20"
+      WORKER_TOTAL_GPU_CORES: "0"
+      DOCKER_HOST: tcp://worker-small-dind:2375
+    volumes:
+      - worker-small-state:/var/lib/cloudai/worker
+      - worker-small-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+
+  worker-medium-dind:
+    image: docker:27.3-dind
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+      DOCKER_HOST: tcp://127.0.0.1:2375
+    command: ["--host=tcp://0.0.0.0:2375"]
+    cpus: 2.0
+    mem_limit: 3g
+    pids_limit: 768
+    volumes:
+      - worker-medium-docker:/var/lib/docker
+      - worker-medium-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+    healthcheck:
+      test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  worker-medium:
+    build:
+      context: ..
+      dockerfile: testbench/docker/Dockerfile.worker
+    restart: unless-stopped
+    hostname: worker-medium
+    depends_on:
+      master:
+        condition: service_started
+      worker-medium-dind:
+        condition: service_healthy
+    environment:
+      WORKER_ID: worker-medium
+      WORKER_PORT: "50052"
+      WORKER_BIND_IP: "0.0.0.0"
+      WORKER_TOTAL_CPU: "2.0"
+      WORKER_TOTAL_MEMORY_GB: "3"
+      WORKER_TOTAL_STORAGE_GB: "40"
+      WORKER_TOTAL_GPU_CORES: "0"
+      DOCKER_HOST: tcp://worker-medium-dind:2375
+    volumes:
+      - worker-medium-state:/var/lib/cloudai/worker
+      - worker-medium-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+
+  worker-large-dind:
+    image: docker:27.3-dind
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+      DOCKER_HOST: tcp://127.0.0.1:2375
+    command: ["--host=tcp://0.0.0.0:2375"]
+    cpus: 3.0
+    mem_limit: 5g
+    pids_limit: 1024
+    volumes:
+      - worker-large-docker:/var/lib/docker
+      - worker-large-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+    healthcheck:
+      test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  worker-large:
+    build:
+      context: ..
+      dockerfile: testbench/docker/Dockerfile.worker
+    restart: unless-stopped
+    hostname: worker-large
+    depends_on:
+      master:
+        condition: service_started
+      worker-large-dind:
+        condition: service_healthy
+    environment:
+      WORKER_ID: worker-large
+      WORKER_PORT: "50052"
+      WORKER_BIND_IP: "0.0.0.0"
+      WORKER_TOTAL_CPU: "3.0"
+      WORKER_TOTAL_MEMORY_GB: "5"
+      WORKER_TOTAL_STORAGE_GB: "80"
+      WORKER_TOTAL_GPU_CORES: "0"
+      DOCKER_HOST: tcp://worker-large-dind:2375
+    volumes:
+      - worker-large-state:/var/lib/cloudai/worker
+      - worker-large-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+
+networks:
+  cloudai:
+    driver: bridge
+
+volumes:
+  mongo-data:
+  master-files:
+  worker-small-state:
+  worker-small-outputs:
+  worker-small-docker:
+  worker-medium-state:
+  worker-medium-outputs:
+  worker-medium-docker:
+  worker-large-state:
+  worker-large-outputs:
+  worker-large-docker:

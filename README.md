@@ -189,11 +189,32 @@ curl -X POST http://localhost:8080/api/auth/login \
 
 ---
 
+## Docker Testbench (Heterogeneous Workers)
+
+A full automated testbench is available under [`testbench/`](testbench/README.md):
+
+- containerized `master` + `mongo`
+- multiple containerized workers with different CPU/memory capacities
+- per-worker isolated Docker daemons (DinD sidecars) so tasks are isolated between workers
+- automated worker registration + workload submission scripts for repeatable performance testing
+
+Quick run:
+
+```bash
+make testbench-suite
+```
+
+Detailed runbook: **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)**
+
+---
+
 ## Documentation
 
 - **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** - 5-minute setup guide
 - **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)** - Complete reference
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture
+- **[testbench/README.md](testbench/README.md)** - Docker performance testbench
+- **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)** - Step-by-step testbench runbook
 - **[docs/EXAMPLE.md](docs/EXAMPLE.md)** - Usage examples
 
 ---

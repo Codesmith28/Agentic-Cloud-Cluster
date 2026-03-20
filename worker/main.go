@@ -48,16 +48,17 @@ func main() {
 		log.Fatalf("Failed to collect system information: %v", err)
 	}
 
-	// Find available port starting from default
+	// Resolve worker port (WORKER_PORT override or first available port from default).
 	defaultPort := 50052
-	availablePort, err := system.FindAvailablePort(defaultPort)
+	availablePort, err := system.ResolveWorkerPort(defaultPort)
 	if err != nil {
-		log.Fatalf("Failed to find available port: %v", err)
+		log.Fatalf("Failed to resolve worker port: %v", err)
 	}
 	sysInfo.SetWorkerPort(availablePort)
 
-	// Auto-detect IP address and port
+	// Resolve bind IP for gRPC listener. Defaults to detected worker address.
 	workerIP := sysInfo.GetWorkerAddress()
+	workerBindIP := system.ResolveWorkerBindIP(workerIP)
 	workerPort := sysInfo.GetWorkerPort()
 	workerID, err := system.ResolveWorkerID(sysInfo.Hostname)
 	if err != nil {
@@ -74,7 +75,8 @@ func main() {
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Printf("  Hostname:       %s", sysInfo.Hostname)
 	log.Printf("  Worker ID:      %s", workerID)
-	log.Printf("  Worker Address: %s%s", workerIP, workerPort)
+	log.Printf("  Bind Address:   %s%s", workerBindIP, workerPort)
+	log.Printf("  Reachable Addr: %s%s", workerIP, workerPort)
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("")
 	log.Printf("To register this worker, run in master CLI:")
@@ -99,7 +101,7 @@ func main() {
 	defer workerServer.Close()
 
 	// Start gRPC server
-	workerAddress := workerIP + workerPort
+	workerAddress := net.JoinHostPort(workerBindIP, fmt.Sprintf("%d", availablePort))
 	lis, err := net.Listen("tcp", workerAddress)
 	if err != nil {
 		log.Fatalf("Failed to listen on %s: %v", workerAddress, err)

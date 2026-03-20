@@ -16,6 +16,7 @@ type Config struct {
 	MongoDBURI      string
 	MongoDBDatabase string
 	HTTPPort        string // HTTP port for telemetry API
+	Headless        bool   // Run without interactive CLI (for containerized/testbench mode)
 
 	// Scheduler selection/configuration
 	SchedulerAlgo       string // RR / RTS / PPO
@@ -43,6 +44,7 @@ func LoadConfig() *Config {
 	ppoRequestTimeout := getEnvInt("PPO_REQUEST_TIMEOUT_MS", 1500)
 	ppoAutostart := getEnvBool("PPO_AUTOSTART", true)
 	ppoModelPath := getEnv("PPO_MODEL_PATH", "agentic_scheduler/models/ppo_latest.pt")
+	headless := getEnvBool("CLOUDAI_HEADLESS", false)
 
 	// Load SLA multiplier with validation
 	slaMultiplier := getEnvFloat("SCHED_SLA_MULTIPLIER", 2.0)
@@ -69,6 +71,7 @@ func LoadConfig() *Config {
 		MongoDBURI:          mongoURI,
 		MongoDBDatabase:     database,
 		HTTPPort:            httpPort,
+		Headless:            headless,
 		SchedulerAlgo:       schedulerAlgo,
 		SLAMultiplier:       slaMultiplier,
 		GAParamsPath:        gaParamsPath,

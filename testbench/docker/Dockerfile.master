@@ -1,0 +1,37 @@
+FROM golang:1.24.9 AS builder
+
+WORKDIR /src
+
+# Prime module cache first.
+COPY master/go.mod master/go.sum ./master/
+RUN cd /src/master && go mod download
+
+COPY proto ./proto
+COPY master ./master
+
+# Ensure proto import path is available inside the master module.
+RUN rm -f /src/master/proto && ln -s ../proto/pb /src/master/proto
+
+RUN cd /src/master && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/masterNode .
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /out/masterNode /app/masterNode
+COPY master/config /app/config
+
+ENV CLOUDAI_HEADLESS=true
+ENV SCHED_ALGO=RTS
+ENV PPO_AUTOSTART=false
+ENV GRPC_PORT=:50051
+ENV HTTP_PORT=:8080
+ENV CLOUDAI_FILES_DIR=/var/cloudai/files
+
+RUN mkdir -p /var/cloudai/files
+
+EXPOSE 50051 8080
+
+ENTRYPOINT ["/app/masterNode"]
