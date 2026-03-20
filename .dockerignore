@@ -1,0 +1,21 @@
+.git
+.github
+.vscode
+.DS_Store
+
+# Local build artifacts
+master/masterNode
+worker/workerNode
+proto/py
+
+# Frontend dependencies and build outputs
+ui/node_modules
+ui/dist
+
+# Runtime outputs
+results
+database/data
+
+# Virtual environments
+venv
+__pycache__

@@ -51,6 +51,12 @@ Master Node
 ./master-node
 ```
 
+### Start Master in Headless Mode (no interactive CLI)
+
+```bash
+CLOUDAI_HEADLESS=true ./master-node
+```
+
 The interactive CLI will start automatically:
 
 ```

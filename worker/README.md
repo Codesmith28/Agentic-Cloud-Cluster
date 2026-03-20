@@ -53,6 +53,20 @@ Worker Node
 | `-master` | Master server address | `localhost:50051` |
 | `-port`   | gRPC server port      | `:50052`          |
 
+### Environment Overrides (recommended for containers)
+
+| Variable | Purpose | Example |
+| --- | --- | --- |
+| `WORKER_ID` | Stable worker identifier | `worker-small` |
+| `WORKER_PORT` | Fixed gRPC port | `50052` |
+| `WORKER_BIND_IP` | gRPC bind address | `0.0.0.0` |
+| `WORKER_TOTAL_CPU` | Override advertised CPU cores | `2.0` |
+| `WORKER_TOTAL_MEMORY_GB` | Override advertised memory (GB) | `3` |
+| `WORKER_TOTAL_STORAGE_GB` | Override advertised storage (GB) | `40` |
+| `WORKER_TOTAL_GPU_CORES` | Override advertised GPU cores | `0` |
+
+These overrides make it easy to emulate heterogeneous worker capacity in a Docker testbench.
+
 ## Building
 
 ```bash

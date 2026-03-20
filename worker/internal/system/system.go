@@ -143,6 +143,8 @@ func GetSystemResources() (*ResourceInfo, error) {
 		resources.TotalStorage = storage
 	}
 
+	applyResourceOverrides(resources)
+
 	return resources, nil
 }
 

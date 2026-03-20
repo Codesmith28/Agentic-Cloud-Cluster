@@ -1,4 +1,4 @@
-.PHONY: help all proto master worker clean setup test
+.PHONY: help all proto master worker clean setup test testbench-up testbench-register testbench-workload testbench-suite testbench-down
 
 # Default target
 help:
@@ -12,6 +12,11 @@ help:
 	@echo "  make setup        - Complete setup (proto + symlinks + deps)"
 	@echo "  make clean        - Clean generated files and binaries"
 	@echo "  make test         - Run basic connectivity tests"
+	@echo "  make testbench-up - Build and start Docker testbench stack"
+	@echo "  make testbench-register - Register testbench workers with master"
+	@echo "  make testbench-workload - Submit default workload and wait for completion"
+	@echo "  make testbench-suite - Start stack, register workers, run workload"
+	@echo "  make testbench-down - Stop and remove Docker testbench stack"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  make setup        # One-time setup"
@@ -86,3 +91,18 @@ test:
 # Build everything
 all: setup master worker
 	@echo "✅ All components built successfully!"
+
+testbench-up:
+	@docker compose -f testbench/docker-compose.yml up -d --build
+
+testbench-register:
+	@testbench/scripts/register_workers.sh
+
+testbench-workload:
+	@python3 testbench/scripts/run_workload.py
+
+testbench-suite:
+	@testbench/scripts/run_suite.sh
+
+testbench-down:
+	@docker compose -f testbench/docker-compose.yml down --remove-orphans
