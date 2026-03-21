@@ -21,7 +21,6 @@ export const tasksAPI = {
       cpu_required: taskData.cpu_required,
       memory_required: taskData.memory_required,
       storage_required: taskData.storage_required || 5.0,
-      gpu_required: taskData.gpu_required || 0.0,
       user_id: taskData.user_id || 'user-001',
       tag: taskData.tag,           // NEW FIELD
       k_value: taskData.k_value,   // NEW FIELD

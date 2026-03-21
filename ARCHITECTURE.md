@@ -42,7 +42,7 @@ The CloudAI system follows a master-worker distributed architecture:
 | gRPC Server | `internal/server/` | Handles task assignments, cancellations, log streaming from master |
 | Task Executor | `internal/executor/` | Docker client management, image pulling, container lifecycle, resource limits |
 | Log Stream Manager | `internal/logstream/` | Real-time log broadcasting, buffer management, multi-subscriber support |
-| Telemetry Monitor | `internal/telemetry/` | System metrics (CPU, Memory, GPU), heartbeats (5s interval), result reporting |
+| Telemetry Monitor | `internal/telemetry/` | System metrics (CPU, Memory, Storage), heartbeats (5s interval), result reporting |
 
 ### Web UI Components
 
@@ -60,7 +60,7 @@ The CloudAI system follows a master-worker distributed architecture:
 
 ![Worker Registration](docs/Diagrams/worker-registration.png)
 
-1. Worker sends `RegisterWorker()` with WorkerInfo (worker_id, worker_ip, total_cpu, total_memory, total_storage, total_gpu)
+1. Worker sends `RegisterWorker()` with WorkerInfo (worker_id, worker_ip, total_cpu, total_memory, total_storage)
 2. Master stores worker info in database and memory
 3. Master responds with `RegisterAck(success: true)`
 4. Master sends `MasterRegister()` to worker with master_id and master_address
@@ -69,7 +69,7 @@ The CloudAI system follows a master-worker distributed architecture:
 
 ![Heartbeat](docs/Diagrams/heartbeat.png)
 
-1. Worker sends `SendHeartbeat()` every 5 seconds with telemetry data (worker_id, cpu_usage, memory_usage, gpu_usage, running_tasks[])
+1. Worker sends `SendHeartbeat()` every 5 seconds with telemetry data (worker_id, cpu_usage, memory_usage, storage_usage, running_tasks[])
 2. Master updates TelemetryManager with worker data
 3. Master responds with `HeartbeatAck`
 4. TelemetryManager pushes updates to WebSocket clients
@@ -81,7 +81,7 @@ The CloudAI system follows a master-worker distributed architecture:
 **Task Submission Phase:**
 1. User submits task via CLI/REST/Web UI
 2. Master's Scheduler selects appropriate worker based on resources
-3. Master sends `AssignTask()` to selected worker with Task details (task_id, docker_image, command, req_cpu, req_memory, req_gpu, user_id, task_name)
+3. Master sends `AssignTask()` to selected worker with Task details (task_id, docker_image, command, req_cpu, req_memory, req_storage, user_id, task_name)
 4. Worker acknowledges with `TaskAck`
 5. Master confirms submission to user
 

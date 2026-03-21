@@ -195,7 +195,6 @@ func (c *CLI) submitWorkload(parts []string) {
 			ReqCpu:        wt.ReqCPU,
 			ReqMemory:     wt.ReqMemory,
 			ReqStorage:    wt.ReqStorage,
-			ReqGpu:        wt.ReqGPU,
 			TaskType:      wt.TaskType,
 			SlaMultiplier: wt.SLAMultiplier,
 			UserId:        "benchmark",
@@ -203,8 +202,8 @@ func (c *CLI) submitWorkload(parts []string) {
 		}
 
 		if dryRun {
-			fmt.Printf("[%03d/%03d] %s type=%s cpu=%.1f mem=%.1f gpu=%.1f offset=%s\n",
-				idx+1, len(tasks), taskID, wt.TaskType, wt.ReqCPU, wt.ReqMemory, wt.ReqGPU, wt.ArrivalOffset)
+			fmt.Printf("[%03d/%03d] %s type=%s cpu=%.1f mem=%.1f storage=%.1f offset=%s\n",
+				idx+1, len(tasks), taskID, wt.TaskType, wt.ReqCPU, wt.ReqMemory, wt.ReqStorage, wt.ArrivalOffset)
 			successCount++
 			continue
 		}

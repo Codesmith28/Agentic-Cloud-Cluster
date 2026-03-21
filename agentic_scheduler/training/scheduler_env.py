@@ -18,11 +18,9 @@ class WorkerState:
     total_cpu: float
     total_memory: float
     total_storage: float
-    total_gpu: float
     used_cpu: float = 0.0
     used_memory: float = 0.0
     used_storage: float = 0.0
-    used_gpu: float = 0.0
 
     @property
     def available_cpu(self) -> float:
@@ -35,10 +33,6 @@ class WorkerState:
     @property
     def available_storage(self) -> float:
         return max(self.total_storage - self.used_storage, 0.0)
-
-    @property
-    def available_gpu(self) -> float:
-        return max(self.total_gpu - self.used_gpu, 0.0)
 
 
 class SchedulingEnv(gym.Env):
@@ -90,8 +84,6 @@ class SchedulingEnv(gym.Env):
             self._apply_task(selected, self.current_task)
             load_penalty = self._normalized_load(selected)
             reward = 1.2 - load_penalty
-            if self.current_task["task_type"] in {"gpu-training", "gpu-inference"} and selected.total_gpu <= 0:
-                reward -= 0.4
         else:
             reward = -1.4
 
@@ -105,12 +97,10 @@ class SchedulingEnv(gym.Env):
         return self._observation(), float(reward), terminated, truncated, info
 
     def _sample_worker(self) -> WorkerState:
-        has_gpu = bool(self.rng.random() > 0.35)
         return WorkerState(
             total_cpu=float(self.rng.uniform(4.0, 32.0)),
             total_memory=float(self.rng.uniform(8.0, 128.0)),
             total_storage=float(self.rng.uniform(100.0, 1500.0)),
-            total_gpu=float(self.rng.choice([0.0, 1.0, 2.0, 4.0]) if has_gpu else 0.0),
         )
 
     def _sample_task(self) -> Dict:
@@ -118,10 +108,6 @@ class SchedulingEnv(gym.Env):
         req_cpu = float(self.rng.uniform(0.5, 12.0))
         req_memory = float(self.rng.uniform(0.5, 32.0))
         req_storage = float(self.rng.uniform(0.5, 80.0))
-        req_gpu = 0.0
-        if task_type in {"gpu-inference", "gpu-training"}:
-            req_gpu = float(self.rng.choice([0.5, 1.0, 2.0, 4.0]))
-            req_cpu = max(req_cpu, float(self.rng.uniform(2.0, 16.0)))
         if task_type == "memory-heavy":
             req_memory = max(req_memory, float(self.rng.uniform(16.0, 64.0)))
         if task_type == "cpu-heavy":
@@ -131,7 +117,6 @@ class SchedulingEnv(gym.Env):
             "req_cpu": req_cpu,
             "req_memory": req_memory,
             "req_storage": req_storage,
-            "req_gpu": req_gpu,
             "sla_multiplier": float(self.rng.uniform(1.5, 2.5)),
             "task_type": task_type,
         }
@@ -144,7 +129,6 @@ class SchedulingEnv(gym.Env):
                 self.current_task["req_cpu"],
                 self.current_task["req_memory"],
                 self.current_task["req_storage"],
-                self.current_task["req_gpu"],
                 self.current_task["sla_multiplier"],
                 task_type_scalar,
             ],
@@ -160,7 +144,7 @@ class SchedulingEnv(gym.Env):
 
             cpu_usage = self._safe_ratio(worker.used_cpu, worker.total_cpu)
             mem_usage = self._safe_ratio(worker.used_memory, worker.total_memory)
-            gpu_usage = self._safe_ratio(worker.used_gpu, worker.total_gpu if worker.total_gpu > 0 else 1.0)
+            storage_usage = self._safe_ratio(worker.used_storage, worker.total_storage)
 
             rows.append(
                 np.asarray(
@@ -168,14 +152,12 @@ class SchedulingEnv(gym.Env):
                         self._safe_ratio(worker.available_cpu, worker.total_cpu),
                         self._safe_ratio(worker.available_memory, worker.total_memory),
                         self._safe_ratio(worker.available_storage, worker.total_storage),
-                        self._safe_ratio(worker.available_gpu, worker.total_gpu if worker.total_gpu > 0 else 1.0),
                         worker.total_cpu,
                         worker.total_memory,
                         worker.total_storage,
-                        worker.total_gpu,
                         cpu_usage,
                         mem_usage,
-                        gpu_usage,
+                        storage_usage,
                         1.0,
                     ],
                     dtype=np.float32,
@@ -202,8 +184,8 @@ class SchedulingEnv(gym.Env):
     def _normalized_load(worker: WorkerState) -> float:
         cpu = SchedulingEnv._safe_ratio(worker.used_cpu, worker.total_cpu)
         memory = SchedulingEnv._safe_ratio(worker.used_memory, worker.total_memory)
-        gpu = SchedulingEnv._safe_ratio(worker.used_gpu, worker.total_gpu if worker.total_gpu > 0 else 1.0)
-        return min((cpu + memory + gpu) / 3.0, 1.5)
+        storage = SchedulingEnv._safe_ratio(worker.used_storage, worker.total_storage)
+        return min((cpu + memory + storage) / 3.0, 1.5)
 
     @staticmethod
     def _is_feasible(task: Dict, worker: WorkerState) -> bool:
@@ -211,7 +193,6 @@ class SchedulingEnv(gym.Env):
             worker.available_cpu >= task["req_cpu"]
             and worker.available_memory >= task["req_memory"]
             and worker.available_storage >= task["req_storage"]
-            and worker.available_gpu >= task["req_gpu"]
         )
 
     @staticmethod
@@ -219,12 +200,9 @@ class SchedulingEnv(gym.Env):
         worker.used_cpu += task["req_cpu"]
         worker.used_memory += task["req_memory"]
         worker.used_storage += task["req_storage"]
-        worker.used_gpu += task["req_gpu"]
 
     def _decay_loads(self) -> None:
         for worker in self.workers:
             worker.used_cpu *= 0.85
             worker.used_memory *= 0.85
             worker.used_storage *= 0.90
-            worker.used_gpu *= 0.80
-

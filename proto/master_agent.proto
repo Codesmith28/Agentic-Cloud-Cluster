@@ -28,7 +28,7 @@ message AgentWorkerInfo {
     string worker_id = 1;
     double cpu_available = 2;
     double memory_available = 3;
-    double gpu_available = 4;
+    double storage_available = 4;
     string status = 5; // active/inactive
 }
 
@@ -36,8 +36,8 @@ message TaskInfo {
     string task_id = 1;
     double req_cpu = 2;
     double req_memory = 3;
-    double req_gpu = 4;
-    string task_type = 5; // Task type: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed
+    double req_storage = 4;
+    string task_type = 5; // Task type: cpu-light, cpu-heavy, memory-heavy, mixed
 }
 
 message TaskAssignments {

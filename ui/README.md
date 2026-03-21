@@ -21,7 +21,6 @@ Classify your task workload type for optimized scheduling:
 - **cpu-heavy** - Intensive CPU workload
 - **memory-light** - Light memory usage
 - **memory-heavy** - High memory usage
-- **gpu-training** - GPU-based training
 - **mixed** - Mixed resource requirements
 
 ### 2. K-Value (Required)
@@ -131,7 +130,7 @@ ui/
    - Command (optional)
    - **Task Tag** (required) - Select workload type
    - **K-Value** (required) - Adjust priority slider
-   - CPU, Memory, Storage, GPU requirements
+   - CPU, Memory, and Storage requirements
 3. Click "Submit Task"
 
 ### View Tasks

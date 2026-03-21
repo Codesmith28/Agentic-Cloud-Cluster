@@ -12,9 +12,7 @@ export const TASK_STATUS = {
 export const TASK_TAGS = {
   CPU_LIGHT: 'cpu-light',
   CPU_HEAVY: 'cpu-heavy',
-  MEMORY_LIGHT: 'memory-light',
   MEMORY_HEAVY: 'memory-heavy',
-  GPU_TRAINING: 'gpu-training',
   MIXED: 'mixed',
 };
 
@@ -22,9 +20,7 @@ export const TASK_TAGS = {
 export const TASK_TAG_LABELS = {
   'cpu-light': 'CPU Light',
   'cpu-heavy': 'CPU Heavy',
-  'memory-light': 'Memory Light',
   'memory-heavy': 'Memory Heavy',
-  'gpu-training': 'GPU Training',
   'mixed': 'Mixed',
 };
 
@@ -57,15 +53,12 @@ export const RESOURCE_LIMITS = {
   MAX_MEMORY: 256,
   MIN_STORAGE: 1,
   MAX_STORAGE: 1000,
-  MIN_GPU: 0,
-  MAX_GPU: 8,
 };
 
 // Chart colors
 export const CHART_COLORS = {
   CPU: '#3b82f6',      // blue
   MEMORY: '#10b981',   // green
-  GPU: '#f59e0b',      // amber
   STORAGE: '#8b5cf6',  // purple
 };
 

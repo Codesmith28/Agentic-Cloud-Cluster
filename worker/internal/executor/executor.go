@@ -61,8 +61,8 @@ func NewTaskExecutor() (*TaskExecutor, error) {
 	}, nil
 }
 
-// ExecuteTask pulls and runs a Docker container for the task with resource constraints
-func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, command string, reqCPU, reqMemory, reqGPU float64) *TaskResult {
+// ExecuteTask pulls and runs a Docker container for the task with resource constraints.
+func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, command string, reqCPU, reqMemory float64) *TaskResult {
 	result := &TaskResult{
 		TaskID: taskID,
 		Status: "failed",
@@ -79,9 +79,9 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 	}
 
 	// Create container with resource limits
-	log.Printf("[Task %s] Creating container with resource limits (CPU: %.2f, Memory: %.2fGB, GPU: %.2f)...",
-		taskID, reqCPU, reqMemory, reqGPU)
-	containerID, err := e.createContainer(ctx, dockerImage, command, taskID, reqCPU, reqMemory, reqGPU)
+	log.Printf("[Task %s] Creating container with resource limits (CPU: %.2f, Memory: %.2fGB)...",
+		taskID, reqCPU, reqMemory)
+	containerID, err := e.createContainer(ctx, dockerImage, command, taskID, reqCPU, reqMemory)
 	if err != nil {
 		result.Error = fmt.Errorf("failed to create container: %w", err)
 		result.Logs = fmt.Sprintf("Error creating container: %v", err)
@@ -162,7 +162,6 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 		log.Println("  Resources Released:")
 		log.Printf("    • CPU Cores:     %.2f cores", reqCPU)
 		log.Printf("    • Memory:        %.2f GB", reqMemory)
-		log.Printf("    • GPU Cores:     %.2f cores", reqGPU)
 		log.Println("═══════════════════════════════════════════════════════")
 		log.Println("")
 	}
@@ -196,8 +195,8 @@ func (e *TaskExecutor) pullImage(ctx context.Context, imageName string) error {
 	return err
 }
 
-// createContainer creates a Docker container with resource limits
-func (e *TaskExecutor) createContainer(ctx context.Context, image, command, taskID string, reqCPU, reqMemory, reqGPU float64) (string, error) {
+// createContainer creates a Docker container with resource limits.
+func (e *TaskExecutor) createContainer(ctx context.Context, image, command, taskID string, reqCPU, reqMemory float64) (string, error) {
 	// Prepare container config
 	containerConfig := &container.Config{
 		Image: image,
@@ -241,21 +240,6 @@ func (e *TaskExecutor) createContainer(ctx context.Context, image, command, task
 	// Set Memory limit (convert GB to bytes)
 	if reqMemory > 0 {
 		hostConfig.Resources.Memory = int64(reqMemory * units.GiB)
-	}
-
-	// Set GPU devices (if requested)
-	if reqGPU > 0 {
-		// Note: This is a simplified GPU allocation
-		// In production, you'd use nvidia-docker runtime and proper device requests
-		hostConfig.Runtime = "nvidia"
-		// For proper GPU support, you'd need:
-		// hostConfig.DeviceRequests = []container.DeviceRequest{
-		//     {
-		//         Count: int(reqGPU),
-		//         Capabilities: [][]string{{"gpu"}},
-		//     },
-		// }
-		log.Printf("[Task %s] GPU support requested but simplified implementation", taskID)
 	}
 
 	resp, err := e.dockerClient.ContainerCreate(

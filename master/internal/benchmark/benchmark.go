@@ -23,15 +23,13 @@ const (
 	ProfileAll      = "all"
 	ProfileShowcase = "showcase"
 	ProfileSteady   = "steady"
-	ProfileGPUSpike = "gpu-spike"
+	ProfileBursty   = "bursty"
 )
 
 var canonicalTaskTypes = []string{
 	scheduler.TaskTypeCPULight,
 	scheduler.TaskTypeCPUHeavy,
 	scheduler.TaskTypeMemoryHeavy,
-	scheduler.TaskTypeGPUInference,
-	scheduler.TaskTypeGPUTraining,
 	scheduler.TaskTypeMixed,
 }
 
@@ -47,7 +45,6 @@ type WorkloadTask struct {
 	ReqCPU        float64       `json:"req_cpu"`
 	ReqMemory     float64       `json:"req_memory"`
 	ReqStorage    float64       `json:"req_storage"`
-	ReqGPU        float64       `json:"req_gpu"`
 	TaskType      string        `json:"task_type"`
 	SLAMultiplier float64       `json:"sla_multiplier"`
 	TauSeconds    float64       `json:"tau_seconds"`
@@ -59,7 +56,6 @@ type WorkerProfile struct {
 	TotalCPU        float64            `json:"total_cpu"`
 	TotalMemory     float64            `json:"total_memory"`
 	TotalStorage    float64            `json:"total_storage"`
-	TotalGPU        float64            `json:"total_gpu"`
 	SpeedByTask     map[string]float64 `json:"speed_by_task"`
 	Penalty         float64            `json:"penalty"`
 	InitialIsActive bool               `json:"initial_is_active"`
@@ -100,7 +96,6 @@ type SchedulerMetrics struct {
 	ThroughputTasksPerMin float64        `json:"throughput_tasks_per_min"`
 	CPUUtilizationPct     float64        `json:"cpu_utilization_pct"`
 	MemoryUtilizationPct  float64        `json:"memory_utilization_pct"`
-	GPUUtilizationPct     float64        `json:"gpu_utilization_pct"`
 	WorkerBalanceScore    float64        `json:"worker_balance_score"`
 	AvgDecisionMS         float64        `json:"avg_decision_ms"`
 	P95DecisionMS         float64        `json:"p95_decision_ms"`
@@ -249,7 +244,6 @@ type simWorker struct {
 	AllocatedCPU     float64
 	AllocatedMemory  float64
 	AllocatedStorage float64
-	AllocatedGPU     float64
 	Running          []*runningTask
 	AssignedCount    int
 }
@@ -258,10 +252,8 @@ type simState struct {
 	workers         map[string]*simWorker
 	busyCPUSeconds  float64
 	busyMemSeconds  float64
-	busyGPUSeconds  float64
 	totalCPUSeconds float64
 	totalMemSeconds float64
-	totalGPUSeconds float64
 }
 
 type simTelemetrySource struct {
@@ -279,7 +271,6 @@ func (s *simTelemetrySource) GetWorkerViews(ctx context.Context) ([]scheduler.Wo
 			CPUAvail:     worker.Profile.TotalCPU - worker.AllocatedCPU,
 			MemAvail:     worker.Profile.TotalMemory - worker.AllocatedMemory,
 			StorageAvail: worker.Profile.TotalStorage - worker.AllocatedStorage,
-			GPUAvail:     worker.Profile.TotalGPU - worker.AllocatedGPU,
 			Load:         workerLoad(worker),
 		})
 	}
@@ -379,7 +370,6 @@ func runSimulationWithTelemetry(profile WorkloadProfile, sched scheduler.Schedul
 				ReqCpu:        task.ReqCPU,
 				ReqMemory:     task.ReqMemory,
 				ReqStorage:    task.ReqStorage,
-				ReqGpu:        task.ReqGPU,
 				TaskType:      task.TaskType,
 				SlaMultiplier: sla,
 				SubmittedAt:   submittedAt,
@@ -524,7 +514,6 @@ func (s *simState) buildWorkerInfos() map[string]*scheduler.WorkerInfo {
 			AvailableCPU:     worker.Profile.TotalCPU - worker.AllocatedCPU,
 			AvailableMemory:  worker.Profile.TotalMemory - worker.AllocatedMemory,
 			AvailableStorage: worker.Profile.TotalStorage - worker.AllocatedStorage,
-			AvailableGPU:     worker.Profile.TotalGPU - worker.AllocatedGPU,
 		}
 	}
 	return workerInfos
@@ -537,8 +526,7 @@ func (s *simState) canAssign(workerID string, task *simTask) bool {
 	}
 	return worker.Profile.TotalCPU-worker.AllocatedCPU >= task.Task.ReqCPU &&
 		worker.Profile.TotalMemory-worker.AllocatedMemory >= task.Task.ReqMemory &&
-		worker.Profile.TotalStorage-worker.AllocatedStorage >= task.Task.ReqStorage &&
-		worker.Profile.TotalGPU-worker.AllocatedGPU >= task.Task.ReqGPU
+		worker.Profile.TotalStorage-worker.AllocatedStorage >= task.Task.ReqStorage
 }
 
 func (s *simState) assign(workerID string, run *runningTask) {
@@ -546,7 +534,6 @@ func (s *simState) assign(workerID string, run *runningTask) {
 	worker.AllocatedCPU += run.Task.Task.ReqCPU
 	worker.AllocatedMemory += run.Task.Task.ReqMemory
 	worker.AllocatedStorage += run.Task.Task.ReqStorage
-	worker.AllocatedGPU += run.Task.Task.ReqGPU
 	worker.Running = append(worker.Running, run)
 	worker.AssignedCount++
 }
@@ -563,7 +550,6 @@ func (s *simState) releaseCompleted(now time.Duration) []*runningTask {
 				worker.AllocatedCPU -= run.Task.Task.ReqCPU
 				worker.AllocatedMemory -= run.Task.Task.ReqMemory
 				worker.AllocatedStorage -= run.Task.Task.ReqStorage
-				worker.AllocatedGPU -= run.Task.Task.ReqGPU
 				if worker.AllocatedCPU < 0 {
 					worker.AllocatedCPU = 0
 				}
@@ -572,9 +558,6 @@ func (s *simState) releaseCompleted(now time.Duration) []*runningTask {
 				}
 				if worker.AllocatedStorage < 0 {
 					worker.AllocatedStorage = 0
-				}
-				if worker.AllocatedGPU < 0 {
-					worker.AllocatedGPU = 0
 				}
 				completed = append(completed, run)
 			} else {
@@ -637,10 +620,8 @@ func (s *simState) accumulateUtilization(last, now time.Duration) {
 	for _, worker := range s.workers {
 		s.busyCPUSeconds += worker.AllocatedCPU * deltaSec
 		s.busyMemSeconds += worker.AllocatedMemory * deltaSec
-		s.busyGPUSeconds += worker.AllocatedGPU * deltaSec
 		s.totalCPUSeconds += worker.Profile.TotalCPU * deltaSec
 		s.totalMemSeconds += worker.Profile.TotalMemory * deltaSec
-		s.totalGPUSeconds += worker.Profile.TotalGPU * deltaSec
 	}
 }
 
@@ -658,14 +639,14 @@ func workerLoad(worker *simWorker) float64 {
 	}
 	wCPU := worker.Profile.TotalCPU
 	wMem := worker.Profile.TotalMemory / 10.0
-	wGPU := worker.Profile.TotalGPU * 2.0
-	totalW := wCPU + wMem + wGPU
+	wStorage := worker.Profile.TotalStorage / 100.0
+	totalW := wCPU + wMem + wStorage
 	if totalW <= 0 {
 		return 0
 	}
 	load := (wCPU*safeDiv(worker.AllocatedCPU, maxFloat(worker.Profile.TotalCPU, 1.0)) +
 		wMem*safeDiv(worker.AllocatedMemory, maxFloat(worker.Profile.TotalMemory, 1.0)) +
-		wGPU*safeDiv(worker.AllocatedGPU, maxFloat(worker.Profile.TotalGPU, 1.0))) / totalW
+		wStorage*safeDiv(worker.AllocatedStorage, maxFloat(worker.Profile.TotalStorage, 1.0))) / totalW
 	if load < 0 {
 		return 0
 	}
@@ -710,10 +691,6 @@ func buildMetrics(allTasks []*simTask, taskRuns []TaskRun, decisionsMS []float64
 
 	cpuUtil := safeDiv(sim.busyCPUSeconds, sim.totalCPUSeconds) * 100.0
 	memUtil := safeDiv(sim.busyMemSeconds, sim.totalMemSeconds) * 100.0
-	gpuUtil := safeDiv(sim.busyGPUSeconds, sim.totalGPUSeconds) * 100.0
-	if math.IsNaN(gpuUtil) || math.IsInf(gpuUtil, 0) {
-		gpuUtil = 0.0
-	}
 
 	return SchedulerMetrics{
 		TotalTasks:            totalTasks,
@@ -726,7 +703,6 @@ func buildMetrics(allTasks []*simTask, taskRuns []TaskRun, decisionsMS []float64
 		ThroughputTasksPerMin: throughput,
 		CPUUtilizationPct:     cpuUtil,
 		MemoryUtilizationPct:  memUtil,
-		GPUUtilizationPct:     gpuUtil,
 		AvgDecisionMS:         mean(decisionsMS),
 		P95DecisionMS:         percentile(decisionsMS, 95),
 		UnschedulableTasks:    unschedulable,
@@ -782,7 +758,7 @@ func writeMetricsCSV(suite *SuiteResult, path string) error {
 		"profile", "scheduler", "total_tasks", "completed_tasks", "unschedulable_tasks",
 		"sla_success_rate_pct", "avg_queue_wait_sec", "p95_queue_wait_sec", "avg_runtime_sec",
 		"makespan_sec", "throughput_tasks_per_min", "cpu_utilization_pct", "memory_utilization_pct",
-		"gpu_utilization_pct", "worker_balance_score", "avg_decision_ms", "p95_decision_ms",
+		"worker_balance_score", "avg_decision_ms", "p95_decision_ms",
 	}
 	if err := w.Write(headers); err != nil {
 		return fmt.Errorf("write metrics csv headers: %w", err)
@@ -805,7 +781,6 @@ func writeMetricsCSV(suite *SuiteResult, path string) error {
 				fmt.Sprintf("%.3f", m.ThroughputTasksPerMin),
 				fmt.Sprintf("%.3f", m.CPUUtilizationPct),
 				fmt.Sprintf("%.3f", m.MemoryUtilizationPct),
-				fmt.Sprintf("%.3f", m.GPUUtilizationPct),
 				fmt.Sprintf("%.3f", m.WorkerBalanceScore),
 				fmt.Sprintf("%.6f", m.AvgDecisionMS),
 				fmt.Sprintf("%.6f", m.P95DecisionMS),
@@ -998,7 +973,7 @@ func predefinedProfiles() map[string]WorkloadProfile {
 	return map[string]WorkloadProfile{
 		ProfileShowcase: buildShowcaseProfile(workers),
 		ProfileSteady:   buildSteadyProfile(workers),
-		ProfileGPUSpike: buildGPUSpikeProfile(workers),
+		ProfileBursty:   buildBurstyProfile(workers),
 	}
 }
 
@@ -1021,7 +996,6 @@ func defaultWorkers() []WorkerProfile {
 			TotalCPU:        20,
 			TotalMemory:     32,
 			TotalStorage:    500,
-			TotalGPU:        0,
 			InitialIsActive: true,
 			Penalty:         0.2,
 			SpeedByTask: allTypes(map[string]float64{
@@ -1036,7 +1010,6 @@ func defaultWorkers() []WorkerProfile {
 			TotalCPU:        14,
 			TotalMemory:     72,
 			TotalStorage:    500,
-			TotalGPU:        0,
 			InitialIsActive: true,
 			Penalty:         0.1,
 			SpeedByTask: allTypes(map[string]float64{
@@ -1046,18 +1019,16 @@ func defaultWorkers() []WorkerProfile {
 			}),
 		},
 		{
-			WorkerID:        "worker-gpu-a",
-			TotalCPU:        24,
-			TotalMemory:     64,
-			TotalStorage:    700,
-			TotalGPU:        4,
+			WorkerID:        "worker-storage-a",
+			TotalCPU:        12,
+			TotalMemory:     48,
+			TotalStorage:    1200,
 			InitialIsActive: true,
 			Penalty:         0.05,
 			SpeedByTask: allTypes(map[string]float64{
-				scheduler.TaskTypeGPUInference: 0.52,
-				scheduler.TaskTypeGPUTraining:  0.58,
-				scheduler.TaskTypeMixed:        0.88,
-				scheduler.TaskTypeCPUHeavy:     1.20,
+				scheduler.TaskTypeMemoryHeavy: 0.80,
+				scheduler.TaskTypeMixed:       0.86,
+				scheduler.TaskTypeCPUHeavy:    1.10,
 			}),
 		},
 		{
@@ -1065,7 +1036,6 @@ func defaultWorkers() []WorkerProfile {
 			TotalCPU:        16,
 			TotalMemory:     40,
 			TotalStorage:    500,
-			TotalGPU:        1,
 			InitialIsActive: true,
 			Penalty:         0.15,
 			SpeedByTask:     allTypes(map[string]float64{}),
@@ -1093,18 +1063,18 @@ func buildShowcaseProfile(workers []WorkerProfile) WorkloadProfile {
 			slot++
 		}
 		if tick%5 == 0 {
-			tasks = append(tasks, newTask(fmt.Sprintf("showcase-%03d", slot), "gpu-inference", arrival+5*time.Second))
+			tasks = append(tasks, newTask(fmt.Sprintf("showcase-%03d", slot), "cpu-heavy", arrival+5*time.Second))
 			slot++
 		}
 		if tick%11 == 0 {
-			tasks = append(tasks, newTask(fmt.Sprintf("showcase-%03d", slot), "gpu-training", arrival+6*time.Second))
+			tasks = append(tasks, newTask(fmt.Sprintf("showcase-%03d", slot), "memory-heavy", arrival+6*time.Second))
 			slot++
 		}
 	}
 	sort.Slice(tasks, func(i, j int) bool { return tasks[i].ArrivalOffset < tasks[j].ArrivalOffset })
 	return WorkloadProfile{
 		Name:        ProfileShowcase,
-		Description: "Burst-heavy mixed workload with CPU, memory, GPU inference, and periodic GPU training spikes.",
+		Description: "Burst-heavy mixed workload with CPU, memory, and periodic resource pressure spikes.",
 		Workers:     cloneWorkers(workers),
 		Tasks:       tasks,
 	}
@@ -1135,28 +1105,32 @@ func buildSteadyProfile(workers []WorkerProfile) WorkloadProfile {
 	}
 }
 
-func buildGPUSpikeProfile(workers []WorkerProfile) WorkloadProfile {
+func buildBurstyProfile(workers []WorkerProfile) WorkloadProfile {
 	tasks := make([]WorkloadTask, 0)
 	slot := 0
 	for tick := 0; tick < 34; tick++ {
-		arrival := time.Duration(tick*9) * time.Second
-		tasks = append(tasks, newTask(fmt.Sprintf("gpu-%03d", slot), "cpu-light", arrival))
+		arrival := time.Duration(tick*7) * time.Second
+		tasks = append(tasks, newTask(fmt.Sprintf("burst-%03d", slot), "cpu-light", arrival))
 		slot++
-		tasks = append(tasks, newTask(fmt.Sprintf("gpu-%03d", slot), "gpu-inference", arrival+1*time.Second))
+		tasks = append(tasks, newTask(fmt.Sprintf("burst-%03d", slot), "mixed", arrival+1*time.Second))
 		slot++
 		if tick%2 == 0 {
-			tasks = append(tasks, newTask(fmt.Sprintf("gpu-%03d", slot), "gpu-inference", arrival+2*time.Second))
+			tasks = append(tasks, newTask(fmt.Sprintf("burst-%03d", slot), "memory-heavy", arrival+2*time.Second))
 			slot++
 		}
-		if tick%6 == 0 {
-			tasks = append(tasks, newTask(fmt.Sprintf("gpu-%03d", slot), "gpu-training", arrival+3*time.Second))
+		if tick%3 == 0 {
+			tasks = append(tasks, newTask(fmt.Sprintf("burst-%03d", slot), "cpu-heavy", arrival+3*time.Second))
+			slot++
+		}
+		if tick%5 == 0 {
+			tasks = append(tasks, newTask(fmt.Sprintf("burst-%03d", slot), "mixed", arrival+4*time.Second))
 			slot++
 		}
 	}
 	sort.Slice(tasks, func(i, j int) bool { return tasks[i].ArrivalOffset < tasks[j].ArrivalOffset })
 	return WorkloadProfile{
-		Name:        ProfileGPUSpike,
-		Description: "GPU-first workload with recurring inference bursts and periodic training surges.",
+		Name:        ProfileBursty,
+		Description: "Bursty heterogeneous workload with recurring CPU and memory surges.",
 		Workers:     cloneWorkers(workers),
 		Tasks:       tasks,
 	}
@@ -1170,19 +1144,15 @@ func newTask(taskID, taskType string, arrival time.Duration) WorkloadTask {
 
 	switch taskType {
 	case "cpu-light":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(8), ReqCPU: 1.0, ReqMemory: 1.0, ReqStorage: 1.0, ReqGPU: 0, TaskType: scheduler.TaskTypeCPULight, SLAMultiplier: 2.0, TauSeconds: 8}
+		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(8), ReqCPU: 1.0, ReqMemory: 1.0, ReqStorage: 1.0, TaskType: scheduler.TaskTypeCPULight, SLAMultiplier: 2.0, TauSeconds: 8}
 	case "cpu-heavy":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(24), ReqCPU: 4.0, ReqMemory: 4.0, ReqStorage: 2.0, ReqGPU: 0, TaskType: scheduler.TaskTypeCPUHeavy, SLAMultiplier: 2.2, TauSeconds: 24}
+		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(24), ReqCPU: 4.0, ReqMemory: 4.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeCPUHeavy, SLAMultiplier: 2.2, TauSeconds: 24}
 	case "memory-heavy":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(28), ReqCPU: 2.0, ReqMemory: 12.0, ReqStorage: 3.0, ReqGPU: 0, TaskType: scheduler.TaskTypeMemoryHeavy, SLAMultiplier: 2.2, TauSeconds: 28}
-	case "gpu-inference":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(18), ReqCPU: 2.0, ReqMemory: 6.0, ReqStorage: 2.0, ReqGPU: 1.0, TaskType: scheduler.TaskTypeGPUInference, SLAMultiplier: 2.0, TauSeconds: 18}
-	case "gpu-training":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(45), ReqCPU: 4.0, ReqMemory: 10.0, ReqStorage: 4.0, ReqGPU: 2.0, TaskType: scheduler.TaskTypeGPUTraining, SLAMultiplier: 2.4, TauSeconds: 45}
+		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(28), ReqCPU: 2.0, ReqMemory: 12.0, ReqStorage: 3.0, TaskType: scheduler.TaskTypeMemoryHeavy, SLAMultiplier: 2.2, TauSeconds: 28}
 	case "mixed":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(20), ReqCPU: 3.0, ReqMemory: 6.0, ReqStorage: 2.0, ReqGPU: 0.5, TaskType: scheduler.TaskTypeMixed, SLAMultiplier: 2.1, TauSeconds: 20}
+		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(20), ReqCPU: 3.0, ReqMemory: 6.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeMixed, SLAMultiplier: 2.1, TauSeconds: 20}
 	default:
-		return WorkloadTask{TaskID: taskID, TaskName: "mixed", ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(20), ReqCPU: 2.0, ReqMemory: 4.0, ReqStorage: 2.0, ReqGPU: 0, TaskType: scheduler.TaskTypeMixed, SLAMultiplier: 2.0, TauSeconds: 20}
+		return WorkloadTask{TaskID: taskID, TaskName: "mixed", ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(20), ReqCPU: 2.0, ReqMemory: 4.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeMixed, SLAMultiplier: 2.0, TauSeconds: 20}
 	}
 }
 
@@ -1207,10 +1177,6 @@ func defaultTauForType(taskType string) float64 {
 		return 24
 	case scheduler.TaskTypeMemoryHeavy:
 		return 28
-	case scheduler.TaskTypeGPUInference:
-		return 18
-	case scheduler.TaskTypeGPUTraining:
-		return 45
 	case scheduler.TaskTypeMixed:
 		return 20
 	default:

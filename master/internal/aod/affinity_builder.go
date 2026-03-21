@@ -26,13 +26,11 @@ import (
 func BuildAffinityMatrix(history []db.TaskHistory) map[string]map[string]float64 {
 	affinity := make(map[string]map[string]float64)
 
-	// Define the 6 standardized task types
+	// Define the supported task types.
 	taskTypes := []string{
 		"cpu-light",
 		"cpu-heavy",
 		"memory-heavy",
-		"gpu-inference",
-		"gpu-training",
 		"mixed",
 	}
 

@@ -176,11 +176,6 @@ const TasksPage = () => {
                     <Typography variant="caption" display="block">
                       CPU: {task.cpu_required} | RAM: {task.memory_required}GB
                     </Typography>
-                    {task.gpu_required > 0 && (
-                      <Typography variant="caption" display="block">
-                        GPU: {task.gpu_required}
-                      </Typography>
-                    )}
                   </TableCell>
                   <TableCell>
                     <Typography variant="caption">

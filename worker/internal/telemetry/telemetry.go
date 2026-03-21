@@ -1,16 +1,13 @@
 package telemetry
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log"
-	"os/exec"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
+	"worker/internal/system"
 	pb "worker/proto"
 
 	"github.com/shirou/gopsutil/v4/cpu"
@@ -76,14 +73,13 @@ func (m *Monitor) Stop() {
 }
 
 // AddTask adds a task to the running tasks list
-func (m *Monitor) AddTask(taskID string, cpuAlloc, memAlloc, gpuAlloc float64) {
+func (m *Monitor) AddTask(taskID string, cpuAlloc, memAlloc float64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.runningTasks[taskID] = &pb.RunningTask{
 		TaskId:          taskID,
 		CpuAllocated:    cpuAlloc,
 		MemoryAllocated: memAlloc,
-		GpuAllocated:    gpuAlloc,
 		Status:          "running",
 	}
 	log.Printf("Task %s added to monitoring (total tasks: %d)", taskID, len(m.runningTasks))
@@ -122,7 +118,7 @@ func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 	client := pb.NewMasterWorkerClient(conn)
 
 	// Get current resource usage
-	cpuUsage, memUsage, gpuUsage := m.getResourceUsage()
+	cpuUsage, memUsage, storageUsage := m.getResourceUsage()
 
 	// Convert running tasks map to slice (with lock)
 	m.mu.RLock()
@@ -136,7 +132,7 @@ func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 		WorkerId:     m.workerID,
 		CpuUsage:     cpuUsage,
 		MemoryUsage:  memUsage,
-		GpuUsage:     gpuUsage,
+		StorageUsage: storageUsage,
 		RunningTasks: tasks,
 	}
 
@@ -146,15 +142,15 @@ func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 	}
 
 	if ack.Success {
-		log.Printf("Heartbeat sent: CPU=%.1f%%, Memory=%.1f%%, GPU=%.1f%%, Tasks=%d",
-			cpuUsage*100.0, memUsage*100.0, gpuUsage*100.0, len(tasks))
+		log.Printf("Heartbeat sent: CPU=%.1f%%, Memory=%.1f%%, Storage=%.1f%%, Tasks=%d",
+			cpuUsage*100.0, memUsage*100.0, storageUsage*100.0, len(tasks))
 	}
 
 	return nil
 }
 
 // getResourceUsage returns normalized usage fractions in [0.0, 1.0].
-func (m *Monitor) getResourceUsage() (cpuUsage, memoryUsage, gpuUsage float64) {
+func (m *Monitor) getResourceUsage() (cpuUsage, memoryUsage, storageUsage float64) {
 	// CPU usage over a short sample interval
 	cpuPercents, err := cpu.Percent(time.Second, false)
 	if err == nil && len(cpuPercents) > 0 {
@@ -167,32 +163,15 @@ func (m *Monitor) getResourceUsage() (cpuUsage, memoryUsage, gpuUsage float64) {
 		memoryUsage = clampUnitInterval(vmStat.UsedPercent / 100.0)
 	}
 
-	// GPU usage (NVIDIA only via nvidia-smi)
-	gpuUsage = clampUnitInterval(m.getGPUUsage() / 100.0)
-
-	return cpuUsage, memoryUsage, gpuUsage
-}
-
-// getGPUUsage returns GPU utilization percentage using nvidia-smi
-func (m *Monitor) getGPUUsage() float64 {
-	// Run nvidia-smi to get GPU utilization
-	cmd := exec.Command("bash", "-c",
-		`nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits | head -n 1`)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-
-	if err := cmd.Run(); err != nil {
-		// nvidia-smi not available or error - GPU not present
-		return 0.0
+	availableStorage, err := system.GetAvailableStorage()
+	if err == nil {
+		totalStorage, totalErr := system.GetSystemResources()
+		if totalErr == nil && totalStorage.TotalStorage > 0 {
+			storageUsage = clampUnitInterval(1.0 - (availableStorage / totalStorage.TotalStorage))
+		}
 	}
 
-	// Parse the output
-	output := strings.TrimSpace(out.String())
-	if gpuUtil, err := strconv.ParseFloat(output, 64); err == nil {
-		return gpuUtil
-	}
-
-	return 0.0
+	return cpuUsage, memoryUsage, storageUsage
 }
 
 func clampUnitInterval(value float64) float64 {

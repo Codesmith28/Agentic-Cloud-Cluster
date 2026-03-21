@@ -42,7 +42,6 @@ func TestRegisterWorkerKeepsConfiguredAddress(t *testing.T) {
 		TotalCpu:     4,
 		TotalMemory:  16,
 		TotalStorage: 100,
-		TotalGpu:     1,
 	})
 	if err != nil {
 		t.Fatalf("RegisterWorker returned error: %v", err)

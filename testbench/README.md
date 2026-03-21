@@ -56,7 +56,6 @@ Edit each `worker-*` service in `testbench/docker-compose.yml`:
   - `WORKER_TOTAL_CPU`
   - `WORKER_TOTAL_MEMORY_GB`
   - `WORKER_TOTAL_STORAGE_GB`
-  - `WORKER_TOTAL_GPU_CORES`
 
 ## Useful Checks
 

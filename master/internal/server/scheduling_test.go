@@ -14,7 +14,6 @@ func TestNormalizeTaskForSchedulingInfersTypeAndDefaults(t *testing.T) {
 		ReqCpu:      2.0,
 		ReqMemory:   16.0,
 		ReqStorage:  1.0,
-		ReqGpu:      0.0,
 		TaskType:    "",
 		SubmittedAt: 0,
 	}

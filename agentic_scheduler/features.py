@@ -9,13 +9,11 @@ TASK_TYPE_TO_ID = {
     "cpu-light": 0,
     "cpu-heavy": 1,
     "memory-heavy": 2,
-    "gpu-inference": 3,
-    "gpu-training": 4,
-    "mixed": 5,
+    "mixed": 3,
 }
 
-TASK_FEATURE_DIM = 6
-WORKER_FEATURE_DIM = 12
+TASK_FEATURE_DIM = 5
+WORKER_FEATURE_DIM = 9
 
 
 def _safe_div(numerator: float, denominator: float) -> float:
@@ -25,7 +23,7 @@ def _safe_div(numerator: float, denominator: float) -> float:
 
 
 def task_type_to_scalar(task_type: str) -> float:
-    return float(TASK_TYPE_TO_ID.get(task_type or "mixed", TASK_TYPE_TO_ID["mixed"])) / 5.0
+    return float(TASK_TYPE_TO_ID.get(task_type or "mixed", TASK_TYPE_TO_ID["mixed"])) / 3.0
 
 
 def extract_task_features(task) -> np.ndarray:
@@ -34,7 +32,6 @@ def extract_task_features(task) -> np.ndarray:
             float(getattr(task, "req_cpu", 0.0)),
             float(getattr(task, "req_memory", 0.0)),
             float(getattr(task, "req_storage", 0.0)),
-            float(getattr(task, "req_gpu", 0.0)),
             float(getattr(task, "sla_multiplier", 2.0)),
             task_type_to_scalar(getattr(task, "task_type", "mixed")),
         ],
@@ -46,25 +43,21 @@ def extract_worker_features(worker) -> np.ndarray:
     total_cpu = float(getattr(worker, "total_cpu", 0.0))
     total_memory = float(getattr(worker, "total_memory", 0.0))
     total_storage = float(getattr(worker, "total_storage", 0.0))
-    total_gpu = float(getattr(worker, "total_gpu", 0.0))
     available_cpu = float(getattr(worker, "available_cpu", 0.0))
     available_memory = float(getattr(worker, "available_memory", 0.0))
     available_storage = float(getattr(worker, "available_storage", 0.0))
-    available_gpu = float(getattr(worker, "available_gpu", 0.0))
 
     return np.asarray(
         [
             _safe_div(available_cpu, max(total_cpu, 1e-6)),
             _safe_div(available_memory, max(total_memory, 1e-6)),
             _safe_div(available_storage, max(total_storage, 1e-6)),
-            _safe_div(available_gpu, max(total_gpu, 1e-6) if total_gpu > 0 else 1.0),
             total_cpu,
             total_memory,
             total_storage,
-            total_gpu,
             float(getattr(worker, "current_cpu_usage", 0.0)),
             float(getattr(worker, "current_memory_usage", 0.0)),
-            float(getattr(worker, "current_gpu_usage", 0.0)),
+            _safe_div(float(getattr(worker, "allocated_storage", 0.0)), max(total_storage, 1e-6)),
             1.0 if bool(getattr(worker, "is_active", False)) else 0.0,
         ],
         dtype=np.float32,
@@ -79,7 +72,6 @@ def is_worker_feasible(task, worker) -> bool:
         float(getattr(worker, "available_cpu", 0.0)) >= float(getattr(task, "req_cpu", 0.0))
         and float(getattr(worker, "available_memory", 0.0)) >= float(getattr(task, "req_memory", 0.0))
         and float(getattr(worker, "available_storage", 0.0)) >= float(getattr(task, "req_storage", 0.0))
-        and float(getattr(worker, "available_gpu", 0.0)) >= float(getattr(task, "req_gpu", 0.0))
     )
 
 
@@ -108,4 +100,3 @@ def encode_request(task, workers: Iterable) -> EncodedRequest:
         worker_features=worker_features,
         action_mask=action_mask,
     )
-

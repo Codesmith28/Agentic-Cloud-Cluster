@@ -771,7 +771,6 @@ func deriveRTSFingerprintFromWorkerDB(ctx context.Context, workerDB *db.WorkerDB
 					TotalCPU:     doc.TotalCPU,
 					TotalMemory:  doc.TotalMemory,
 					TotalStorage: doc.TotalStorage,
-					TotalGPU:     doc.TotalGPU,
 				}
 			}
 		}

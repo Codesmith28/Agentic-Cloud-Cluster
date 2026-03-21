@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"master/internal/db"
 	"github.com/golang-jwt/jwt/v5"
+	"master/internal/db"
 )
 
 // AuthHandler handles authentication endpoints

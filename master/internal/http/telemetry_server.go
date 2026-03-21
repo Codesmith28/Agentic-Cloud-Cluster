@@ -321,7 +321,6 @@ func convertTelemetryToJSON(data *telemetry.WorkerTelemetryData) map[string]inte
 			"task_id":          task.TaskId,
 			"cpu_allocated":    task.CpuAllocated,
 			"memory_allocated": task.MemoryAllocated,
-			"gpu_allocated":    task.GpuAllocated,
 			"status":           task.Status,
 		})
 	}
@@ -330,7 +329,7 @@ func convertTelemetryToJSON(data *telemetry.WorkerTelemetryData) map[string]inte
 		"worker_id":     data.WorkerID,
 		"cpu_usage":     data.CpuUsage,
 		"memory_usage":  data.MemoryUsage,
-		"gpu_usage":     data.GpuUsage,
+		"storage_usage": data.StorageUsage,
 		"running_tasks": tasks,
 		"last_update":   data.LastUpdate,
 		"is_active":     data.IsActive,

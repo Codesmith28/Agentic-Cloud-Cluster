@@ -27,7 +27,6 @@ type ResourceInfo struct {
 	TotalCPU     float64 // Number of CPU cores
 	TotalMemory  float64 // Total memory in GB
 	TotalStorage float64 // Total storage in GB
-	TotalGPU     float64 // Number of GPU cores (0 if not available)
 }
 
 // CollectSystemInfo collects system information using syscalls and Go runtime
@@ -118,11 +117,10 @@ func FindAvailablePort(startPort int) (int, error) {
 	return 0, fmt.Errorf("no available ports found starting from %d", startPort)
 }
 
-// GetSystemResources retrieves actual system resources (CPU, Memory, Storage, GPU)
+// GetSystemResources retrieves actual system resources (CPU, Memory, Storage).
 func GetSystemResources() (*ResourceInfo, error) {
 	resources := &ResourceInfo{
 		TotalCPU: float64(runtime.NumCPU()),
-		TotalGPU: 0.0, // GPU detection requires additional libraries (nvidia-smi, etc.)
 	}
 
 	// Get total memory

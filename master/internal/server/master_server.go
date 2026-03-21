@@ -79,17 +79,15 @@ type WorkerState struct {
 	RunningTasks  map[string]bool
 	LatestCPU     float64 // Latest CPU usage from heartbeat
 	LatestMemory  float64 // Latest memory usage from heartbeat
-	LatestGPU     float64 // Latest GPU usage from heartbeat
+	LatestStorage float64 // Latest storage usage from heartbeat
 	TaskCount     int     // Number of running tasks from latest heartbeat
 	// Resource tracking
 	AllocatedCPU     float64
 	AllocatedMemory  float64
 	AllocatedStorage float64
-	AllocatedGPU     float64
 	AvailableCPU     float64
 	AvailableMemory  float64
 	AvailableStorage float64
-	AvailableGPU     float64
 }
 
 // TaskAssignment represents a task to be sent to a worker
@@ -165,7 +163,6 @@ func (s *MasterServer) LoadWorkersFromDB(ctx context.Context) error {
 				TotalCpu:     w.TotalCPU,
 				TotalMemory:  w.TotalMemory,
 				TotalStorage: w.TotalStorage,
-				TotalGpu:     w.TotalGPU,
 			},
 			LastHeartbeat:    w.LastHeartbeat,
 			IsActive:         w.IsActive,
@@ -173,11 +170,9 @@ func (s *MasterServer) LoadWorkersFromDB(ctx context.Context) error {
 			AllocatedCPU:     w.AllocatedCPU,
 			AllocatedMemory:  w.AllocatedMemory,
 			AllocatedStorage: w.AllocatedStorage,
-			AllocatedGPU:     w.AllocatedGPU,
 			AvailableCPU:     w.AvailableCPU,
 			AvailableMemory:  w.AvailableMemory,
 			AvailableStorage: w.AvailableStorage,
-			AvailableGPU:     w.AvailableGPU,
 		}
 	}
 
@@ -248,11 +243,9 @@ func (s *MasterServer) ManualRegisterWorker(ctx context.Context, workerID, worke
 		AllocatedCPU:     0.0,
 		AllocatedMemory:  0.0,
 		AllocatedStorage: 0.0,
-		AllocatedGPU:     0.0,
 		AvailableCPU:     0.0,
 		AvailableMemory:  0.0,
 		AvailableStorage: 0.0,
-		AvailableGPU:     0.0,
 	}
 
 	log.Printf("Manually registered worker: %s (Address: %s)", workerID, workerIP)
@@ -260,7 +253,7 @@ func (s *MasterServer) ManualRegisterWorker(ctx context.Context, workerID, worke
 }
 
 // UpdateWorkerResourcesInMemory updates worker resources in memory (called from HTTP API after manual registration)
-func (s *MasterServer) UpdateWorkerResourcesInMemory(workerID string, totalCPU, totalMemory, totalStorage, totalGPU float64) {
+func (s *MasterServer) UpdateWorkerResourcesInMemory(workerID string, totalCPU, totalMemory, totalStorage float64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -274,19 +267,17 @@ func (s *MasterServer) UpdateWorkerResourcesInMemory(workerID string, totalCPU, 
 	worker.Info.TotalCpu = totalCPU
 	worker.Info.TotalMemory = totalMemory
 	worker.Info.TotalStorage = totalStorage
-	worker.Info.TotalGpu = totalGPU
 
 	// Calculate available resources (total - allocated)
 	worker.AvailableCPU = totalCPU - worker.AllocatedCPU
 	worker.AvailableMemory = totalMemory - worker.AllocatedMemory
 	worker.AvailableStorage = totalStorage - worker.AllocatedStorage
-	worker.AvailableGPU = totalGPU - worker.AllocatedGPU
 
 	// Mark worker as active since it has been configured
 	worker.IsActive = true
 
-	log.Printf("Updated worker %s resources: CPU=%.2f, Memory=%.2f, Storage=%.2f, GPU=%.2f",
-		workerID, totalCPU, totalMemory, totalStorage, totalGPU)
+	log.Printf("Updated worker %s resources: CPU=%.2f, Memory=%.2f, Storage=%.2f",
+		workerID, totalCPU, totalMemory, totalStorage)
 }
 
 // ReconcileWorkerResources reconciles allocated resources based on actual running tasks
@@ -311,8 +302,8 @@ func (s *MasterServer) ReconcileWorkerResources(ctx context.Context) error {
 
 	// Build map of actual allocations per worker
 	actualAllocations := make(map[string]struct {
-		CPU, Memory, Storage, GPU float64
-		TaskIDs                   map[string]bool
+		CPU, Memory, Storage float64
+		TaskIDs              map[string]bool
 	})
 
 	for _, task := range tasks {
@@ -326,8 +317,8 @@ func (s *MasterServer) ReconcileWorkerResources(ctx context.Context) error {
 		workerID := assignment.WorkerID
 		if _, exists := actualAllocations[workerID]; !exists {
 			actualAllocations[workerID] = struct {
-				CPU, Memory, Storage, GPU float64
-				TaskIDs                   map[string]bool
+				CPU, Memory, Storage float64
+				TaskIDs              map[string]bool
 			}{TaskIDs: make(map[string]bool)}
 		}
 
@@ -335,7 +326,6 @@ func (s *MasterServer) ReconcileWorkerResources(ctx context.Context) error {
 		alloc.CPU += task.ReqCPU
 		alloc.Memory += task.ReqMemory
 		alloc.Storage += task.ReqStorage
-		alloc.GPU += task.ReqGPU
 		alloc.TaskIDs[task.TaskID] = true
 		actualAllocations[workerID] = alloc
 	}
@@ -348,34 +338,30 @@ func (s *MasterServer) ReconcileWorkerResources(ctx context.Context) error {
 		// Check if resources are out of sync
 		if worker.AllocatedCPU != actual.CPU ||
 			worker.AllocatedMemory != actual.Memory ||
-			worker.AllocatedStorage != actual.Storage ||
-			worker.AllocatedGPU != actual.GPU {
+			worker.AllocatedStorage != actual.Storage {
 
 			oldCPU := worker.AllocatedCPU
 			oldMem := worker.AllocatedMemory
 			oldStorage := worker.AllocatedStorage
-			oldGPU := worker.AllocatedGPU
 
 			// Fix the allocations
 			worker.AllocatedCPU = actual.CPU
 			worker.AllocatedMemory = actual.Memory
 			worker.AllocatedStorage = actual.Storage
-			worker.AllocatedGPU = actual.GPU
 
 			// Recalculate available resources
 			worker.AvailableCPU = worker.Info.TotalCpu - actual.CPU
 			worker.AvailableMemory = worker.Info.TotalMemory - actual.Memory
 			worker.AvailableStorage = worker.Info.TotalStorage - actual.Storage
-			worker.AvailableGPU = worker.Info.TotalGpu - actual.GPU
 
 			// Update running tasks map
 			worker.RunningTasks = actual.TaskIDs
 
 			// Update in database
 			// First release all old allocations, then allocate the correct amount
-			if s.workerDB != nil && (oldCPU > 0 || oldMem > 0 || oldStorage > 0 || oldGPU > 0) {
+			if s.workerDB != nil && (oldCPU > 0 || oldMem > 0 || oldStorage > 0) {
 				if err := s.workerDB.ReleaseResources(ctx, workerID,
-					oldCPU, oldMem, oldStorage, oldGPU); err != nil {
+					oldCPU, oldMem, oldStorage); err != nil {
 					log.Printf("⚠ Failed to release old resources for %s in DB: %v", workerID, err)
 				}
 			}
@@ -383,7 +369,7 @@ func (s *MasterServer) ReconcileWorkerResources(ctx context.Context) error {
 			// Now allocate the correct amount
 			if s.workerDB != nil && actual.CPU > 0 {
 				if err := s.workerDB.AllocateResources(ctx, workerID,
-					actual.CPU, actual.Memory, actual.Storage, actual.GPU); err != nil {
+					actual.CPU, actual.Memory, actual.Storage); err != nil {
 					log.Printf("⚠ Failed to allocate resources for %s in DB: %v", workerID, err)
 				}
 			}
@@ -428,7 +414,7 @@ func (s *MasterServer) reconcileSingleWorker(ctx context.Context, workerID strin
 	log.Printf("  🔍 Reconciliation: Found %d tasks with 'running' status in database", len(tasks))
 
 	// Calculate actual resource usage from running tasks
-	var actualCPU, actualMemory, actualStorage, actualGPU float64
+	var actualCPU, actualMemory, actualStorage float64
 	actualTaskIDs := make(map[string]bool)
 
 	for _, task := range tasks {
@@ -440,12 +426,11 @@ func (s *MasterServer) reconcileSingleWorker(ctx context.Context, workerID strin
 		}
 
 		if assignment.WorkerID == workerID {
-			log.Printf("  📋 Found task %s assigned to %s (CPU=%.1f, Mem=%.1f, Storage=%.1f, GPU=%.1f)",
-				task.TaskID, workerID, task.ReqCPU, task.ReqMemory, task.ReqStorage, task.ReqGPU)
+			log.Printf("  📋 Found task %s assigned to %s (CPU=%.1f, Mem=%.1f, Storage=%.1f)",
+				task.TaskID, workerID, task.ReqCPU, task.ReqMemory, task.ReqStorage)
 			actualCPU += task.ReqCPU
 			actualMemory += task.ReqMemory
 			actualStorage += task.ReqStorage
-			actualGPU += task.ReqGPU
 			actualTaskIDs[task.TaskID] = true
 		}
 	}
@@ -454,13 +439,11 @@ func (s *MasterServer) reconcileSingleWorker(ctx context.Context, workerID strin
 	worker.AllocatedCPU = actualCPU
 	worker.AllocatedMemory = actualMemory
 	worker.AllocatedStorage = actualStorage
-	worker.AllocatedGPU = actualGPU
 
 	// Recalculate available resources
 	worker.AvailableCPU = worker.Info.TotalCpu - actualCPU
 	worker.AvailableMemory = worker.Info.TotalMemory - actualMemory
 	worker.AvailableStorage = worker.Info.TotalStorage - actualStorage
-	worker.AvailableGPU = worker.Info.TotalGpu - actualGPU
 
 	// Update running tasks map
 	worker.RunningTasks = actualTaskIDs
@@ -468,14 +451,14 @@ func (s *MasterServer) reconcileSingleWorker(ctx context.Context, workerID strin
 	// Update database with correct allocations
 	if s.workerDB != nil {
 		if err := s.workerDB.SetWorkerResources(ctx, workerID,
-			actualCPU, actualMemory, actualStorage, actualGPU,
-			worker.AvailableCPU, worker.AvailableMemory, worker.AvailableStorage, worker.AvailableGPU); err != nil {
+			actualCPU, actualMemory, actualStorage,
+			worker.AvailableCPU, worker.AvailableMemory, worker.AvailableStorage); err != nil {
 			log.Printf("⚠ Failed to update resources for %s in DB: %v", workerID, err)
 		}
 	}
 
-	log.Printf("  ✓ Reconciled %s: CPU=%.1f, Memory=%.1f, Storage=%.1f, GPU=%.1f, Tasks=%d",
-		workerID, actualCPU, actualMemory, actualStorage, actualGPU, len(actualTaskIDs))
+	log.Printf("  ✓ Reconciled %s: CPU=%.1f, Memory=%.1f, Storage=%.1f, Tasks=%d",
+		workerID, actualCPU, actualMemory, actualStorage, len(actualTaskIDs))
 }
 
 // ManualRegisterAndNotify registers a worker and immediately tries to notify it of the master's address
@@ -698,13 +681,11 @@ func (s *MasterServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) 
 		existingWorker.AllocatedCPU = 0.0
 		existingWorker.AllocatedMemory = 0.0
 		existingWorker.AllocatedStorage = 0.0
-		existingWorker.AllocatedGPU = 0.0
 
 		// Initialize available resources to total
 		existingWorker.AvailableCPU = info.TotalCpu
 		existingWorker.AvailableMemory = info.TotalMemory
 		existingWorker.AvailableStorage = info.TotalStorage
-		existingWorker.AvailableGPU = info.TotalGpu
 
 		// Trigger reconciliation for this specific worker to fix resources based on actual running tasks
 		s.reconcileSingleWorker(ctx, info.WorkerId, existingWorker)
@@ -713,7 +694,6 @@ func (s *MasterServer) RegisterWorker(ctx context.Context, info *pb.WorkerInfo) 
 		existingWorker.AvailableCPU = info.TotalCpu - existingWorker.AllocatedCPU
 		existingWorker.AvailableMemory = info.TotalMemory - existingWorker.AllocatedMemory
 		existingWorker.AvailableStorage = info.TotalStorage - existingWorker.AllocatedStorage
-		existingWorker.AvailableGPU = info.TotalGpu - existingWorker.AllocatedGPU
 	}
 
 	// Update in database
@@ -751,7 +731,7 @@ func (s *MasterServer) SendHeartbeat(ctx context.Context, hb *pb.Heartbeat) (*pb
 	// Store latest heartbeat metrics (keep minimal data in main thread)
 	worker.LatestCPU = normalizeUsageFraction(hb.CpuUsage)
 	worker.LatestMemory = normalizeUsageFraction(hb.MemoryUsage)
-	worker.LatestGPU = normalizeUsageFraction(hb.GpuUsage)
+	worker.LatestStorage = normalizeUsageFraction(hb.StorageUsage)
 	worker.TaskCount = len(hb.RunningTasks)
 
 	// Update heartbeat in database
@@ -801,11 +781,9 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 			worker.AllocatedCPU -= taskResources.ReqCPU
 			worker.AllocatedMemory -= taskResources.ReqMemory
 			worker.AllocatedStorage -= taskResources.ReqStorage
-			worker.AllocatedGPU -= taskResources.ReqGPU
 			worker.AvailableCPU += taskResources.ReqCPU
 			worker.AvailableMemory += taskResources.ReqMemory
 			worker.AvailableStorage += taskResources.ReqStorage
-			worker.AvailableGPU += taskResources.ReqGPU
 
 			// Ensure non-negative values (safety check)
 			if worker.AllocatedCPU < 0 {
@@ -817,19 +795,16 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 			if worker.AllocatedStorage < 0 {
 				worker.AllocatedStorage = 0
 			}
-			if worker.AllocatedGPU < 0 {
-				worker.AllocatedGPU = 0
-			}
 
 			// Update database
 			if s.workerDB != nil {
 				if err := s.workerDB.ReleaseResources(ctx, result.WorkerId,
 					taskResources.ReqCPU, taskResources.ReqMemory,
-					taskResources.ReqStorage, taskResources.ReqGPU); err != nil {
+					taskResources.ReqStorage); err != nil {
 					log.Printf("  ⚠ Warning: Failed to release resources in database: %v", err)
 				} else {
-					log.Printf("  ✓ Released resources: CPU=%.2f, Memory=%.2f, Storage=%.2f, GPU=%.2f",
-						taskResources.ReqCPU, taskResources.ReqMemory, taskResources.ReqStorage, taskResources.ReqGPU)
+					log.Printf("  ✓ Released resources: CPU=%.2f, Memory=%.2f, Storage=%.2f",
+						taskResources.ReqCPU, taskResources.ReqMemory, taskResources.ReqStorage)
 				}
 			}
 		}
@@ -951,7 +926,6 @@ func (s *MasterServer) reportSchedulingOutcomeAsync(taskResources *db.Task, resu
 			ReqCpu:        taskResources.ReqCPU,
 			ReqMemory:     taskResources.ReqMemory,
 			ReqStorage:    taskResources.ReqStorage,
-			ReqGpu:        taskResources.ReqGPU,
 			TaskType:      taskResources.TaskType,
 			SlaMultiplier: taskResources.SLAMultiplier,
 		}
@@ -1150,43 +1124,40 @@ type WorkerStateSnapshot struct {
 	HeartbeatAgo     string // Human-readable: "5s ago", "2m ago"
 	CPUUsage         float64
 	MemoryUsage      float64
-	GPUUsage         float64
+	StorageUsage     float64
 	TotalCPU         float64
 	TotalMemory      float64
 	TotalStorage     float64
-	TotalGPU         float64
 	AllocatedCPU     float64
 	AllocatedMemory  float64
 	AllocatedStorage float64
-	AllocatedGPU     float64
 	AvailableCPU     float64
 	AvailableMemory  float64
 	AvailableStorage float64
-	AvailableGPU     float64
 	RunningTasks     []string
 	TaskCount        int
 }
 
 // ClusterSnapshot represents a point-in-time snapshot of the entire cluster
 type ClusterSnapshot struct {
-	Timestamp         time.Time
-	Workers           []WorkerStateSnapshot
-	TotalWorkers      int
-	ActiveWorkers     int
-	InactiveWorkers   int
-	TotalTasks        int
-	TotalCPU          float64
-	AllocatedCPU      float64
-	AvailableCPU      float64
-	CPUUtilization    float64 // Percentage
-	TotalMemory       float64
-	AllocatedMemory   float64
-	AvailableMemory   float64
-	MemoryUtilization float64 // Percentage
-	TotalGPU          float64
-	AllocatedGPU      float64
-	AvailableGPU      float64
-	GPUUtilization    float64 // Percentage
+	Timestamp          time.Time
+	Workers            []WorkerStateSnapshot
+	TotalWorkers       int
+	ActiveWorkers      int
+	InactiveWorkers    int
+	TotalTasks         int
+	TotalCPU           float64
+	AllocatedCPU       float64
+	AvailableCPU       float64
+	CPUUtilization     float64 // Percentage
+	TotalMemory        float64
+	AllocatedMemory    float64
+	AvailableMemory    float64
+	MemoryUtilization  float64 // Percentage
+	TotalStorage       float64
+	AllocatedStorage   float64
+	AvailableStorage   float64
+	StorageUtilization float64 // Percentage
 }
 
 // GetClusterSnapshot returns a structured snapshot of the cluster state
@@ -1228,13 +1199,12 @@ func (s *MasterServer) GetClusterSnapshot() *ClusterSnapshot {
 		}
 
 		// Get resource totals
-		var totalCPU, totalMemory, totalStorage, totalGPU float64
+		var totalCPU, totalMemory, totalStorage float64
 		var workerIP string
 		if worker.Info != nil {
 			totalCPU = worker.Info.TotalCpu
 			totalMemory = worker.Info.TotalMemory
 			totalStorage = worker.Info.TotalStorage
-			totalGPU = worker.Info.TotalGpu
 			workerIP = worker.Info.WorkerIp
 		}
 
@@ -1246,19 +1216,16 @@ func (s *MasterServer) GetClusterSnapshot() *ClusterSnapshot {
 			HeartbeatAgo:     heartbeatAgo,
 			CPUUsage:         worker.LatestCPU * 100.0,
 			MemoryUsage:      worker.LatestMemory * 100.0,
-			GPUUsage:         worker.LatestGPU * 100.0,
+			StorageUsage:     worker.LatestStorage * 100.0,
 			TotalCPU:         totalCPU,
 			TotalMemory:      totalMemory,
 			TotalStorage:     totalStorage,
-			TotalGPU:         totalGPU,
 			AllocatedCPU:     worker.AllocatedCPU,
 			AllocatedMemory:  worker.AllocatedMemory,
 			AllocatedStorage: worker.AllocatedStorage,
-			AllocatedGPU:     worker.AllocatedGPU,
 			AvailableCPU:     worker.AvailableCPU,
 			AvailableMemory:  worker.AvailableMemory,
 			AvailableStorage: worker.AvailableStorage,
-			AvailableGPU:     worker.AvailableGPU,
 			RunningTasks:     runningTasks,
 			TaskCount:        len(runningTasks),
 		}
@@ -1275,13 +1242,13 @@ func (s *MasterServer) GetClusterSnapshot() *ClusterSnapshot {
 		}
 		snapshot.TotalCPU += totalCPU
 		snapshot.TotalMemory += totalMemory
-		snapshot.TotalGPU += totalGPU
+		snapshot.TotalStorage += totalStorage
 		snapshot.AllocatedCPU += worker.AllocatedCPU
 		snapshot.AllocatedMemory += worker.AllocatedMemory
-		snapshot.AllocatedGPU += worker.AllocatedGPU
+		snapshot.AllocatedStorage += worker.AllocatedStorage
 		snapshot.AvailableCPU += worker.AvailableCPU
 		snapshot.AvailableMemory += worker.AvailableMemory
-		snapshot.AvailableGPU += worker.AvailableGPU
+		snapshot.AvailableStorage += worker.AvailableStorage
 	}
 
 	snapshot.InactiveWorkers = snapshot.TotalWorkers - snapshot.ActiveWorkers
@@ -1293,8 +1260,8 @@ func (s *MasterServer) GetClusterSnapshot() *ClusterSnapshot {
 	if snapshot.TotalMemory > 0 {
 		snapshot.MemoryUtilization = (snapshot.AllocatedMemory / snapshot.TotalMemory) * 100
 	}
-	if snapshot.TotalGPU > 0 {
-		snapshot.GPUUtilization = (snapshot.AllocatedGPU / snapshot.TotalGPU) * 100
+	if snapshot.TotalStorage > 0 {
+		snapshot.StorageUtilization = (snapshot.AllocatedStorage / snapshot.TotalStorage) * 100
 	}
 
 	return snapshot
@@ -1314,7 +1281,7 @@ func (s *MasterServer) DumpInMemoryState() string {
 	}
 
 	// Header
-	output += "WORKER         STATUS  HEARTBEAT    CPU%   MEM%   GPU%   ALLOC(C/M/G)         AVAIL(C/M/G)         TASKS\n"
+	output += "WORKER         STATUS  HEARTBEAT    CPU%   MEM%   STO%   ALLOC(C/M/S)         AVAIL(C/M/S)         TASKS\n"
 	output += "──────────────────────────────────────────────────────────────────────────────────────────────────────────────\n"
 
 	for _, worker := range snapshot.Workers {
@@ -1327,15 +1294,15 @@ func (s *MasterServer) DumpInMemoryState() string {
 		// Resource usage
 		cpuUsage := fmt.Sprintf("%.1f", worker.CPUUsage)
 		memUsage := fmt.Sprintf("%.1f", worker.MemoryUsage)
-		gpuUsage := fmt.Sprintf("%.1f", worker.GPUUsage)
+		storageUsage := fmt.Sprintf("%.1f", worker.StorageUsage)
 
 		// Allocated resources
 		allocStr := fmt.Sprintf("%.1f/%.1f/%.1f",
-			worker.AllocatedCPU, worker.AllocatedMemory, worker.AllocatedGPU)
+			worker.AllocatedCPU, worker.AllocatedMemory, worker.AllocatedStorage)
 
 		// Available resources
 		availStr := fmt.Sprintf("%.1f/%.1f/%.1f",
-			worker.AvailableCPU, worker.AvailableMemory, worker.AvailableGPU)
+			worker.AvailableCPU, worker.AvailableMemory, worker.AvailableStorage)
 
 		// Running tasks
 		taskStr := "-"
@@ -1354,17 +1321,18 @@ func (s *MasterServer) DumpInMemoryState() string {
 		}
 
 		output += fmt.Sprintf("%-14s %-6s  %-11s  %-5s  %-5s  %-5s  %-19s  %-19s  %s\n",
-			displayID, status, worker.HeartbeatAgo, cpuUsage, memUsage, gpuUsage,
+			displayID, status, worker.HeartbeatAgo, cpuUsage, memUsage, storageUsage,
 			allocStr, availStr, taskStr)
 	}
 
 	output += "\n"
 
 	// Cluster summary
-	output += fmt.Sprintf("Cluster: %d workers (%d active) | %d tasks | CPU: %.1f/%.1f (%.0f%%) | Mem: %.1f/%.1f GB (%.0f%%)\n\n",
+	output += fmt.Sprintf("Cluster: %d workers (%d active) | %d tasks | CPU: %.1f/%.1f (%.0f%%) | Mem: %.1f/%.1f GB (%.0f%%) | Storage: %.1f/%.1f GB (%.0f%%)\n\n",
 		snapshot.TotalWorkers, snapshot.ActiveWorkers, snapshot.TotalTasks,
 		snapshot.AllocatedCPU, snapshot.TotalCPU, snapshot.CPUUtilization,
-		snapshot.AllocatedMemory, snapshot.TotalMemory, snapshot.MemoryUtilization)
+		snapshot.AllocatedMemory, snapshot.TotalMemory, snapshot.MemoryUtilization,
+		snapshot.AllocatedStorage, snapshot.TotalStorage, snapshot.StorageUtilization)
 
 	return output
 }
@@ -1405,9 +1373,6 @@ func normalizeTaskForScheduling(task *pb.Task) normalizedTaskMetadata {
 	}
 
 	taskType := task.TaskType
-	if taskType == "gpu-heavy" {
-		taskType = scheduler.TaskTypeGPUInference
-	}
 	if !scheduler.ValidateTaskType(taskType) {
 		taskType = scheduler.InferTaskType(task)
 	}
@@ -1447,7 +1412,6 @@ func (s *MasterServer) SubmitTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 			ReqCPU:        task.ReqCpu,
 			ReqMemory:     task.ReqMemory,
 			ReqStorage:    task.ReqStorage,
-			ReqGPU:        task.ReqGpu,
 			TaskType:      taskMeta.taskType,
 			SLAMultiplier: task.SlaMultiplier,
 			Tau:           taskMeta.tau,
@@ -1506,7 +1470,6 @@ func (s *MasterServer) DispatchTaskToWorker(ctx context.Context, task *pb.Task, 
 			ReqCPU:        task.ReqCpu,
 			ReqMemory:     task.ReqMemory,
 			ReqStorage:    task.ReqStorage,
-			ReqGPU:        task.ReqGpu,
 			TaskType:      taskMeta.taskType,
 			SLAMultiplier: task.SlaMultiplier,
 			Tau:           taskMeta.tau,
@@ -2056,14 +2019,11 @@ func (s *MasterServer) selectWorkerForTask(task *pb.Task) string {
 			AvailableCPU:     worker.AvailableCPU,
 			AvailableMemory:  worker.AvailableMemory,
 			AvailableStorage: worker.AvailableStorage,
-			AvailableGPU:     worker.AvailableGPU,
 			TotalCPU:         worker.Info.TotalCpu,
 			TotalMemory:      worker.Info.TotalMemory,
 			TotalStorage:     worker.Info.TotalStorage,
-			TotalGPU:         worker.Info.TotalGpu,
 			CurrentCPUUsage:  worker.LatestCPU,
 			CurrentMemUsage:  worker.LatestMemory,
-			CurrentGPUUsage:  worker.LatestGPU,
 		}
 	}
 
@@ -2130,7 +2090,6 @@ func (s *MasterServer) RestoreQueuedTasks(ctx context.Context) error {
 				ReqCpu:        task.ReqCPU,
 				ReqMemory:     task.ReqMemory,
 				ReqStorage:    task.ReqStorage,
-				ReqGpu:        task.ReqGPU,
 				TaskType:      task.TaskType,
 				SlaMultiplier: task.SLAMultiplier,
 			}
@@ -2282,24 +2241,13 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 				worker.AvailableStorage, task.ReqStorage),
 		}, nil
 	}
-	if worker.AvailableGPU < task.ReqGpu {
-		s.mu.Unlock()
-		return &pb.TaskAck{
-			Success: false,
-			Message: fmt.Sprintf("Insufficient GPU: worker has %.2f available, task requires %.2f",
-				worker.AvailableGPU, task.ReqGpu),
-		}, nil
-	}
-
 	// Reserve resources before releasing lock to prevent oversubscription races.
 	worker.AllocatedCPU += task.ReqCpu
 	worker.AllocatedMemory += task.ReqMemory
 	worker.AllocatedStorage += task.ReqStorage
-	worker.AllocatedGPU += task.ReqGpu
 	worker.AvailableCPU -= task.ReqCpu
 	worker.AvailableMemory -= task.ReqMemory
 	worker.AvailableStorage -= task.ReqStorage
-	worker.AvailableGPU -= task.ReqGpu
 
 	workerIP := worker.Info.WorkerIp
 	loadAtStart := computeWorkerLoadAtStart(worker)
@@ -2322,11 +2270,9 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 		currentWorker.AllocatedCPU -= task.ReqCpu
 		currentWorker.AllocatedMemory -= task.ReqMemory
 		currentWorker.AllocatedStorage -= task.ReqStorage
-		currentWorker.AllocatedGPU -= task.ReqGpu
 		currentWorker.AvailableCPU += task.ReqCpu
 		currentWorker.AvailableMemory += task.ReqMemory
 		currentWorker.AvailableStorage += task.ReqStorage
-		currentWorker.AvailableGPU += task.ReqGpu
 
 		if currentWorker.AllocatedCPU < 0 {
 			currentWorker.AllocatedCPU = 0
@@ -2336,9 +2282,6 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 		}
 		if currentWorker.AllocatedStorage < 0 {
 			currentWorker.AllocatedStorage = 0
-		}
-		if currentWorker.AllocatedGPU < 0 {
-			currentWorker.AllocatedGPU = 0
 		}
 		resourcesReserved = false
 	}
@@ -2383,7 +2326,7 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 	// Update database
 	if s.workerDB != nil {
 		if err := s.workerDB.AllocateResources(ctx, workerID,
-			task.ReqCpu, task.ReqMemory, task.ReqStorage, task.ReqGpu); err != nil {
+			task.ReqCpu, task.ReqMemory, task.ReqStorage); err != nil {
 			log.Printf("Warning: Failed to allocate resources in database: %v", err)
 		}
 	}
@@ -2420,7 +2363,6 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 	log.Printf("    • CPU Cores:     %.2f cores", task.ReqCpu)
 	log.Printf("    • Memory:        %.2f GB", task.ReqMemory)
 	log.Printf("    • Storage:       %.2f GB", task.ReqStorage)
-	log.Printf("    • GPU Cores:     %.2f cores", task.ReqGpu)
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("")
 
@@ -2434,13 +2376,13 @@ func computeWorkerLoadAtStart(worker *WorkerState) float64 {
 
 	wCPU := worker.Info.TotalCpu
 	wMem := worker.Info.TotalMemory / 10.0
-	wGPU := worker.Info.TotalGpu * 2.0
-	totalWeight := wCPU + wMem + wGPU
+	wStorage := worker.Info.TotalStorage / 50.0
+	totalWeight := wCPU + wMem + wStorage
 	if totalWeight <= 0 {
 		return 0.0
 	}
 
-	load := (wCPU*worker.LatestCPU + wMem*worker.LatestMemory + wGPU*worker.LatestGPU) / totalWeight
+	load := (wCPU*worker.LatestCPU + wMem*worker.LatestMemory + wStorage*worker.LatestStorage) / totalWeight
 	if load < 0 {
 		return 0.0
 	}

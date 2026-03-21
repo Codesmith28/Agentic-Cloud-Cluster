@@ -16,12 +16,6 @@
     "cpu-light": {
       "Topology": 1
     },
-    "gpu-inference": {
-      "Topology": 1
-    },
-    "gpu-training": {
-      "Topology": 1
-    },
     "memory-heavy": {
       "Topology": 1
     },

@@ -22,7 +22,7 @@ note right of M
     - task_id
     - docker_image
     - command
-    - req_cpu, req_memory, req_gpu
+    - req_cpu, req_memory, req_storage
     - user_id
     - task_name
 end note

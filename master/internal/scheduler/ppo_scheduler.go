@@ -115,14 +115,11 @@ func (s *PPOScheduler) SelectWorker(task *pb.Task, workers map[string]*WorkerInf
 			AvailableCpu:       w.AvailableCPU,
 			AvailableMemory:    w.AvailableMemory,
 			AvailableStorage:   w.AvailableStorage,
-			AvailableGpu:       w.AvailableGPU,
 			TotalCpu:           w.TotalCPU,
 			TotalMemory:        w.TotalMemory,
 			TotalStorage:       w.TotalStorage,
-			TotalGpu:           w.TotalGPU,
 			CurrentCpuUsage:    w.CurrentCPUUsage,
 			CurrentMemoryUsage: w.CurrentMemUsage,
-			CurrentGpuUsage:    w.CurrentGPUUsage,
 		})
 	}
 
@@ -267,9 +264,6 @@ func isWorkerSuitableForTask(worker *WorkerInfo, task *pb.Task) bool {
 		return false
 	}
 	if worker.AvailableStorage < task.ReqStorage {
-		return false
-	}
-	if worker.AvailableGPU < task.ReqGpu {
 		return false
 	}
 	return true

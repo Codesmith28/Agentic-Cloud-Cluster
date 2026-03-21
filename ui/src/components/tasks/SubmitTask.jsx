@@ -25,7 +25,6 @@ const SubmitTask = () => {
     cpu_required: 1.0,
     memory_required: 2.0,
     storage_required: 5.0,
-    gpu_required: 0.0,
     tag: '', // NEW FIELD
     k_value: K_VALUE.DEFAULT, // NEW FIELD
   });
@@ -91,8 +90,7 @@ const SubmitTask = () => {
           cpu_required: 1.0,
           memory_required: 2.0,
           storage_required: 5.0,
-          gpu_required: 0.0,
-          tag: '',
+                tag: '',
           k_value: K_VALUE.DEFAULT,
         });
         setSuccess(false);
@@ -235,19 +233,6 @@ const SubmitTask = () => {
             />
           </Grid>
 
-          {/* GPU Required */}
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              type="number"
-              label="GPU Required (units)"
-              value={formData.gpu_required}
-              onChange={handleChange('gpu_required')}
-              inputProps={{ min: 0, max: 8, step: 0.5 }}
-              helperText="Number of GPUs needed"
-            />
-          </Grid>
-
           {/* Submit Button */}
           <Grid item xs={12}>
             <Button
@@ -274,7 +259,6 @@ const getTagColor = (tag) => {
     'cpu-heavy': '#ff9800',
     'memory-light': '#2196f3',
     'memory-heavy': '#f44336',
-    'gpu-training': '#9c27b0',
     'mixed': '#607d8b',
   };
   return colors[tag] || '#9e9e9e';

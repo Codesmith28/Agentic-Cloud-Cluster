@@ -44,7 +44,6 @@ type TaskRequest struct {
 	Command         string      `json:"command,omitempty"`
 	CPURequired     json.Number `json:"cpu_required"`
 	MemoryRequired  json.Number `json:"memory_required"`
-	GPURequired     json.Number `json:"gpu_required,omitempty"`
 	StorageRequired json.Number `json:"storage_required,omitempty"`
 	UserID          string      `json:"user_id,omitempty"`
 	// New fields
@@ -98,7 +97,6 @@ func (h *TaskAPIHandler) HandleCreateTask(w http.ResponseWriter, r *http.Request
 	// Parse numeric fields
 	cpuRequired := parseFloat64(taskReq.CPURequired, 0)
 	memoryRequired := parseFloat64(taskReq.MemoryRequired, 0)
-	gpuRequired := parseFloat64(taskReq.GPURequired, 0)
 	storageRequired := parseFloat64(taskReq.StorageRequired, 1024) // Default 1GB
 	kValue := parseFloat64(taskReq.KValue, 0)
 
@@ -130,7 +128,6 @@ func (h *TaskAPIHandler) HandleCreateTask(w http.ResponseWriter, r *http.Request
 		ReqCpu:        cpuRequired,
 		ReqMemory:     memoryRequired,
 		ReqStorage:    storageRequired,
-		ReqGpu:        gpuRequired,
 		UserId:        taskReq.UserID,
 		TaskType:      taskReq.Tag,         // Set task_type from tag field
 		SlaMultiplier: kValue,              // Set SLA multiplier
@@ -212,7 +209,6 @@ func (h *TaskAPIHandler) HandleListTasks(w http.ResponseWriter, r *http.Request)
 			"user_id":          task.UserID,
 			"cpu_required":     task.ReqCPU,
 			"memory_required":  task.ReqMemory,
-			"gpu_required":     task.ReqGPU,
 			"storage_required": task.ReqStorage,
 			"tag":              task.Tag,
 			"k_value":          task.KValue,
@@ -288,7 +284,6 @@ func (h *TaskAPIHandler) HandleGetTask(w http.ResponseWriter, r *http.Request) {
 		"user_id":          task.UserID,
 		"cpu_required":     task.ReqCPU,
 		"memory_required":  task.ReqMemory,
-		"gpu_required":     task.ReqGPU,
 		"storage_required": task.ReqStorage,
 		"tag":              task.Tag,
 		"k_value":          task.KValue,

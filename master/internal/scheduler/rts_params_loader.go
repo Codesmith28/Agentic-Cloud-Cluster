@@ -85,7 +85,7 @@ func GetDefaultGAParams() *GAParams {
 		Theta: Theta{
 			Theta1: 0.1, // CPU ratio impact
 			Theta2: 0.1, // Memory ratio impact
-			Theta3: 0.3, // GPU ratio impact (higher weight)
+			Theta3: 0.3, // Storage ratio impact (higher weight)
 			Theta4: 0.2, // Worker load impact
 		},
 
@@ -97,8 +97,7 @@ func GetDefaultGAParams() *GAParams {
 
 		// Initialize empty maps (will be populated by AOD training)
 		// Affinity matrix structure: map[taskType]map[workerID]affinity
-		// Should have 6 task types: cpu-light, cpu-heavy, memory-heavy,
-		// gpu-inference, gpu-training, mixed
+		// Should have 4 task types: cpu-light, cpu-heavy, memory-heavy, mixed
 		AffinityMatrix: make(map[string]map[string]float64),
 
 		// Penalty vector structure: map[workerID]penalty
@@ -134,12 +133,10 @@ func validateGAParams(params *GAParams) error {
 	if params.AffinityMatrix != nil {
 		// Check for valid task types in affinity matrix
 		validTaskTypes := map[string]bool{
-			TaskTypeCPULight:     true,
-			TaskTypeCPUHeavy:     true,
-			TaskTypeMemoryHeavy:  true,
-			TaskTypeGPUInference: true,
-			TaskTypeGPUTraining:  true,
-			TaskTypeMixed:        true,
+			TaskTypeCPULight:    true,
+			TaskTypeCPUHeavy:    true,
+			TaskTypeMemoryHeavy: true,
+			TaskTypeMixed:       true,
 		}
 
 		for taskType := range params.AffinityMatrix {
@@ -185,30 +182,5 @@ func LoadGAParamsOrDefault(filePath string) *GAParams {
 
 // normalizeLegacyTaskTypeAliases rewrites historical task type keys to canonical names.
 func normalizeLegacyTaskTypeAliases(params *GAParams) {
-	if params == nil || params.AffinityMatrix == nil {
-		return
-	}
-
-	legacyKey := "gpu-heavy"
-	canonicalKey := TaskTypeGPUInference
-
-	legacyMap, hasLegacy := params.AffinityMatrix[legacyKey]
-	if !hasLegacy {
-		return
-	}
-
-	// Merge legacy values into canonical key (legacy values win on key collisions).
-	if existingCanonical, ok := params.AffinityMatrix[canonicalKey]; ok {
-		if existingCanonical == nil {
-			existingCanonical = make(map[string]float64)
-		}
-		for workerID, affinity := range legacyMap {
-			existingCanonical[workerID] = affinity
-		}
-		params.AffinityMatrix[canonicalKey] = existingCanonical
-	} else {
-		params.AffinityMatrix[canonicalKey] = legacyMap
-	}
-
-	delete(params.AffinityMatrix, legacyKey)
+	_ = params
 }
