@@ -45,7 +45,7 @@ func TestNormalizeTaskForSchedulingInfersTypeAndDefaults(t *testing.T) {
 }
 
 func TestRemoveQueuedTaskByIDDoesNotAffectInFlightProcessing(t *testing.T) {
-	s := NewMasterServer(nil, nil, nil, nil, nil, nil, nil)
+	s := NewMasterServer(nil, nil, nil, nil, nil, nil, nil, nil)
 	s.queueMu.Lock()
 	s.processingTasks["task-1"] = true
 	s.queueMu.Unlock()
@@ -59,7 +59,7 @@ func TestRemoveQueuedTaskByIDDoesNotAffectInFlightProcessing(t *testing.T) {
 }
 
 func TestQueueProcessorStopsCleanly(t *testing.T) {
-	s := NewMasterServer(nil, nil, nil, nil, nil, nil, nil)
+	s := NewMasterServer(nil, nil, nil, nil, nil, nil, nil, nil)
 	s.StartQueueProcessor()
 
 	done := make(chan struct{})

@@ -74,6 +74,7 @@ func main() {
 	var workerDB *db.WorkerDB
 	var taskDB *db.TaskDB
 	var assignmentDB *db.AssignmentDB
+	var attemptDB *db.AttemptDB
 	var resultDB *db.ResultDB
 	var fileMetadataDB *db.FileMetadataDB
 	var schedulerModelDB *db.SchedulerModelDB
@@ -116,6 +117,16 @@ func main() {
 		} else {
 			log.Println("✓ AssignmentDB initialized")
 			defer assignmentDB.Close(context.Background())
+		}
+
+		// Create attempt database handler
+		attemptDB, err = db.NewAttemptDB(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to create AttemptDB: %v", err)
+			attemptDB = nil
+		} else {
+			log.Println("✓ AttemptDB initialized")
+			defer attemptDB.Close(context.Background())
 		}
 
 		// Create result database handler
@@ -281,7 +292,7 @@ func main() {
 		log.Printf("✓ Selected scheduler: %s", rtsScheduler.GetName())
 	}
 
-	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, resultDB, fileMetadataDB, fileStorage, telemetryMgr)
+	masterServer := server.NewMasterServer(workerDB, taskDB, assignmentDB, attemptDB, resultDB, fileMetadataDB, fileStorage, telemetryMgr)
 	masterServer.SetScheduler(activeScheduler)
 	log.Printf("✓ Master server configured with %s scheduler", activeScheduler.GetName())
 
@@ -403,7 +414,7 @@ func main() {
 		httpTelemetryServer = httpserver.NewTelemetryServer(port, telemetryMgr)
 
 		// Create task and worker API handlers
-		taskHandler := httpserver.NewTaskAPIHandler(masterServer, taskDB, assignmentDB, resultDB)
+		taskHandler := httpserver.NewTaskAPIHandler(masterServer, taskDB, assignmentDB, attemptDB, resultDB)
 		workerHandler := httpserver.NewWorkerAPIHandler(masterServer, workerDB, assignmentDB, telemetryMgr)
 
 		// Add API routes

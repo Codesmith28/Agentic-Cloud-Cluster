@@ -206,6 +206,21 @@ make testbench-suite
 
 Detailed runbook: **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)**
 
+## Recovery Semantics
+
+CloudAI now tracks logical tasks separately from physical execution attempts.
+
+- every worker assignment carries `attempt_id` and `attempt_no`
+- if a worker stops heartbeating, the active attempt is marked lost and the logical task is requeued automatically
+- late results from older attempts are recorded for audit but cannot overwrite the current task outcome
+
+Inspection endpoints:
+
+```bash
+curl http://localhost:8080/api/tasks/<task_id> | jq
+curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
+```
+
 ---
 
 ## Documentation

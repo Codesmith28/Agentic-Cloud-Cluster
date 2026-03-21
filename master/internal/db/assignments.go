@@ -17,6 +17,8 @@ type Assignment struct {
 	AssignmentID string    `bson:"ass_id"`
 	TaskID       string    `bson:"task_id"`
 	WorkerID     string    `bson:"worker_id"`
+	AttemptID    string    `bson:"attempt_id,omitempty"`
+	AttemptNo    int32     `bson:"attempt_no,omitempty"`
 	AssignedAt   time.Time `bson:"assigned_at"`
 	LoadAtStart  float64   `bson:"load_at_start,omitempty"` // Worker load (0-1) when task was assigned
 }
@@ -50,9 +52,14 @@ func NewAssignmentDB(ctx context.Context, cfg *config.Config) (*AssignmentDB, er
 func (db *AssignmentDB) CreateAssignment(ctx context.Context, assignment *Assignment) error {
 	assignment.AssignedAt = time.Now()
 
-	_, err := db.collection.InsertOne(ctx, assignment)
+	_, err := db.collection.ReplaceOne(
+		ctx,
+		bson.M{"task_id": assignment.TaskID},
+		assignment,
+		options.Replace().SetUpsert(true),
+	)
 	if err != nil {
-		return fmt.Errorf("insert assignment: %w", err)
+		return fmt.Errorf("upsert assignment: %w", err)
 	}
 
 	return nil

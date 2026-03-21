@@ -62,5 +62,6 @@ Edit each `worker-*` service in `testbench/docker-compose.yml`:
 ```bash
 curl http://localhost:8080/api/workers | jq
 curl http://localhost:8080/api/tasks | jq
+curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
 docker compose -f testbench/docker-compose.yml logs -f worker-small
 ```
