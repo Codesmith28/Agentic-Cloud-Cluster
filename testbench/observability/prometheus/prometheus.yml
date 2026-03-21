@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: master
+    static_configs:
+      - targets:
+          - master:8080
+
+  - job_name: workers
+    static_configs:
+      - targets:
+          - worker-small:9101
+          - worker-medium:9101
+          - worker-large:9101

@@ -184,7 +184,7 @@ func (s *WorkerServer) executeTask(task *pb.Task) {
 
 	// Execute the task with resource constraints
 	result := s.executor.ExecuteTask(ctx, task.TaskId, task.DockerImage, task.Command,
-		task.ReqCpu, task.ReqMemory)
+		task.ReqCpu, task.ReqMemory, task.TaskType)
 
 	// Remove from monitoring
 	s.monitor.RemoveTask(task.TaskId)

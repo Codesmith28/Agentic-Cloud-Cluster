@@ -22,6 +22,18 @@ func TestResolveWorkerPortRejectsInvalidOverride(t *testing.T) {
 	}
 }
 
+func TestResolveWorkerMetricsPortUsesEnvOverride(t *testing.T) {
+	t.Setenv(workerMetricsPortEnv, "9105")
+
+	port, err := ResolveWorkerMetricsPort(9101)
+	if err != nil {
+		t.Fatalf("ResolveWorkerMetricsPort returned error: %v", err)
+	}
+	if port != 9105 {
+		t.Fatalf("expected override port 9105, got %d", port)
+	}
+}
+
 func TestApplyResourceOverrides(t *testing.T) {
 	t.Setenv(workerTotalCPUEnv, "2.5")
 	t.Setenv(workerTotalMemoryGBEnv, "6")

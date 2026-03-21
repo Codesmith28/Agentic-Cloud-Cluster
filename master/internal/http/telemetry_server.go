@@ -13,6 +13,7 @@ import (
 	"master/internal/telemetry"
 
 	"github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var upgrader = websocket.Upgrader{
@@ -61,6 +62,7 @@ func NewTelemetryServer(port int, telemetryMgr *telemetry.TelemetryManager) *Tel
 
 	// REST endpoints
 	mux.HandleFunc("/health", ts.handleHealth)
+	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/telemetry", ts.handleTelemetryREST)
 	mux.HandleFunc("/telemetry/", ts.handleWorkerTelemetryREST)
 	mux.HandleFunc("/workers", ts.handleWorkersREST)

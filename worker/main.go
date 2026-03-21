@@ -5,17 +5,20 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
 
+	workermetrics "worker/internal/metrics"
 	"worker/internal/server"
 	"worker/internal/system"
 	"worker/internal/telemetry"
 	pb "worker/proto"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 )
 
@@ -60,6 +63,10 @@ func main() {
 	workerIP := sysInfo.GetWorkerAddress()
 	workerBindIP := system.ResolveWorkerBindIP(workerIP)
 	workerPort := sysInfo.GetWorkerPort()
+	metricsPort, err := system.ResolveWorkerMetricsPort(9101)
+	if err != nil {
+		log.Fatalf("Failed to resolve worker metrics port: %v", err)
+	}
 	workerID, err := system.ResolveWorkerID(sysInfo.Hostname)
 	if err != nil {
 		log.Printf("⚠️  Failed to resolve persistent worker ID: %v", err)
@@ -77,6 +84,7 @@ func main() {
 	log.Printf("  Worker ID:      %s", workerID)
 	log.Printf("  Bind Address:   %s%s", workerBindIP, workerPort)
 	log.Printf("  Reachable Addr: %s%s", workerIP, workerPort)
+	log.Printf("  Metrics Port:   %d", metricsPort)
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("")
 	log.Printf("To register this worker, run in master CLI:")
@@ -92,6 +100,17 @@ func main() {
 
 	// Start telemetry monitoring (will start sending heartbeats once master is known)
 	go monitor.Start(ctx)
+	workermetrics.Get()
+
+	go func() {
+		metricsAddress := net.JoinHostPort(workerBindIP, fmt.Sprintf("%d", metricsPort))
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		log.Printf("✓ Metrics server listening on %s", metricsAddress)
+		if err := http.ListenAndServe(metricsAddress, mux); err != nil && err != http.ErrServerClosed {
+			log.Printf("Metrics server stopped: %v", err)
+		}
+	}()
 
 	// Create worker server
 	workerServer, err := server.NewWorkerServer(workerID, monitor)

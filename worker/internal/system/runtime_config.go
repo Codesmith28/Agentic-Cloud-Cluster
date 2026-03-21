@@ -10,6 +10,7 @@ import (
 
 const (
 	workerPortEnv           = "WORKER_PORT"
+	workerMetricsPortEnv    = "WORKER_METRICS_PORT"
 	workerBindIPEnv         = "WORKER_BIND_IP"
 	workerTotalCPUEnv       = "WORKER_TOTAL_CPU"
 	workerTotalMemoryGBEnv  = "WORKER_TOTAL_MEMORY_GB"
@@ -27,6 +28,18 @@ func ResolveWorkerPort(defaultPort int) (int, error) {
 	}
 
 	return FindAvailablePort(defaultPort)
+}
+
+// ResolveWorkerMetricsPort resolves the worker metrics HTTP port from environment or defaults to a fixed port.
+func ResolveWorkerMetricsPort(defaultPort int) (int, error) {
+	if raw := strings.TrimSpace(os.Getenv(workerMetricsPortEnv)); raw != "" {
+		parsed, err := parsePort(raw)
+		if err != nil {
+			return 0, fmt.Errorf("invalid %s value %q: %w", workerMetricsPortEnv, raw, err)
+		}
+		return parsed, nil
+	}
+	return defaultPort, nil
 }
 
 // ResolveWorkerBindIP resolves worker bind IP from environment or uses the detected default.
