@@ -1,4 +1,4 @@
-.PHONY: help all proto master worker clean setup test testbench-up testbench-register testbench-workload testbench-suite testbench-down
+.PHONY: help all proto master worker clean setup test test-unit test-unit-verbose testbench-up testbench-register testbench-workload testbench-suite testbench-down
 
 # Default target
 help:
@@ -12,6 +12,8 @@ help:
 	@echo "  make setup        - Complete setup (proto + symlinks + deps)"
 	@echo "  make clean        - Clean generated files and binaries"
 	@echo "  make test         - Run basic connectivity tests"
+	@echo "  make test-unit    - Run Go unit tests (all packages)"
+	@echo "  make test-unit-verbose - Run Go unit tests with verbose output"
 	@echo "  make testbench-up - Build and start Docker testbench stack"
 	@echo "  make testbench-register - Register testbench workers with master"
 	@echo "  make testbench-workload - Submit default workload and wait for completion"
@@ -83,6 +85,20 @@ test:
 	@echo "Checking Go version..."
 	@go version
 	@echo "Checking Docker..."
+
+# Run Go unit test suite
+test-unit:
+	@echo "🧪 Running Go unit tests..."
+	cd master && go test ./... -count=1 -timeout 120s
+	cd worker && go test ./... -count=1 -timeout 120s
+	@echo "✅ All unit tests passed"
+
+# Run Go unit tests with verbose output
+test-unit-verbose:
+	@echo "🧪 Running Go unit tests (verbose)..."
+	cd master && go test ./... -v -count=1 -timeout 120s
+	cd worker && go test ./... -v -count=1 -timeout 120s
+	@echo "✅ All unit tests passed"
 	@docker version --format '{{.Server.Version}}'
 	@echo "Checking protoc..."
 	@protoc --version
