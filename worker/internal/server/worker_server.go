@@ -103,7 +103,6 @@ func (s *WorkerServer) registerWithMaster() {
 			TotalCPU:     4.0,
 			TotalMemory:  8.0,
 			TotalStorage: 100.0,
-			TotalGPU:     0.0,
 		}
 	}
 
@@ -112,7 +111,6 @@ func (s *WorkerServer) registerWithMaster() {
 	log.Printf("  CPU:     %.2f cores", resources.TotalCPU)
 	log.Printf("  Memory:  %.2f GB", resources.TotalMemory)
 	log.Printf("  Storage: %.2f GB", resources.TotalStorage)
-	log.Printf("  GPU:     %.2f cores", resources.TotalGPU)
 
 	workerInfo := &pb.WorkerInfo{
 		WorkerId:     s.workerID,
@@ -120,7 +118,6 @@ func (s *WorkerServer) registerWithMaster() {
 		TotalCpu:     resources.TotalCPU,
 		TotalMemory:  resources.TotalMemory,
 		TotalStorage: resources.TotalStorage,
-		TotalGpu:     resources.TotalGPU,
 	}
 
 	ack, err := client.RegisterWorker(ctx, workerInfo)
@@ -163,14 +160,13 @@ func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	log.Printf("    • CPU Cores:     %.2f cores", task.ReqCpu)
 	log.Printf("    • Memory:        %.2f GB", task.ReqMemory)
 	log.Printf("    • Storage:       %.2f GB", task.ReqStorage)
-	log.Printf("    • GPU Cores:     %.2f cores", task.ReqGpu)
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Printf("  ✓ Task accepted - Starting execution...")
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("")
 
 	// Add task to monitoring
-	s.monitor.AddTask(task.TaskId, task.ReqCpu, task.ReqMemory, task.ReqGpu)
+	s.monitor.AddTask(task.TaskId, task.ReqCpu, task.ReqMemory)
 
 	// Execute task in background with a fresh context (not tied to RPC timeout)
 	go s.executeTask(task)
@@ -188,7 +184,7 @@ func (s *WorkerServer) executeTask(task *pb.Task) {
 
 	// Execute the task with resource constraints
 	result := s.executor.ExecuteTask(ctx, task.TaskId, task.DockerImage, task.Command,
-		task.ReqCpu, task.ReqMemory, task.ReqGpu)
+		task.ReqCpu, task.ReqMemory)
 
 	// Remove from monitoring
 	s.monitor.RemoveTask(task.TaskId)

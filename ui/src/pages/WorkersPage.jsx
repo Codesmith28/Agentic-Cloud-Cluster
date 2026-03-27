@@ -74,7 +74,6 @@ const WorkersPage = () => {
             is_active: telemetry.is_active,
             cpu_usage: telemetry.cpu_usage,
             memory_usage: telemetry.memory_usage,
-            gpu_usage: telemetry.gpu_usage,
             running_tasks_count: telemetry.running_tasks?.length || 0,
             last_update: telemetry.last_update,
             // Update resource allocations from telemetry
@@ -82,19 +81,16 @@ const WorkersPage = () => {
               cpu: telemetry.total_resources?.cpu || existingWorker.total_resources?.cpu || 0,
               memory: telemetry.total_resources?.memory || existingWorker.total_resources?.memory || 0,
               storage: telemetry.total_resources?.storage || existingWorker.total_resources?.storage || 0,
-              gpu: telemetry.total_resources?.gpu || existingWorker.total_resources?.gpu || 0,
             },
             allocated_resources: {
               cpu: telemetry.allocated_resources?.cpu || existingWorker.allocated_resources?.cpu || 0,
               memory: telemetry.allocated_resources?.memory || existingWorker.allocated_resources?.memory || 0,
               storage: telemetry.allocated_resources?.storage || existingWorker.allocated_resources?.storage || 0,
-              gpu: telemetry.allocated_resources?.gpu || existingWorker.allocated_resources?.gpu || 0,
             },
             available_resources: {
               cpu: telemetry.available_resources?.cpu || existingWorker.available_resources?.cpu || 0,
               memory: telemetry.available_resources?.memory || existingWorker.available_resources?.memory || 0,
               storage: telemetry.available_resources?.storage || existingWorker.available_resources?.storage || 0,
-              gpu: telemetry.available_resources?.gpu || existingWorker.available_resources?.gpu || 0,
             },
           });
         } else {
@@ -105,25 +101,21 @@ const WorkersPage = () => {
             is_active: telemetry.is_active,
             cpu_usage: telemetry.cpu_usage,
             memory_usage: telemetry.memory_usage,
-            gpu_usage: telemetry.gpu_usage,
             running_tasks_count: telemetry.running_tasks?.length || 0,
             total_resources: {
               cpu: telemetry.total_resources?.cpu || 0,
               memory: telemetry.total_resources?.memory || 0,
               storage: telemetry.total_resources?.storage || 0,
-              gpu: telemetry.total_resources?.gpu || 0,
             },
             allocated_resources: {
               cpu: telemetry.allocated_resources?.cpu || 0,
               memory: telemetry.allocated_resources?.memory || 0,
               storage: telemetry.allocated_resources?.storage || 0,
-              gpu: telemetry.allocated_resources?.gpu || 0,
             },
             available_resources: {
               cpu: telemetry.available_resources?.cpu || 0,
               memory: telemetry.available_resources?.memory || 0,
               storage: telemetry.available_resources?.storage || 0,
-              gpu: telemetry.available_resources?.gpu || 0,
             },
           });
         }
@@ -207,14 +199,13 @@ const WorkersPage = () => {
               <TableCell>Status</TableCell>
               <TableCell>CPU</TableCell>
               <TableCell>Memory</TableCell>
-              <TableCell>GPU</TableCell>
               <TableCell>Storage</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {workers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center">
+                <TableCell colSpan={6} align="center">
                   No workers found
                 </TableCell>
               </TableRow>
@@ -269,13 +260,6 @@ const WorkersPage = () => {
                           sx={{ mt: 0.5 }}
                         />
                       </Box>
-                    </TableCell>
-                    <TableCell>
-                      {worker.total_resources?.gpu > 0 ? (
-                        `${worker.allocated_resources?.gpu || 0} / ${worker.total_resources?.gpu}`
-                      ) : (
-                        'N/A'
-                      )}
                     </TableCell>
                     <TableCell>
                       {formatGB(worker.total_resources?.storage || 0)}

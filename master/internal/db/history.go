@@ -20,7 +20,7 @@ import (
 type TaskHistory struct {
 	TaskID        string    `bson:"task_id"`
 	WorkerID      string    `bson:"worker_id"`
-	Type          string    `bson:"type"`           // Must be one of: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed
+	Type          string    `bson:"type"`           // Must be one of: cpu-light, cpu-heavy, memory-heavy, mixed
 	ArrivalTime   time.Time `bson:"arrival_time"`   // When task was submitted
 	Deadline      time.Time `bson:"deadline"`       // Computed SLA deadline
 	ActualStart   time.Time `bson:"actual_start"`   // When task started executing
@@ -29,7 +29,6 @@ type TaskHistory struct {
 	SLASuccess    bool      `bson:"sla_success"`    // Whether task met SLA deadline
 	CPUUsed       float64   `bson:"cpu_used"`       // CPU cores allocated
 	MemUsed       float64   `bson:"mem_used"`       // Memory GB allocated
-	GPUUsed       float64   `bson:"gpu_used"`       // GPU cores allocated
 	StorageUsed   float64   `bson:"storage_used"`   // Storage GB allocated
 	LoadAtStart   float64   `bson:"load_at_start"`  // Worker load when task started
 	Tau           float64   `bson:"tau"`            // Expected runtime (baseline)
@@ -39,18 +38,18 @@ type TaskHistory struct {
 // WorkerStats represents aggregated statistics for a worker over a time period
 // Used for penalty vector computation and worker performance analysis
 type WorkerStats struct {
-	WorkerID      string    `bson:"worker_id"`
-	TasksRun      int       `bson:"tasks_run"`      // Total tasks executed
-	SLAViolations int       `bson:"sla_violations"` // Number of missed deadlines
-	TotalRuntime  float64   `bson:"total_runtime"`  // Sum of all task runtimes (seconds)
-	CPUUsedTotal  float64   `bson:"cpu_used_total"` // Sum of CPU-seconds
-	MemUsedTotal  float64   `bson:"mem_used_total"` // Sum of Memory-GB-seconds
-	GPUUsedTotal  float64   `bson:"gpu_used_total"` // Sum of GPU-seconds
-	OverloadTime  float64   `bson:"overload_time"`  // Time spent in high-load state (seconds)
-	TotalTime     float64   `bson:"total_time"`     // Total observation period (seconds)
-	AvgLoad       float64   `bson:"avg_load"`       // Average normalized load
-	PeriodStart   time.Time `bson:"period_start"`   // Start of observation period
-	PeriodEnd     time.Time `bson:"period_end"`     // End of observation period
+	WorkerID         string    `bson:"worker_id"`
+	TasksRun         int       `bson:"tasks_run"`          // Total tasks executed
+	SLAViolations    int       `bson:"sla_violations"`     // Number of missed deadlines
+	TotalRuntime     float64   `bson:"total_runtime"`      // Sum of all task runtimes (seconds)
+	CPUUsedTotal     float64   `bson:"cpu_used_total"`     // Sum of CPU-seconds
+	MemUsedTotal     float64   `bson:"mem_used_total"`     // Sum of Memory-GB-seconds
+	StorageUsedTotal float64   `bson:"storage_used_total"` // Sum of Storage-GB-seconds
+	OverloadTime     float64   `bson:"overload_time"`      // Time spent in high-load state (seconds)
+	TotalTime        float64   `bson:"total_time"`         // Total observation period (seconds)
+	AvgLoad          float64   `bson:"avg_load"`           // Average normalized load
+	PeriodStart      time.Time `bson:"period_start"`       // Start of observation period
+	PeriodEnd        time.Time `bson:"period_end"`         // End of observation period
 }
 
 // HistoryDB handles historical telemetry data operations
@@ -92,7 +91,7 @@ func (db *HistoryDB) Close(ctx context.Context) error {
 
 // GetTaskHistory retrieves enriched task history by joining TASKS, ASSIGNMENTS, and RESULTS
 // Filters tasks completed between 'since' and 'until' timestamps
-// Returns only tasks with valid task types (one of the 6 standardized types)
+// Returns only tasks with valid task types (one of the standardized CPU/memory/storage types)
 func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until time.Time) ([]TaskHistory, error) {
 	// DEBUG: Log the query parameters
 	log.Printf("🔍 DEBUG: Querying TASKS collection for completed_at between %s and %s", since.Format(time.RFC3339), until.Format(time.RFC3339))
@@ -100,8 +99,6 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 	cpuLightTau := telemetry.DefaultTauForTaskType(telemetry.TaskTypeCPULight)
 	cpuHeavyTau := telemetry.DefaultTauForTaskType(telemetry.TaskTypeCPUHeavy)
 	memoryHeavyTau := telemetry.DefaultTauForTaskType(telemetry.TaskTypeMemoryHeavy)
-	gpuInferenceTau := telemetry.DefaultTauForTaskType(telemetry.TaskTypeGPUInference)
-	gpuTrainingTau := telemetry.DefaultTauForTaskType(telemetry.TaskTypeGPUTraining)
 	mixedTau := telemetry.DefaultTauForTaskType(telemetry.TaskTypeMixed)
 
 	// MongoDB aggregation pipeline to join collections
@@ -110,19 +107,9 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 		{
 			{Key: "$addFields", Value: bson.D{
 				{Key: "computed_type", Value: bson.D{
-					{Key: "$cond", Value: bson.D{
-						{Key: "if", Value: bson.D{{Key: "$eq", Value: bson.A{
-							bson.D{{Key: "$ifNull", Value: bson.A{
-								"$task_type", // Primary: task_type field (CLI/API)
-								"$tag",       // Fallback: tag field (GUI)
-							}}},
-							"gpu-heavy", // Legacy value
-						}}}},
-						{Key: "then", Value: "gpu-inference"},
-						{Key: "else", Value: bson.D{{Key: "$ifNull", Value: bson.A{
-							"$task_type",
-							"$tag",
-						}}}},
+					{Key: "$ifNull", Value: bson.A{
+						"$task_type", // Primary: task_type field (CLI/API)
+						"$tag",       // Fallback: tag field (GUI)
 					}},
 				}},
 				{Key: "computed_arrival", Value: bson.D{
@@ -219,10 +206,6 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 											{Key: "then", Value: 30.0},
 										},
 										bson.D{
-											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-inference"}}}},
-											{Key: "then", Value: 45.0},
-										},
-										bson.D{
 											{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "mixed"}}}},
 											{Key: "then", Value: 20.0},
 										},
@@ -274,14 +257,6 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 												{Key: "then", Value: memoryHeavyTau},
 											},
 											bson.D{
-												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-inference"}}}},
-												{Key: "then", Value: gpuInferenceTau},
-											},
-											bson.D{
-												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-training"}}}},
-												{Key: "then", Value: gpuTrainingTau},
-											},
-											bson.D{
 												{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "mixed"}}}},
 												{Key: "then", Value: mixedTau},
 											},
@@ -296,7 +271,6 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 				}},
 				{Key: "cpu_used", Value: "$req_cpu"},
 				{Key: "mem_used", Value: "$req_memory"},
-				{Key: "gpu_used", Value: "$req_gpu"},
 				{Key: "storage_used", Value: "$req_storage"},
 				{Key: "load_at_start", Value: bson.D{
 					{Key: "$ifNull", Value: bson.A{"$assignment.load_at_start", 0.0}},
@@ -318,14 +292,6 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 								bson.D{
 									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "memory-heavy"}}}},
 									{Key: "then", Value: memoryHeavyTau},
-								},
-								bson.D{
-									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-inference"}}}},
-									{Key: "then", Value: gpuInferenceTau},
-								},
-								bson.D{
-									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "gpu-training"}}}},
-									{Key: "then", Value: gpuTrainingTau},
 								},
 								bson.D{
 									{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$computed_type", "mixed"}}}},
@@ -354,8 +320,7 @@ func (db *HistoryDB) GetTaskHistory(ctx context.Context, since time.Time, until 
 			{Key: "$match", Value: bson.D{
 				{Key: "type", Value: bson.D{
 					{Key: "$in", Value: bson.A{
-						"cpu-light", "cpu-heavy", "memory-heavy",
-						"gpu-inference", "gpu-training", "mixed",
+						"cpu-light", "cpu-heavy", "memory-heavy", "mixed",
 					}},
 				}},
 			}},
@@ -405,18 +370,18 @@ func (db *HistoryDB) GetWorkerStats(ctx context.Context, since time.Time, until 
 	for _, task := range history {
 		if _, exists := statsMap[task.WorkerID]; !exists {
 			statsMap[task.WorkerID] = &WorkerStats{
-				WorkerID:      task.WorkerID,
-				TasksRun:      0,
-				SLAViolations: 0,
-				TotalRuntime:  0,
-				CPUUsedTotal:  0,
-				MemUsedTotal:  0,
-				GPUUsedTotal:  0,
-				OverloadTime:  0,
-				TotalTime:     until.Sub(since).Seconds(),
-				AvgLoad:       0,
-				PeriodStart:   since,
-				PeriodEnd:     until,
+				WorkerID:         task.WorkerID,
+				TasksRun:         0,
+				SLAViolations:    0,
+				TotalRuntime:     0,
+				CPUUsedTotal:     0,
+				MemUsedTotal:     0,
+				StorageUsedTotal: 0,
+				OverloadTime:     0,
+				TotalTime:        until.Sub(since).Seconds(),
+				AvgLoad:          0,
+				PeriodStart:      since,
+				PeriodEnd:        until,
 			}
 		}
 
@@ -430,7 +395,7 @@ func (db *HistoryDB) GetWorkerStats(ctx context.Context, since time.Time, until 
 		stats.TotalRuntime += task.ActualRuntime
 		stats.CPUUsedTotal += task.CPUUsed * task.ActualRuntime
 		stats.MemUsedTotal += task.MemUsed * task.ActualRuntime
-		stats.GPUUsedTotal += task.GPUUsed * task.ActualRuntime
+		stats.StorageUsedTotal += task.StorageUsed * task.ActualRuntime
 
 		// Count overload time (when load > 0.8)
 		if task.LoadAtStart > 0.8 {
@@ -462,12 +427,11 @@ func (db *HistoryDB) GetWorkerStats(ctx context.Context, since time.Time, until 
 func (db *HistoryDB) GetTaskHistoryByType(ctx context.Context, taskType string, since time.Time, until time.Time) ([]TaskHistory, error) {
 	// Validate task type
 	validTypes := map[string]bool{
-		"cpu-light": true, "cpu-heavy": true, "memory-heavy": true,
-		"gpu-inference": true, "gpu-training": true, "mixed": true,
+		"cpu-light": true, "cpu-heavy": true, "memory-heavy": true, "mixed": true,
 	}
 
 	if !validTypes[taskType] {
-		return nil, fmt.Errorf("invalid task type: %s (must be one of: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed)", taskType)
+		return nil, fmt.Errorf("invalid task type: %s (must be one of: cpu-light, cpu-heavy, memory-heavy, mixed)", taskType)
 	}
 
 	// Get all history first
@@ -502,18 +466,18 @@ func (db *HistoryDB) GetWorkerStatsForWorker(ctx context.Context, workerID strin
 
 	// Worker has no tasks in this period
 	return &WorkerStats{
-		WorkerID:      workerID,
-		TasksRun:      0,
-		SLAViolations: 0,
-		TotalRuntime:  0,
-		CPUUsedTotal:  0,
-		MemUsedTotal:  0,
-		GPUUsedTotal:  0,
-		OverloadTime:  0,
-		TotalTime:     until.Sub(since).Seconds(),
-		AvgLoad:       0,
-		PeriodStart:   since,
-		PeriodEnd:     until,
+		WorkerID:         workerID,
+		TasksRun:         0,
+		SLAViolations:    0,
+		TotalRuntime:     0,
+		CPUUsedTotal:     0,
+		MemUsedTotal:     0,
+		StorageUsedTotal: 0,
+		OverloadTime:     0,
+		TotalTime:        until.Sub(since).Seconds(),
+		AvgLoad:          0,
+		PeriodStart:      since,
+		PeriodEnd:        until,
 	}, nil
 }
 

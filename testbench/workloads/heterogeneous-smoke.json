@@ -8,7 +8,6 @@
       "cpu_required": 0.5,
       "memory_required": 0.25,
       "storage_required": 1,
-      "gpu_required": 0,
       "tag": "cpu-light",
       "k_value": 2.0
     },
@@ -18,7 +17,6 @@
       "cpu_required": 1.0,
       "memory_required": 0.5,
       "storage_required": 1,
-      "gpu_required": 0,
       "tag": "cpu-heavy",
       "k_value": 2.0
     },
@@ -28,7 +26,6 @@
       "cpu_required": 0.7,
       "memory_required": 1.0,
       "storage_required": 2,
-      "gpu_required": 0,
       "tag": "memory-heavy",
       "k_value": 2.0
     },
@@ -38,7 +35,6 @@
       "cpu_required": 1.2,
       "memory_required": 1.2,
       "storage_required": 2,
-      "gpu_required": 0,
       "tag": "mixed",
       "k_value": 2.0
     },
@@ -48,7 +44,6 @@
       "cpu_required": 0.4,
       "memory_required": 0.25,
       "storage_required": 1,
-      "gpu_required": 0,
       "tag": "cpu-light",
       "k_value": 2.0
     },
@@ -58,7 +53,6 @@
       "cpu_required": 1.5,
       "memory_required": 0.75,
       "storage_required": 1,
-      "gpu_required": 0,
       "tag": "cpu-heavy",
       "k_value": 2.0
     },
@@ -68,7 +62,6 @@
       "cpu_required": 0.8,
       "memory_required": 1.5,
       "storage_required": 3,
-      "gpu_required": 0,
       "tag": "memory-heavy",
       "k_value": 2.0
     },
@@ -78,7 +71,6 @@
       "cpu_required": 1.6,
       "memory_required": 1.0,
       "storage_required": 2,
-      "gpu_required": 0,
       "tag": "mixed",
       "k_value": 2.0
     },
@@ -88,7 +80,6 @@
       "cpu_required": 0.5,
       "memory_required": 0.25,
       "storage_required": 1,
-      "gpu_required": 0,
       "tag": "cpu-light",
       "k_value": 2.0
     },
@@ -98,7 +89,6 @@
       "cpu_required": 2.0,
       "memory_required": 1.25,
       "storage_required": 2,
-      "gpu_required": 0,
       "tag": "cpu-heavy",
       "k_value": 2.0
     }

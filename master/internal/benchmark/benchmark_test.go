@@ -47,7 +47,7 @@ func TestAvailableProfilesIncludesCoreProfiles(t *testing.T) {
 	required := map[string]bool{
 		ProfileShowcase: false,
 		ProfileSteady:   false,
-		ProfileGPUSpike: false,
+		ProfileBursty:   false,
 	}
 	for _, profile := range profiles {
 		if _, ok := required[profile]; ok {

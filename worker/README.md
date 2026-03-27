@@ -63,7 +63,6 @@ Worker Node
 | `WORKER_TOTAL_CPU` | Override advertised CPU cores | `2.0` |
 | `WORKER_TOTAL_MEMORY_GB` | Override advertised memory (GB) | `3` |
 | `WORKER_TOTAL_STORAGE_GB` | Override advertised storage (GB) | `40` |
-| `WORKER_TOTAL_GPU_CORES` | Override advertised GPU cores | `0` |
 
 These overrides make it easy to emulate heterogeneous worker capacity in a Docker testbench.
 
@@ -189,7 +188,6 @@ The worker automatically:
 ## Future Enhancements
 
 - [ ] Parallel task execution
-- [ ] GPU support
 - [ ] Resource limits per container
 - [ ] Container networking configuration
 - [ ] Volume mounting for shared storage

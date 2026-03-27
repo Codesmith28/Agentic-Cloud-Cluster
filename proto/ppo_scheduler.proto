@@ -1,4 +1,4 @@
-psyntax = "proto3";
+syntax = "proto3";
 
 package ppo;
 
@@ -38,16 +38,13 @@ message CandidateWorker {
   double available_cpu = 4;
   double available_memory = 5;
   double available_storage = 6;
-  double available_gpu = 7;
 
-  double total_cpu = 8;
-  double total_memory = 9;
-  double total_storage = 10;
-  double total_gpu = 11;
+  double total_cpu = 7;
+  double total_memory = 8;
+  double total_storage = 9;
 
-  double current_cpu_usage = 12;
-  double current_memory_usage = 13;
-  double current_gpu_usage = 14;
+  double current_cpu_usage = 10;
+  double current_memory_usage = 11;
 }
 
 message SelectWorkerRequest {

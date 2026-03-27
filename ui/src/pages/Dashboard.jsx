@@ -99,9 +99,8 @@ const Dashboard = () => {
           (acc, task) => ({
             cpu: acc.cpu + safeNumber(task.cpu_allocated),
             memory: acc.memory + safeNumber(task.memory_allocated),
-            gpu: acc.gpu + safeNumber(task.gpu_allocated),
           }),
-          { cpu: 0, memory: 0, gpu: 0 }
+          { cpu: 0, memory: 0 }
         );
 
         const totalResources = {
@@ -114,7 +113,6 @@ const Dashboard = () => {
             telemetry.total_resources?.storage,
             safeNumber(existingWorker.total_resources?.storage)
           ),
-          gpu: safeNumber(telemetry.total_resources?.gpu, safeNumber(existingWorker.total_resources?.gpu)),
         };
 
         const allocatedResources = {
@@ -134,19 +132,12 @@ const Dashboard = () => {
             telemetry.allocated_resources?.storage,
             safeNumber(existingWorker.allocated_resources?.storage)
           ),
-          gpu: safeNumber(
-            telemetry.allocated_resources?.gpu,
-            runningTasks.length > 0
-              ? inferredAllocated.gpu
-              : safeNumber(existingWorker.allocated_resources?.gpu)
-          ),
         };
 
         const availableResources = {
           cpu: Math.max(0, totalResources.cpu - allocatedResources.cpu),
           memory: Math.max(0, totalResources.memory - allocatedResources.memory),
           storage: Math.max(0, totalResources.storage - allocatedResources.storage),
-          gpu: Math.max(0, totalResources.gpu - allocatedResources.gpu),
         };
 
         workerMap.set(workerId, {
@@ -157,7 +148,6 @@ const Dashboard = () => {
           is_active: Boolean(telemetry.is_active),
           cpu_usage: safeNumber(telemetry.cpu_usage),
           memory_usage: safeNumber(telemetry.memory_usage),
-          gpu_usage: safeNumber(telemetry.gpu_usage),
           running_tasks_count: runningTasks.length,
           total_resources: totalResources,
           allocated_resources: allocatedResources,
@@ -203,9 +193,8 @@ const Dashboard = () => {
         cpu: acc.cpu + safeNumber(worker.total_resources?.cpu),
         memory: acc.memory + safeNumber(worker.total_resources?.memory),
         storage: acc.storage + safeNumber(worker.total_resources?.storage),
-        gpu: acc.gpu + safeNumber(worker.total_resources?.gpu),
       }),
-      { cpu: 0, memory: 0, storage: 0, gpu: 0 }
+      { cpu: 0, memory: 0, storage: 0 }
     );
 
     const allocatedResources = workerStats.activeWorkers.reduce(
@@ -213,16 +202,14 @@ const Dashboard = () => {
         cpu: acc.cpu + safeNumber(worker.allocated_resources?.cpu),
         memory: acc.memory + safeNumber(worker.allocated_resources?.memory),
         storage: acc.storage + safeNumber(worker.allocated_resources?.storage),
-        gpu: acc.gpu + safeNumber(worker.allocated_resources?.gpu),
       }),
-      { cpu: 0, memory: 0, storage: 0, gpu: 0 }
+      { cpu: 0, memory: 0, storage: 0 }
     );
 
     const availableResources = {
       cpu: Math.max(0, totalResources.cpu - allocatedResources.cpu),
       memory: Math.max(0, totalResources.memory - allocatedResources.memory),
       storage: Math.max(0, totalResources.storage - allocatedResources.storage),
-      gpu: Math.max(0, totalResources.gpu - allocatedResources.gpu),
     };
 
     const usagePercents = [];
@@ -232,8 +219,8 @@ const Dashboard = () => {
     if (totalResources.memory > 0) {
       usagePercents.push((allocatedResources.memory / totalResources.memory) * 100);
     }
-    if (totalResources.gpu > 0) {
-      usagePercents.push((allocatedResources.gpu / totalResources.gpu) * 100);
+    if (totalResources.storage > 0) {
+      usagePercents.push((allocatedResources.storage / totalResources.storage) * 100);
     }
 
     return {
@@ -252,7 +239,7 @@ const Dashboard = () => {
       return {
         cpuPct: 0,
         memoryPct: 0,
-        gpuPct: 0,
+        storagePct: 0,
       };
     }
 
@@ -260,15 +247,15 @@ const Dashboard = () => {
       (acc, worker) => ({
         cpuPct: acc.cpuPct + normalizePercentage(worker.cpu_usage),
         memoryPct: acc.memoryPct + normalizePercentage(worker.memory_usage),
-        gpuPct: acc.gpuPct + normalizePercentage(worker.gpu_usage),
+        storagePct: acc.storagePct + (safeNumber(worker.total_resources?.storage) > 0 ? (safeNumber(worker.allocated_resources?.storage) / safeNumber(worker.total_resources?.storage, 1)) * 100 : 0),
       }),
-      { cpuPct: 0, memoryPct: 0, gpuPct: 0 }
+      { cpuPct: 0, memoryPct: 0, storagePct: 0 }
     );
 
     return {
       cpuPct: totals.cpuPct / workerStats.activeCount,
       memoryPct: totals.memoryPct / workerStats.activeCount,
-      gpuPct: totals.gpuPct / workerStats.activeCount,
+      storagePct: totals.storagePct / workerStats.activeCount,
     };
   }, [workerStats]);
 
@@ -296,7 +283,7 @@ const Dashboard = () => {
       failedTasks: taskStats.failedTasks,
       cpuUtilizationPct: aggregateUtilization.cpuPct,
       memoryUtilizationPct: aggregateUtilization.memoryPct,
-      gpuUtilizationPct: aggregateUtilization.gpuPct,
+      storageUtilizationPct: aggregateUtilization.storagePct,
       resourceSaturationPct: resourceStats.saturationPct,
       activeWorkers: workerStats.activeCount,
       totalWorkers: workerStats.totalWorkers,
@@ -366,9 +353,7 @@ const Dashboard = () => {
         normalizePercentage(worker.memory_usage),
       ];
 
-      if (safeNumber(worker.total_resources?.gpu) > 0) {
-        loadSignals.push(normalizePercentage(worker.gpu_usage));
-      }
+      loadSignals.push(safeNumber(worker.total_resources?.storage) > 0 ? (safeNumber(worker.allocated_resources?.storage) / safeNumber(worker.total_resources?.storage, 1)) * 100 : 0);
 
       return loadSignals.reduce((sum, value) => sum + value, 0) / loadSignals.length;
     };
@@ -511,7 +496,7 @@ const Dashboard = () => {
           <StatCard
             title="Cluster Saturation"
             value={`${resourceStats.saturationPct.toFixed(1)}%`}
-            subtitle="CPU, memory, GPU allocation blend"
+            subtitle="CPU, memory, storage allocation blend"
             color="#ed6c02"
           />
         </Grid>
@@ -550,16 +535,6 @@ const Dashboard = () => {
               available={resourceStats.availableResources.storage}
               unit="GB"
               color="#ed6c02"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <ResourceCard
-              title="GPU"
-              total={resourceStats.totalResources.gpu}
-              allocated={resourceStats.allocatedResources.gpu}
-              available={resourceStats.availableResources.gpu}
-              unit="cores"
-              color="#9c27b0"
             />
           </Grid>
         </Grid>
@@ -647,9 +622,9 @@ const Dashboard = () => {
                 />
                 <Line
                   type="monotone"
-                  dataKey="gpuUtilizationPct"
-                  name="GPU"
-                  stroke="#9c27b0"
+                  dataKey="storageUtilizationPct"
+                  name="Storage"
+                  stroke="#6a1b9a"
                   strokeWidth={2}
                   dot={false}
                   isAnimationActive={false}

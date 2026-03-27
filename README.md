@@ -29,7 +29,7 @@ CloudAI is a distributed computing platform for executing Docker-based workloads
 - **Adaptive Optimization** - AOD module trains scheduling parameters using historical data
 - **Task Queuing** - Automatic queuing when resources unavailable
 - **Task Cancellation** - Graceful and forceful termination
-- **Resource Tracking** - CPU, Memory, GPU, Storage
+- **Resource Tracking** - CPU, Memory, Storage
 - **File Storage** - Secure file upload/download for task outputs
 - **JWT Authentication** - User registration and login
 

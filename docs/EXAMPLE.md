@@ -78,7 +78,7 @@ Expected output:
 ║ my-laptop
 ║   Status: 🟢 Active
 ║   IP: 192.168.1.100:50052
-║   Resources: CPU=8.0, Memory=16.0GB, Storage=500.0GB, GPU=0.0
+║   Resources: CPU=8.0, Memory=16.0GB, Storage=500.0GB
 ║   Running Tasks: 0
 ╚═══════════════════════
 ```
@@ -138,7 +138,7 @@ master> task docker.io/library/ubuntu:latest -cpu_cores 1.0 -mem 0.5
     • CPU Cores:     1.00 cores
     • Memory:        0.50 GB
     • Storage:       1.00 GB
-    • GPU Cores:     0.00 cores
+    • Storage:       1.00 GB
 ═══════════════════════════════════════════════════════
 
 ✅ Task task-1730918400 assigned successfully!
@@ -157,7 +157,7 @@ master> task docker.io/library/ubuntu:latest -cpu_cores 1.0 -mem 0.5
     • CPU Cores:     1.00 cores
     • Memory:        0.50 GB
     • Storage:       1.00 GB
-    • GPU Cores:     0.00 cores
+    • Storage:       1.00 GB
 ═══════════════════════════════════════════════════════
   ✓ Task accepted - Starting execution...
 ═══════════════════════════════════════════════════════
@@ -229,9 +229,9 @@ master> task docker.io/library/python:3.9-slim -name cpu-test -cpu_cores 4.0 -me
 master> task docker.io/library/ubuntu:latest -name mem-test -cpu_cores 2.0 -mem 8.0
 ```
 
-### GPU Task
+### Storage-Heavy Task
 ```bash
-master> task docker.io/tensorflow/tensorflow:latest -name gpu-train -cpu_cores 4.0 -mem 8.0 -gpu_cores 1.0
+master> task docker.io/library/python:3.9-slim -name nightly-aggregation -cpu_cores 4.0 -mem 8.0 -storage 20.0
 ```
 
 ### Multiple Tasks (Scheduler Distributes)

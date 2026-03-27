@@ -111,13 +111,13 @@ Output:
 ║ worker-1
 ║   Status: 🟢 Active
 ║   IP: 192.168.1.100
-║   Resources: CPU=4.0, Memory=8.0GB, GPU=0.0
+║   Resources: CPU=4.0, Memory=8.0GB, Storage=100.0GB
 ║   Running Tasks: 1
 ║
 ║ worker-2
 ║   Status: 🟢 Active
 ║   IP: 192.168.1.101
-║   Resources: CPU=8.0, Memory=16.0GB, GPU=1.0
+║   Resources: CPU=8.0, Memory=16.0GB, Storage=250.0GB
 ║   Running Tasks: 0
 ╚═══════════════════════
 ```
@@ -138,7 +138,6 @@ master> task <docker_image> [options]
   - `-cpu_cores <num>`: CPU cores to allocate (default: 1.0)
   - `-mem <gb>`: Memory in GB (default: 0.5)
   - `-storage <gb>`: Storage in GB (default: 1.0)
-  - `-gpu_cores <num>`: GPU cores to allocate (default: 0.0)
 
 **Examples:**
 
@@ -147,7 +146,7 @@ master> task <docker_image> [options]
 master> task docker.io/username/sample-task:latest
 
 # Task with name and resource allocation
-master> task docker.io/username/gpu-task:latest -name ml-training -cpu_cores 4.0 -mem 8.0 -gpu_cores 1.0
+master> task docker.io/username/data-pipeline:latest -name daily-etl -cpu_cores 4.0 -mem 8.0 -storage 20.0
 ```
 
 ### dispatch

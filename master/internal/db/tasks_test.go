@@ -60,7 +60,6 @@ func TestTaskStructWithNewFields(t *testing.T) {
 		ReqCPU:      2.0,
 		ReqMemory:   4.0,
 		ReqStorage:  10.0,
-		ReqGPU:      0.0,
 		Tag:         "cpu-heavy",
 		KValue:      2.0,
 		Status:      "pending",
@@ -110,9 +109,7 @@ func TestTagValues(t *testing.T) {
 	validTags := []string{
 		"cpu-light",
 		"cpu-heavy",
-		"memory-light",
 		"memory-heavy",
-		"gpu-training",
 		"mixed",
 	}
 

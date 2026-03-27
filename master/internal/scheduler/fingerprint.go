@@ -14,7 +14,6 @@ type fingerprintWorker struct {
 	TotalCPU     float64 `json:"total_cpu"`
 	TotalMemory  float64 `json:"total_memory"`
 	TotalStorage float64 `json:"total_storage"`
-	TotalGPU     float64 `json:"total_gpu"`
 }
 
 type fingerprintPayload struct {
@@ -52,7 +51,6 @@ func BuildClusterFingerprint(workers map[string]*WorkerInfo) (string, string) {
 			TotalCPU:     w.TotalCPU,
 			TotalMemory:  w.TotalMemory,
 			TotalStorage: w.TotalStorage,
-			TotalGPU:     w.TotalGPU,
 		})
 	}
 

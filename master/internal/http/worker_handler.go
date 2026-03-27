@@ -73,25 +73,22 @@ func (h *WorkerAPIHandler) HandleListWorkers(w http.ResponseWriter, r *http.Requ
 				"cpu":     dbWorker.TotalCPU,
 				"memory":  dbWorker.TotalMemory,
 				"storage": dbWorker.TotalStorage,
-				"gpu":     dbWorker.TotalGPU,
 			},
 			"allocated_resources": map[string]interface{}{
 				"cpu":     dbWorker.AllocatedCPU,
 				"memory":  dbWorker.AllocatedMemory,
 				"storage": dbWorker.AllocatedStorage,
-				"gpu":     dbWorker.AllocatedGPU,
 			},
 			"available_resources": map[string]interface{}{
 				"cpu":     dbWorker.AvailableCPU,
 				"memory":  dbWorker.AvailableMemory,
 				"storage": dbWorker.AvailableStorage,
-				"gpu":     dbWorker.AvailableGPU,
 			},
 			"last_heartbeat":      dbWorker.LastHeartbeat,
 			"registered_at":       dbWorker.RegisteredAt.Unix(),
 			"cpu_usage":           0.0,
 			"memory_usage":        0.0,
-			"gpu_usage":           0.0,
+			"storage_usage":       0.0,
 			"running_tasks_count": 0,
 		}
 	}
@@ -103,7 +100,7 @@ func (h *WorkerAPIHandler) HandleListWorkers(w http.ResponseWriter, r *http.Requ
 			existingWorker["is_active"] = telemetry.IsActive
 			existingWorker["cpu_usage"] = telemetry.CpuUsage
 			existingWorker["memory_usage"] = telemetry.MemoryUsage
-			existingWorker["gpu_usage"] = telemetry.GpuUsage
+			existingWorker["storage_usage"] = telemetry.StorageUsage
 			existingWorker["running_tasks_count"] = len(telemetry.RunningTasks)
 			existingWorker["last_update"] = telemetry.LastUpdate
 		} else {
@@ -113,20 +110,18 @@ func (h *WorkerAPIHandler) HandleListWorkers(w http.ResponseWriter, r *http.Requ
 				"is_active":           telemetry.IsActive,
 				"cpu_usage":           telemetry.CpuUsage,
 				"memory_usage":        telemetry.MemoryUsage,
-				"gpu_usage":           telemetry.GpuUsage,
+				"storage_usage":       telemetry.StorageUsage,
 				"running_tasks_count": len(telemetry.RunningTasks),
 				"last_update":         telemetry.LastUpdate,
 				"total_resources": map[string]interface{}{
 					"cpu":     0.0,
 					"memory":  0.0,
 					"storage": 0.0,
-					"gpu":     0.0,
 				},
 				"allocated_resources": map[string]interface{}{
 					"cpu":     0.0,
 					"memory":  0.0,
 					"storage": 0.0,
-					"gpu":     0.0,
 				},
 			}
 		}
@@ -189,7 +184,6 @@ func (h *WorkerAPIHandler) HandleGetWorker(w http.ResponseWriter, r *http.Reques
 				"total_cpu":      worker.TotalCPU,
 				"total_memory":   worker.TotalMemory,
 				"total_storage":  worker.TotalStorage,
-				"total_gpu":      worker.TotalGPU,
 				"registered_at":  worker.RegisteredAt.Unix(),
 				"last_heartbeat": worker.LastHeartbeat,
 			}
@@ -203,7 +197,6 @@ func (h *WorkerAPIHandler) HandleGetWorker(w http.ResponseWriter, r *http.Reques
 			"task_id":          task.TaskId,
 			"cpu_allocated":    task.CpuAllocated,
 			"memory_allocated": task.MemoryAllocated,
-			"gpu_allocated":    task.GpuAllocated,
 			"status":           task.Status,
 		})
 	}
@@ -213,7 +206,7 @@ func (h *WorkerAPIHandler) HandleGetWorker(w http.ResponseWriter, r *http.Reques
 		"is_active":     telemetryData.IsActive,
 		"cpu_usage":     telemetryData.CpuUsage,
 		"memory_usage":  telemetryData.MemoryUsage,
-		"gpu_usage":     telemetryData.GpuUsage,
+		"storage_usage": telemetryData.StorageUsage,
 		"running_tasks": runningTasks,
 		"last_update":   telemetryData.LastUpdate,
 		"worker_info":   workerInfo,
@@ -280,13 +273,13 @@ func (h *WorkerAPIHandler) HandleGetWorkerMetrics(w http.ResponseWriter, r *http
 	}
 
 	response := map[string]interface{}{
-		"worker_id":    workerID,
-		"cpu_usage":    telemetryData.CpuUsage,
-		"memory_usage": telemetryData.MemoryUsage,
-		"gpu_usage":    telemetryData.GpuUsage,
-		"is_active":    telemetryData.IsActive,
-		"last_update":  telemetryData.LastUpdate,
-		"timestamp":    telemetryData.LastUpdate,
+		"worker_id":     workerID,
+		"cpu_usage":     telemetryData.CpuUsage,
+		"memory_usage":  telemetryData.MemoryUsage,
+		"storage_usage": telemetryData.StorageUsage,
+		"is_active":     telemetryData.IsActive,
+		"last_update":   telemetryData.LastUpdate,
+		"timestamp":     telemetryData.LastUpdate,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

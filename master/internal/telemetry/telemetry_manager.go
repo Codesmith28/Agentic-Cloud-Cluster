@@ -14,7 +14,7 @@ type WorkerTelemetryData struct {
 	WorkerID     string
 	CpuUsage     float64
 	MemoryUsage  float64
-	GpuUsage     float64
+	StorageUsage float64
 	RunningTasks []*pb.RunningTask
 	LastUpdate   int64
 	IsActive     bool
@@ -195,7 +195,7 @@ func (tm *TelemetryManager) updateWorkerTelemetry(hb *pb.Heartbeat) {
 	// Update telemetry data
 	data.CpuUsage = hb.CpuUsage
 	data.MemoryUsage = hb.MemoryUsage
-	data.GpuUsage = hb.GpuUsage
+	data.StorageUsage = hb.StorageUsage
 	data.RunningTasks = hb.RunningTasks
 	data.LastUpdate = time.Now().Unix()
 	data.IsActive = true
@@ -222,7 +222,7 @@ func (tm *TelemetryManager) GetWorkerTelemetry(workerID string) (*WorkerTelemetr
 		WorkerID:     data.WorkerID,
 		CpuUsage:     data.CpuUsage,
 		MemoryUsage:  data.MemoryUsage,
-		GpuUsage:     data.GpuUsage,
+		StorageUsage: data.StorageUsage,
 		RunningTasks: make([]*pb.RunningTask, len(data.RunningTasks)),
 		LastUpdate:   data.LastUpdate,
 		IsActive:     data.IsActive,
@@ -244,7 +244,7 @@ func (tm *TelemetryManager) GetAllWorkerTelemetry() map[string]*WorkerTelemetryD
 			WorkerID:     data.WorkerID,
 			CpuUsage:     data.CpuUsage,
 			MemoryUsage:  data.MemoryUsage,
-			GpuUsage:     data.GpuUsage,
+			StorageUsage: data.StorageUsage,
 			RunningTasks: make([]*pb.RunningTask, len(data.RunningTasks)),
 			LastUpdate:   data.LastUpdate,
 			IsActive:     data.IsActive,

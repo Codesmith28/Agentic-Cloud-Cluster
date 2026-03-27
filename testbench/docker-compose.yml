@@ -78,7 +78,6 @@ services:
       WORKER_TOTAL_CPU: "1.0"
       WORKER_TOTAL_MEMORY_GB: "1.5"
       WORKER_TOTAL_STORAGE_GB: "20"
-      WORKER_TOTAL_GPU_CORES: "0"
       DOCKER_HOST: tcp://worker-small-dind:2375
     volumes:
       - worker-small-state:/var/lib/cloudai/worker
@@ -126,7 +125,6 @@ services:
       WORKER_TOTAL_CPU: "2.0"
       WORKER_TOTAL_MEMORY_GB: "3"
       WORKER_TOTAL_STORAGE_GB: "40"
-      WORKER_TOTAL_GPU_CORES: "0"
       DOCKER_HOST: tcp://worker-medium-dind:2375
     volumes:
       - worker-medium-state:/var/lib/cloudai/worker
@@ -174,7 +172,6 @@ services:
       WORKER_TOTAL_CPU: "3.0"
       WORKER_TOTAL_MEMORY_GB: "5"
       WORKER_TOTAL_STORAGE_GB: "80"
-      WORKER_TOTAL_GPU_CORES: "0"
       DOCKER_HOST: tcp://worker-large-dind:2375
     volumes:
       - worker-large-state:/var/lib/cloudai/worker

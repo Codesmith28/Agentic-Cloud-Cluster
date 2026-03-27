@@ -236,7 +236,7 @@ Output:
 ║ hostname-abc123
 ║   Status: 🟢 Active
 ║   IP: 192.168.1.100:50052
-║   Resources: CPU=8.0, Memory=16.0GB, Storage=500.0GB, GPU=0.0
+║   Resources: CPU=8.0, Memory=16.0GB, Storage=500.0GB
 ║   Running Tasks: 0
 ║   Last Heartbeat: 2s ago
 ╚═══════════════════════

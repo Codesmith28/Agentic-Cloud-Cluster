@@ -23,14 +23,13 @@ type Task struct {
 	ReqCPU      float64 `bson:"req_cpu"`
 	ReqMemory   float64 `bson:"req_memory"`
 	ReqStorage  float64 `bson:"req_storage"`
-	ReqGPU      float64 `bson:"req_gpu"`
 
 	// GUI fields: generic tagging
 	Tag    string  `bson:"tag,omitempty"`     // Generic tag field from GUI
 	KValue float64 `bson:"k_value,omitempty"` // K-value from GUI (same as SLAMultiplier)
 
 	// Scheduler fields: SLA and task classification
-	TaskType      string    `bson:"task_type,omitempty"` // Task type: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed
+	TaskType      string    `bson:"task_type,omitempty"` // Task type: cpu-light, cpu-heavy, memory-heavy, mixed
 	SLAMultiplier float64   `bson:"sla_multiplier"`      // k value: 1.5-2.5, default: 2.0 (prioritized over KValue if both set)
 	Deadline      time.Time `bson:"deadline,omitempty"`  // SLA deadline: arrival_time + k * tau
 	Tau           float64   `bson:"tau,omitempty"`       // Expected runtime baseline (seconds)
@@ -229,12 +228,11 @@ func (db *TaskDB) ListAllTasks(ctx context.Context) ([]*Task, error) {
 func (db *TaskDB) UpdateTaskWithSLA(ctx context.Context, taskID string, deadline time.Time, tau float64, taskType string) error {
 	// Validate task type
 	validTypes := map[string]bool{
-		"cpu-light": true, "cpu-heavy": true, "memory-heavy": true,
-		"gpu-inference": true, "gpu-training": true, "mixed": true,
+		"cpu-light": true, "cpu-heavy": true, "memory-heavy": true, "mixed": true,
 	}
 
 	if taskType != "" && !validTypes[taskType] {
-		return fmt.Errorf("invalid task type: %s (must be one of: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed)", taskType)
+		return fmt.Errorf("invalid task type: %s (must be one of: cpu-light, cpu-heavy, memory-heavy, mixed)", taskType)
 	}
 
 	// Build update document

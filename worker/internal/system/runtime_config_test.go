@@ -26,13 +26,11 @@ func TestApplyResourceOverrides(t *testing.T) {
 	t.Setenv(workerTotalCPUEnv, "2.5")
 	t.Setenv(workerTotalMemoryGBEnv, "6")
 	t.Setenv(workerTotalStorageGBEnv, "40")
-	t.Setenv(workerTotalGPUCoresEnv, "1")
 
 	resources := &ResourceInfo{
 		TotalCPU:     1.0,
 		TotalMemory:  2.0,
 		TotalStorage: 10.0,
-		TotalGPU:     0.0,
 	}
 
 	applyResourceOverrides(resources)
@@ -45,8 +43,5 @@ func TestApplyResourceOverrides(t *testing.T) {
 	}
 	if resources.TotalStorage != 40 {
 		t.Fatalf("storage override mismatch: got %.2f", resources.TotalStorage)
-	}
-	if resources.TotalGPU != 1 {
-		t.Fatalf("gpu override mismatch: got %.2f", resources.TotalGPU)
 	}
 }

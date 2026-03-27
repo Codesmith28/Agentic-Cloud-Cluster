@@ -14,7 +14,6 @@ const (
 	workerTotalCPUEnv       = "WORKER_TOTAL_CPU"
 	workerTotalMemoryGBEnv  = "WORKER_TOTAL_MEMORY_GB"
 	workerTotalStorageGBEnv = "WORKER_TOTAL_STORAGE_GB"
-	workerTotalGPUCoresEnv  = "WORKER_TOTAL_GPU_CORES"
 )
 
 // ResolveWorkerPort resolves worker gRPC port from environment or picks the first available port.
@@ -85,17 +84,6 @@ func applyResourceOverrides(resources *ResourceInfo) {
 		} else {
 			resources.TotalStorage = value
 			log.Printf("✓ Worker storage override applied: %.2f GB", value)
-		}
-	}
-
-	if value, ok, err := parseOptionalFloat(workerTotalGPUCoresEnv); err != nil {
-		log.Printf("⚠️  Ignoring %s: %v", workerTotalGPUCoresEnv, err)
-	} else if ok {
-		if value < 0 {
-			log.Printf("⚠️  Ignoring %s: value must be >= 0", workerTotalGPUCoresEnv)
-		} else {
-			resources.TotalGPU = value
-			log.Printf("✓ Worker GPU override applied: %.2f cores", value)
 		}
 	}
 }

@@ -143,9 +143,6 @@ func (s *RTSScheduler) SelectWorker(task *pb.Task, workers map[string]*WorkerInf
 // buildTaskView constructs a TaskView from a protobuf Task
 func (s *RTSScheduler) buildTaskView(task *pb.Task, now time.Time) TaskView {
 	taskType := task.TaskType
-	if taskType == "gpu-heavy" {
-		taskType = TaskTypeGPUInference
-	}
 	if !ValidateTaskType(taskType) {
 		taskType = InferTaskType(task)
 	}
@@ -182,7 +179,6 @@ func (s *RTSScheduler) filterFeasible(task TaskView, workers []WorkerView) []Wor
 		// Check resource constraints
 		if worker.CPUAvail >= task.CPU &&
 			worker.MemAvail >= task.Mem &&
-			worker.GPUAvail >= task.GPU &&
 			worker.StorageAvail >= task.Storage {
 			feasible = append(feasible, worker)
 		}
@@ -192,7 +188,7 @@ func (s *RTSScheduler) filterFeasible(task TaskView, workers []WorkerView) []Wor
 }
 
 // predictExecTime predicts execution time for task on worker (EDD §3.5)
-// Formula: E_hat = tau * (1 + theta1*(C/C_avail) + theta2*(M/M_avail) + theta3*(G/G_avail) + theta4*L)
+// Formula: E_hat = tau * (1 + theta1*(C/C_avail) + theta2*(M/M_avail) + theta3*(S/S_avail) + theta4*L)
 func (s *RTSScheduler) predictExecTime(t TaskView, w WorkerView, theta Theta) float64 {
 	// Base runtime
 	eHat := t.Tau
@@ -213,19 +209,19 @@ func (s *RTSScheduler) predictExecTime(t TaskView, w WorkerView, theta Theta) fl
 		memRatio = 1.0
 	}
 
-	// GPU ratio term
-	gpuRatio := 0.0
-	if w.GPUAvail > 0 {
-		gpuRatio = t.GPU / w.GPUAvail
-	} else if t.GPU > 0 {
-		gpuRatio = 1.0
+	// Storage ratio term
+	storageRatio := 0.0
+	if w.StorageAvail > 0 {
+		storageRatio = t.Storage / w.StorageAvail
+	} else if t.Storage > 0 {
+		storageRatio = 1.0
 	}
 
 	// Load term
 	load := w.Load
 
 	// Apply formula
-	multiplier := 1.0 + theta.Theta1*cpuRatio + theta.Theta2*memRatio + theta.Theta3*gpuRatio + theta.Theta4*load
+	multiplier := 1.0 + theta.Theta1*cpuRatio + theta.Theta2*memRatio + theta.Theta3*storageRatio + theta.Theta4*load
 	eHat *= multiplier
 
 	// Ensure positive result

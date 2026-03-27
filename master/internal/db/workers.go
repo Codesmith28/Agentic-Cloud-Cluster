@@ -26,16 +26,13 @@ type WorkerDocument struct {
 	TotalCPU     float64 `bson:"total_cpu"`
 	TotalMemory  float64 `bson:"total_memory"`
 	TotalStorage float64 `bson:"total_storage"`
-	TotalGPU     float64 `bson:"total_gpu"`
 	// Resource tracking
 	AllocatedCPU     float64   `bson:"allocated_cpu"`
 	AllocatedMemory  float64   `bson:"allocated_memory"`
 	AllocatedStorage float64   `bson:"allocated_storage"`
-	AllocatedGPU     float64   `bson:"allocated_gpu"`
 	AvailableCPU     float64   `bson:"available_cpu"`
 	AvailableMemory  float64   `bson:"available_memory"`
 	AvailableStorage float64   `bson:"available_storage"`
-	AvailableGPU     float64   `bson:"available_gpu"`
 	IsActive         bool      `bson:"is_active"`
 	LastHeartbeat    int64     `bson:"last_heartbeat"`
 	RegisteredAt     time.Time `bson:"registered_at"`
@@ -88,16 +85,13 @@ func (db *WorkerDB) RegisterWorker(ctx context.Context, workerID, workerIP strin
 		TotalCPU:     0.0,      // Will be updated when worker connects
 		TotalMemory:  0.0,
 		TotalStorage: 0.0,
-		TotalGPU:     0.0,
 		// Initialize resource tracking
 		AllocatedCPU:     0.0,
 		AllocatedMemory:  0.0,
 		AllocatedStorage: 0.0,
-		AllocatedGPU:     0.0,
 		AvailableCPU:     0.0,
 		AvailableMemory:  0.0,
 		AvailableStorage: 0.0,
-		AvailableGPU:     0.0,
 		IsActive:         false,
 		RegisteredAt:     time.Now(),
 		UpdatedAt:        time.Now(),
@@ -153,7 +147,6 @@ func (db *WorkerDB) UpdateWorkerInfo(ctx context.Context, info *pb.WorkerInfo) e
 	availableCPU := info.TotalCpu - currentWorker.AllocatedCPU
 	availableMemory := info.TotalMemory - currentWorker.AllocatedMemory
 	availableStorage := info.TotalStorage - currentWorker.AllocatedStorage
-	availableGPU := info.TotalGpu - currentWorker.AllocatedGPU
 
 	update := bson.M{
 		"$set": bson.M{
@@ -161,11 +154,9 @@ func (db *WorkerDB) UpdateWorkerInfo(ctx context.Context, info *pb.WorkerInfo) e
 			"total_cpu":         info.TotalCpu,
 			"total_memory":      info.TotalMemory,
 			"total_storage":     info.TotalStorage,
-			"total_gpu":         info.TotalGpu,
 			"available_cpu":     availableCPU,
 			"available_memory":  availableMemory,
 			"available_storage": availableStorage,
-			"available_gpu":     availableGPU,
 			"is_active":         true,
 			"last_heartbeat":    time.Now().Unix(),
 			"updated_at":        time.Now(),
@@ -184,8 +175,8 @@ func (db *WorkerDB) UpdateWorkerInfo(ctx context.Context, info *pb.WorkerInfo) e
 	return nil
 }
 
-// UpdateWorkerResources updates worker resource specifications (called from manual registration)
-func (db *WorkerDB) UpdateWorkerResources(ctx context.Context, workerID string, totalCPU, totalMemory, totalStorage, totalGPU float64) error {
+// UpdateWorkerResources updates worker resource specifications (called from manual registration).
+func (db *WorkerDB) UpdateWorkerResources(ctx context.Context, workerID string, totalCPU, totalMemory, totalStorage float64) error {
 	filter := bson.M{"worker_id": workerID}
 
 	// Get current allocated resources to calculate available
@@ -202,18 +193,15 @@ func (db *WorkerDB) UpdateWorkerResources(ctx context.Context, workerID string, 
 	availableCPU := totalCPU - currentWorker.AllocatedCPU
 	availableMemory := totalMemory - currentWorker.AllocatedMemory
 	availableStorage := totalStorage - currentWorker.AllocatedStorage
-	availableGPU := totalGPU - currentWorker.AllocatedGPU
 
 	update := bson.M{
 		"$set": bson.M{
 			"total_cpu":         totalCPU,
 			"total_memory":      totalMemory,
 			"total_storage":     totalStorage,
-			"total_gpu":         totalGPU,
 			"available_cpu":     availableCPU,
 			"available_memory":  availableMemory,
 			"available_storage": availableStorage,
-			"available_gpu":     availableGPU,
 			"is_active":         true,
 			"updated_at":        time.Now(),
 		},
@@ -303,19 +291,17 @@ func (db *WorkerDB) WorkerExists(ctx context.Context, workerID string) (bool, er
 	return count > 0, nil
 }
 
-// AllocateResources allocates resources to a worker when a task is assigned
-func (db *WorkerDB) AllocateResources(ctx context.Context, workerID string, cpu, memory, storage, gpu float64) error {
+// AllocateResources allocates resources to a worker when a task is assigned.
+func (db *WorkerDB) AllocateResources(ctx context.Context, workerID string, cpu, memory, storage float64) error {
 	filter := bson.M{"worker_id": workerID}
 	update := bson.M{
 		"$inc": bson.M{
 			"allocated_cpu":     cpu,
 			"allocated_memory":  memory,
 			"allocated_storage": storage,
-			"allocated_gpu":     gpu,
 			"available_cpu":     -cpu,
 			"available_memory":  -memory,
 			"available_storage": -storage,
-			"available_gpu":     -gpu,
 		},
 		"$set": bson.M{
 			"updated_at": time.Now(),
@@ -334,19 +320,17 @@ func (db *WorkerDB) AllocateResources(ctx context.Context, workerID string, cpu,
 	return nil
 }
 
-// ReleaseResources releases resources from a worker when a task completes
-func (db *WorkerDB) ReleaseResources(ctx context.Context, workerID string, cpu, memory, storage, gpu float64) error {
+// ReleaseResources releases resources from a worker when a task completes.
+func (db *WorkerDB) ReleaseResources(ctx context.Context, workerID string, cpu, memory, storage float64) error {
 	filter := bson.M{"worker_id": workerID}
 	update := bson.M{
 		"$inc": bson.M{
 			"allocated_cpu":     -cpu,
 			"allocated_memory":  -memory,
 			"allocated_storage": -storage,
-			"allocated_gpu":     -gpu,
 			"available_cpu":     cpu,
 			"available_memory":  memory,
 			"available_storage": storage,
-			"available_gpu":     gpu,
 		},
 		"$set": bson.M{
 			"updated_at": time.Now(),
@@ -365,10 +349,10 @@ func (db *WorkerDB) ReleaseResources(ctx context.Context, workerID string, cpu, 
 	return nil
 }
 
-// SetWorkerResources directly sets allocated and available resources (used for reconciliation)
+// SetWorkerResources directly sets allocated and available resources (used for reconciliation).
 func (db *WorkerDB) SetWorkerResources(ctx context.Context, workerID string,
-	allocatedCPU, allocatedMemory, allocatedStorage, allocatedGPU float64,
-	availableCPU, availableMemory, availableStorage, availableGPU float64) error {
+	allocatedCPU, allocatedMemory, allocatedStorage float64,
+	availableCPU, availableMemory, availableStorage float64) error {
 
 	filter := bson.M{"worker_id": workerID}
 	update := bson.M{
@@ -376,11 +360,9 @@ func (db *WorkerDB) SetWorkerResources(ctx context.Context, workerID string,
 			"allocated_cpu":     allocatedCPU,
 			"allocated_memory":  allocatedMemory,
 			"allocated_storage": allocatedStorage,
-			"allocated_gpu":     allocatedGPU,
 			"available_cpu":     availableCPU,
 			"available_memory":  availableMemory,
 			"available_storage": availableStorage,
-			"available_gpu":     availableGPU,
 			"updated_at":        time.Now(),
 		},
 	}

@@ -109,32 +109,30 @@ func (c *CLI) Run() {
 			c.unregisterWorker(parts[1])
 		case "task":
 			if len(parts) < 2 {
-				fmt.Println("Usage: task <docker_image> [-name <task_name>] [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]")
+				fmt.Println("Usage: task <docker_image> [-name <task_name>] [-cpu_cores <num>] [-mem <gb>] [-storage <gb>]")
 				fmt.Println("  docker_image: Docker image to run")
 				fmt.Println("  -name: Custom task name (default: auto-generated from image name)")
 				fmt.Println("  -cpu_cores: CPU cores to allocate (default: 1.0)")
 				fmt.Println("  -mem: Memory in GB (default: 0.5)")
 				fmt.Println("  -storage: Storage in GB (default: 1.0)")
-				fmt.Println("  -gpu_cores: GPU cores to allocate (default: 0.0)")
 				fmt.Println("\nNote: The scheduler will automatically select the best worker.")
 				fmt.Println("      Files generated in /output will be automatically collected and stored.")
 				fmt.Println("\nExamples:")
 				fmt.Println("  task docker.io/user/sample-task:latest")
 				fmt.Println("  task docker.io/user/sample-task:latest -name my-experiment")
-				fmt.Println("  task docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
+				fmt.Println("  task docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -storage 5.0")
 				continue
 			}
 			c.submitTask(parts)
 		case "dispatch":
 			if len(parts) < 3 {
-				fmt.Println("Usage: dispatch <worker_id> <docker_image> [-name <task_name>] [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]")
+				fmt.Println("Usage: dispatch <worker_id> <docker_image> [-name <task_name>] [-cpu_cores <num>] [-mem <gb>] [-storage <gb>]")
 				fmt.Println("  worker_id: Specific worker to dispatch task to")
 				fmt.Println("  docker_image: Docker image to run")
 				fmt.Println("  -name: Custom task name (default: auto-generated from image name)")
 				fmt.Println("  -cpu_cores: CPU cores to allocate (default: 1.0)")
 				fmt.Println("  -mem: Memory in GB (default: 0.5)")
 				fmt.Println("  -storage: Storage in GB (default: 1.0)")
-				fmt.Println("  -gpu_cores: GPU cores to allocate (default: 0.0)")
 				fmt.Println("\nNote: This bypasses the scheduler and directly assigns to the specified worker.")
 				fmt.Println("      Files generated in /output will be automatically collected and stored.")
 				fmt.Println("\nExamples:")
@@ -242,7 +240,7 @@ func (c *CLI) printHelp() {
 	fmt.Println("  list-tasks [status]            - List all tasks (or filter by: queued/pending/running/completed/failed/cancelled)")
 	fmt.Println("  register <id> <ip:port>        - Manually register a worker")
 	fmt.Println("  unregister <id>                - Unregister a worker")
-	fmt.Println("  task <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>] [-k <1.5-2.5>] [-type <task_type>]")
+	fmt.Println("  task <docker_img> [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-k <1.5-2.5>] [-type <task_type>]")
 	fmt.Println("                                 - Submit task (scheduler selects worker)")
 	fmt.Println("  dispatch <worker_id> <docker_img> [options]  - Dispatch task directly to specific worker (testing)")
 	fmt.Println("  monitor <task_id>              - Monitor live logs for a task (press any key to exit)")
@@ -258,17 +256,16 @@ func (c *CLI) printHelp() {
 	fmt.Println("  cpu-light                      - Light CPU workloads")
 	fmt.Println("  cpu-heavy                      - Heavy CPU workloads")
 	fmt.Println("  memory-heavy                   - Memory-intensive workloads")
-	fmt.Println("  gpu-inference                  - GPU inference workloads")
-	fmt.Println("  gpu-training                   - GPU training workloads")
+	fmt.Println("  mixed                          - Mixed CPU/memory/storage workloads")
 	fmt.Println("  mixed                          - Mixed workloads")
 	fmt.Println("\nExamples:")
 	fmt.Println("  register worker-2 192.168.1.100:50052")
 	fmt.Println("  stats worker-1")
 	fmt.Println("  internal-state")
 	fmt.Println("  task docker.io/user/sample-task:latest")
-	fmt.Println("  task docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -gpu_cores 1.0")
+	fmt.Println("  task docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0 -storage 5.0")
 	fmt.Println("  task myapp:latest -cpu_cores 4 -mem 8 -k 1.8 -type cpu-heavy")
-	fmt.Println("  task ml-model:latest -gpu_cores 2 -mem 16 -k 2.5 -type gpu-training")
+	fmt.Println("  task memjob:latest -mem 16 -storage 20 -k 2.5 -type memory-heavy")
 	fmt.Println("  dispatch worker-1 docker.io/user/sample-task:latest -cpu_cores 2.0 -mem 1.0")
 	fmt.Println("  monitor task-123")
 	fmt.Println("  cancel task-123")
@@ -384,8 +381,6 @@ func (c *CLI) listWorkers() {
 			w.Info.TotalMemory, w.AllocatedMemory, w.AvailableMemory)
 		fmt.Printf("║     Storage: %.1f GB total, %.1f GB allocated, %.1f GB available\n",
 			w.Info.TotalStorage, w.AllocatedStorage, w.AvailableStorage)
-		fmt.Printf("║     GPU:     %.1f total, %.1f allocated, %.1f available\n",
-			w.Info.TotalGpu, w.AllocatedGPU, w.AvailableGPU)
 		fmt.Printf("║   Running Tasks: %d\n", len(w.RunningTasks))
 		fmt.Println("║")
 	}
@@ -481,25 +476,23 @@ func (c *CLI) showWorkerStats(workerID string) {
 			worker.Info.TotalMemory, worker.AllocatedMemory, worker.AvailableMemory, worker.LatestMemory)
 		fmt.Printf("%s║   Storage:       %.2f / %.2f / %.2f GB\n", clearLine,
 			worker.Info.TotalStorage, worker.AllocatedStorage, worker.AvailableStorage)
-		fmt.Printf("%s║   GPU:           %.2f / %.2f / %.2f cores (%.1f%% used)\n", clearLine,
-			worker.Info.TotalGpu, worker.AllocatedGPU, worker.AvailableGPU, worker.LatestGPU)
 		fmt.Printf("%s║\n", clearLine)
 		fmt.Printf("%s║ Resource Utilization:\n", clearLine)
 		cpuUtilPct := 0.0
 		memUtilPct := 0.0
-		gpuUtilPct := 0.0
+		storageUtilPct := 0.0
 		if worker.Info.TotalCpu > 0 {
 			cpuUtilPct = (worker.AllocatedCPU / worker.Info.TotalCpu) * 100
 		}
 		if worker.Info.TotalMemory > 0 {
 			memUtilPct = (worker.AllocatedMemory / worker.Info.TotalMemory) * 100
 		}
-		if worker.Info.TotalGpu > 0 {
-			gpuUtilPct = (worker.AllocatedGPU / worker.Info.TotalGpu) * 100
+		if worker.Info.TotalStorage > 0 {
+			storageUtilPct = (worker.AllocatedStorage / worker.Info.TotalStorage) * 100
 		}
 		fmt.Printf("%s║   CPU Allocated:   %.1f%%\n", clearLine, cpuUtilPct)
 		fmt.Printf("%s║   Mem Allocated:   %.1f%%\n", clearLine, memUtilPct)
-		fmt.Printf("%s║   GPU Allocated:   %.1f%%\n", clearLine, gpuUtilPct)
+		fmt.Printf("%s║   Storage Alloc.:  %.1f%%\n", clearLine, storageUtilPct)
 		fmt.Printf("%s║\n", clearLine)
 		fmt.Printf("%s║ Running Tasks:   %d\n", clearLine, worker.TaskCount)
 		fmt.Printf("%s╚═══════════════════════════════════════════════════", clearLine)
@@ -586,7 +579,6 @@ func (c *CLI) submitTask(parts []string) {
 	reqCPU := 1.0
 	reqMemory := 0.5
 	reqStorage := 1.0
-	reqGPU := 0.0
 	slaMultiplier := 2.0 // Default k value
 	taskType := ""       // Will be inferred if not specified
 	taskName := ""       // Optional task name
@@ -612,13 +604,6 @@ func (c *CLI) submitTask(parts []string) {
 			if i+1 < len(parts) {
 				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
 					reqStorage = val
-					i++ // Skip the value
-				}
-			}
-		case "-gpu_cores":
-			if i+1 < len(parts) {
-				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
-					reqGPU = val
 					i++ // Skip the value
 				}
 			}
@@ -648,7 +633,7 @@ func (c *CLI) submitTask(parts []string) {
 	}
 
 	// Validate task type if provided
-	validTypes := []string{"cpu-light", "cpu-heavy", "memory-heavy", "gpu-inference", "gpu-training", "mixed"}
+	validTypes := []string{"cpu-light", "cpu-heavy", "memory-heavy", "mixed"}
 	if taskType != "" {
 		valid := false
 		for _, vt := range validTypes {
@@ -696,7 +681,6 @@ func (c *CLI) submitTask(parts []string) {
 	fmt.Printf("    • CPU Cores:     %.2f cores\n", reqCPU)
 	fmt.Printf("    • Memory:        %.2f GB\n", reqMemory)
 	fmt.Printf("    • Storage:       %.2f GB\n", reqStorage)
-	fmt.Printf("    • GPU Cores:     %.2f cores\n", reqGPU)
 	fmt.Println("───────────────────────────────────────────────────────")
 	if taskType != "" {
 		fmt.Println("  Task Classification:")
@@ -720,7 +704,6 @@ func (c *CLI) submitTask(parts []string) {
 		ReqCpu:        reqCPU,
 		ReqMemory:     reqMemory,
 		ReqStorage:    reqStorage,
-		ReqGpu:        reqGPU,
 		TaskType:      taskType,
 		SlaMultiplier: slaMultiplier,
 		UserId:        "admin", // Default user for CLI tasks (can be made configurable)
@@ -763,7 +746,6 @@ func (c *CLI) dispatchTask(parts []string) {
 	reqCPU := 1.0
 	reqMemory := 0.5
 	reqStorage := 1.0
-	reqGPU := 0.0
 	taskName := "" // Optional task name
 
 	// Parse flags (starting from index 3 since we have worker_id and docker_image)
@@ -787,13 +769,6 @@ func (c *CLI) dispatchTask(parts []string) {
 			if i+1 < len(parts) {
 				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
 					reqStorage = val
-					i++ // Skip the value
-				}
-			}
-		case "-gpu_cores":
-			if i+1 < len(parts) {
-				if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
-					reqGPU = val
 					i++ // Skip the value
 				}
 			}
@@ -837,7 +812,6 @@ func (c *CLI) dispatchTask(parts []string) {
 	fmt.Printf("    • CPU Cores:     %.2f cores\n", reqCPU)
 	fmt.Printf("    • Memory:        %.2f GB\n", reqMemory)
 	fmt.Printf("    • Storage:       %.2f GB\n", reqStorage)
-	fmt.Printf("    • GPU Cores:     %.2f cores\n", reqGPU)
 	fmt.Println("───────────────────────────────────────────────────────")
 	fmt.Println("  ⚠️  NOTE: Bypassing scheduler - dispatching directly!")
 	fmt.Println("═══════════════════════════════════════════════════════")
@@ -849,7 +823,6 @@ func (c *CLI) dispatchTask(parts []string) {
 		ReqCpu:      reqCPU,
 		ReqMemory:   reqMemory,
 		ReqStorage:  reqStorage,
-		ReqGpu:      reqGPU,
 		UserId:      "admin", // Default user for CLI tasks
 		TaskName:    taskName,
 		SubmittedAt: submittedAt,
@@ -1070,7 +1043,6 @@ func (c *CLI) showQueue() {
 		fmt.Printf("      • CPU Cores:     %.2f cores\n", qt.Task.ReqCpu)
 		fmt.Printf("      • Memory:        %.2f GB\n", qt.Task.ReqMemory)
 		fmt.Printf("      • Storage:       %.2f GB\n", qt.Task.ReqStorage)
-		fmt.Printf("      • GPU Cores:     %.2f cores\n", qt.Task.ReqGpu)
 		fmt.Println("    ───────────────────────────────────────────────")
 		fmt.Printf("    Queued At:       %s\n", qt.QueuedAt.Format("2006-01-02 15:04:05"))
 		fmt.Printf("    Time in Queue:   %s\n", formatDuration(timeInQueue))
@@ -1171,8 +1143,8 @@ func (c *CLI) listAllTasksCategorically() {
 				fmt.Printf("      Worker:   %s\n", assignment.WorkerID)
 			}
 
-			fmt.Printf("      CPU:      %.1f cores | Memory: %.1f GB | GPU: %.1f cores\n",
-				task.ReqCPU, task.ReqMemory, task.ReqGPU)
+			fmt.Printf("      CPU:      %.1f cores | Memory: %.1f GB | Storage: %.1f GB\n",
+				task.ReqCPU, task.ReqMemory, task.ReqStorage)
 			fmt.Printf("      Created:  %s\n", task.CreatedAt.Format("2006-01-02 15:04:05"))
 
 			if i < len(tasks)-1 {
@@ -1234,7 +1206,6 @@ func (c *CLI) listTasksByStatus(status string) {
 		fmt.Printf("║       CPU:     %.2f cores\n", task.ReqCPU)
 		fmt.Printf("║       Memory:  %.2f GB\n", task.ReqMemory)
 		fmt.Printf("║       Storage: %.2f GB\n", task.ReqStorage)
-		fmt.Printf("║       GPU:     %.2f cores\n", task.ReqGPU)
 		fmt.Printf("║     Created:   %s\n", task.CreatedAt.Format("2006-01-02 15:04:05"))
 
 		if i < len(tasks)-1 {

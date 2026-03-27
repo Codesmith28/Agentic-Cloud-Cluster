@@ -9,12 +9,10 @@ import (
 
 // Task type constants
 const (
-	TaskTypeCPULight     = "cpu-light"
-	TaskTypeCPUHeavy     = "cpu-heavy"
-	TaskTypeMemoryHeavy  = "memory-heavy"
-	TaskTypeGPUInference = "gpu-inference"
-	TaskTypeGPUTraining  = "gpu-training"
-	TaskTypeMixed        = "mixed"
+	TaskTypeCPULight    = "cpu-light"
+	TaskTypeCPUHeavy    = "cpu-heavy"
+	TaskTypeMemoryHeavy = "memory-heavy"
+	TaskTypeMixed       = "mixed"
 )
 
 // TaskView represents a scheduler-level view of a task with computed properties
@@ -23,7 +21,6 @@ type TaskView struct {
 	Type        string    // Task type classification
 	CPU         float64   // Required CPU
 	Mem         float64   // Required memory
-	GPU         float64   // Required GPU
 	Storage     float64   // Required storage
 	ArrivalTime time.Time // When task was submitted
 	Tau         float64   // Base runtime estimate (seconds)
@@ -36,7 +33,6 @@ type WorkerView struct {
 	ID           string  // Worker identifier
 	CPUAvail     float64 // Available CPU cores
 	MemAvail     float64 // Available memory (GB)
-	GPUAvail     float64 // Available GPU units
 	StorageAvail float64 // Available storage (GB)
 	Load         float64 // Normalized load (may exceed 1.0 due to oversubscription)
 }
@@ -45,7 +41,7 @@ type WorkerView struct {
 type Theta struct {
 	Theta1 float64 // Weight for CPU ratio impact
 	Theta2 float64 // Weight for memory ratio impact
-	Theta3 float64 // Weight for GPU ratio impact
+	Theta3 float64 // Weight for storage ratio impact
 	Theta4 float64 // Weight for worker load impact
 }
 
@@ -120,7 +116,6 @@ func NewTaskViewFromProto(pbTask *pb.Task, now time.Time, tau float64, k float64
 		Type:        taskType,
 		CPU:         pbTask.ReqCpu,
 		Mem:         pbTask.ReqMemory,
-		GPU:         pbTask.ReqGpu,
 		Storage:     pbTask.ReqStorage,
 		ArrivalTime: arrivalTime,
 		Tau:         tau,
@@ -132,23 +127,11 @@ func NewTaskViewFromProto(pbTask *pb.Task, now time.Time, tau float64, k float64
 // InferTaskType infers the task type from resource requirements
 // This is used ONLY when the user does not specify a task type or provides an invalid one
 // Inference rules:
-//   - GPU > 2.0 AND CPU > 4.0 → gpu-training
-//   - GPU > 0 → gpu-inference
 //   - Memory > 8.0 → memory-heavy
 //   - CPU > 4.0 → cpu-heavy
 //   - CPU > 0 → cpu-light
 //   - Otherwise → mixed
 func InferTaskType(pbTask *pb.Task) string {
-	// Check for GPU training (high GPU + high CPU)
-	if pbTask.ReqGpu > 2.0 && pbTask.ReqCpu > 4.0 {
-		return TaskTypeGPUTraining
-	}
-
-	// Check for GPU inference (any GPU usage)
-	if pbTask.ReqGpu > 0 {
-		return TaskTypeGPUInference
-	}
-
 	// Check for memory-heavy tasks
 	if pbTask.ReqMemory > 8.0 {
 		return TaskTypeMemoryHeavy
@@ -175,8 +158,6 @@ func ValidateTaskType(taskType string) bool {
 	case TaskTypeCPULight,
 		TaskTypeCPUHeavy,
 		TaskTypeMemoryHeavy,
-		TaskTypeGPUInference,
-		TaskTypeGPUTraining,
 		TaskTypeMixed:
 		return true
 	default:

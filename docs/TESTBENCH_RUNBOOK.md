@@ -89,7 +89,6 @@ Expected workload JSON shape:
       "cpu_required": 1.0,
       "memory_required": 0.5,
       "storage_required": 1,
-      "gpu_required": 0,
       "tag": "cpu-light",
       "k_value": 2.0
     }
@@ -137,7 +136,6 @@ Edit `testbench/docker-compose.yml`:
   - `WORKER_TOTAL_CPU`
   - `WORKER_TOTAL_MEMORY_GB`
   - `WORKER_TOTAL_STORAGE_GB`
-  - `WORKER_TOTAL_GPU_CORES`
 
 After editing, restart the stack:
 
