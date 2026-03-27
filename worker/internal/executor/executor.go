@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"worker/internal/logstream"
 	workermetrics "worker/internal/metrics"
