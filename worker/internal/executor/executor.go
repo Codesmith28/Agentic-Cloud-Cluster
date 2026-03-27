@@ -10,8 +10,10 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"worker/internal/logstream"
+	workermetrics "worker/internal/metrics"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -62,31 +64,39 @@ func NewTaskExecutor() (*TaskExecutor, error) {
 }
 
 // ExecuteTask pulls and runs a Docker container for the task with resource constraints.
-func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, command string, reqCPU, reqMemory float64) *TaskResult {
+func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, command string, reqCPU, reqMemory float64, taskType string) *TaskResult {
 	result := &TaskResult{
 		TaskID: taskID,
 		Status: "failed",
 	}
+	executionStarted := time.Now()
+	workermetrics.Get().IncTaskStart(taskType)
 
 	log.Printf("[Task %s] Starting execution...", taskID)
 
 	// Pull the image
 	log.Printf("[Task %s] Pulling image: %s", taskID, dockerImage)
+	pullStarted := time.Now()
 	if err := e.pullImage(ctx, dockerImage); err != nil {
+		workermetrics.Get().IncDockerError("image_pull", taskType)
 		result.Error = fmt.Errorf("failed to pull image: %w", err)
 		result.Logs = fmt.Sprintf("Error pulling image: %v", err)
 		return result
 	}
+	workermetrics.Get().ObserveImagePull(taskType, pullStarted)
 
 	// Create container with resource limits
 	log.Printf("[Task %s] Creating container with resource limits (CPU: %.2f, Memory: %.2fGB)...",
 		taskID, reqCPU, reqMemory)
+	createStarted := time.Now()
 	containerID, err := e.createContainer(ctx, dockerImage, command, taskID, reqCPU, reqMemory)
 	if err != nil {
+		workermetrics.Get().IncDockerError("container_create", taskType)
 		result.Error = fmt.Errorf("failed to create container: %w", err)
 		result.Logs = fmt.Sprintf("Error creating container: %v", err)
 		return result
 	}
+	workermetrics.Get().ObserveContainerCreate(taskType, createStarted)
 
 	// Store container mapping
 	e.mu.Lock()
@@ -106,6 +116,7 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 	// Start container
 	log.Printf("[Task %s] Starting container: %s", taskID, containerID[:12])
 	if err := e.dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
+		workermetrics.Get().IncDockerError("container_start", taskType)
 		result.Error = fmt.Errorf("failed to start container: %w", err)
 		result.Logs = fmt.Sprintf("Error starting container: %v", err)
 		return result
@@ -130,6 +141,7 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 	select {
 	case err := <-errCh:
 		if err != nil {
+			workermetrics.Get().IncDockerError("container_wait", taskType)
 			result.Error = fmt.Errorf("error waiting for container: %w", err)
 			result.Status = "failed"
 			return result
@@ -165,6 +177,7 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 		log.Println("═══════════════════════════════════════════════════════")
 		log.Println("")
 	}
+	workermetrics.Get().ObserveTaskRuntime(taskType, result.Status, executionStarted)
 
 	// Collect output files
 	outputDir := filepath.Join(getBaseOutputDir(), taskID)

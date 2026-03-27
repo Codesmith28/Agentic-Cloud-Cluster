@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	workermetrics "worker/internal/metrics"
 	"worker/internal/system"
 	pb "worker/proto"
 
@@ -72,8 +73,8 @@ func (m *Monitor) Stop() {
 	close(m.stopChan)
 }
 
-// AddTask adds a task to the running tasks list
-func (m *Monitor) AddTask(taskID string, cpuAlloc, memAlloc float64) {
+// AddTask adds a task attempt to the running tasks list.
+func (m *Monitor) AddTask(taskID, attemptID string, attemptNo int32, cpuAlloc, memAlloc float64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.runningTasks[taskID] = &pb.RunningTask{
@@ -81,7 +82,10 @@ func (m *Monitor) AddTask(taskID string, cpuAlloc, memAlloc float64) {
 		CpuAllocated:    cpuAlloc,
 		MemoryAllocated: memAlloc,
 		Status:          "running",
+		AttemptId:       attemptID,
+		AttemptNo:       attemptNo,
 	}
+	workermetrics.Get().SetRunningTasks(len(m.runningTasks))
 	log.Printf("Task %s added to monitoring (total tasks: %d)", taskID, len(m.runningTasks))
 }
 
@@ -90,7 +94,24 @@ func (m *Monitor) RemoveTask(taskID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.runningTasks, taskID)
+	workermetrics.Get().SetRunningTasks(len(m.runningTasks))
 	log.Printf("Task %s removed from monitoring (total tasks: %d)", taskID, len(m.runningTasks))
+}
+
+// GetRunningTasks returns a snapshot of currently tracked running task attempts.
+func (m *Monitor) GetRunningTasks() []*pb.RunningTask {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	tasks := make([]*pb.RunningTask, 0, len(m.runningTasks))
+	for _, task := range m.runningTasks {
+		if task == nil {
+			continue
+		}
+		taskCopy := *task
+		tasks = append(tasks, &taskCopy)
+	}
+	return tasks
 }
 
 // sendHeartbeat sends a heartbeat message to the master
@@ -142,6 +163,7 @@ func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 	}
 
 	if ack.Success {
+		workermetrics.Get().RecordHeartbeat(cpuUsage, memUsage, storageUsage)
 		log.Printf("Heartbeat sent: CPU=%.1f%%, Memory=%.1f%%, Storage=%.1f%%, Tasks=%d",
 			cpuUsage*100.0, memUsage*100.0, storageUsage*100.0, len(tasks))
 	}
