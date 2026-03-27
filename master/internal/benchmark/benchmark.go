@@ -1136,23 +1136,41 @@ func buildBurstyProfile(workers []WorkerProfile) WorkloadProfile {
 	}
 }
 
-func newTask(taskID, taskType string, arrival time.Duration) WorkloadTask {
-	image := "docker.io/library/alpine:3.19"
-	makeCmd := func(sec int) string {
-		return fmt.Sprintf("sh -c \"sleep %d; echo %s done\"", sec, taskType)
+// imageForType returns a deterministic versioned Docker image for a given task type.
+// Uses round-robin across the 5 available versions per type.
+var imageCounter = map[string]int{}
+
+func imageForType(taskType string) string {
+	imageCounter[taskType]++
+	version := ((imageCounter[taskType] - 1) % 5) + 1
+	switch taskType {
+	case "cpu-light":
+		return fmt.Sprintf("moinvinchhi/cloudai-cpu-light:%d", version)
+	case "cpu-heavy":
+		return fmt.Sprintf("moinvinchhi/cloudai-cpu-heavy:%d", version)
+	case "memory-heavy":
+		return fmt.Sprintf("moinvinchhi/cloudai-memory-heavy:%d", version)
+	case "mixed":
+		return fmt.Sprintf("moinvinchhi/cloudai-mixed:%d", version)
+	default:
+		return fmt.Sprintf("moinvinchhi/cloudai-mixed:%d", version)
 	}
+}
+
+func newTask(taskID, taskType string, arrival time.Duration) WorkloadTask {
+	image := imageForType(taskType)
 
 	switch taskType {
 	case "cpu-light":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(8), ReqCPU: 1.0, ReqMemory: 1.0, ReqStorage: 1.0, TaskType: scheduler.TaskTypeCPULight, SLAMultiplier: 2.0, TauSeconds: 8}
+		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, ReqCPU: 1.0, ReqMemory: 1.0, ReqStorage: 1.0, TaskType: scheduler.TaskTypeCPULight, SLAMultiplier: 2.0, TauSeconds: 8}
 	case "cpu-heavy":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(24), ReqCPU: 4.0, ReqMemory: 4.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeCPUHeavy, SLAMultiplier: 2.2, TauSeconds: 24}
+		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, ReqCPU: 4.0, ReqMemory: 4.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeCPUHeavy, SLAMultiplier: 2.2, TauSeconds: 24}
 	case "memory-heavy":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(28), ReqCPU: 2.0, ReqMemory: 12.0, ReqStorage: 3.0, TaskType: scheduler.TaskTypeMemoryHeavy, SLAMultiplier: 2.2, TauSeconds: 28}
+		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, ReqCPU: 2.0, ReqMemory: 12.0, ReqStorage: 3.0, TaskType: scheduler.TaskTypeMemoryHeavy, SLAMultiplier: 2.2, TauSeconds: 28}
 	case "mixed":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(20), ReqCPU: 3.0, ReqMemory: 6.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeMixed, SLAMultiplier: 2.1, TauSeconds: 20}
+		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, ReqCPU: 3.0, ReqMemory: 6.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeMixed, SLAMultiplier: 2.1, TauSeconds: 20}
 	default:
-		return WorkloadTask{TaskID: taskID, TaskName: "mixed", ArrivalOffset: arrival, DockerImage: image, Command: makeCmd(20), ReqCPU: 2.0, ReqMemory: 4.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeMixed, SLAMultiplier: 2.0, TauSeconds: 20}
+		return WorkloadTask{TaskID: taskID, TaskName: "mixed", ArrivalOffset: arrival, DockerImage: image, ReqCPU: 2.0, ReqMemory: 4.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeMixed, SLAMultiplier: 2.0, TauSeconds: 20}
 	}
 }
 
