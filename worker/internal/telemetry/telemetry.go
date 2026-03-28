@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	workermetrics "worker/internal/metrics"
 	"worker/internal/system"
 	pb "worker/proto"
 
@@ -84,6 +85,7 @@ func (m *Monitor) AddTask(taskID, attemptID string, attemptNo int32, cpuAlloc, m
 		AttemptId:       attemptID,
 		AttemptNo:       attemptNo,
 	}
+	workermetrics.Get().SetRunningTasks(len(m.runningTasks))
 	log.Printf("Task %s added to monitoring (total tasks: %d)", taskID, len(m.runningTasks))
 }
 
@@ -92,6 +94,7 @@ func (m *Monitor) RemoveTask(taskID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.runningTasks, taskID)
+	workermetrics.Get().SetRunningTasks(len(m.runningTasks))
 	log.Printf("Task %s removed from monitoring (total tasks: %d)", taskID, len(m.runningTasks))
 }
 
@@ -160,6 +163,7 @@ func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 	}
 
 	if ack.Success {
+		workermetrics.Get().RecordHeartbeat(cpuUsage, memUsage, storageUsage)
 		log.Printf("Heartbeat sent: CPU=%.1f%%, Memory=%.1f%%, Storage=%.1f%%, Tasks=%d",
 			cpuUsage*100.0, memUsage*100.0, storageUsage*100.0, len(tasks))
 	}

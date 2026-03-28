@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"master/internal/db"
+	mastermetrics "master/internal/metrics"
 	"master/internal/scheduler"
 	"master/internal/storage"
 	"master/internal/telemetry"
@@ -542,6 +543,7 @@ func (s *MasterServer) checkAndMarkInactiveWorkers() {
 			if timeSinceLastHeartbeat > heartbeatTimeout {
 				log.Printf("⚠️ Worker %s marked as inactive (no heartbeat for %d seconds)", workerID, timeSinceLastHeartbeat)
 				worker.IsActive = false
+				mastermetrics.Get().IncWorkerTimeout(workerID)
 				s.recoverWorkerTasksLocked(context.Background(), workerID, worker, "worker_timeout")
 			}
 		}
@@ -594,6 +596,8 @@ func (s *MasterServer) recoverWorkerTasksLocked(ctx context.Context, workerID st
 	if s.taskDB == nil {
 		return
 	}
+	recoveryStarted := time.Now()
+	defer mastermetrics.Get().ObserveRecoveryDuration(failureReason, recoveryStarted)
 
 	recovered := make(map[string]bool)
 	recoverTask := func(taskID string, assignment *db.Assignment) {
@@ -638,6 +642,7 @@ func (s *MasterServer) recoverWorkerTasksLocked(ctx context.Context, workerID st
 		task.Status = "queued"
 		task.LastFailureReason = failureReason
 		task.RecoveryCount++
+		mastermetrics.Get().IncTaskRequeue(failureReason, task.TaskType)
 		s.enqueueRecoveredTask(task, fmt.Sprintf("Recovered after %s", failureReason))
 		log.Printf("↻ Requeued task %s after %s", taskID, failureReason)
 	}
@@ -913,6 +918,7 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 	if s.attemptDB != nil && resultAttemptID != "" {
 		if attemptRecord, err := s.attemptDB.GetAttempt(context.Background(), resultAttemptID); err == nil && attemptRecord != nil {
 			if shouldIgnoreAttemptResult(currentAttemptID, resultAttemptID, attemptRecord.Status) {
+				mastermetrics.Get().IncStaleResult("late_result")
 				if err := s.attemptDB.CompleteAttempt(context.Background(), resultAttemptID, db.AttemptStatusStale, "late_result", result.Status, result.Logs, result.ResultLocation, result.OutputFiles); err != nil {
 					log.Printf("  ⚠ Warning: Failed to update late attempt %s: %v", resultAttemptID, err)
 				}
@@ -926,6 +932,7 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 	}
 	if taskResources != nil && shouldIgnoreAttemptResult(currentAttemptID, resultAttemptID, "") {
 		if s.attemptDB != nil {
+			mastermetrics.Get().IncStaleResult("stale_attempt")
 			if err := s.attemptDB.CompleteAttempt(context.Background(), resultAttemptID, db.AttemptStatusStale, "late_result", result.Status, result.Logs, result.ResultLocation, result.OutputFiles); err != nil {
 				log.Printf("  ⚠ Warning: Failed to mark stale attempt %s: %v", resultAttemptID, err)
 			}
@@ -1061,6 +1068,11 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 				log.Printf("  ⚠ Warning: Failed to finalize attempt %s: %v", resultAttemptID, err)
 			}
 		}
+		taskType := "unknown"
+		if taskResources != nil {
+			taskType = taskResources.TaskType
+		}
+		mastermetrics.Get().IncTaskTerminal(status, taskType)
 	}
 
 	// Store result with logs in RESULTS collection
@@ -1636,6 +1648,19 @@ func (s *MasterServer) queueContainsTask(taskID string) bool {
 	return false
 }
 
+func queueReasonLabel(reason string) string {
+	switch {
+	case strings.Contains(reason, "Recovered"):
+		return "recovery"
+	case strings.Contains(reason, "Restored"):
+		return "restore"
+	case strings.Contains(reason, "submitted"):
+		return "submit"
+	default:
+		return "queue"
+	}
+}
+
 func (s *MasterServer) enqueueRecoveredTask(task *db.Task, reason string) {
 	if task == nil || task.TaskID == "" {
 		return
@@ -2157,6 +2182,7 @@ func (s *MasterServer) processQueue(ticker *time.Ticker, stopCh <-chan struct{})
 		s.queueMu.Lock()
 		if len(s.taskQueue) == 0 {
 			s.queueMu.Unlock()
+			mastermetrics.Get().SetQueueDepth(0)
 			continue
 		}
 		tasksToProcess := make([]*QueuedTask, len(s.taskQueue))
@@ -2168,6 +2194,7 @@ func (s *MasterServer) processQueue(ticker *time.Ticker, stopCh <-chan struct{})
 			}
 		}
 		s.queueMu.Unlock()
+		mastermetrics.Get().SetQueueDepth(0)
 
 		// Try to schedule and assign tasks from the queue.
 		remainingTasks := make([]*QueuedTask, 0, len(tasksToProcess))
@@ -2187,6 +2214,7 @@ func (s *MasterServer) processQueue(ticker *time.Ticker, stopCh <-chan struct{})
 			}
 
 			// Find the best worker for this task using the scheduler
+			schedulingStarted := time.Now()
 			selectedWorker := s.selectWorkerForTask(qt.Task)
 
 			if selectedWorker == "" {
@@ -2218,6 +2246,7 @@ func (s *MasterServer) processQueue(ticker *time.Ticker, stopCh <-chan struct{})
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			ack, err := s.assignTaskToWorker(ctx, qt.Task, selectedWorker)
 			cancel()
+			mastermetrics.Get().ObserveSchedulingLatency(s.scheduler.GetName(), schedulingStarted)
 
 			if err != nil || ack == nil || !ack.Success {
 				// Assignment failed, keep in queue and try again later
@@ -2237,6 +2266,8 @@ func (s *MasterServer) processQueue(ticker *time.Ticker, stopCh <-chan struct{})
 						qt.Task.TaskId, selectedWorker, qt.Retries, qt.LastError)
 				}
 			} else {
+				mastermetrics.Get().ObserveQueueWait(s.scheduler.GetName(), qt.Task.TaskType, qt.QueuedAt)
+				mastermetrics.Get().IncSchedulerSelection(s.scheduler.GetName(), qt.Task.TaskType, selectedWorker)
 				log.Printf("✓ Queue: Task %s successfully assigned to %s after %d attempts",
 					qt.Task.TaskId, selectedWorker, qt.Retries)
 				if s.isTaskCancellationRequested(taskID) {
@@ -2264,6 +2295,7 @@ func (s *MasterServer) processQueue(ticker *time.Ticker, stopCh <-chan struct{})
 		if len(remainingTasks) > 0 {
 			s.taskQueue = append(remainingTasks, s.taskQueue...)
 		}
+		mastermetrics.Get().SetQueueDepth(len(s.taskQueue))
 		s.queueMu.Unlock()
 	}
 }
@@ -2310,6 +2342,8 @@ func (s *MasterServer) EnqueueTask(task *pb.Task, reason string) {
 		LastError: reason,
 	}
 	s.taskQueue = append(s.taskQueue, qt)
+	mastermetrics.Get().IncTaskEnqueued(queueReasonLabel(reason))
+	mastermetrics.Get().SetQueueDepth(len(s.taskQueue))
 
 	log.Printf("📋 Task %s queued: %s", task.TaskId, reason)
 }

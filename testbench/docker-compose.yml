@@ -38,6 +38,44 @@ services:
     networks:
       - cloudai
 
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    depends_on:
+      master:
+        condition: service_started
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - cloudai
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    restart: unless-stopped
+    depends_on:
+      prometheus:
+        condition: service_started
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - cloudai
+
   worker-small-dind:
     image: docker:27.3-dind
     privileged: true
@@ -74,6 +112,7 @@ services:
     environment:
       WORKER_ID: worker-small
       WORKER_PORT: "50052"
+      WORKER_METRICS_PORT: "9101"
       WORKER_BIND_IP: "0.0.0.0"
       WORKER_TOTAL_CPU: "1.0"
       WORKER_TOTAL_MEMORY_GB: "1.5"
@@ -121,6 +160,7 @@ services:
     environment:
       WORKER_ID: worker-medium
       WORKER_PORT: "50052"
+      WORKER_METRICS_PORT: "9101"
       WORKER_BIND_IP: "0.0.0.0"
       WORKER_TOTAL_CPU: "2.0"
       WORKER_TOTAL_MEMORY_GB: "3"
@@ -168,6 +208,7 @@ services:
     environment:
       WORKER_ID: worker-large
       WORKER_PORT: "50052"
+      WORKER_METRICS_PORT: "9101"
       WORKER_BIND_IP: "0.0.0.0"
       WORKER_TOTAL_CPU: "3.0"
       WORKER_TOTAL_MEMORY_GB: "5"
@@ -185,6 +226,8 @@ networks:
 
 volumes:
   mongo-data:
+  prometheus-data:
+  grafana-data:
   master-files:
   worker-small-state:
   worker-small-outputs:
