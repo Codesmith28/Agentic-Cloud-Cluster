@@ -43,6 +43,7 @@ type MasterServer struct {
 	workerDB       *db.WorkerDB
 	taskDB         *db.TaskDB
 	assignmentDB   *db.AssignmentDB
+	attemptDB      *db.AttemptDB
 	resultDB       *db.ResultDB
 	fileMetadataDB *db.FileMetadataDB
 	fileStorage    *storage.FileStorageService
@@ -97,12 +98,13 @@ type TaskAssignment struct {
 }
 
 // NewMasterServer creates a new master server instance
-func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB, fileMetadataDB *db.FileMetadataDB, fileStorage *storage.FileStorageService, telemetryMgr *telemetry.TelemetryManager) *MasterServer {
+func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, attemptDB *db.AttemptDB, resultDB *db.ResultDB, fileMetadataDB *db.FileMetadataDB, fileStorage *storage.FileStorageService, telemetryMgr *telemetry.TelemetryManager) *MasterServer {
 	return &MasterServer{
 		workers:              make(map[string]*WorkerState),
 		workerDB:             workerDB,
 		taskDB:               taskDB,
 		assignmentDB:         assignmentDB,
+		attemptDB:            attemptDB,
 		resultDB:             resultDB,
 		fileMetadataDB:       fileMetadataDB,
 		fileStorage:          fileStorage,
@@ -540,7 +542,120 @@ func (s *MasterServer) checkAndMarkInactiveWorkers() {
 			if timeSinceLastHeartbeat > heartbeatTimeout {
 				log.Printf("⚠️ Worker %s marked as inactive (no heartbeat for %d seconds)", workerID, timeSinceLastHeartbeat)
 				worker.IsActive = false
+				s.recoverWorkerTasksLocked(context.Background(), workerID, worker, "worker_timeout")
 			}
+		}
+	}
+}
+
+func (s *MasterServer) releaseTaskResourcesLocked(ctx context.Context, workerID string, worker *WorkerState, task *db.Task) {
+	if worker == nil || task == nil {
+		return
+	}
+
+	if worker.RunningTasks != nil {
+		delete(worker.RunningTasks, task.TaskID)
+	}
+
+	worker.AllocatedCPU -= task.ReqCPU
+	worker.AllocatedMemory -= task.ReqMemory
+	worker.AllocatedStorage -= task.ReqStorage
+	worker.AvailableCPU += task.ReqCPU
+	worker.AvailableMemory += task.ReqMemory
+	worker.AvailableStorage += task.ReqStorage
+
+	if worker.AllocatedCPU < 0 {
+		worker.AllocatedCPU = 0
+	}
+	if worker.AllocatedMemory < 0 {
+		worker.AllocatedMemory = 0
+	}
+	if worker.AllocatedStorage < 0 {
+		worker.AllocatedStorage = 0
+	}
+	if worker.AvailableCPU > worker.Info.TotalCpu {
+		worker.AvailableCPU = worker.Info.TotalCpu
+	}
+	if worker.AvailableMemory > worker.Info.TotalMemory {
+		worker.AvailableMemory = worker.Info.TotalMemory
+	}
+	if worker.AvailableStorage > worker.Info.TotalStorage {
+		worker.AvailableStorage = worker.Info.TotalStorage
+	}
+
+	if s.workerDB != nil {
+		if err := s.workerDB.ReleaseResources(ctx, workerID, task.ReqCPU, task.ReqMemory, task.ReqStorage); err != nil {
+			log.Printf("⚠ Warning: failed to release stranded resources for %s: %v", task.TaskID, err)
+		}
+	}
+}
+
+func (s *MasterServer) recoverWorkerTasksLocked(ctx context.Context, workerID string, worker *WorkerState, failureReason string) {
+	if s.taskDB == nil {
+		return
+	}
+
+	recovered := make(map[string]bool)
+	recoverTask := func(taskID string, assignment *db.Assignment) {
+		if taskID == "" || recovered[taskID] {
+			return
+		}
+		recovered[taskID] = true
+
+		task, err := s.taskDB.GetTask(ctx, taskID)
+		if err != nil {
+			log.Printf("⚠ Warning: failed to load task %s during recovery: %v", taskID, err)
+			return
+		}
+		if task == nil || taskIsTerminal(task.Status) {
+			return
+		}
+
+		attemptID := task.CurrentAttemptID
+		if assignment != nil && assignment.AttemptID != "" {
+			attemptID = assignment.AttemptID
+		}
+
+		if s.attemptDB != nil && attemptID != "" {
+			if err := s.attemptDB.MarkAttemptLost(ctx, attemptID, failureReason); err != nil {
+				log.Printf("⚠ Warning: failed to mark attempt %s lost: %v", attemptID, err)
+			}
+		}
+
+		s.releaseTaskResourcesLocked(ctx, workerID, worker, task)
+
+		if s.assignmentDB != nil {
+			if err := s.assignmentDB.DeleteAssignment(ctx, taskID); err != nil && !strings.Contains(err.Error(), "not found") {
+				log.Printf("⚠ Warning: failed to delete assignment for %s: %v", taskID, err)
+			}
+		}
+
+		if err := s.taskDB.MarkTaskForRequeue(ctx, taskID, failureReason); err != nil {
+			log.Printf("⚠ Warning: failed to mark task %s for requeue: %v", taskID, err)
+			return
+		}
+
+		task.Status = "queued"
+		task.LastFailureReason = failureReason
+		task.RecoveryCount++
+		s.enqueueRecoveredTask(task, fmt.Sprintf("Recovered after %s", failureReason))
+		log.Printf("↻ Requeued task %s after %s", taskID, failureReason)
+	}
+
+	if s.assignmentDB != nil {
+		assignments, err := s.assignmentDB.GetAssignmentsByWorker(ctx, workerID)
+		if err == nil {
+			for _, assignment := range assignments {
+				recoverTask(assignment.TaskID, assignment)
+			}
+		} else {
+			log.Printf("⚠ Warning: failed to list assignments for %s during recovery: %v", workerID, err)
+		}
+	}
+
+	if worker != nil && worker.RunningTasks != nil {
+		for taskID := range worker.RunningTasks {
+			recoverTask(taskID, nil)
 		}
 	}
 }
@@ -733,6 +848,23 @@ func (s *MasterServer) SendHeartbeat(ctx context.Context, hb *pb.Heartbeat) (*pb
 	worker.LatestMemory = normalizeUsageFraction(hb.MemoryUsage)
 	worker.LatestStorage = normalizeUsageFraction(hb.StorageUsage)
 	worker.TaskCount = len(hb.RunningTasks)
+	if worker.RunningTasks == nil {
+		worker.RunningTasks = make(map[string]bool)
+	}
+	for taskID := range worker.RunningTasks {
+		delete(worker.RunningTasks, taskID)
+	}
+	for _, runningTask := range hb.RunningTasks {
+		if runningTask == nil || runningTask.TaskId == "" {
+			continue
+		}
+		worker.RunningTasks[runningTask.TaskId] = true
+		if s.attemptDB != nil && runningTask.AttemptId != "" {
+			if err := s.attemptDB.TouchHeartbeat(ctx, runningTask.AttemptId, timestamp); err != nil {
+				log.Printf("Warning: failed to update attempt heartbeat for %s: %v", runningTask.AttemptId, err)
+			}
+		}
+	}
 
 	// Update heartbeat in database
 	if s.workerDB != nil {
@@ -768,6 +900,41 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 		} else {
 			taskResources = task
 		}
+	}
+
+	currentAttemptID := ""
+	if taskResources != nil {
+		currentAttemptID = taskResources.CurrentAttemptID
+	}
+	resultAttemptID := result.AttemptId
+	if resultAttemptID == "" {
+		resultAttemptID = currentAttemptID
+	}
+	if s.attemptDB != nil && resultAttemptID != "" {
+		if attemptRecord, err := s.attemptDB.GetAttempt(context.Background(), resultAttemptID); err == nil && attemptRecord != nil {
+			if shouldIgnoreAttemptResult(currentAttemptID, resultAttemptID, attemptRecord.Status) {
+				if err := s.attemptDB.CompleteAttempt(context.Background(), resultAttemptID, db.AttemptStatusStale, "late_result", result.Status, result.Logs, result.ResultLocation, result.OutputFiles); err != nil {
+					log.Printf("  ⚠ Warning: Failed to update late attempt %s: %v", resultAttemptID, err)
+				}
+				log.Printf("  ℹ Ignoring late result for recovered task %s from attempt %s", result.TaskId, resultAttemptID)
+				return &pb.Ack{
+					Success: true,
+					Message: "Late result ignored because attempt was already recovered",
+				}, nil
+			}
+		}
+	}
+	if taskResources != nil && shouldIgnoreAttemptResult(currentAttemptID, resultAttemptID, "") {
+		if s.attemptDB != nil {
+			if err := s.attemptDB.CompleteAttempt(context.Background(), resultAttemptID, db.AttemptStatusStale, "late_result", result.Status, result.Logs, result.ResultLocation, result.OutputFiles); err != nil {
+				log.Printf("  ⚠ Warning: Failed to mark stale attempt %s: %v", resultAttemptID, err)
+			}
+		}
+		log.Printf("  ℹ Ignoring stale result for task %s from attempt %s (current attempt: %s)", result.TaskId, resultAttemptID, currentAttemptID)
+		return &pb.Ack{
+			Success: true,
+			Message: "Stale attempt result recorded for audit and ignored",
+		}, nil
 	}
 
 	// Remove task from worker's running tasks and release resources
@@ -809,6 +976,11 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 			}
 		}
 	}
+	if s.assignmentDB != nil {
+		if err := s.assignmentDB.DeleteAssignment(ctx, result.TaskId); err != nil && !strings.Contains(err.Error(), "not found") {
+			log.Printf("  ⚠ Warning: Failed to delete assignment for completed task: %v", err)
+		}
+	}
 
 	// Update task status in database (idempotent - safe if already updated)
 	// For cancelled tasks, master already updated this during CancelTask
@@ -845,6 +1017,11 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 					log.Printf("  ✓ Task result stored with 'cancelled' status")
 				}
 			}
+			if s.attemptDB != nil && resultAttemptID != "" {
+				if err := s.attemptDB.CompleteAttempt(context.Background(), resultAttemptID, db.AttemptStatusCancelled, "", result.Status, result.Logs, result.ResultLocation, result.OutputFiles); err != nil {
+					log.Printf("  ⚠ Warning: Failed to finalize cancelled attempt %s: %v", resultAttemptID, err)
+				}
+			}
 			s.reportSchedulingOutcomeAsync(taskResources, result)
 			return &pb.Ack{
 				Success: true,
@@ -853,11 +1030,16 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 		}
 
 		status := "completed"
+		attemptStatus := db.AttemptStatusCompleted
+		failureReason := ""
 		if result.Status == "cancelled" {
 			status = "cancelled"
+			attemptStatus = db.AttemptStatusCancelled
 			log.Printf("  ℹ Confirming task %s 'cancelled' status (already set by master)", result.TaskId)
 		} else if result.Status != "success" {
 			status = "failed"
+			attemptStatus = db.AttemptStatusFailed
+			failureReason = "container_failed"
 		}
 
 		// Idempotent update - safe to call even if already cancelled
@@ -872,6 +1054,12 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 			}
 		} else {
 			log.Printf("  ✓ Task status confirmed as '%s' in database", status)
+		}
+
+		if s.attemptDB != nil && resultAttemptID != "" {
+			if err := s.attemptDB.CompleteAttempt(context.Background(), resultAttemptID, attemptStatus, failureReason, result.Status, result.Logs, result.ResultLocation, result.OutputFiles); err != nil {
+				log.Printf("  ⚠ Warning: Failed to finalize attempt %s: %v", resultAttemptID, err)
+			}
 		}
 	}
 
@@ -1386,6 +1574,82 @@ func normalizeTaskForScheduling(task *pb.Task) normalizedTaskMetadata {
 		tau:      tau,
 		deadline: deadline,
 	}
+}
+
+func taskIsTerminal(status string) bool {
+	switch status {
+	case "completed", "failed", "cancelled":
+		return true
+	default:
+		return false
+	}
+}
+
+func nextAttemptID(taskID string, attemptNo int32) string {
+	return fmt.Sprintf("att-%s-%d", taskID, attemptNo)
+}
+
+func shouldIgnoreAttemptResult(currentAttemptID, resultAttemptID, persistedAttemptStatus string) bool {
+	if resultAttemptID == "" {
+		return false
+	}
+	if persistedAttemptStatus == db.AttemptStatusLost || persistedAttemptStatus == db.AttemptStatusStale {
+		return true
+	}
+	return currentAttemptID != "" && resultAttemptID != currentAttemptID
+}
+
+func buildProtoTaskFromDB(task *db.Task) *pb.Task {
+	if task == nil {
+		return nil
+	}
+
+	return &pb.Task{
+		TaskId:        task.TaskID,
+		UserId:        task.UserID,
+		TaskName:      task.TaskName,
+		SubmittedAt:   task.SubmittedAt,
+		DockerImage:   task.DockerImage,
+		Command:       task.Command,
+		ReqCpu:        task.ReqCPU,
+		ReqMemory:     task.ReqMemory,
+		ReqStorage:    task.ReqStorage,
+		TaskType:      task.TaskType,
+		SlaMultiplier: task.SLAMultiplier,
+		AttemptId:     task.CurrentAttemptID,
+		AttemptNo:     task.CurrentAttemptNo,
+	}
+}
+
+func (s *MasterServer) queueContainsTask(taskID string) bool {
+	s.queueMu.RLock()
+	defer s.queueMu.RUnlock()
+
+	if s.processingTasks[taskID] {
+		return true
+	}
+	for _, qt := range s.taskQueue {
+		if qt != nil && qt.Task != nil && qt.Task.TaskId == taskID {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *MasterServer) enqueueRecoveredTask(task *db.Task, reason string) {
+	if task == nil || task.TaskID == "" {
+		return
+	}
+	if s.queueContainsTask(task.TaskID) {
+		return
+	}
+
+	requeuedTask := buildProtoTaskFromDB(task)
+	if requeuedTask == nil {
+		return
+	}
+	requeuedTask.TargetWorkerId = ""
+	s.EnqueueTask(requeuedTask, reason)
 }
 
 // SubmitTask submits a task to the system for scheduling
@@ -2057,7 +2321,7 @@ func (s *MasterServer) RestoreQueuedTasks(ctx context.Context) error {
 		return nil
 	}
 
-	statuses := []string{"queued", "pending"}
+	statuses := []string{"queued", "pending", "running"}
 	seen := make(map[string]bool)
 	restored := 0
 
@@ -2073,6 +2337,48 @@ func (s *MasterServer) RestoreQueuedTasks(ctx context.Context) error {
 			}
 			seen[task.TaskID] = true
 
+			if status == "running" {
+				if taskIsTerminal(task.Status) {
+					continue
+				}
+
+				if s.assignmentDB == nil {
+					if err := s.taskDB.MarkTaskForRequeue(ctx, task.TaskID, "master_restart"); err != nil {
+						log.Printf("Warning: Failed to mark stranded task %s for requeue: %v", task.TaskID, err)
+						continue
+					}
+					task.Status = "queued"
+					task.LastFailureReason = "master_restart"
+					s.enqueueRecoveredTask(task, "Recovered after master restart")
+					restored++
+					continue
+				}
+
+				assignment, err := s.assignmentDB.GetAssignmentByTaskID(ctx, task.TaskID)
+				if err != nil || assignment == nil {
+					if err := s.taskDB.MarkTaskForRequeue(ctx, task.TaskID, "master_restart"); err != nil {
+						log.Printf("Warning: Failed to mark unassigned running task %s for requeue: %v", task.TaskID, err)
+						continue
+					}
+					task.Status = "queued"
+					task.LastFailureReason = "master_restart"
+					s.enqueueRecoveredTask(task, "Recovered stranded running task without assignment")
+					restored++
+					continue
+				}
+
+				worker, exists := s.GetWorkerStats(assignment.WorkerID)
+				workerHealthy := exists && worker != nil && worker.IsActive && worker.LastHeartbeat > 0 &&
+					time.Since(time.Unix(worker.LastHeartbeat, 0)) <= 30*time.Second
+				if !workerHealthy {
+					s.mu.Lock()
+					s.recoverWorkerTasksLocked(ctx, assignment.WorkerID, worker, "master_restart")
+					s.mu.Unlock()
+					restored++
+				}
+				continue
+			}
+
 			// Skip tasks that already have assignments.
 			if s.assignmentDB != nil {
 				if assignment, err := s.assignmentDB.GetAssignmentByTaskID(ctx, task.TaskID); err == nil && assignment != nil {
@@ -2080,19 +2386,7 @@ func (s *MasterServer) RestoreQueuedTasks(ctx context.Context) error {
 				}
 			}
 
-			restoredTask := &pb.Task{
-				TaskId:        task.TaskID,
-				UserId:        task.UserID,
-				TaskName:      task.TaskName,
-				SubmittedAt:   task.SubmittedAt,
-				DockerImage:   task.DockerImage,
-				Command:       task.Command,
-				ReqCpu:        task.ReqCPU,
-				ReqMemory:     task.ReqMemory,
-				ReqStorage:    task.ReqStorage,
-				TaskType:      task.TaskType,
-				SlaMultiplier: task.SLAMultiplier,
-			}
+			restoredTask := buildProtoTaskFromDB(task)
 			taskMeta := normalizeTaskForScheduling(restoredTask)
 			if s.taskDB != nil {
 				if err := s.taskDB.UpdateTaskWithSLA(ctx, restoredTask.TaskId, taskMeta.deadline, taskMeta.tau, taskMeta.taskType); err != nil {
@@ -2197,6 +2491,22 @@ func (s *MasterServer) GetQueuedTasks() []*QueuedTask {
 // assignTaskToWorker assigns a task to a specific worker
 // This is called by the scheduler after selecting an appropriate worker
 func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, workerID string) (*pb.TaskAck, error) {
+	attemptNo := int32(1)
+	if s.taskDB != nil && task != nil && task.TaskId != "" {
+		if existingTask, err := s.taskDB.GetTask(ctx, task.TaskId); err == nil && existingTask != nil && existingTask.CurrentAttemptNo > 0 {
+			attemptNo = existingTask.CurrentAttemptNo + 1
+		} else if task.AttemptNo > 0 {
+			attemptNo = task.AttemptNo + 1
+		}
+	} else if task != nil && task.AttemptNo > 0 {
+		attemptNo = task.AttemptNo + 1
+	}
+	attemptID := nextAttemptID(task.TaskId, attemptNo)
+
+	taskToAssign := *task
+	taskToAssign.AttemptId = attemptID
+	taskToAssign.AttemptNo = attemptNo
+
 	s.mu.Lock()
 
 	// Find the specified worker
@@ -2254,6 +2564,7 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 	s.mu.Unlock()
 
 	resourcesReserved := true
+	attemptCreated := false
 	rollbackReservation := func() {
 		if !resourcesReserved {
 			return
@@ -2286,22 +2597,57 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 		resourcesReserved = false
 	}
 
+	if s.attemptDB != nil {
+		attemptRecord := &db.TaskAttempt{
+			AttemptID:   attemptID,
+			TaskID:      task.TaskId,
+			WorkerID:    workerID,
+			AttemptNo:   attemptNo,
+			Status:      db.AttemptStatusAssigned,
+			LoadAtStart: loadAtStart,
+		}
+		if err := s.attemptDB.CreateAttempt(ctx, attemptRecord); err != nil {
+			rollbackReservation()
+			return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to persist task attempt: %v", err)}, nil
+		}
+		attemptCreated = true
+	}
+
+	if s.taskDB != nil {
+		if err := s.taskDB.UpdateTaskAttempt(ctx, task.TaskId, attemptID, attemptNo, workerID); err != nil {
+			if s.attemptDB != nil && attemptCreated {
+				_ = s.attemptDB.MarkAttemptLost(ctx, attemptID, "assignment_failed")
+			}
+			rollbackReservation()
+			return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to update task attempt state: %v", err)}, nil
+		}
+	}
+
 	// Connect to worker and assign task
 	conn, err := grpc.Dial(workerIP, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
+		if s.attemptDB != nil && attemptCreated {
+			_ = s.attemptDB.MarkAttemptLost(ctx, attemptID, "assignment_failed")
+		}
 		rollbackReservation()
 		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to connect to worker: %v", err)}, nil
 	}
 	defer conn.Close()
 
 	client := pb.NewMasterWorkerClient(conn)
-	ack, err := client.AssignTask(ctx, task)
+	ack, err := client.AssignTask(ctx, &taskToAssign)
 	if err != nil {
+		if s.attemptDB != nil && attemptCreated {
+			_ = s.attemptDB.MarkAttemptLost(ctx, attemptID, "assignment_failed")
+		}
 		rollbackReservation()
 		return &pb.TaskAck{Success: false, Message: fmt.Sprintf("Failed to assign task: %v", err)}, nil
 	}
 
 	if ack == nil || !ack.Success {
+		if s.attemptDB != nil && attemptCreated {
+			_ = s.attemptDB.MarkAttemptLost(ctx, attemptID, "assignment_failed")
+		}
 		rollbackReservation()
 		if ack == nil {
 			return &pb.TaskAck{
@@ -2344,6 +2690,8 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 			AssignmentID: fmt.Sprintf("ass-%s", task.TaskId),
 			TaskID:       task.TaskId,
 			WorkerID:     workerID,
+			AttemptID:    attemptID,
+			AttemptNo:    attemptNo,
 			LoadAtStart:  loadAtStart,
 		}
 		if err := s.assignmentDB.CreateAssignment(ctx, assignment); err != nil {
@@ -2355,6 +2703,7 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 	log.Println("  📤 TASK ASSIGNED TO WORKER")
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Printf("  Task ID:           %s", task.TaskId)
+	log.Printf("  Attempt:           #%d (%s)", attemptNo, attemptID)
 	log.Printf("  User ID:           %s", task.UserId)
 	log.Printf("  Assigned Worker:   %s", workerID)
 	log.Printf("  Docker Image:      %s", task.DockerImage)

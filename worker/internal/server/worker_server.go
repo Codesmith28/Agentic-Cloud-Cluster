@@ -166,7 +166,7 @@ func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 	log.Println("")
 
 	// Add task to monitoring
-	s.monitor.AddTask(task.TaskId, task.ReqCpu, task.ReqMemory)
+	s.monitor.AddTask(task.TaskId, task.AttemptId, task.AttemptNo, task.ReqCpu, task.ReqMemory)
 
 	// Execute task in background with a fresh context (not tied to RPC timeout)
 	go s.executeTask(task)
@@ -210,6 +210,8 @@ func (s *WorkerServer) executeTask(task *pb.Task) {
 		Logs:           result.Logs,
 		ResultLocation: result.ResultLocation,
 		OutputFiles:    result.OutputFiles,
+		AttemptId:      task.AttemptId,
+		AttemptNo:      task.AttemptNo,
 	}
 
 	s.mu.RLock()
@@ -385,8 +387,8 @@ func (s *WorkerServer) Shutdown() {
 	fmt.Println("║  Worker Shutdown - Cleaning up running tasks...")
 	fmt.Println("╚═══════════════════════════════════════════════════════")
 
-	// Get all running tasks
-	runningTasks := s.executor.GetRunningTasks()
+	// Get all running task attempts from the telemetry monitor.
+	runningTasks := s.monitor.GetRunningTasks()
 
 	if len(runningTasks) == 0 {
 		fmt.Println("  ✓ No running tasks to clean up")
@@ -408,21 +410,26 @@ func (s *WorkerServer) Shutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	for _, taskID := range runningTasks {
-		log.Printf("  📤 Reporting task %s as failed due to worker shutdown...", taskID)
+	for _, runningTask := range runningTasks {
+		if runningTask == nil {
+			continue
+		}
+		log.Printf("  📤 Reporting task %s attempt %s as failed due to worker shutdown...", runningTask.TaskId, runningTask.AttemptId)
 
 		taskResult := &pb.TaskResult{
-			TaskId:         taskID,
+			TaskId:         runningTask.TaskId,
 			WorkerId:       s.workerID,
 			Status:         "failed",
 			Logs:           "Task failed: Worker was terminated while task was running",
 			ResultLocation: "",
+			AttemptId:      runningTask.AttemptId,
+			AttemptNo:      runningTask.AttemptNo,
 		}
 
 		if err := telemetry.ReportTaskResult(ctx, masterAddr, taskResult); err != nil {
-			log.Printf("  ⚠ Failed to report task %s: %v", taskID, err)
+			log.Printf("  ⚠ Failed to report task %s: %v", runningTask.TaskId, err)
 		} else {
-			log.Printf("  ✓ Successfully reported task %s as failed", taskID)
+			log.Printf("  ✓ Successfully reported task %s as failed", runningTask.TaskId)
 		}
 	}
 

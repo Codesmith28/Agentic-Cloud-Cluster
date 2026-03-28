@@ -108,6 +108,7 @@ Tasks:
 
 ```bash
 curl http://localhost:8080/api/tasks | jq
+curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
 ```
 
 Master logs:

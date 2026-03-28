@@ -19,6 +19,7 @@ var collections = []string{
 	"WORKER_REGISTRY",
 	"TASKS",
 	"ASSIGNMENTS",
+	"ATTEMPTS",
 	"RESULTS",
 	"SCHEDULER_MODELS",
 	"scheduler_models.files",

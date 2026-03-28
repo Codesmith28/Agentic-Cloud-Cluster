@@ -51,6 +51,8 @@ message RunningTask {
   double cpu_allocated = 2;
   double memory_allocated = 3;
   string status = 4; // running, paused, failed
+  string attempt_id = 5;
+  int32 attempt_no = 6;
 }
 
 message HeartbeatAck { bool success = 1; }
@@ -69,6 +71,8 @@ message Task {
   string task_type = 10; // Task type: cpu-light, cpu-heavy, memory-heavy, mixed
   string task_name = 11;   // User-defined task name
   int64 submitted_at = 12; // Unix timestamp when task was submitted
+  string attempt_id = 13;
+  int32 attempt_no = 14;
 }
 
 message TaskAck {
@@ -85,6 +89,8 @@ message TaskResult {
   string result_location = 5; // Local path on worker where files are stored
   repeated string output_files =
       6; // List of output file paths relative to result_location
+  string attempt_id = 7;
+  int32 attempt_no = 8;
 }
 
 message Ack {

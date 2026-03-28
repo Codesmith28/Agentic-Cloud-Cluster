@@ -8,7 +8,7 @@ import (
 )
 
 func TestManualRegisterWorkerUpdatesAddressForExistingWorker(t *testing.T) {
-	s := NewMasterServer(nil, nil, nil, nil, nil, nil, nil)
+	s := NewMasterServer(nil, nil, nil, nil, nil, nil, nil, nil)
 	s.workers["worker-1"] = &WorkerState{
 		Info:         &pb.WorkerInfo{WorkerId: "worker-1", WorkerIp: "10.0.0.1:50052"},
 		IsActive:     true,
@@ -29,7 +29,7 @@ func TestManualRegisterWorkerUpdatesAddressForExistingWorker(t *testing.T) {
 }
 
 func TestRegisterWorkerKeepsConfiguredAddress(t *testing.T) {
-	s := NewMasterServer(nil, nil, nil, nil, nil, nil, nil)
+	s := NewMasterServer(nil, nil, nil, nil, nil, nil, nil, nil)
 	s.workers["worker-1"] = &WorkerState{
 		Info:         &pb.WorkerInfo{WorkerId: "worker-1", WorkerIp: "10.0.0.1:50052"},
 		IsActive:     false,
