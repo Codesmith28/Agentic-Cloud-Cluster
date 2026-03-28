@@ -1,10 +1,9 @@
 {
   "name": "heterogeneous-smoke",
-  "description": "Mixed CPU, memory, and I/O workload to validate heterogeneous worker scheduling.",
+  "description": "Mixed CPU, memory, and I/O workload using versioned CloudAI benchmark images for deterministic, reproducible execution.",
   "tasks": [
     {
-      "docker_image": "alpine:3.20",
-      "command": "echo 'task-01 hello' > /output/result.txt; sleep 1",
+      "docker_image": "moinvinchhi/cloudai-cpu-light:1",
       "cpu_required": 0.5,
       "memory_required": 0.25,
       "storage_required": 1,
@@ -12,8 +11,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "alpine:3.20",
-      "command": "i=0; while [ $i -lt 900000 ]; do i=$((i+1)); done; echo $i > /output/iterations.txt",
+      "docker_image": "moinvinchhi/cloudai-cpu-heavy:1",
       "cpu_required": 1.0,
       "memory_required": 0.5,
       "storage_required": 1,
@@ -21,8 +19,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "alpine:3.20",
-      "command": "dd if=/dev/zero of=/tmp/blob bs=1M count=128 >/dev/null 2>&1; wc -c /tmp/blob > /output/blob-size.txt",
+      "docker_image": "moinvinchhi/cloudai-memory-heavy:1",
       "cpu_required": 0.7,
       "memory_required": 1.0,
       "storage_required": 2,
@@ -30,8 +27,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "alpine:3.20",
-      "command": "yes cloudai | head -n 300000 > /tmp/stream.txt; wc -l /tmp/stream.txt > /output/lines.txt",
+      "docker_image": "moinvinchhi/cloudai-mixed:1",
       "cpu_required": 1.2,
       "memory_required": 1.2,
       "storage_required": 2,
@@ -39,8 +35,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "alpine:3.20",
-      "command": "sleep 2; echo 'task-05 done' > /output/done.txt",
+      "docker_image": "moinvinchhi/cloudai-cpu-light:2",
       "cpu_required": 0.4,
       "memory_required": 0.25,
       "storage_required": 1,
@@ -48,8 +43,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "alpine:3.20",
-      "command": "i=0; while [ $i -lt 1200000 ]; do i=$((i+1)); done; echo $i > /output/iterations.txt",
+      "docker_image": "moinvinchhi/cloudai-cpu-heavy:2",
       "cpu_required": 1.5,
       "memory_required": 0.75,
       "storage_required": 1,
@@ -57,8 +51,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "alpine:3.20",
-      "command": "dd if=/dev/zero of=/tmp/blob bs=1M count=192 >/dev/null 2>&1; wc -c /tmp/blob > /output/blob-size.txt",
+      "docker_image": "moinvinchhi/cloudai-memory-heavy:2",
       "cpu_required": 0.8,
       "memory_required": 1.5,
       "storage_required": 3,
@@ -66,8 +59,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "alpine:3.20",
-      "command": "yes bench | head -n 450000 > /tmp/stream.txt; wc -l /tmp/stream.txt > /output/lines.txt",
+      "docker_image": "moinvinchhi/cloudai-mixed:2",
       "cpu_required": 1.6,
       "memory_required": 1.0,
       "storage_required": 2,
@@ -75,8 +67,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "alpine:3.20",
-      "command": "sleep 3; echo 'task-09 complete' > /output/done.txt",
+      "docker_image": "moinvinchhi/cloudai-cpu-light:3",
       "cpu_required": 0.5,
       "memory_required": 0.25,
       "storage_required": 1,
@@ -84,8 +75,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "alpine:3.20",
-      "command": "i=0; while [ $i -lt 1500000 ]; do i=$((i+1)); done; echo $i > /output/iterations.txt",
+      "docker_image": "moinvinchhi/cloudai-cpu-heavy:3",
       "cpu_required": 2.0,
       "memory_required": 1.25,
       "storage_required": 2,

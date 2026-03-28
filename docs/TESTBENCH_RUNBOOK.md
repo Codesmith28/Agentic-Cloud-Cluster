@@ -84,8 +84,7 @@ Expected workload JSON shape:
   "name": "my-workload",
   "tasks": [
     {
-      "docker_image": "alpine:3.20",
-      "command": "echo hello > /output/result.txt",
+      "docker_image": "moinvinchhi/cloudai-cpu-light:1",
       "cpu_required": 1.0,
       "memory_required": 0.5,
       "storage_required": 1,
@@ -95,6 +94,9 @@ Expected workload JSON shape:
   ]
 }
 ```
+
+Each task type has 5 versioned images on Docker Hub (see `DOCKER_IMAGES.txt`).
+The `command` field is optional — when omitted, the image's built-in entrypoint runs.
 
 ## 6) Verify Cluster and Task State
 

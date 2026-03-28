@@ -115,6 +115,11 @@ USAGE EXAMPLE
 docker pull moinvinchhi/cloudai-cpu-heavy:1
 docker run -v $(pwd)/output:/output moinvinchhi/cloudai-cpu-heavy:1
 
+These images are self-contained with their own entrypoints. No command
+argument is needed — the image runs its built-in workload and writes
+output to /output/ when mounted. The testbench workload JSON files
+reference these images directly (no inline shell commands).
+
 DOCKER HUB REPOSITORIES
 -----------------------
 https://hub.docker.com/r/moinvinchhi/cloudai-cpu-light
