@@ -10,6 +10,8 @@ import torch
 from .model import build_fresh_state, choose_action, ppo_update
 from .persistence import MongoSchedulerModelStore
 from .training.scheduler_env import SchedulingEnv
+from .training.trace_loader import load_trace
+from .training.trace_replay_env import TraceReplayEnv
 
 
 LOGGER = logging.getLogger(__name__)
@@ -30,6 +32,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mongo-db", default="cluster_db")
     parser.add_argument("--fingerprint-hash", default="")
     parser.add_argument("--fingerprint-payload", default="")
+    # Trace replay options
+    parser.add_argument("--trace-source", default="", choices=["", "alibaba", "google"],
+                        help="Use real cluster trace instead of synthetic env")
+    parser.add_argument("--trace-path", default="",
+                        help="Path to trace data directory")
+    parser.add_argument("--max-trace-tasks", type=int, default=5000,
+                        help="Maximum tasks to load from trace")
     return parser.parse_args()
 
 
@@ -50,7 +59,15 @@ def main() -> None:
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    env = SchedulingEnv(num_workers=args.num_workers, episode_length=args.episode_length, seed=args.seed)
+    # Choose environment: trace replay or synthetic
+    if args.trace_source and args.trace_path:
+        LOGGER.info("Loading %s trace from %s (max %d tasks)",
+                     args.trace_source, args.trace_path, args.max_trace_tasks)
+        trace = load_trace(args.trace_path, args.trace_source, max_tasks=args.max_trace_tasks)
+        env = TraceReplayEnv(trace, num_workers=args.num_workers, loop=True)
+        LOGGER.info("Trace replay env: %s", trace.description)
+    else:
+        env = SchedulingEnv(num_workers=args.num_workers, episode_length=args.episode_length, seed=args.seed)
     state = build_fresh_state(args.learning_rate, torch.device("cpu"))
 
     observation, _ = env.reset(seed=args.seed)
