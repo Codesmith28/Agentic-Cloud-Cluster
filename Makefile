@@ -1,4 +1,4 @@
-.PHONY: help all proto master worker clean setup test test-unit test-unit-verbose testbench-up testbench-register testbench-workload testbench-suite testbench-down
+.PHONY: help all proto master worker clean setup test test-unit test-unit-verbose testbench-up testbench-register testbench-workload testbench-suite testbench-down campaign campaign-full
 
 # Default target
 help:
@@ -19,6 +19,8 @@ help:
 	@echo "  make testbench-workload - Submit default workload and wait for completion"
 	@echo "  make testbench-suite - Start stack, register workers, run workload"
 	@echo "  make testbench-down - Stop and remove Docker testbench stack"
+	@echo "  make campaign     - Run evidence benchmark campaign (smoke workload)"
+	@echo "  make campaign-full - Run full campaign (all workloads + all scenarios)"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  make setup        # One-time setup"
@@ -122,3 +124,10 @@ testbench-suite:
 
 testbench-down:
 	@docker compose -f testbench/docker-compose.yml down --remove-orphans
+
+# Run evidence benchmark campaign across schedulers and scenarios
+campaign:
+	@python3 testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke
+
+campaign-full:
+	@python3 testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke,deterministic-full
