@@ -1,0 +1,71 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "cloudai-prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {"expr": "cloudai_master_queue_depth", "legendFormat": "queue depth", "refId": "A"},
+        {"expr": "sum(cloudai_worker_running_tasks)", "legendFormat": "running tasks", "refId": "B"}
+      ],
+      "title": "Queue Depth vs Running Tasks",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "cloudai-prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {"expr": "sum by (reason) (rate(cloudai_master_tasks_enqueued_total[5m]))", "legendFormat": "enqueued {{reason}}", "refId": "A"},
+        {"expr": "sum by (outcome) (rate(cloudai_master_tasks_dequeued_total[5m]))", "legendFormat": "dequeued {{outcome}}", "refId": "B"}
+      ],
+      "title": "Queue Throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "cloudai-prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 3,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum by (le, scheduler) (rate(cloudai_master_scheduling_latency_seconds_bucket[5m])))", "legendFormat": "{{scheduler}} p95 scheduling", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, sum by (le, scheduler, task_type) (rate(cloudai_master_task_queue_wait_seconds_bucket[5m])))", "legendFormat": "{{scheduler}} {{task_type}} p95 wait", "refId": "B"}
+      ],
+      "title": "P95 Scheduling and Queue Wait",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "cloudai-prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 4,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {"expr": "sum by (scheduler, task_type, worker_id) (increase(cloudai_master_scheduler_selections_total[$__range]))", "legendFormat": "{{scheduler}} {{task_type}} -> {{worker_id}}", "refId": "A"}
+      ],
+      "title": "Worker Selections Over Range",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 41,
+  "style": "dark",
+  "tags": ["cloudai", "testbench", "scheduler"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timezone": "",
+  "title": "CloudAI Scheduler Queue",
+  "uid": "cloudai-scheduler-queue",
+  "version": 1
+}

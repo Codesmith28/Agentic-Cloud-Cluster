@@ -8,6 +8,8 @@ This testbench provides an automated performance harness for CloudAI:
 - worker capabilities are intentionally heterogeneous via CPU/memory limits and explicit resource overrides
 - one repo-owned workflow image (`cloudai-benchmark:1`) is built into each worker DinD daemon before workload submission
 - workload manifests use `workflow_profile` + `workflow_args` instead of ad hoc inline shell jobs
+- Prometheus scrapes master and worker metrics during every run
+- Grafana ships with provisioned dashboards for queueing, recovery, runtime, and benchmark summaries
 
 Detailed step-by-step instructions: [`docs/TESTBENCH_RUNBOOK.md`](../docs/TESTBENCH_RUNBOOK.md)
 
@@ -34,6 +36,7 @@ In this setup, each worker talks to its own Docker daemon (`DOCKER_HOST=tcp://wo
 From repo root:
 
 ```bash
+export GF_ADMIN_PASSWORD=admin
 make testbench-suite
 ```
 
@@ -44,6 +47,7 @@ This runs:
 3. automatic registration of `worker-small`, `worker-medium`, `worker-large`
 4. workload submission + polling until completion
 5. summary JSON output under `results/testbench/`
+6. Prometheus-backed observability export under `results/testbench/<timestamp>-observability/`
 
 ## Manual Flow
 
@@ -72,6 +76,37 @@ The benchmark image is defined in `testbench/workflow-image/` and loaded into ea
 
 See [`DOCKER_IMAGES.txt`](../DOCKER_IMAGES.txt) for the profile catalog and example commands.
 
+## Observability Access
+
+Before starting the stack, set the Grafana admin password expected by `docker compose`:
+
+```bash
+export GF_ADMIN_PASSWORD=admin
+```
+
+Once the stack is running:
+
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000`
+- Grafana login: `admin` / `$GF_ADMIN_PASSWORD`
+- Master metrics endpoint: `http://localhost:8080/metrics`
+
+Provisioned dashboards:
+
+- `CloudAI Overview`
+- `CloudAI Scheduler Queue`
+- `CloudAI Recovery Incidents`
+- `CloudAI Worker Runtime`
+- `CloudAI Benchmark Summary`
+
+Artifacts exported per `run_suite.sh` execution:
+
+- `results/testbench/<timestamp>-summary.json`
+- `results/testbench/<timestamp>-observability/prometheus-range.json`
+- `results/testbench/<timestamp>-observability/prometheus-instant.json`
+- `results/testbench/<timestamp>-observability/master-snapshot.json`
+- `results/testbench/<timestamp>-observability/metrics-summary.csv`
+
 ## Adjusting Heterogeneity
 
 Edit each `worker-*` service in `testbench/docker-compose.yml`:
@@ -89,5 +124,6 @@ curl http://localhost:8080/api/workers | jq
 curl http://localhost:8080/api/tasks | jq
 curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
 python3 testbench/scripts/run_workload.py --workload testbench/workloads/failure-helpers.json
+curl http://localhost:8080/metrics | head
 docker compose -f testbench/docker-compose.yml logs -f worker-small
 ```

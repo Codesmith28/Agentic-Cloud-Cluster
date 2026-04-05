@@ -1,0 +1,74 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "cloudai-prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {"expr": "cloudai_worker_resource_usage_ratio{resource=\"cpu\"}", "legendFormat": "{{instance}} cpu", "refId": "A"},
+        {"expr": "cloudai_worker_resource_usage_ratio{resource=\"memory\"}", "legendFormat": "{{instance}} memory", "refId": "B"},
+        {"expr": "cloudai_worker_resource_usage_ratio{resource=\"storage\"}", "legendFormat": "{{instance}} storage", "refId": "C"}
+      ],
+      "title": "Worker Resource Usage Ratios",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "cloudai-prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum by (le, task_type) (rate(cloudai_worker_task_image_pull_seconds_bucket[5m])))", "legendFormat": "{{task_type}} pull p95", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, sum by (le, task_type) (rate(cloudai_worker_task_container_create_seconds_bucket[5m])))", "legendFormat": "{{task_type}} create p95", "refId": "B"},
+        {"expr": "histogram_quantile(0.95, sum by (le, task_type, status) (rate(cloudai_worker_task_runtime_seconds_bucket[5m])))", "legendFormat": "{{task_type}} {{status}} runtime p95", "refId": "C"}
+      ],
+      "title": "Task Runtime Breakdown",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "cloudai-prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 3,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {"expr": "sum by (task_type) (increase(cloudai_worker_task_container_cpu_seconds_total[$__range]))", "legendFormat": "{{task_type}} cpu sec", "refId": "A"},
+        {"expr": "sum by (task_type) (increase(cloudai_worker_task_container_io_bytes_total[$__range]))", "legendFormat": "{{task_type}} io bytes", "refId": "B"}
+      ],
+      "title": "Container CPU and IO Totals",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "cloudai-prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 4,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum by (le, task_type) (rate(cloudai_worker_task_container_peak_memory_bytes_bucket[5m])))", "legendFormat": "{{task_type}} peak mem p95", "refId": "A"},
+        {"expr": "sum by (stage, task_type) (increase(cloudai_worker_docker_errors_total[$__range]))", "legendFormat": "{{stage}} {{task_type}}", "refId": "B"}
+      ],
+      "title": "Peak Memory and Docker Errors",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 41,
+  "style": "dark",
+  "tags": ["cloudai", "testbench", "worker"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timezone": "",
+  "title": "CloudAI Worker Runtime",
+  "uid": "cloudai-worker-runtime",
+  "version": 1
+}
