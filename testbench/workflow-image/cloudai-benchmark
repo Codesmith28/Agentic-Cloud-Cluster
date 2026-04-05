@@ -1,0 +1,248 @@
+#!/usr/bin/env python3
+"""Deterministic benchmark workloads for CloudAI testbench runs."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import os
+import random
+import statistics
+import sys
+import time
+from pathlib import Path
+
+
+OUTPUT_DIR = Path(os.environ.get("CLOUDAI_BENCHMARK_OUTPUT_DIR", "/output"))
+
+
+def ensure_output_dir() -> Path:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    return OUTPUT_DIR
+
+
+def write_rows(output_name: str, rows: list[list[object]]) -> Path:
+    output_path = ensure_output_dir() / output_name
+    with output_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerows(rows)
+    return output_path
+
+
+def bounded_sleep(sleep_ms: int) -> None:
+    if sleep_ms > 0:
+        time.sleep(sleep_ms / 1000.0)
+
+
+def cpu_light(args: argparse.Namespace) -> int:
+    rng = random.Random(args.seed)
+    checksum = 0
+    started = time.perf_counter()
+
+    for index in range(args.iterations):
+        sample = rng.randint(1, 1_000_000)
+        checksum = (checksum + ((sample * (index + 1)) % 97_403)) % 1_000_000_007
+
+    bounded_sleep(args.sleep_ms)
+    duration = time.perf_counter() - started
+    output_path = write_rows(
+        args.output,
+        [
+            ["metric", "value"],
+            ["profile", "cpu-light"],
+            ["seed", args.seed],
+            ["iterations", args.iterations],
+            ["checksum", checksum],
+            ["duration_seconds", f"{duration:.6f}"],
+        ],
+    )
+    print(f"cpu-light complete checksum={checksum} output={output_path}")
+    return 0
+
+
+def cpu_heavy(args: argparse.Namespace) -> int:
+    digest = hashlib.sha256(str(args.seed).encode("utf-8")).digest()
+    started = time.perf_counter()
+
+    for index in range(args.iterations):
+        digest = hashlib.sha256(
+            digest + f":{args.seed}:{index}:{index * index}".encode("utf-8")
+        ).digest()
+
+    bounded_sleep(args.sleep_ms)
+    duration = time.perf_counter() - started
+    output_path = write_rows(
+        args.output,
+        [
+            ["metric", "value"],
+            ["profile", "cpu-heavy"],
+            ["seed", args.seed],
+            ["iterations", args.iterations],
+            ["digest_prefix", digest.hex()[:24]],
+            ["duration_seconds", f"{duration:.6f}"],
+        ],
+    )
+    print(f"cpu-heavy complete digest={digest.hex()[:24]} output={output_path}")
+    return 0
+
+
+def memory_heavy(args: argparse.Namespace) -> int:
+    rng = random.Random(args.seed)
+    started = time.perf_counter()
+    chunks: list[bytearray] = []
+
+    for chunk_index in range(args.chunks):
+        block = bytearray(args.chunk_kib * 1024)
+        for byte_index in range(0, len(block), 4096):
+            block[byte_index] = rng.randint(0, 255)
+        chunks.append(block)
+
+    pass_checksums: list[int] = []
+    for pass_index in range(args.passes):
+        checksum = 0
+        for chunk in chunks:
+            checksum += sum(chunk[::4096]) + pass_index
+        pass_checksums.append(checksum)
+
+    bounded_sleep(args.sleep_ms)
+    duration = time.perf_counter() - started
+    output_path = write_rows(
+        args.output,
+        [
+            ["metric", "value"],
+            ["profile", "memory-heavy"],
+            ["seed", args.seed],
+            ["chunks", args.chunks],
+            ["chunk_kib", args.chunk_kib],
+            ["passes", args.passes],
+            ["mean_checksum", f"{statistics.mean(pass_checksums):.2f}"],
+            ["duration_seconds", f"{duration:.6f}"],
+        ],
+    )
+    print(f"memory-heavy complete passes={args.passes} output={output_path}")
+    return 0
+
+
+def mixed(args: argparse.Namespace) -> int:
+    rng = random.Random(args.seed)
+    started = time.perf_counter()
+    digest = hashlib.sha256(str(args.seed).encode("utf-8")).digest()
+    matrix = []
+
+    for row in range(args.chunks):
+        values = []
+        for column in range(args.iterations):
+            sample = rng.randint(1, 10_000)
+            digest = hashlib.sha256(digest + f":{sample}:{row}:{column}".encode("utf-8")).digest()
+            values.append(sample % 257)
+        matrix.append(values)
+
+    checksums = [sum(row) for row in matrix]
+    bounded_sleep(args.sleep_ms)
+    duration = time.perf_counter() - started
+    output_path = write_rows(
+        args.output,
+        [
+            ["metric", "value"],
+            ["profile", "mixed"],
+            ["seed", args.seed],
+            ["iterations", args.iterations],
+            ["chunks", args.chunks],
+            ["chunk_kib", args.chunk_kib],
+            ["row_checksum_mean", f"{statistics.mean(checksums):.2f}"],
+            ["digest_prefix", digest.hex()[:24]],
+            ["duration_seconds", f"{duration:.6f}"],
+        ],
+    )
+    print(f"mixed complete rows={args.chunks} output={output_path}")
+    return 0
+
+
+def exit_nonzero(args: argparse.Namespace) -> int:
+    bounded_sleep(args.sleep_ms)
+    print(f"exit-nonzero returning code {args.code}")
+    return args.code
+
+
+def hang(args: argparse.Namespace) -> int:
+    print(f"hang sleeping for {args.sleep_seconds} seconds")
+    time.sleep(args.sleep_seconds)
+    return 0
+
+
+def slow_start(args: argparse.Namespace) -> int:
+    bounded_sleep(args.startup_delay_ms)
+    follow_up = argparse.Namespace(
+        seed=args.seed,
+        iterations=args.iterations,
+        sleep_ms=args.sleep_ms,
+        output=args.output,
+    )
+    return cpu_light(follow_up)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Deterministic benchmark workloads for CloudAI")
+    subparsers = parser.add_subparsers(dest="profile", required=True)
+
+    cpu_light_parser = subparsers.add_parser("cpu-light")
+    cpu_light_parser.add_argument("--seed", type=int, default=101)
+    cpu_light_parser.add_argument("--iterations", type=int, default=20000)
+    cpu_light_parser.add_argument("--sleep-ms", type=int, default=100)
+    cpu_light_parser.add_argument("--output", default="cpu-light.csv")
+    cpu_light_parser.set_defaults(handler=cpu_light)
+
+    cpu_heavy_parser = subparsers.add_parser("cpu-heavy")
+    cpu_heavy_parser.add_argument("--seed", type=int, default=201)
+    cpu_heavy_parser.add_argument("--iterations", type=int, default=10000)
+    cpu_heavy_parser.add_argument("--sleep-ms", type=int, default=150)
+    cpu_heavy_parser.add_argument("--output", default="cpu-heavy.csv")
+    cpu_heavy_parser.set_defaults(handler=cpu_heavy)
+
+    memory_heavy_parser = subparsers.add_parser("memory-heavy")
+    memory_heavy_parser.add_argument("--seed", type=int, default=301)
+    memory_heavy_parser.add_argument("--chunks", type=int, default=8)
+    memory_heavy_parser.add_argument("--chunk-kib", type=int, default=256)
+    memory_heavy_parser.add_argument("--passes", type=int, default=3)
+    memory_heavy_parser.add_argument("--sleep-ms", type=int, default=180)
+    memory_heavy_parser.add_argument("--output", default="memory-heavy.csv")
+    memory_heavy_parser.set_defaults(handler=memory_heavy)
+
+    mixed_parser = subparsers.add_parser("mixed")
+    mixed_parser.add_argument("--seed", type=int, default=401)
+    mixed_parser.add_argument("--iterations", type=int, default=128)
+    mixed_parser.add_argument("--chunks", type=int, default=8)
+    mixed_parser.add_argument("--chunk-kib", type=int, default=256)
+    mixed_parser.add_argument("--sleep-ms", type=int, default=120)
+    mixed_parser.add_argument("--output", default="mixed.csv")
+    mixed_parser.set_defaults(handler=mixed)
+
+    exit_parser = subparsers.add_parser("exit-nonzero")
+    exit_parser.add_argument("--code", type=int, default=7)
+    exit_parser.add_argument("--sleep-ms", type=int, default=50)
+    exit_parser.set_defaults(handler=exit_nonzero)
+
+    hang_parser = subparsers.add_parser("hang")
+    hang_parser.add_argument("--sleep-seconds", type=int, default=600)
+    hang_parser.set_defaults(handler=hang)
+
+    slow_start_parser = subparsers.add_parser("slow-start")
+    slow_start_parser.add_argument("--startup-delay-ms", type=int, default=5000)
+    slow_start_parser.add_argument("--seed", type=int, default=501)
+    slow_start_parser.add_argument("--iterations", type=int, default=16000)
+    slow_start_parser.add_argument("--sleep-ms", type=int, default=100)
+    slow_start_parser.add_argument("--output", default="slow-start.csv")
+    slow_start_parser.set_defaults(handler=slow_start)
+
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    return int(args.handler(args))
+
+
+if __name__ == "__main__":
+    sys.exit(main())

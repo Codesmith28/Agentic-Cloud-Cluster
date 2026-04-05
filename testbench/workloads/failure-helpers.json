@@ -1,0 +1,47 @@
+{
+  "name": "failure-helpers",
+  "description": "Deterministic helper tasks for failure-path validation and recovery testing.",
+  "tasks": [
+    {
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "slow-start",
+      "workflow_args": {
+        "startup_delay_ms": 5000,
+        "seed": 501,
+        "iterations": 14000,
+        "sleep_ms": 90,
+        "output": "slow-start.csv"
+      },
+      "cpu_required": 0.5,
+      "memory_required": 0.25,
+      "storage_required": 1,
+      "tag": "cpu-light",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "exit-nonzero",
+      "workflow_args": {
+        "code": 17,
+        "sleep_ms": 250
+      },
+      "cpu_required": 0.5,
+      "memory_required": 0.25,
+      "storage_required": 1,
+      "tag": "cpu-light",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "hang",
+      "workflow_args": {
+        "sleep_seconds": 600
+      },
+      "cpu_required": 0.5,
+      "memory_required": 0.25,
+      "storage_required": 1,
+      "tag": "cpu-light",
+      "k_value": 2.0
+    }
+  ]
+}

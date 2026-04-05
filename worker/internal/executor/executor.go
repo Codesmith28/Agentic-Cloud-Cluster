@@ -197,6 +197,14 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 
 // pullImage pulls a Docker image from registry
 func (e *TaskExecutor) pullImage(ctx context.Context, imageName string) error {
+	// Deterministic benchmark workflows are preloaded into each worker's DinD daemon.
+	// If the image is already available locally, skip the registry pull and use the
+	// local copy directly.
+	if _, _, err := e.dockerClient.ImageInspectWithRaw(ctx, imageName); err == nil {
+		log.Printf("Image %s already available locally; skipping pull", imageName)
+		return nil
+	}
+
 	out, err := e.dockerClient.ImagePull(ctx, imageName, image.PullOptions{})
 	if err != nil {
 		return err

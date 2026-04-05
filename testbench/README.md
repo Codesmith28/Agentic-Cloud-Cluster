@@ -6,6 +6,8 @@ This testbench provides an automated performance harness for CloudAI:
 - each `worker-*` runs in its own container
 - each worker has its own Docker daemon (`worker-*-dind`) so task containers are isolated per worker node
 - worker capabilities are intentionally heterogeneous via CPU/memory limits and explicit resource overrides
+- one repo-owned workflow image (`cloudai-benchmark:1`) is built into each worker DinD daemon before workload submission
+- workload manifests use `workflow_profile` + `workflow_args` instead of ad hoc inline shell jobs
 
 Detailed step-by-step instructions: [`docs/TESTBENCH_RUNBOOK.md`](../docs/TESTBENCH_RUNBOOK.md)
 
@@ -18,8 +20,12 @@ In this setup, each worker talks to its own Docker daemon (`DOCKER_HOST=tcp://wo
 ## Files
 
 - `testbench/docker-compose.yml`: full cluster topology
+- `testbench/workflow-image/`: Dockerfile + deterministic benchmark runner
 - `testbench/workloads/heterogeneous-smoke.json`: default mixed workload
+- `testbench/workloads/deterministic-full.json`: full deterministic benchmark suite
+- `testbench/workloads/failure-helpers.json`: helper tasks for `exit-nonzero`, `hang`, and `slow-start`
 - `testbench/scripts/register_workers.sh`: automatic worker registration
+- `testbench/scripts/prepare_workflow_images.sh`: builds `cloudai-benchmark:1` into all worker DinD daemons
 - `testbench/scripts/run_workload.py`: submits tasks and waits for completion
 - `testbench/scripts/run_suite.sh`: one-shot end-to-end execution
 
@@ -34,18 +40,37 @@ make testbench-suite
 This runs:
 
 1. `docker compose -f testbench/docker-compose.yml up -d --build`
-2. automatic registration of `worker-small`, `worker-medium`, `worker-large`
-3. workload submission + polling until completion
-4. summary JSON output under `results/testbench/`
+2. builds the deterministic workflow image into every worker DinD daemon
+3. automatic registration of `worker-small`, `worker-medium`, `worker-large`
+4. workload submission + polling until completion
+5. summary JSON output under `results/testbench/`
 
 ## Manual Flow
 
 ```bash
 make testbench-up
+make testbench-prepare-images
 make testbench-register
 make testbench-workload
 make testbench-down
 ```
+
+## Deterministic Workflow Image
+
+The benchmark image is defined in `testbench/workflow-image/` and loaded into each worker-side Docker daemon.
+
+- image tag: `cloudai-benchmark:1`
+- helper command inside the image: `cloudai-benchmark`
+- profiles:
+  - `cpu-light`
+  - `cpu-heavy`
+  - `memory-heavy`
+  - `mixed`
+  - `exit-nonzero`
+  - `hang`
+  - `slow-start`
+
+See [`DOCKER_IMAGES.txt`](../DOCKER_IMAGES.txt) for the profile catalog and example commands.
 
 ## Adjusting Heterogeneity
 
@@ -63,5 +88,6 @@ Edit each `worker-*` service in `testbench/docker-compose.yml`:
 curl http://localhost:8080/api/workers | jq
 curl http://localhost:8080/api/tasks | jq
 curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
+python3 testbench/scripts/run_workload.py --workload testbench/workloads/failure-helpers.json
 docker compose -f testbench/docker-compose.yml logs -f worker-small
 ```

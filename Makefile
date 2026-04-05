@@ -1,4 +1,4 @@
-.PHONY: help all proto master worker clean setup test test-unit test-unit-verbose testbench-up testbench-register testbench-workload testbench-suite testbench-down campaign campaign-full
+.PHONY: help all proto master worker clean setup test test-unit test-unit-verbose testbench-up testbench-prepare-images testbench-register testbench-workload testbench-suite testbench-down campaign campaign-full
 
 # Default target
 help:
@@ -15,6 +15,7 @@ help:
 	@echo "  make test-unit    - Run Go unit tests (all packages)"
 	@echo "  make test-unit-verbose - Run Go unit tests with verbose output"
 	@echo "  make testbench-up - Build and start Docker testbench stack"
+	@echo "  make testbench-prepare-images - Build deterministic workflow images into worker DinD daemons"
 	@echo "  make testbench-register - Register testbench workers with master"
 	@echo "  make testbench-workload - Submit default workload and wait for completion"
 	@echo "  make testbench-suite - Start stack, register workers, run workload"
@@ -113,10 +114,14 @@ all: setup master worker
 testbench-up:
 	@docker compose -f testbench/docker-compose.yml up -d --build
 
+testbench-prepare-images:
+	@testbench/scripts/prepare_workflow_images.sh
+
 testbench-register:
 	@testbench/scripts/register_workers.sh
 
 testbench-workload:
+	@testbench/scripts/prepare_workflow_images.sh
 	@python3 testbench/scripts/run_workload.py
 
 testbench-suite:

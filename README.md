@@ -197,6 +197,8 @@ A full automated testbench is available under [`testbench/`](testbench/README.md
 - containerized `master` + `mongo`
 - multiple containerized workers with different CPU/memory capacities
 - per-worker isolated Docker daemons (DinD sidecars) so tasks are isolated between workers
+- repo-owned deterministic workflow image built into each worker DinD daemon
+- parameterized workload manifests for `cpu-light`, `cpu-heavy`, `memory-heavy`, `mixed`, `exit-nonzero`, `hang`, and `slow-start`
 - automated worker registration + workload submission scripts for repeatable performance testing
 
 Quick run:
@@ -206,6 +208,8 @@ make testbench-suite
 ```
 
 Detailed runbook: **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)**
+
+Deterministic workflow image details: **[DOCKER_IMAGES.txt](DOCKER_IMAGES.txt)**
 
 ## Recovery Semantics
 
