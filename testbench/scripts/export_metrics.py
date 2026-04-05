@@ -19,6 +19,7 @@ RANGE_QUERIES = {
     "worker_cpu_usage_ratio": 'cloudai_worker_resource_usage_ratio{resource="cpu"}',
     "worker_memory_usage_ratio": 'cloudai_worker_resource_usage_ratio{resource="memory"}',
     "worker_storage_usage_ratio": 'cloudai_worker_resource_usage_ratio{resource="storage"}',
+    "worker_task_runtime": "cloudai_worker_task_runtime_seconds_count",
 }
 
 
@@ -74,15 +75,30 @@ def main() -> int:
 
     instant_queries = {
         "max_queue_depth": f"max_over_time(cloudai_master_queue_depth[{window_seconds}s])",
+        "task_enqueues": f"sum by (reason) (increase(cloudai_master_tasks_enqueued_total[{window_seconds}s]))",
+        "task_dequeues": f"sum by (outcome) (increase(cloudai_master_tasks_dequeued_total[{window_seconds}s]))",
         "task_requeues": f"sum by (failure_reason, task_type) (increase(cloudai_master_task_requeues_total[{window_seconds}s]))",
         "stale_results": f"sum by (reason) (increase(cloudai_master_stale_results_total[{window_seconds}s]))",
         "worker_timeouts": f"sum by (worker_id) (increase(cloudai_master_worker_timeouts_total[{window_seconds}s]))",
         "task_terminals": f"sum by (status, task_type) (increase(cloudai_master_task_terminal_total[{window_seconds}s]))",
+        "worker_container_cpu_seconds": (
+            f"sum by (task_type) (increase(cloudai_worker_task_container_cpu_seconds_total[{window_seconds}s]))"
+        ),
+        "worker_container_io_bytes": (
+            f"sum by (task_type) (increase(cloudai_worker_task_container_io_bytes_total[{window_seconds}s]))"
+        ),
+        "worker_docker_errors": f"sum by (stage, task_type) (increase(cloudai_worker_docker_errors_total[{window_seconds}s]))",
         "p95_scheduling_latency": (
             f'histogram_quantile(0.95, sum by (le, scheduler) (increase(cloudai_master_scheduling_latency_seconds_bucket[{window_seconds}s])))'
         ),
         "p95_queue_wait": (
             f'histogram_quantile(0.95, sum by (le, scheduler, task_type) (increase(cloudai_master_task_queue_wait_seconds_bucket[{window_seconds}s])))'
+        ),
+        "p95_task_runtime": (
+            f'histogram_quantile(0.95, sum by (le, task_type, status) (increase(cloudai_worker_task_runtime_seconds_bucket[{window_seconds}s])))'
+        ),
+        "p95_peak_memory_bytes": (
+            f'histogram_quantile(0.95, sum by (le, task_type) (increase(cloudai_worker_task_container_peak_memory_bytes_bucket[{window_seconds}s])))'
         ),
     }
 

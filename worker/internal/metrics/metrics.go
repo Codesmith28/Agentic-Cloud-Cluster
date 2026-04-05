@@ -14,6 +14,9 @@ type Recorder struct {
 	imagePullDuration *prometheus.HistogramVec
 	containerCreate   *prometheus.HistogramVec
 	taskRuntime       *prometheus.HistogramVec
+	containerCPUTime  *prometheus.CounterVec
+	containerPeakMem  *prometheus.HistogramVec
+	containerIOBytes  *prometheus.CounterVec
 	dockerErrors      *prometheus.CounterVec
 	taskStarts        *prometheus.CounterVec
 }
@@ -65,6 +68,25 @@ func Get() *Recorder {
 				Help:      "Task runtime observed by the worker.",
 				Buckets:   prometheus.DefBuckets,
 			}, []string{"task_type", "status"}),
+			containerCPUTime: prometheus.NewCounterVec(prometheus.CounterOpts{
+				Namespace: "cloudai",
+				Subsystem: "worker",
+				Name:      "task_container_cpu_seconds_total",
+				Help:      "Cumulative CPU seconds consumed by completed task containers.",
+			}, []string{"task_type"}),
+			containerPeakMem: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+				Namespace: "cloudai",
+				Subsystem: "worker",
+				Name:      "task_container_peak_memory_bytes",
+				Help:      "Peak container memory usage observed for completed task containers.",
+				Buckets:   prometheus.ExponentialBuckets(64*1024*1024, 2, 10),
+			}, []string{"task_type"}),
+			containerIOBytes: prometheus.NewCounterVec(prometheus.CounterOpts{
+				Namespace: "cloudai",
+				Subsystem: "worker",
+				Name:      "task_container_io_bytes_total",
+				Help:      "Cumulative read and write bytes reported by completed task containers.",
+			}, []string{"task_type"}),
 			dockerErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
 				Namespace: "cloudai",
 				Subsystem: "worker",
@@ -86,6 +108,9 @@ func Get() *Recorder {
 			recorder.imagePullDuration,
 			recorder.containerCreate,
 			recorder.taskRuntime,
+			recorder.containerCPUTime,
+			recorder.containerPeakMem,
+			recorder.containerIOBytes,
 			recorder.dockerErrors,
 			recorder.taskStarts,
 		)
@@ -129,6 +154,17 @@ func (r *Recorder) ObserveContainerCreate(taskType string, started time.Time) {
 func (r *Recorder) ObserveTaskRuntime(taskType, status string, started time.Time) {
 	if r != nil {
 		r.taskRuntime.WithLabelValues(normalizeTaskType(taskType), status).Observe(time.Since(started).Seconds())
+	}
+}
+
+func (r *Recorder) ObserveContainerUsage(taskType string, cpuSeconds float64, peakMemoryBytes, ioBytes uint64) {
+	if r != nil {
+		normalizedTaskType := normalizeTaskType(taskType)
+		r.containerCPUTime.WithLabelValues(normalizedTaskType).Add(cpuSeconds)
+		if peakMemoryBytes > 0 {
+			r.containerPeakMem.WithLabelValues(normalizedTaskType).Observe(float64(peakMemoryBytes))
+		}
+		r.containerIOBytes.WithLabelValues(normalizedTaskType).Add(float64(ioBytes))
 	}
 }
 

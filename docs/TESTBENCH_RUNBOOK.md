@@ -7,6 +7,7 @@ This runbook shows exactly how to run the Docker-based CloudAI testbenches for r
 - Docker Desktop or Docker Engine with `docker compose`
 - Python 3.8+
 - Optional: `jq` for pretty JSON output
+- `GF_ADMIN_PASSWORD` exported for Grafana startup
 
 Quick check:
 
@@ -14,6 +15,7 @@ Quick check:
 docker --version
 docker compose version
 python3 --version
+export GF_ADMIN_PASSWORD=admin
 ```
 
 ## 2) Testbench Types
@@ -27,22 +29,26 @@ python3 --version
 From repository root:
 
 ```bash
+export GF_ADMIN_PASSWORD=admin
 make testbench-suite
 ```
 
 What it does:
 
 1. Builds and starts `mongo`, `master`, `worker-small`, `worker-medium`, `worker-large`
-2. Registers workers through `POST /api/workers`
-3. Submits workload from `testbench/workloads/heterogeneous-smoke.json`
-4. Polls task status until completion
-5. Writes summary JSON to `results/testbench/<timestamp>-summary.json`
+2. Starts `prometheus` and `grafana`
+3. Registers workers through `POST /api/workers`
+4. Submits workload from `testbench/workloads/heterogeneous-smoke.json`
+5. Polls task status until completion
+6. Writes summary JSON to `results/testbench/<timestamp>-summary.json`
+7. Exports Prometheus-backed observability artifacts to `results/testbench/<timestamp>-observability/`
 
 ## 4) Manual Stage-by-Stage Run
 
 Start stack:
 
 ```bash
+export GF_ADMIN_PASSWORD=admin
 make testbench-up
 ```
 
@@ -64,7 +70,40 @@ Teardown:
 make testbench-down
 ```
 
-## 5) Run a Custom Workload
+## 5) Observability Access
+
+Prometheus:
+
+```bash
+open http://localhost:9090
+```
+
+Grafana:
+
+```bash
+open http://localhost:3000
+```
+
+Grafana credentials:
+
+- username: `admin` unless `GF_ADMIN_USER` is overridden
+- password: value of `GF_ADMIN_PASSWORD`
+
+Master metrics endpoint:
+
+```bash
+curl http://localhost:8080/metrics | head
+```
+
+Provisioned dashboards:
+
+- `CloudAI Overview`
+- `CloudAI Scheduler Queue`
+- `CloudAI Recovery Incidents`
+- `CloudAI Worker Runtime`
+- `CloudAI Benchmark Summary`
+
+## 6) Run a Custom Workload
 
 Use the Python runner directly:
 
@@ -96,7 +135,7 @@ Expected workload JSON shape:
 }
 ```
 
-## 6) Verify Cluster and Task State
+## 7) Verify Cluster and Task State
 
 Workers:
 
@@ -109,6 +148,7 @@ Tasks:
 ```bash
 curl http://localhost:8080/api/tasks | jq
 curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
+curl http://localhost:8080/metrics | head
 ```
 
 Master logs:
@@ -123,12 +163,17 @@ Worker logs:
 docker compose -f testbench/docker-compose.yml logs -f worker-small
 ```
 
-## 7) Where Results Go
+## 8) Where Results Go
 
 - Workload summary: `results/testbench/<timestamp>-summary.json`
+- Observability export:
+  - `results/testbench/<timestamp>-observability/prometheus-range.json`
+  - `results/testbench/<timestamp>-observability/prometheus-instant.json`
+  - `results/testbench/<timestamp>-observability/master-snapshot.json`
+  - `results/testbench/<timestamp>-observability/metrics-summary.csv`
 - Task-level outputs: stored by worker containers under `/var/cloudai/outputs` (inside worker volumes)
 
-## 8) Tuning Heterogeneous Capacity
+## 9) Tuning Heterogeneous Capacity
 
 Edit `testbench/docker-compose.yml`:
 
@@ -146,7 +191,7 @@ make testbench-up
 make testbench-register
 ```
 
-## 9) Troubleshooting
+## 10) Troubleshooting
 
 Workers not active:
 

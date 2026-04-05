@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,6 +41,12 @@ type TaskResult struct {
 	Error          error
 	ResultLocation string   // Path to output directory on worker
 	OutputFiles    []string // List of output files relative to ResultLocation
+}
+
+type containerUsageSnapshot struct {
+	CPUSeconds      float64
+	PeakMemoryBytes uint64
+	IOBytes         uint64
 }
 
 // getBaseOutputDir returns the base output directory, using CLOUDAI_OUTPUT_DIR env var if set
@@ -179,6 +187,13 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 	}
 	workermetrics.Get().ObserveTaskRuntime(taskType, result.Status, executionStarted)
 
+	usageSnapshot, usageErr := e.collectContainerUsage(ctx, containerID)
+	if usageErr != nil {
+		log.Printf("[Task %s] Warning: failed to collect container usage metrics: %v", taskID, usageErr)
+	} else {
+		workermetrics.Get().ObserveContainerUsage(taskType, usageSnapshot.CPUSeconds, usageSnapshot.PeakMemoryBytes, usageSnapshot.IOBytes)
+	}
+
 	// Collect output files
 	outputDir := filepath.Join(getBaseOutputDir(), taskID)
 	outputFiles, err := e.collectOutputFiles(outputDir)
@@ -195,6 +210,38 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 	return result
 }
 
+func (e *TaskExecutor) collectContainerUsage(ctx context.Context, containerID string) (containerUsageSnapshot, error) {
+	statsReader, err := e.dockerClient.ContainerStatsOneShot(ctx, containerID)
+	if err != nil {
+		return containerUsageSnapshot{}, err
+	}
+	defer statsReader.Body.Close()
+
+	var stats container.StatsResponse
+	if err := json.NewDecoder(statsReader.Body).Decode(&stats); err != nil {
+		return containerUsageSnapshot{}, fmt.Errorf("decode stats response: %w", err)
+	}
+
+	peakMemoryBytes := maxUint64(
+		stats.MemoryStats.MaxUsage,
+		stats.MemoryStats.Usage,
+		stats.MemoryStats.CommitPeak,
+		stats.MemoryStats.Commit,
+		stats.MemoryStats.PrivateWorkingSet,
+	)
+
+	ioBytes := sumBlkioBytes(stats.BlkioStats.IoServiceBytesRecursive)
+	if ioBytes == 0 {
+		ioBytes = stats.StorageStats.ReadSizeBytes + stats.StorageStats.WriteSizeBytes
+	}
+
+	return containerUsageSnapshot{
+		CPUSeconds:      float64(stats.CPUStats.CPUUsage.TotalUsage) / 1e9,
+		PeakMemoryBytes: peakMemoryBytes,
+		IOBytes:         ioBytes,
+	}, nil
+}
+
 // pullImage pulls a Docker image from registry
 func (e *TaskExecutor) pullImage(ctx context.Context, imageName string) error {
 	out, err := e.dockerClient.ImagePull(ctx, imageName, image.PullOptions{})
@@ -206,6 +253,45 @@ func (e *TaskExecutor) pullImage(ctx context.Context, imageName string) error {
 	// Read pull output (required to complete pull)
 	_, err = io.Copy(io.Discard, out)
 	return err
+}
+
+func sumBlkioBytes(entries []container.BlkioStatEntry) uint64 {
+	var readWriteTotal uint64
+	var matchedReadWrite bool
+	var totalEntry uint64
+
+	for _, entry := range entries {
+		switch {
+		case strings.EqualFold(entry.Op, "read"), strings.EqualFold(entry.Op, "write"):
+			readWriteTotal += entry.Value
+			matchedReadWrite = true
+		case strings.EqualFold(entry.Op, "total"):
+			totalEntry += entry.Value
+		}
+	}
+
+	if matchedReadWrite {
+		return readWriteTotal
+	}
+	if totalEntry > 0 {
+		return totalEntry
+	}
+
+	var fallback uint64
+	for _, entry := range entries {
+		fallback += entry.Value
+	}
+	return fallback
+}
+
+func maxUint64(values ...uint64) uint64 {
+	var max uint64
+	for _, value := range values {
+		if value > max {
+			max = value
+		}
+	}
+	return max
 }
 
 // createContainer creates a Docker container with resource limits.

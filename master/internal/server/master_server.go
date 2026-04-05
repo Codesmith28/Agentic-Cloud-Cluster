@@ -2210,6 +2210,7 @@ func (s *MasterServer) processQueue(ticker *time.Ticker, stopCh <-chan struct{})
 			if s.isTaskCancellationRequested(taskID) {
 				s.clearTaskCancellationRequest(taskID)
 				s.updateTaskStatusSafe(taskID, "cancelled")
+				mastermetrics.Get().IncTaskDequeued("cancelled")
 				continue
 			}
 
@@ -2239,6 +2240,7 @@ func (s *MasterServer) processQueue(ticker *time.Ticker, stopCh <-chan struct{})
 			if s.isTaskCancellationRequested(taskID) {
 				s.clearTaskCancellationRequest(taskID)
 				s.updateTaskStatusSafe(taskID, "cancelled")
+				mastermetrics.Get().IncTaskDequeued("cancelled")
 				continue
 			}
 
@@ -2268,6 +2270,7 @@ func (s *MasterServer) processQueue(ticker *time.Ticker, stopCh <-chan struct{})
 			} else {
 				mastermetrics.Get().ObserveQueueWait(s.scheduler.GetName(), qt.Task.TaskType, qt.QueuedAt)
 				mastermetrics.Get().IncSchedulerSelection(s.scheduler.GetName(), qt.Task.TaskType, selectedWorker)
+				mastermetrics.Get().IncTaskDequeued("assigned")
 				log.Printf("✓ Queue: Task %s successfully assigned to %s after %d attempts",
 					qt.Task.TaskId, selectedWorker, qt.Retries)
 				if s.isTaskCancellationRequested(taskID) {

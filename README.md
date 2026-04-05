@@ -196,15 +196,33 @@ A full automated testbench is available under [`testbench/`](testbench/README.md
 - containerized `master` + `mongo`
 - multiple containerized workers with different CPU/memory capacities
 - per-worker isolated Docker daemons (DinD sidecars) so tasks are isolated between workers
+- Prometheus + Grafana for observability during benchmark runs
 - automated worker registration + workload submission scripts for repeatable performance testing
+- exported observability artifacts under `results/testbench/<timestamp>-observability/`
 
 Quick run:
 
 ```bash
+export GF_ADMIN_PASSWORD=admin
 make testbench-suite
 ```
 
 Detailed runbook: **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)**
+
+Observability access:
+
+- Prometheus UI: `http://localhost:9090`
+- Grafana UI: `http://localhost:3000`
+- Grafana login: `${GF_ADMIN_USER:-admin}` / value of `GF_ADMIN_PASSWORD`
+- Master metrics endpoint: `http://localhost:8080/metrics`
+
+Provisioned Grafana dashboards:
+
+- `CloudAI Overview`
+- `CloudAI Scheduler Queue`
+- `CloudAI Recovery Incidents`
+- `CloudAI Worker Runtime`
+- `CloudAI Benchmark Summary`
 
 ## Recovery Semantics
 

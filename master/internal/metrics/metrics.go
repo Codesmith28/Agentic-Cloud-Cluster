@@ -8,16 +8,17 @@ import (
 )
 
 type Recorder struct {
-	queueDepth             prometheus.Gauge
-	taskEnqueuedTotal      *prometheus.CounterVec
-	schedulingLatency      *prometheus.HistogramVec
-	queueWait              *prometheus.HistogramVec
-	schedulerSelections    *prometheus.CounterVec
-	taskTerminalTotal      *prometheus.CounterVec
-	workerTimeoutsTotal    *prometheus.CounterVec
-	taskRequeuesTotal      *prometheus.CounterVec
-	staleResultsTotal      *prometheus.CounterVec
-	recoveryDuration       *prometheus.HistogramVec
+	queueDepth          prometheus.Gauge
+	taskEnqueuedTotal   *prometheus.CounterVec
+	taskDequeuedTotal   *prometheus.CounterVec
+	schedulingLatency   *prometheus.HistogramVec
+	queueWait           *prometheus.HistogramVec
+	schedulerSelections *prometheus.CounterVec
+	taskTerminalTotal   *prometheus.CounterVec
+	workerTimeoutsTotal *prometheus.CounterVec
+	taskRequeuesTotal   *prometheus.CounterVec
+	staleResultsTotal   *prometheus.CounterVec
+	recoveryDuration    *prometheus.HistogramVec
 }
 
 var (
@@ -40,6 +41,12 @@ func Get() *Recorder {
 				Name:      "tasks_enqueued_total",
 				Help:      "Total number of tasks enqueued for scheduling.",
 			}, []string{"reason"}),
+			taskDequeuedTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+				Namespace: "cloudai",
+				Subsystem: "master",
+				Name:      "tasks_dequeued_total",
+				Help:      "Total number of queued tasks that left the scheduling queue.",
+			}, []string{"outcome"}),
 			schedulingLatency: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: "cloudai",
 				Subsystem: "master",
@@ -96,6 +103,7 @@ func Get() *Recorder {
 		prometheus.MustRegister(
 			recorder.queueDepth,
 			recorder.taskEnqueuedTotal,
+			recorder.taskDequeuedTotal,
 			recorder.schedulingLatency,
 			recorder.queueWait,
 			recorder.schedulerSelections,
@@ -118,6 +126,12 @@ func (r *Recorder) SetQueueDepth(depth int) {
 func (r *Recorder) IncTaskEnqueued(reason string) {
 	if r != nil {
 		r.taskEnqueuedTotal.WithLabelValues(reason).Inc()
+	}
+}
+
+func (r *Recorder) IncTaskDequeued(outcome string) {
+	if r != nil {
+		r.taskDequeuedTotal.WithLabelValues(outcome).Inc()
 	}
 }
 
