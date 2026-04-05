@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -26,6 +27,8 @@ type Config struct {
 	PPORequestTimeoutMS int
 	PPOAutostart        bool
 	PPOModelPath        string
+	PPODeploymentMode   string
+	PPOOnlineUpdates    bool
 }
 
 // LoadConfig loads configuration from environment variables and .env file
@@ -44,6 +47,8 @@ func LoadConfig() *Config {
 	ppoRequestTimeout := getEnvInt("PPO_REQUEST_TIMEOUT_MS", 1500)
 	ppoAutostart := getEnvBool("PPO_AUTOSTART", true)
 	ppoModelPath := getEnv("PPO_MODEL_PATH", "agentic_scheduler/models/ppo_latest.pt")
+	ppoMode := normalizePPOMode(getEnv("PPO_MODE", "active"))
+	ppoOnlineUpdates := getEnvBool("PPO_ONLINE_UPDATES_ENABLED", true)
 	headless := getEnvBool("CLOUDAI_HEADLESS", false)
 
 	// Load SLA multiplier with validation
@@ -79,6 +84,8 @@ func LoadConfig() *Config {
 		PPORequestTimeoutMS: ppoRequestTimeout,
 		PPOAutostart:        ppoAutostart,
 		PPOModelPath:        ppoModelPath,
+		PPODeploymentMode:   ppoMode,
+		PPOOnlineUpdates:    ppoOnlineUpdates,
 	}
 
 	return config
@@ -133,4 +140,16 @@ func getEnvBool(key string, fallback bool) bool {
 		log.Printf("⚠️  Invalid bool value for %s: %s, using fallback %t", key, value, fallback)
 	}
 	return fallback
+}
+
+func normalizePPOMode(mode string) string {
+	switch normalized := strings.ToLower(strings.TrimSpace(mode)); normalized {
+	case "active", "shadow", "fallback":
+		return normalized
+	case "":
+		return "active"
+	default:
+		log.Printf("⚠️  Invalid PPO mode %q, using fallback 'active'", mode)
+		return "active"
+	}
 }

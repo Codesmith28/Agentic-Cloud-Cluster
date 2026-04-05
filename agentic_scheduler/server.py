@@ -90,6 +90,10 @@ def _configure_logging(level: str) -> None:
     )
 
 
+def _parse_bool(value: str) -> bool:
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="PPO scheduler gRPC service")
     parser.add_argument("--grpc-addr", default=os.getenv("PPO_GRPC_ADDR", "127.0.0.1:50061"))
@@ -98,6 +102,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model-path", default=os.getenv("PPO_MODEL_PATH", "agentic_scheduler/models/ppo_latest.pt"))
     parser.add_argument("--learning-rate", type=float, default=float(os.getenv("PPO_LEARNING_RATE", "0.0003")))
     parser.add_argument("--update-batch-size", type=int, default=int(os.getenv("PPO_UPDATE_BATCH_SIZE", "32")))
+    parser.add_argument(
+        "--online-updates",
+        default=os.getenv("PPO_ONLINE_UPDATES_ENABLED", "true"),
+        help="Enable live PPO fine-tuning from reported CloudAI outcomes",
+    )
     parser.add_argument("--log-level", default=os.getenv("PPO_LOG_LEVEL", "INFO"))
     return parser.parse_args()
 
@@ -112,6 +121,7 @@ def serve() -> None:
         model_path=args.model_path,
         learning_rate=args.learning_rate,
         update_batch_size=args.update_batch_size,
+        online_updates_enabled=_parse_bool(args.online_updates),
     )
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=16))
@@ -138,4 +148,3 @@ def serve() -> None:
 
 if __name__ == "__main__":
     serve()
-

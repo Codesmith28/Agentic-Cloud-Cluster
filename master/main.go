@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -246,6 +247,13 @@ func main() {
 		activeScheduler = rrScheduler
 		log.Printf("✓ Selected scheduler: %s", rrScheduler.GetName())
 	case "PPO":
+		log.Printf("ℹ️ PPO deployment mode: %s", cfg.PPODeploymentMode)
+		if cfg.PPODeploymentMode == scheduler.PPOModeFallback {
+			activeScheduler = rtsScheduler
+			log.Printf("✓ Selected scheduler: %s (PPO mode=fallback)", rtsScheduler.GetName())
+			break
+		}
+
 		if cfg.PPOAutostart {
 			cmd, err := startPPOServiceIfNeeded(cfg)
 			if err != nil {
@@ -261,6 +269,7 @@ func main() {
 			time.Duration(cfg.PPORequestTimeoutMS)*time.Millisecond,
 			rtsScheduler,
 			cfg.PPOModelPath,
+			cfg.PPODeploymentMode,
 		)
 		if err != nil {
 			log.Printf("⚠️  Failed to initialize PPO scheduler: %v", err)
@@ -284,7 +293,12 @@ func main() {
 				activeScheduler = rtsScheduler
 			} else {
 				activeScheduler = ppoScheduler
-				log.Printf("✓ Selected scheduler: %s (fallback=%s)", ppoScheduler.GetName(), rtsScheduler.GetName())
+				log.Printf(
+					"✓ Selected scheduler: %s (mode=%s, fallback=%s)",
+					ppoScheduler.GetName(),
+					cfg.PPODeploymentMode,
+					rtsScheduler.GetName(),
+				)
 			}
 		}
 	default:
@@ -668,6 +682,7 @@ func startPPOServiceIfNeeded(cfg *config.Config) (*exec.Cmd, error) {
 		"--mongo-uri", cfg.MongoDBURI,
 		"--mongo-db", cfg.MongoDBDatabase,
 		"--model-path", modelPath,
+		"--online-updates", strconv.FormatBool(cfg.PPOOnlineUpdates),
 	)
 	cmd.Dir = projectRoot
 	cmd.Stdout = os.Stdout

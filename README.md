@@ -26,6 +26,7 @@ CloudAI is a distributed computing platform for executing Docker-based workloads
 - **MongoDB Persistence** - Task history and results
 - **Auto-Registration** - Workers connect automatically
 - **Task Scheduling** - Risk-aware Task Scheduling (RTS) with Round-Robin fallback
+- **PPO Deployment Modes** - Run PPO in `active`, `shadow`, or `fallback` mode
 - **Adaptive Optimization** - AOD module trains scheduling parameters using historical data
 - **Task Queuing** - Automatic queuing when resources unavailable
 - **Task Cancellation** - Graceful and forceful termination
@@ -221,6 +222,38 @@ curl http://localhost:8080/api/tasks/<task_id> | jq
 curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
 ```
 
+## PPO Trace Replay
+
+CloudAI now supports replay-driven PPO training without replacing the live PPO inference path.
+
+- public offline pretraining from Alibaba `cluster-trace-v2018`
+- external holdout evaluation from Google `ClusterData2019`
+- internal offline adaptation from CloudAI MongoDB history
+- live deployment in `active`, `shadow`, or `fallback` mode
+
+Common controls:
+
+```bash
+export SCHED_ALGO=PPO
+export PPO_MODE=shadow
+export PPO_ONLINE_UPDATES_ENABLED=false
+./runMaster.sh
+```
+
+Offline adaptation from CloudAI history:
+
+```bash
+python3 -m agentic_scheduler.train_ppo \
+  --trace-source cloudai \
+  --mongo-uri mongodb://localhost:27017 \
+  --mongo-db cluster_db \
+  --trace-start 2026-03-01T00:00:00Z \
+  --trace-end 2026-03-15T00:00:00Z \
+  --output agentic_scheduler/models/ppo_cloudai_adapted.pt
+```
+
+Detailed workflow: **[docs/PPO_TRACE_REPLAY.md](docs/PPO_TRACE_REPLAY.md)**
+
 ---
 
 ## Documentation
@@ -230,6 +263,7 @@ curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture
 - **[testbench/README.md](testbench/README.md)** - Docker performance testbench
 - **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)** - Step-by-step testbench runbook
+- **[docs/PPO_TRACE_REPLAY.md](docs/PPO_TRACE_REPLAY.md)** - PPO replay training and deployment modes
 - **[docs/EXAMPLE.md](docs/EXAMPLE.md)** - Usage examples
 
 ---

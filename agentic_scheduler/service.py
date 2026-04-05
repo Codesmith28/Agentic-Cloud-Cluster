@@ -5,6 +5,7 @@ import os
 import tempfile
 import threading
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -40,9 +41,11 @@ class PPOServiceCore:
         model_path: str,
         learning_rate: float = 3e-4,
         update_batch_size: int = 32,
+        online_updates_enabled: bool = True,
     ):
         self.learning_rate = float(learning_rate)
         self.update_batch_size = max(int(update_batch_size), 4)
+        self.online_updates_enabled = bool(online_updates_enabled)
         self.model_path = Path(model_path).expanduser() if model_path else None
         self.device = torch.device("cpu")
         self.scheduler_type = "PPO"
@@ -57,6 +60,12 @@ class PPOServiceCore:
 
         if self.model_path and self.model_path.exists():
             self._load_from_local_path_locked(self.model_path)
+
+        LOGGER.info(
+            "PPO service initialized (online_updates_enabled=%s, update_batch_size=%d)",
+            self.online_updates_enabled,
+            self.update_batch_size,
+        )
 
     def close(self) -> None:
         self.store.close()
@@ -165,6 +174,9 @@ class PPOServiceCore:
             resolved_reward = float(reward)
             if resolved_reward == 0.0:
                 resolved_reward = self._derive_reward(status, runtime_seconds, sla_success)
+
+            if not self.online_updates_enabled:
+                return True, "outcome accepted (online updates disabled)"
 
             self.replay_buffer.append(
                 {
@@ -317,13 +329,20 @@ class PPOServiceCore:
             fingerprint_payload=self.current_fingerprint_payload,
             checkpoint_bytes=payload,
             framework="pytorch-ppo",
-            extra_metadata={
-                "reason": reason,
-                "training_steps": self.state.training_steps,
-            },
+            extra_metadata=self._build_persistence_metadata(reason),
         )
         if doc:
             version = int(doc.get("version", 0))
             if version > 0:
                 self.state.model_version = f"v{version}"
 
+    def _build_persistence_metadata(self, reason: str) -> Dict[str, object]:
+        return {
+            "reason": reason,
+            "training_steps": self.state.training_steps,
+            "model_source": "live-online-adaptation" if self.online_updates_enabled else "runtime-checkpoint",
+            "training_corpus": "cloudai-live-outcomes",
+            "cluster_fingerprint": self.current_fingerprint_hash,
+            "train_timestamp": datetime.now(timezone.utc).isoformat(),
+            "online_updates_enabled": self.online_updates_enabled,
+        }

@@ -17,6 +17,12 @@ import (
 // PPOScheduler forwards scheduling decisions to a Python PPO service via gRPC.
 // On any communication/validation failure, it falls back to the configured
 // scheduler (typically RTS -> RR).
+const (
+	PPOModeActive   = "active"
+	PPOModeShadow   = "shadow"
+	PPOModeFallback = "fallback"
+)
+
 type PPOScheduler struct {
 	client pb.PPOSchedulerClient
 	conn   *grpc.ClientConn
@@ -24,13 +30,14 @@ type PPOScheduler struct {
 	fallback       Scheduler
 	requestTimeout time.Duration
 	modelPath      string
+	mode           string
 
 	mu                  sync.RWMutex
 	lastFingerprintHash string
 	lastModelVersion    string
 }
 
-func NewPPOScheduler(grpcAddr string, requestTimeout time.Duration, fallback Scheduler, modelPath string) (*PPOScheduler, error) {
+func NewPPOScheduler(grpcAddr string, requestTimeout time.Duration, fallback Scheduler, modelPath string, mode string) (*PPOScheduler, error) {
 	if grpcAddr == "" {
 		return nil, fmt.Errorf("empty PPO gRPC address")
 	}
@@ -39,6 +46,9 @@ func NewPPOScheduler(grpcAddr string, requestTimeout time.Duration, fallback Sch
 	}
 	if requestTimeout <= 0 {
 		requestTimeout = 1500 * time.Millisecond
+	}
+	if mode == "" {
+		mode = PPOModeActive
 	}
 
 	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -60,6 +70,7 @@ func NewPPOScheduler(grpcAddr string, requestTimeout time.Duration, fallback Sch
 		fallback:       fallback,
 		requestTimeout: requestTimeout,
 		modelPath:      modelPath,
+		mode:           mode,
 	}, nil
 }
 
@@ -92,13 +103,27 @@ func (s *PPOScheduler) Ping(ctx context.Context) (*pb.PingResponse, error) {
 }
 
 func (s *PPOScheduler) SelectWorker(task *pb.Task, workers map[string]*WorkerInfo) string {
+	if s.mode == PPOModeFallback {
+		return s.fallback.SelectWorker(task, workers)
+	}
 	if task == nil || len(workers) == 0 {
 		return s.fallback.SelectWorker(task, workers)
+	}
+
+	shadowWorkerID := ""
+	if s.mode == PPOModeShadow {
+		shadowWorkerID = s.fallback.SelectWorker(task, workers)
+		if shadowWorkerID == "" {
+			return ""
+		}
 	}
 
 	fingerprintHash, fingerprintPayload := BuildClusterFingerprint(workers)
 	if err := s.ensureModelLoaded(fingerprintHash, fingerprintPayload); err != nil {
 		log.Printf("⚠️ PPO: model load failed (%v), fallback -> %s", err, s.fallback.GetName())
+		if s.mode == PPOModeShadow {
+			return shadowWorkerID
+		}
 		return s.fallback.SelectWorker(task, workers)
 	}
 
@@ -135,15 +160,24 @@ func (s *PPOScheduler) SelectWorker(task *pb.Task, workers map[string]*WorkerInf
 	})
 	if err != nil {
 		log.Printf("⚠️ PPO: SelectWorker RPC failed (%v), fallback -> %s", err, s.fallback.GetName())
+		if s.mode == PPOModeShadow {
+			return shadowWorkerID
+		}
 		return s.fallback.SelectWorker(task, workers)
 	}
 	if resp == nil || resp.WorkerId == "" {
+		if s.mode == PPOModeShadow {
+			return shadowWorkerID
+		}
 		return s.fallback.SelectWorker(task, workers)
 	}
 
 	worker, exists := workers[resp.WorkerId]
 	if !exists || !isWorkerSuitableForTask(worker, task) {
 		log.Printf("⚠️ PPO: returned invalid/unsuitable worker %q, fallback -> %s", resp.WorkerId, s.fallback.GetName())
+		if s.mode == PPOModeShadow {
+			return shadowWorkerID
+		}
 		return s.fallback.SelectWorker(task, workers)
 	}
 
@@ -154,10 +188,20 @@ func (s *PPOScheduler) SelectWorker(task *pb.Task, workers map[string]*WorkerInf
 	}
 	s.mu.Unlock()
 
+	if s.mode == PPOModeShadow {
+		if shadowWorkerID != "" && shadowWorkerID != resp.WorkerId {
+			log.Printf("ℹ️ PPO shadow divergence for task %s: ppo=%s actual=%s", task.TaskId, resp.WorkerId, shadowWorkerID)
+		}
+		return shadowWorkerID
+	}
+
 	return resp.WorkerId
 }
 
 func (s *PPOScheduler) ReportOutcome(ctx context.Context, outcome TaskOutcome) error {
+	if s.mode != PPOModeActive {
+		return nil
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
