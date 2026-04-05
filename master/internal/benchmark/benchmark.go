@@ -1136,41 +1136,89 @@ func buildBurstyProfile(workers []WorkerProfile) WorkloadProfile {
 	}
 }
 
-// imageForType returns a deterministic versioned Docker image for a given task type.
-// Uses round-robin across the 5 available versions per type.
-var imageCounter = map[string]int{}
+// imageForType returns the deterministic benchmark image used by live workload submissions.
+// The image is built from testbench/workflow-image and preloaded into each worker DinD daemon.
+func imageForType() string {
+	if imageRef := strings.TrimSpace(os.Getenv("CLOUDAI_WORKFLOW_IMAGE")); imageRef != "" {
+		return imageRef
+	}
+	return "cloudai-benchmark:1"
+}
 
-func imageForType(taskType string) string {
-	imageCounter[taskType]++
-	version := ((imageCounter[taskType] - 1) % 5) + 1
+var workloadVariantCounter = map[string]int{}
+
+func nextWorkloadVariant(taskType string) int {
+	workloadVariantCounter[taskType]++
+	return ((workloadVariantCounter[taskType] - 1) % 5) + 1
+}
+
+func benchmarkCommand(taskType string, variant int) string {
 	switch taskType {
 	case "cpu-light":
-		return fmt.Sprintf("moinvinchhi/cloudai-cpu-light:%d", version)
+		return fmt.Sprintf(
+			"cloudai-benchmark cpu-light --seed %d --iterations %d --sleep-ms %d --output cpu-light-%02d.csv",
+			100+variant,
+			18000+(variant*2500),
+			90+(variant*20),
+			variant,
+		)
 	case "cpu-heavy":
-		return fmt.Sprintf("moinvinchhi/cloudai-cpu-heavy:%d", version)
+		return fmt.Sprintf(
+			"cloudai-benchmark cpu-heavy --seed %d --iterations %d --sleep-ms %d --output cpu-heavy-%02d.csv",
+			200+variant,
+			9000+(variant*1500),
+			120+(variant*40),
+			variant,
+		)
 	case "memory-heavy":
-		return fmt.Sprintf("moinvinchhi/cloudai-memory-heavy:%d", version)
+		return fmt.Sprintf(
+			"cloudai-benchmark memory-heavy --seed %d --chunks %d --chunk-kib %d --passes %d --sleep-ms %d --output memory-heavy-%02d.csv",
+			300+variant,
+			6+variant,
+			256+(variant*64),
+			2+variant,
+			140+(variant*30),
+			variant,
+		)
 	case "mixed":
-		return fmt.Sprintf("moinvinchhi/cloudai-mixed:%d", version)
+		return fmt.Sprintf(
+			"cloudai-benchmark mixed --seed %d --iterations %d --chunks %d --chunk-kib %d --sleep-ms %d --output mixed-%02d.csv",
+			400+variant,
+			7000+(variant*900),
+			4+variant,
+			192+(variant*32),
+			110+(variant*35),
+			variant,
+		)
 	default:
-		return fmt.Sprintf("moinvinchhi/cloudai-mixed:%d", version)
+		return fmt.Sprintf(
+			"cloudai-benchmark mixed --seed %d --iterations %d --chunks %d --chunk-kib %d --sleep-ms %d --output mixed-%02d.csv",
+			900+variant,
+			8000+(variant*1000),
+			4+variant,
+			192+(variant*32),
+			120+(variant*30),
+			variant,
+		)
 	}
 }
 
 func newTask(taskID, taskType string, arrival time.Duration) WorkloadTask {
-	image := imageForType(taskType)
+	variant := nextWorkloadVariant(taskType)
+	image := imageForType()
+	command := benchmarkCommand(taskType, variant)
 
 	switch taskType {
 	case "cpu-light":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, ReqCPU: 1.0, ReqMemory: 1.0, ReqStorage: 1.0, TaskType: scheduler.TaskTypeCPULight, SLAMultiplier: 2.0, TauSeconds: 8}
+		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: command, ReqCPU: 1.0, ReqMemory: 1.0, ReqStorage: 1.0, TaskType: scheduler.TaskTypeCPULight, SLAMultiplier: 2.0, TauSeconds: 8}
 	case "cpu-heavy":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, ReqCPU: 4.0, ReqMemory: 4.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeCPUHeavy, SLAMultiplier: 2.2, TauSeconds: 24}
+		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: command, ReqCPU: 4.0, ReqMemory: 4.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeCPUHeavy, SLAMultiplier: 2.2, TauSeconds: 24}
 	case "memory-heavy":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, ReqCPU: 2.0, ReqMemory: 12.0, ReqStorage: 3.0, TaskType: scheduler.TaskTypeMemoryHeavy, SLAMultiplier: 2.2, TauSeconds: 28}
+		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: command, ReqCPU: 2.0, ReqMemory: 12.0, ReqStorage: 3.0, TaskType: scheduler.TaskTypeMemoryHeavy, SLAMultiplier: 2.2, TauSeconds: 28}
 	case "mixed":
-		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, ReqCPU: 3.0, ReqMemory: 6.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeMixed, SLAMultiplier: 2.1, TauSeconds: 20}
+		return WorkloadTask{TaskID: taskID, TaskName: taskType, ArrivalOffset: arrival, DockerImage: image, Command: command, ReqCPU: 3.0, ReqMemory: 6.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeMixed, SLAMultiplier: 2.1, TauSeconds: 20}
 	default:
-		return WorkloadTask{TaskID: taskID, TaskName: "mixed", ArrivalOffset: arrival, DockerImage: image, ReqCPU: 2.0, ReqMemory: 4.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeMixed, SLAMultiplier: 2.0, TauSeconds: 20}
+		return WorkloadTask{TaskID: taskID, TaskName: "mixed", ArrivalOffset: arrival, DockerImage: image, Command: command, ReqCPU: 2.0, ReqMemory: 4.0, ReqStorage: 2.0, TaskType: scheduler.TaskTypeMixed, SLAMultiplier: 2.0, TauSeconds: 20}
 	}
 }
 

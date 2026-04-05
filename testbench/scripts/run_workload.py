@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import shlex
 import sys
 import time
 import urllib.error
@@ -14,6 +15,7 @@ from typing import Any
 
 
 TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
+DEFAULT_WORKFLOW_IMAGE = "cloudai-benchmark:1"
 
 
 def default_workload_path() -> pathlib.Path:
@@ -39,13 +41,50 @@ def request_json(method: str, url: str, payload: dict[str, Any] | None = None, t
         return json.loads(body)
 
 
+def build_workflow_command(task: dict[str, Any]) -> str:
+    command = str(task.get("command", "")).strip()
+    if command:
+        return command
+
+    workflow_profile = str(task.get("workflow_profile", "")).strip()
+    if not workflow_profile:
+        return ""
+
+    parts = ["cloudai-benchmark", shlex.quote(workflow_profile)]
+    workflow_args = task.get("workflow_args", {})
+    if not isinstance(workflow_args, dict):
+        raise ValueError(f"workflow_args must be an object for profile {workflow_profile}")
+
+    for key in sorted(workflow_args):
+        value = workflow_args[key]
+        flag = f"--{key.replace('_', '-')}"
+        if isinstance(value, bool):
+            if value:
+                parts.append(flag)
+            continue
+        if isinstance(value, list):
+            for item in value:
+                parts.extend([flag, shlex.quote(str(item))])
+            continue
+        parts.extend([flag, shlex.quote(str(value))])
+
+    return " ".join(parts)
+
+
 def submit_tasks(master_url: str, tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     submitted: list[dict[str, Any]] = []
 
     for idx, task in enumerate(tasks, start=1):
+        docker_image = str(task.get("docker_image", "")).strip()
+        workflow_profile = str(task.get("workflow_profile", "")).strip()
+        if not docker_image and workflow_profile:
+            docker_image = DEFAULT_WORKFLOW_IMAGE
+        if not docker_image:
+            raise RuntimeError(f"task {idx} is missing docker_image")
+
         payload = {
-            "docker_image": task["docker_image"],
-            "command": task.get("command", ""),
+            "docker_image": docker_image,
+            "command": build_workflow_command(task),
             "cpu_required": task["cpu_required"],
             "memory_required": task["memory_required"],
             "storage_required": task.get("storage_required", 1),
@@ -67,6 +106,8 @@ def submit_tasks(master_url: str, tasks: list[dict[str, Any]]) -> list[dict[str,
                 "cpu_required": payload["cpu_required"],
                 "memory_required": payload["memory_required"],
                 "docker_image": payload["docker_image"],
+                "workflow_profile": workflow_profile,
+                "command": payload["command"],
             }
         )
         print(f"[submit {idx:02d}/{len(tasks):02d}] {task_id} queued")

@@ -21,6 +21,7 @@ python3 --version
 - `testbench-suite` (recommended): start stack + register workers + run default workload
 - manual flow: run each stage independently
 - custom workload: run your own workload JSON file
+- deterministic workflow image: repo-owned benchmark image built into worker DinD daemons
 
 ## 3) One-Command Run (Recommended)
 
@@ -33,10 +34,11 @@ make testbench-suite
 What it does:
 
 1. Builds and starts `mongo`, `master`, `worker-small`, `worker-medium`, `worker-large`
-2. Registers workers through `POST /api/workers`
-3. Submits workload from `testbench/workloads/heterogeneous-smoke.json`
-4. Polls task status until completion
-5. Writes summary JSON to `results/testbench/<timestamp>-summary.json`
+2. Builds `cloudai-benchmark:1` inside each worker-side Docker daemon
+3. Registers workers through `POST /api/workers`
+4. Submits workload from `testbench/workloads/heterogeneous-smoke.json`
+5. Polls task status until completion
+6. Writes summary JSON to `results/testbench/<timestamp>-summary.json`
 
 ## 4) Manual Stage-by-Stage Run
 
@@ -44,6 +46,12 @@ Start stack:
 
 ```bash
 make testbench-up
+```
+
+Prepare deterministic workflow image:
+
+```bash
+make testbench-prepare-images
 ```
 
 Register workers:
@@ -84,7 +92,14 @@ Expected workload JSON shape:
   "name": "my-workload",
   "tasks": [
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-light:1",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "cpu-light",
+      "workflow_args": {
+        "seed": 101,
+        "iterations": 18000,
+        "sleep_ms": 90,
+        "output": "cpu-light-01.csv"
+      },
       "cpu_required": 1.0,
       "memory_required": 0.5,
       "storage_required": 1,
@@ -95,8 +110,22 @@ Expected workload JSON shape:
 }
 ```
 
-Each task type has 5 versioned images on Docker Hub (see `DOCKER_IMAGES.txt`).
-The `command` field is optional — when omitted, the image's built-in entrypoint runs.
+Deterministic workflow image:
+
+- image tag: `cloudai-benchmark:1`
+- source: `testbench/workflow-image/`
+- loader: `testbench/scripts/prepare_workflow_images.sh`
+- profiles:
+  - `cpu-light`
+  - `cpu-heavy`
+  - `memory-heavy`
+  - `mixed`
+  - `exit-nonzero`
+  - `hang`
+  - `slow-start`
+
+When `workflow_profile` is present, `run_workload.py` generates the container command automatically.
+You can still pass `command` directly if you need a one-off task.
 
 ## 6) Verify Cluster and Task State
 
@@ -123,6 +152,14 @@ Worker logs:
 
 ```bash
 docker compose -f testbench/docker-compose.yml logs -f worker-small
+```
+
+Failure helper workload:
+
+```bash
+python3 testbench/scripts/run_workload.py \
+  --master-url http://localhost:8080 \
+  --workload testbench/workloads/failure-helpers.json
 ```
 
 ## 7) Where Results Go

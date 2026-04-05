@@ -90,6 +90,7 @@ services:
     volumes:
       - worker-small-docker:/var/lib/docker
       - worker-small-outputs:/var/cloudai/outputs
+      - ./workflow-image:/opt/cloudai/workflow-image:ro
     networks:
       - cloudai
     healthcheck:
@@ -138,6 +139,7 @@ services:
     volumes:
       - worker-medium-docker:/var/lib/docker
       - worker-medium-outputs:/var/cloudai/outputs
+      - ./workflow-image:/opt/cloudai/workflow-image:ro
     networks:
       - cloudai
     healthcheck:
@@ -186,6 +188,7 @@ services:
     volumes:
       - worker-large-docker:/var/lib/docker
       - worker-large-outputs:/var/cloudai/outputs
+      - ./workflow-image:/opt/cloudai/workflow-image:ro
     networks:
       - cloudai
     healthcheck:

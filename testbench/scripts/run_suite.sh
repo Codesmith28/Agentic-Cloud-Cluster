@@ -26,6 +26,9 @@ if [[ "${RUN_COMPOSE_UP}" == "true" ]]; then
   docker compose -f "${COMPOSE_FILE}" up -d --build
 fi
 
+echo "Preparing deterministic workflow images..."
+"${SCRIPT_DIR}/prepare_workflow_images.sh"
+
 echo "Registering workers..."
 MASTER_URL="${MASTER_URL}" "${SCRIPT_DIR}/register_workers.sh"
 

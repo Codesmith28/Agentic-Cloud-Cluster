@@ -1,9 +1,11 @@
 {
   "name": "deterministic-full",
-  "description": "Full benchmark workload using all 20 versioned CloudAI Docker images for reproducible, deterministic execution across all task types.",
+  "description": "Full deterministic benchmark workload using one repo-owned workflow image with parameterized profiles.",
   "tasks": [
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-light:1",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "cpu-light",
+      "workflow_args": {"seed": 101, "iterations": 18000, "sleep_ms": 90, "output": "cpu-light-01.csv"},
       "cpu_required": 0.5,
       "memory_required": 0.25,
       "storage_required": 1,
@@ -11,7 +13,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-light:2",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "cpu-light",
+      "workflow_args": {"seed": 102, "iterations": 20500, "sleep_ms": 110, "output": "cpu-light-02.csv"},
       "cpu_required": 0.5,
       "memory_required": 0.25,
       "storage_required": 1,
@@ -19,7 +23,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-light:3",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "cpu-light",
+      "workflow_args": {"seed": 103, "iterations": 22500, "sleep_ms": 130, "output": "cpu-light-03.csv"},
       "cpu_required": 0.5,
       "memory_required": 0.25,
       "storage_required": 1,
@@ -27,7 +33,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-light:4",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "cpu-light",
+      "workflow_args": {"seed": 104, "iterations": 24500, "sleep_ms": 150, "output": "cpu-light-04.csv"},
       "cpu_required": 0.5,
       "memory_required": 0.25,
       "storage_required": 1,
@@ -35,7 +43,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-light:5",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "cpu-light",
+      "workflow_args": {"seed": 105, "iterations": 27000, "sleep_ms": 170, "output": "cpu-light-05.csv"},
       "cpu_required": 0.5,
       "memory_required": 0.25,
       "storage_required": 1,
@@ -43,7 +53,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-heavy:1",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": {"seed": 201, "iterations": 9500, "sleep_ms": 120, "output": "cpu-heavy-01.csv"},
       "cpu_required": 1.0,
       "memory_required": 0.5,
       "storage_required": 1,
@@ -51,7 +63,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-heavy:2",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": {"seed": 202, "iterations": 11000, "sleep_ms": 150, "output": "cpu-heavy-02.csv"},
       "cpu_required": 1.0,
       "memory_required": 0.5,
       "storage_required": 1,
@@ -59,7 +73,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-heavy:3",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": {"seed": 203, "iterations": 12500, "sleep_ms": 180, "output": "cpu-heavy-03.csv"},
       "cpu_required": 1.0,
       "memory_required": 0.5,
       "storage_required": 1,
@@ -67,7 +83,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-heavy:4",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": {"seed": 204, "iterations": 14000, "sleep_ms": 210, "output": "cpu-heavy-04.csv"},
       "cpu_required": 1.0,
       "memory_required": 0.5,
       "storage_required": 1,
@@ -75,7 +93,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-heavy:5",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": {"seed": 205, "iterations": 15500, "sleep_ms": 240, "output": "cpu-heavy-05.csv"},
       "cpu_required": 1.0,
       "memory_required": 0.5,
       "storage_required": 1,
@@ -83,7 +103,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-memory-heavy:1",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "memory-heavy",
+      "workflow_args": {"seed": 301, "chunks": 7, "chunk_kib": 320, "passes": 3, "sleep_ms": 160, "output": "memory-heavy-01.csv"},
       "cpu_required": 0.7,
       "memory_required": 1.0,
       "storage_required": 2,
@@ -91,7 +113,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-memory-heavy:2",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "memory-heavy",
+      "workflow_args": {"seed": 302, "chunks": 8, "chunk_kib": 384, "passes": 4, "sleep_ms": 180, "output": "memory-heavy-02.csv"},
       "cpu_required": 0.7,
       "memory_required": 1.0,
       "storage_required": 2,
@@ -99,7 +123,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-memory-heavy:3",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "memory-heavy",
+      "workflow_args": {"seed": 303, "chunks": 9, "chunk_kib": 448, "passes": 4, "sleep_ms": 210, "output": "memory-heavy-03.csv"},
       "cpu_required": 0.7,
       "memory_required": 1.0,
       "storage_required": 2,
@@ -107,7 +133,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-memory-heavy:4",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "memory-heavy",
+      "workflow_args": {"seed": 304, "chunks": 10, "chunk_kib": 512, "passes": 5, "sleep_ms": 240, "output": "memory-heavy-04.csv"},
       "cpu_required": 0.7,
       "memory_required": 1.0,
       "storage_required": 2,
@@ -115,7 +143,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-memory-heavy:5",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "memory-heavy",
+      "workflow_args": {"seed": 305, "chunks": 11, "chunk_kib": 576, "passes": 5, "sleep_ms": 270, "output": "memory-heavy-05.csv"},
       "cpu_required": 0.7,
       "memory_required": 1.0,
       "storage_required": 2,
@@ -123,7 +153,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-mixed:1",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "mixed",
+      "workflow_args": {"seed": 401, "iterations": 128, "chunks": 6, "chunk_kib": 224, "sleep_ms": 120, "output": "mixed-01.csv"},
       "cpu_required": 1.2,
       "memory_required": 1.2,
       "storage_required": 2,
@@ -131,7 +163,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-mixed:2",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "mixed",
+      "workflow_args": {"seed": 402, "iterations": 144, "chunks": 7, "chunk_kib": 256, "sleep_ms": 145, "output": "mixed-02.csv"},
       "cpu_required": 1.2,
       "memory_required": 1.2,
       "storage_required": 2,
@@ -139,7 +173,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-mixed:3",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "mixed",
+      "workflow_args": {"seed": 403, "iterations": 160, "chunks": 8, "chunk_kib": 288, "sleep_ms": 170, "output": "mixed-03.csv"},
       "cpu_required": 1.2,
       "memory_required": 1.2,
       "storage_required": 2,
@@ -147,7 +183,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-mixed:4",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "mixed",
+      "workflow_args": {"seed": 404, "iterations": 176, "chunks": 9, "chunk_kib": 320, "sleep_ms": 195, "output": "mixed-04.csv"},
       "cpu_required": 1.2,
       "memory_required": 1.2,
       "storage_required": 2,
@@ -155,7 +193,9 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-mixed:5",
+      "docker_image": "cloudai-benchmark:1",
+      "workflow_profile": "mixed",
+      "workflow_args": {"seed": 405, "iterations": 192, "chunks": 10, "chunk_kib": 352, "sleep_ms": 220, "output": "mixed-05.csv"},
       "cpu_required": 1.2,
       "memory_required": 1.2,
       "storage_required": 2,
