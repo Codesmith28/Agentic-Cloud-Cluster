@@ -197,6 +197,7 @@ A full automated testbench is available under [`testbench/`](testbench/README.md
 - multiple containerized workers with different CPU/memory capacities
 - per-worker isolated Docker daemons (DinD sidecars) so tasks are isolated between workers
 - automated worker registration + workload submission scripts for repeatable performance testing
+- deterministic workflow image (`cloudai/workflow-deterministic:v1`) for repeatable load profiles
 
 Quick run:
 
@@ -206,13 +207,31 @@ make testbench-suite
 
 Detailed runbook: **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)**
 
+### Evidence Benchmark Campaign
+
+Run a multi-scenario evidence benchmark across schedulers and failure modes:
+
+```bash
+make campaign              # Run smoke benchmark (heterogeneous-smoke workload)
+make campaign-full         # Run full campaign (all workloads + all scenarios)
+```
+
+The campaign exercises:
+- **Schedulers**: RR, RTS, PPO-pretrained, PPO-adapted, and recovery-enhanced variants (RR+recovery, RTS+recovery, PPO+recovery)
+- **Scenarios**: baseline, burst, overload, failure-stressed (with injected worker failures and DinD disruptions)
+- **Observability**: Exports Prometheus metrics, task telemetry, and scheduler diagnostics to `results/campaign/`
+
+See [`docs/TESTBENCH_RUNBOOK.md`](docs/TESTBENCH_RUNBOOK.md) for campaign command-line options.
+
 ## Recovery Semantics
 
-CloudAI now tracks logical tasks separately from physical execution attempts.
+CloudAI tracks logical tasks separately from physical execution attempts, enabling automatic recovery when workers fail.
 
 - every worker assignment carries `attempt_id` and `attempt_no`
 - if a worker stops heartbeating, the active attempt is marked lost and the logical task is requeued automatically
 - late results from older attempts are recorded for audit but cannot overwrite the current task outcome
+
+Recovery-aware schedulers (RR+recovery, RTS+recovery, PPO+recovery) are available in the campaign framework. These variants apply task prioritization and failure-injection strategies during recovery scenarios.
 
 Inspection endpoints:
 

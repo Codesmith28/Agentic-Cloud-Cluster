@@ -6,8 +6,28 @@ This testbench provides an automated performance harness for CloudAI:
 - each `worker-*` runs in its own container
 - each worker has its own Docker daemon (`worker-*-dind`) so task containers are isolated per worker node
 - worker capabilities are intentionally heterogeneous via CPU/memory limits and explicit resource overrides
+- deterministic workflow image (`cloudai/workflow-deterministic:v1`) enables repeatable load profiles
 
 Detailed step-by-step instructions: [`docs/TESTBENCH_RUNBOOK.md`](../docs/TESTBENCH_RUNBOOK.md)
+
+## Evidence Benchmark Campaign
+
+The testbench includes a full evidence benchmark campaign runner that orchestrates multi-scenario testing:
+
+```bash
+make campaign              # Smoke run (heterogeneous-smoke workload only)
+make campaign-full         # Full campaign (all workloads + all scenarios)
+python3 testbench/scripts/run_campaign.py --help  # See all options
+```
+
+**Campaign Features:**
+- Runs baseline, burst, overload, and failure-stressed scenarios
+- Tests multiple schedulers: RR, RTS, PPO-pretrained, PPO-adapted, and recovery variants
+- Injects controlled failures (worker kill, DinD pause/resume, master restart)
+- Exports Prometheus metrics and observability artifacts to `results/campaign/`
+- Generates markdown + HTML evidence reports
+
+See [`docs/TESTBENCH_RUNBOOK.md`](../docs/TESTBENCH_RUNBOOK.md) for detailed campaign documentation.
 
 ## Why This Matches Your Goal
 

@@ -15,7 +15,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
+import shlex
+import subprocess
 import sys
 import time
 import urllib.error
@@ -27,9 +30,10 @@ from typing import Any, Dict, List, Optional
 # Constants
 # ---------------------------------------------------------------------------
 
-SCHEDULERS = ["RR", "RTS"]  # Round-Robin, Risk-Time-Size
-WORKLOADS = ["heterogeneous-smoke", "deterministic-full"]
+SCHEDULERS = ["RR", "RTS", "PPO-pretrained", "PPO-adapted", "RR+recovery", "RTS+recovery", "PPO+recovery"]
+WORKLOADS = ["heterogeneous-smoke", "steady-cpu", "steady-mixed", "memory-pressure", "bursty", "long-tail", "failure-stressed"]
 TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
+DEFAULT_WORKFLOW_IMAGE = "cloudai/workflow-deterministic:v1"
 
 
 # ---------------------------------------------------------------------------
@@ -40,13 +44,17 @@ TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
 class ScenarioResult:
     scenario: str
     scheduler: str
+    scheduler_algorithm: str
     workload: str
+    suite: str = "normal"
     tasks_submitted: int = 0
     tasks_completed: int = 0
     tasks_failed: int = 0
     duration_seconds: float = 0.0
     success_rate: float = 0.0
     avg_wait_seconds: float = 0.0
+    task_ids: List[str] = field(default_factory=list)
+    failure_actions: List[str] = field(default_factory=list)
     error: str = ""
 
 
@@ -87,6 +95,45 @@ def set_scheduler(master_url: str, algo: str) -> bool:
         return False
 
 
+def resolve_scheduler_algorithm(scheduler_label: str) -> str:
+    normalized = scheduler_label.strip().upper()
+    if normalized.startswith("PPO"):
+        return "PPO"
+    if normalized.startswith("RR"):
+        return "RR"
+    if normalized.startswith("RTS"):
+        return "RTS"
+    return normalized
+
+
+def is_recovery_scheduler(scheduler_label: str) -> bool:
+    return "+RECOVERY" in scheduler_label.strip().upper()
+
+
+def inject_failures(compose_file: pathlib.Path, actions: List[str]) -> List[str]:
+    injector = pathlib.Path(__file__).resolve().parent / "failure_injector.py"
+    if not injector.exists():
+        return ["failure_injector_missing"]
+
+    executed: List[str] = []
+    for action in actions:
+        cmd = [
+            sys.executable,
+            str(injector),
+            "--compose-file",
+            str(compose_file),
+            "--action",
+            action,
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if proc.returncode == 0:
+            executed.append(action)
+        else:
+            detail = proc.stderr.strip() or proc.stdout.strip() or "unknown-error"
+            executed.append(f"{action}:failed:{detail}")
+    return executed
+
+
 # ---------------------------------------------------------------------------
 # Workload submission + polling
 # ---------------------------------------------------------------------------
@@ -101,13 +148,75 @@ def load_workload(workload_name: str) -> List[Dict]:
     return data.get("tasks", [])
 
 
+def resolve_workflow_image(task: Dict[str, Any]) -> str:
+    if "docker_image" in task and str(task["docker_image"]).strip():
+        return str(task["docker_image"]).strip()
+
+    if task.get("workflow") or task.get("workflow_params") or task.get("workflow_profile"):
+        return os.environ.get("CLOUDAI_WORKFLOW_IMAGE_TAG", DEFAULT_WORKFLOW_IMAGE)
+
+    raise ValueError("task missing docker_image")
+
+
+def resolve_command(task: Dict[str, Any]) -> str:
+    workflow = task.get("workflow") or task.get("workflow_params")
+    legacy_profile = task.get("workflow_profile")
+    legacy_args = task.get("workflow_args")
+
+    if workflow is None and legacy_profile:
+        cmd_parts: List[str] = ["/usr/local/bin/workflow", str(legacy_profile)]
+        if legacy_args is None:
+            return shlex.join(cmd_parts)
+        if isinstance(legacy_args, list):
+            cmd_parts.extend(str(item) for item in legacy_args if item is not None)
+            return shlex.join(cmd_parts)
+        if isinstance(legacy_args, str):
+            cmd_parts.extend(shlex.split(legacy_args))
+            return shlex.join(cmd_parts)
+        raise ValueError("workflow_args must be a list or string")
+
+    if workflow is None:
+        return str(task.get("command", "")).strip()
+
+    if not isinstance(workflow, dict):
+        raise ValueError(f"workflow block must be an object, got {type(workflow).__name__}")
+
+    profile = workflow.get("profile") or workflow.get("subcommand")
+    if not profile:
+        raise ValueError("workflow block requires profile")
+
+    args = workflow.get("args", {})
+    if not isinstance(args, dict):
+        raise ValueError("workflow args must be an object")
+
+    cmd_parts: List[str] = ["/usr/local/bin/workflow", str(profile)]
+    for key in sorted(args.keys()):
+        flag = f"--{key}"
+        value = args[key]
+        if value is None:
+            continue
+        if isinstance(value, bool):
+            if value:
+                cmd_parts.append(flag)
+            continue
+        if isinstance(value, list):
+            for item in value:
+                cmd_parts.extend([flag, str(item)])
+            continue
+        cmd_parts.extend([flag, str(value)])
+
+    return shlex.join(cmd_parts)
+
+
 def submit_tasks(master_url: str, tasks: List[Dict]) -> List[str]:
     """Submit tasks and return list of task IDs."""
     task_ids = []
     for task in tasks:
+        docker_image = resolve_workflow_image(task)
+        command = resolve_command(task)
         payload = {
-            "docker_image": task["docker_image"],
-            "command": task.get("command", ""),
+            "docker_image": docker_image,
+            "command": command,
             "cpu_required": task["cpu_required"],
             "memory_required": task["memory_required"],
             "storage_required": task.get("storage_required", 1),
@@ -158,14 +267,22 @@ def poll_completion(master_url: str, task_ids: List[str], timeout: int = 600, in
 
 def run_baseline(master_url: str, workload: str, scheduler: str) -> ScenarioResult:
     """Run a clean baseline: submit workload under a specific scheduler."""
-    result = ScenarioResult(scenario="baseline", scheduler=scheduler, workload=workload)
+    scheduler_algo = resolve_scheduler_algorithm(scheduler)
+    result = ScenarioResult(
+        scenario="baseline",
+        scheduler=scheduler,
+        scheduler_algorithm=scheduler_algo,
+        workload=workload,
+        suite="normal",
+    )
     try:
-        set_scheduler(master_url, scheduler)
+        set_scheduler(master_url, scheduler_algo)
         tasks = load_workload(workload)
         result.tasks_submitted = len(tasks)
 
         start = time.time()
         task_ids = submit_tasks(master_url, tasks)
+        result.task_ids = task_ids
         statuses = poll_completion(master_url, task_ids)
         elapsed = time.time() - start
 
@@ -180,9 +297,16 @@ def run_baseline(master_url: str, workload: str, scheduler: str) -> ScenarioResu
 
 def run_burst(master_url: str, workload: str, scheduler: str) -> ScenarioResult:
     """Run burst scenario: submit all tasks simultaneously (no delay)."""
-    result = ScenarioResult(scenario="burst", scheduler=scheduler, workload=workload)
+    scheduler_algo = resolve_scheduler_algorithm(scheduler)
+    result = ScenarioResult(
+        scenario="burst",
+        scheduler=scheduler,
+        scheduler_algorithm=scheduler_algo,
+        workload=workload,
+        suite="normal",
+    )
     try:
-        set_scheduler(master_url, scheduler)
+        set_scheduler(master_url, scheduler_algo)
         tasks = load_workload(workload)
         # Strip any arrival delays to create bursty submission
         for t in tasks:
@@ -191,6 +315,7 @@ def run_burst(master_url: str, workload: str, scheduler: str) -> ScenarioResult:
 
         start = time.time()
         task_ids = submit_tasks(master_url, tasks)
+        result.task_ids = task_ids
         statuses = poll_completion(master_url, task_ids)
         elapsed = time.time() - start
 
@@ -205,15 +330,74 @@ def run_burst(master_url: str, workload: str, scheduler: str) -> ScenarioResult:
 
 def run_overload(master_url: str, workload: str, scheduler: str) -> ScenarioResult:
     """Run overload scenario: submit workload 3x to saturate cluster."""
-    result = ScenarioResult(scenario="overload", scheduler=scheduler, workload=workload)
+    scheduler_algo = resolve_scheduler_algorithm(scheduler)
+    result = ScenarioResult(
+        scenario="overload",
+        scheduler=scheduler,
+        scheduler_algorithm=scheduler_algo,
+        workload=workload,
+        suite="normal",
+    )
     try:
-        set_scheduler(master_url, scheduler)
+        set_scheduler(master_url, scheduler_algo)
         tasks = load_workload(workload)
         tasks_3x = tasks * 3  # Triple the workload
         result.tasks_submitted = len(tasks_3x)
 
         start = time.time()
         task_ids = submit_tasks(master_url, tasks_3x)
+        result.task_ids = task_ids
+        statuses = poll_completion(master_url, task_ids, timeout=1200)
+        elapsed = time.time() - start
+
+        result.duration_seconds = round(elapsed, 2)
+        result.tasks_completed = sum(1 for s in statuses.values() if s == "completed")
+        result.tasks_failed = sum(1 for s in statuses.values() if s in ("failed", "cancelled"))
+        result.success_rate = round(result.tasks_completed / max(result.tasks_submitted, 1) * 100, 1)
+    except Exception as e:
+        result.error = str(e)
+    return result
+
+
+def run_failure_stressed(
+    master_url: str,
+    workload: str,
+    scheduler: str,
+    compose_file: Optional[pathlib.Path] = None,
+) -> ScenarioResult:
+    """Run failure-stressed scenario with injected disruptions during task execution."""
+    scheduler_algo = resolve_scheduler_algorithm(scheduler)
+    result = ScenarioResult(
+        scenario="failure-stressed",
+        scheduler=scheduler,
+        scheduler_algorithm=scheduler_algo,
+        workload=workload,
+        suite="recovery",
+    )
+    try:
+        if compose_file is None:
+            compose_file = pathlib.Path(__file__).resolve().parents[1] / "docker-compose.yml"
+        set_scheduler(master_url, scheduler_algo)
+        tasks = load_workload(workload)
+        result.tasks_submitted = len(tasks)
+
+        start = time.time()
+        task_ids = submit_tasks(master_url, tasks)
+        result.task_ids = task_ids
+
+        # Inject a representative failure sequence while workload is in flight.
+        time.sleep(3.0)
+        result.failure_actions = inject_failures(
+            compose_file,
+            [
+                "kill-worker",
+                "pause-worker-dind",
+                "resume-worker-dind",
+                "kill-dind",
+                "restart-master",
+            ],
+        )
+
         statuses = poll_completion(master_url, task_ids, timeout=1200)
         elapsed = time.time() - start
 
@@ -230,6 +414,7 @@ SCENARIO_RUNNERS = {
     "baseline": run_baseline,
     "burst": run_burst,
     "overload": run_overload,
+    "failure-stressed": run_failure_stressed,
 }
 
 
@@ -318,6 +503,193 @@ def write_markdown_report(report: CampaignReport, output_path: pathlib.Path) -> 
     output_path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def write_html_report(report: CampaignReport, output_path: pathlib.Path) -> None:
+    summary_rows = []
+    for sched, stats in report.summary.get("by_scheduler", {}).items():
+        summary_rows.append(
+            "<tr>"
+            f"<td>{sched}</td>"
+            f"<td>{stats['total_tasks']}</td>"
+            f"<td>{stats['total_completed']}</td>"
+            f"<td>{stats['total_failed']}</td>"
+            f"<td>{stats['avg_success_rate']}%</td>"
+            f"<td>{stats['avg_duration_seconds']}s</td>"
+            "</tr>"
+        )
+
+    detail_rows = []
+    for result in report.results:
+        detail_rows.append(
+            "<tr>"
+            f"<td>{result.get('scenario', '')}</td>"
+            f"<td>{result.get('scheduler', '')}</td>"
+            f"<td>{result.get('scheduler_algorithm', '')}</td>"
+            f"<td>{result.get('workload', '')}</td>"
+            f"<td>{result.get('tasks_submitted', 0)}</td>"
+            f"<td>{result.get('tasks_completed', 0)}</td>"
+            f"<td>{result.get('tasks_failed', 0)}</td>"
+            f"<td>{result.get('success_rate', 0)}%</td>"
+            f"<td>{result.get('duration_seconds', 0)}s</td>"
+            "</tr>"
+        )
+
+    html = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CloudAI Campaign Report</title>
+  <style>
+    body {{ font-family: Arial, sans-serif; margin: 24px; }}
+    table {{ border-collapse: collapse; width: 100%; margin-bottom: 24px; }}
+    th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+    th {{ background: #f5f5f5; }}
+  </style>
+</head>
+<body>
+  <h1>CloudAI Evidence Benchmark Campaign Report</h1>
+  <p><strong>Started:</strong> {report.started_at}</p>
+  <p><strong>Finished:</strong> {report.finished_at}</p>
+  <p><strong>Duration:</strong> {report.total_duration_seconds}s</p>
+  <p><strong>Scenarios executed:</strong> {report.scenarios_run}</p>
+
+  <h2>Scheduler Comparison</h2>
+  <table>
+    <thead>
+      <tr><th>Scheduler</th><th>Tasks</th><th>Completed</th><th>Failed</th><th>Success Rate</th><th>Avg Duration</th></tr>
+    </thead>
+    <tbody>
+      {''.join(summary_rows)}
+    </tbody>
+  </table>
+
+  <h2>Scenario Details</h2>
+  <table>
+    <thead>
+      <tr><th>Scenario</th><th>Scheduler Label</th><th>Algorithm</th><th>Workload</th><th>Submitted</th><th>Completed</th><th>Failed</th><th>Success</th><th>Duration</th></tr>
+    </thead>
+    <tbody>
+      {''.join(detail_rows)}
+    </tbody>
+  </table>
+</body>
+</html>
+"""
+    output_path.write_text(html, encoding="utf-8")
+
+
+def write_scheduler_summary_csv(report: CampaignReport, output_path: pathlib.Path) -> None:
+    lines = ["scheduler,total_tasks,total_completed,total_failed,avg_success_rate,avg_duration_seconds,scenarios_run"]
+    for sched, stats in report.summary.get("by_scheduler", {}).items():
+        lines.append(
+            ",".join(
+                [
+                    sched,
+                    str(stats.get("total_tasks", 0)),
+                    str(stats.get("total_completed", 0)),
+                    str(stats.get("total_failed", 0)),
+                    str(stats.get("avg_success_rate", 0)),
+                    str(stats.get("avg_duration_seconds", 0)),
+                    str(stats.get("scenarios_run", 0)),
+                ]
+            )
+        )
+    output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def write_task_attempt_timeline(master_url: str, results: List[ScenarioResult], output_path: pathlib.Path) -> None:
+    header = [
+        "scenario",
+        "scheduler",
+        "scheduler_algorithm",
+        "workload",
+        "task_id",
+        "task_status",
+        "current_attempt_id",
+        "current_attempt_no",
+        "recovery_count",
+        "last_failure_reason",
+        "attempt_id",
+        "attempt_no",
+        "attempt_status",
+        "attempt_worker_id",
+        "attempt_failure_reason",
+        "assigned_at",
+        "last_heartbeat",
+        "completed_at",
+    ]
+    rows = [",".join(header)]
+
+    for result in results:
+        for task_id in result.task_ids:
+            task_info: Dict[str, Any]
+            try:
+                task_info = request_json("GET", f"{master_url}/api/tasks/{task_id}", timeout=10.0)
+            except Exception:
+                task_info = {}
+
+            task_status = str(task_info.get("status", "unknown"))
+            current_attempt_id = str(task_info.get("current_attempt_id", ""))
+            current_attempt_no = str(task_info.get("current_attempt_no", ""))
+            recovery_count = str(task_info.get("recovery_count", ""))
+            last_failure_reason = str(task_info.get("last_failure_reason", ""))
+
+            attempts = task_info.get("attempts", []) if isinstance(task_info.get("attempts"), list) else []
+            if not attempts:
+                rows.append(
+                    ",".join(
+                        [
+                            result.scenario,
+                            result.scheduler,
+                            result.scheduler_algorithm,
+                            result.workload,
+                            task_id,
+                            task_status,
+                            current_attempt_id,
+                            current_attempt_no,
+                            recovery_count,
+                            last_failure_reason,
+                            "",
+                            "",
+                            "",
+                            "",
+                            "",
+                            "",
+                            "",
+                            "",
+                        ]
+                    )
+                )
+                continue
+
+            for attempt in attempts:
+                rows.append(
+                    ",".join(
+                        [
+                            result.scenario,
+                            result.scheduler,
+                            result.scheduler_algorithm,
+                            result.workload,
+                            task_id,
+                            task_status,
+                            current_attempt_id,
+                            current_attempt_no,
+                            recovery_count,
+                            last_failure_reason,
+                            str(attempt.get("attempt_id", "")),
+                            str(attempt.get("attempt_no", "")),
+                            str(attempt.get("status", "")),
+                            str(attempt.get("worker_id", "")),
+                            str(attempt.get("failure_reason", "")),
+                            str(attempt.get("assigned_at", "")),
+                            str(attempt.get("last_heartbeat", "")),
+                            str(attempt.get("completed_at", "")),
+                        ]
+                    )
+                )
+
+    output_path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -325,17 +697,24 @@ def write_markdown_report(report: CampaignReport, output_path: pathlib.Path) -> 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run CloudAI evidence benchmark campaign")
     parser.add_argument("--master-url", default="http://localhost:8080", help="Master API URL")
+    parser.add_argument("--prometheus-url", default="http://localhost:9090", help="Prometheus API URL")
     parser.add_argument(
-        "--scenarios", default="baseline",
-        help="Comma-separated scenarios: baseline,burst,overload,all (default: baseline)",
+        "--compose-file",
+        type=pathlib.Path,
+        default=pathlib.Path(__file__).resolve().parents[1] / "docker-compose.yml",
+        help="Compose file used by failure injector actions",
     )
     parser.add_argument(
-        "--schedulers", default="RR,RTS",
-        help="Comma-separated schedulers to test (default: RR,RTS)",
+        "--scenarios", default="baseline,failure-stressed",
+        help="Comma-separated scenarios: baseline,burst,overload,failure-stressed,all",
     )
     parser.add_argument(
-        "--workloads", default="heterogeneous-smoke",
-        help="Comma-separated workload names (default: heterogeneous-smoke)",
+        "--schedulers", default="RR,RTS,PPO-pretrained,PPO-adapted,RR+recovery,RTS+recovery,PPO+recovery",
+        help="Comma-separated schedulers/suites to test",
+    )
+    parser.add_argument(
+        "--workloads", default="heterogeneous-smoke,steady-cpu,steady-mixed,memory-pressure,bursty,long-tail,failure-stressed",
+        help="Comma-separated workload names",
     )
     parser.add_argument(
         "--output-dir", type=pathlib.Path,
@@ -343,6 +722,11 @@ def parse_args() -> argparse.Namespace:
         help="Output directory for reports",
     )
     parser.add_argument("--timeout", type=int, default=600, help="Per-scenario timeout in seconds")
+    parser.add_argument(
+        "--skip-observability-export",
+        action="store_true",
+        help="Skip exporting Prometheus/master observability artifacts at campaign end",
+    )
     return parser.parse_args()
 
 
@@ -374,16 +758,32 @@ def main() -> int:
             continue
 
         for scheduler in schedulers:
+            recovery_scheduler = is_recovery_scheduler(scheduler)
+            if scenario_name == "failure-stressed" and not recovery_scheduler:
+                continue
+            if scenario_name != "failure-stressed" and recovery_scheduler:
+                continue
+
             for workload in workloads:
+                if scenario_name == "failure-stressed" and workload != "failure-stressed":
+                    continue
+                if scenario_name != "failure-stressed" and workload == "failure-stressed":
+                    continue
+
                 label = f"{scenario_name}/{scheduler}/{workload}"
                 print(f"[campaign] Running {label}...")
-                result = runner(args.master_url, workload, scheduler)
+                if scenario_name == "failure-stressed":
+                    result = run_failure_stressed(args.master_url, workload, scheduler, args.compose_file)
+                else:
+                    result = runner(args.master_url, workload, scheduler)
                 results.append(result)
                 if result.error:
                     print(f"[campaign]   ERROR: {result.error}")
                 else:
                     print(f"[campaign]   done: {result.tasks_completed}/{result.tasks_submitted} "
                           f"({result.success_rate}%) in {result.duration_seconds}s")
+                    if result.failure_actions:
+                        print(f"[campaign]   failures: {result.failure_actions}")
 
     report = generate_report(results, started_at)
 
@@ -397,6 +797,36 @@ def main() -> int:
 
     md_path = output_dir / "REPORT.md"
     write_markdown_report(report, md_path)
+    html_path = output_dir / "REPORT.html"
+    write_html_report(report, html_path)
+    write_scheduler_summary_csv(report, output_dir / "scheduler-summary.csv")
+    write_task_attempt_timeline(args.master_url, results, output_dir / "task-attempt-timeline.csv")
+
+    if not args.skip_observability_export:
+        window_summary_path = output_dir / "campaign-window-summary.json"
+        window_summary = {
+            "started_at_unix": started_at,
+            "finished_at_unix": time.time(),
+        }
+        window_summary_path.write_text(json.dumps(window_summary, indent=2), encoding="utf-8")
+
+        export_script = pathlib.Path(__file__).resolve().parent / "export_metrics.py"
+        observability_dir = output_dir / "observability"
+        subprocess.run(
+            [
+                sys.executable,
+                str(export_script),
+                "--prometheus-url",
+                args.prometheus_url,
+                "--master-url",
+                args.master_url,
+                "--summary",
+                str(window_summary_path),
+                "--output-dir",
+                str(observability_dir),
+            ],
+            check=False,
+        )
 
     print(f"\nCampaign complete: {report.scenarios_run} scenario(s) in {report.total_duration_seconds}s")
     print(f"Reports: {output_dir}")

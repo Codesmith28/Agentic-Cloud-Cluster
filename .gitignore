@@ -1,5 +1,6 @@
 .vscode
 .env
+.plan
 planner_py/venv
 node_modules
 venv

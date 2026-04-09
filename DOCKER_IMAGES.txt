@@ -1,128 +1,46 @@
-CLOUDAI WORKLOAD DOCKER IMAGES
-===============================
+CLOUDAI DETERMINISTIC WORKFLOW IMAGE
+====================================
 
-Docker Hub Username: moinvinchhi
-Image Prefix: cloudai
+Pinned testbench image tag:
+- cloudai/workflow-deterministic:v1
 
+Image source (repo-owned):
+- testbench/workflow-image/Dockerfile
+- testbench/workflow-image/workflow.py
 
-CPU-LIGHT WORKLOADS (Quick validation tasks, 5-30 seconds)
------------------------------------------------------------
-moinvinchhi/cloudai-cpu-light:1
-  Process: Health Check - System status verification
-  Output: None (logs only)
+Build and preload into worker DinD daemons:
+- testbench/scripts/prepare_workflow_images.sh
 
-moinvinchhi/cloudai-cpu-light:2
-  Process: JSON Parser - JSON data parsing and validation
-  Output: parsed_data.csv ✓
+Supported workflow subcommands
+------------------------------
+- cpu-light
+- cpu-heavy
+- memory-heavy
+- mixed
+- exit-nonzero
+- hang
+- slow-start
 
-moinvinchhi/cloudai-cpu-light:3
-  Process: Log Analyzer - Log file analysis with pattern matching
-  Output: None (logs only)
+Common arguments
+----------------
+All subcommands accept:
+- --seed <int>               (default: 1337)
+- --result-file <path>       (default: /output/workflow-result.json)
 
-moinvinchhi/cloudai-cpu-light:4
-  Process: String Processor - String manipulation and analysis
-  Output: string_analysis.csv ✓
-
-moinvinchhi/cloudai-cpu-light:5
-  Process: Ping Test - Network connectivity simulation
-  Output: None (logs only)
-
-
-CPU-HEAVY WORKLOADS (Computationally intensive, 1-5 minutes)
--------------------------------------------------------------
-moinvinchhi/cloudai-cpu-heavy:1
-  Process: Monte Carlo Simulation - π estimation using Monte Carlo method
-  Output: simulation_results.csv ✓
-
-moinvinchhi/cloudai-cpu-heavy:2
-  Process: Prime Generator - Prime number generation with Sieve of Eratosthenes
-  Output: primes.csv ✓
-
-moinvinchhi/cloudai-cpu-heavy:3
-  Process: Matrix Operations - Matrix multiplication and operations
-  Output: matrix_results.csv ✓
-
-moinvinchhi/cloudai-cpu-heavy:4
-  Process: Fibonacci - Fibonacci sequence computation
-  Output: None (logs only)
-
-moinvinchhi/cloudai-cpu-heavy:5
-  Process: Sort Benchmark - Sorting algorithm performance testing
-  Output: sort_benchmark.csv ✓
-
-
-MEMORY-HEAVY WORKLOADS (Large dataset processing, 30s-3 minutes)
------------------------------------------------------------------
-moinvinchhi/cloudai-memory-heavy:1
-  Process: Dataset Merge - Large dataset merging operations
-  Output: merged_data.csv ✓
-
-moinvinchhi/cloudai-memory-heavy:2
-  Process: Data Aggregation - In-memory data aggregation
-  Output: aggregated_results.csv ✓
-
-moinvinchhi/cloudai-memory-heavy:3
-  Process: Graph Analysis - Graph traversal and analysis
-  Output: None (logs only)
-
-moinvinchhi/cloudai-memory-heavy:4
-  Process: Time Series Processing - Time series data processing
-  Output: timeseries_summary.csv ✓
-
-moinvinchhi/cloudai-memory-heavy:5
-  Process: Dataset Join - Multi-dataset join operations
-  Output: None (logs only)
-
-
-MIXED WORKLOADS (Balanced CPU/Memory, 1-5 minutes)
----------------------------------------------------
-moinvinchhi/cloudai-mixed:1
-  Process: ETL Pipeline - Extract-Transform-Load data pipeline
-  Output: None (logs only)
-
-moinvinchhi/cloudai-mixed:2
-  Process: ML Preprocessing - ML data preprocessing with feature engineering
-  Output: preprocessed_features.csv ✓
-
-moinvinchhi/cloudai-mixed:3
-  Process: Statistical Analysis - Statistical tests and hypothesis testing
-  Output: None (logs only)
-
-moinvinchhi/cloudai-mixed:4
-  Process: Image Processing - Batch image processing with filters and compression
-  Output: processing_report.csv ✓
-
-moinvinchhi/cloudai-mixed:5
-  Process: Data Validation - Data quality checks and validation
-  Output: validation_report.csv ✓
-
-
-SUMMARY
--------
-Total Images: 20
-Total with CSV Output: 12
-
-Images with File Generation:
-  - cpu-light:2, cpu-light:4
-  - cpu-heavy:1, cpu-heavy:2, cpu-heavy:3, cpu-heavy:5
-  - memory-heavy:1, memory-heavy:2, memory-heavy:4
-  - mixed:2, mixed:4, mixed:5
-
-All output files are saved to /output/ directory in CSV format.
-
-USAGE EXAMPLE
--------------
-docker pull moinvinchhi/cloudai-cpu-heavy:1
-docker run -v $(pwd)/output:/output moinvinchhi/cloudai-cpu-heavy:1
-
-These images are self-contained with their own entrypoints. No command
-argument is needed — the image runs its built-in workload and writes
-output to /output/ when mounted. The testbench workload JSON files
-reference these images directly (no inline shell commands).
-
-DOCKER HUB REPOSITORIES
+Representative examples
 -----------------------
-https://hub.docker.com/r/moinvinchhi/cloudai-cpu-light
-https://hub.docker.com/r/moinvinchhi/cloudai-cpu-heavy
-https://hub.docker.com/r/moinvinchhi/cloudai-memory-heavy
-https://hub.docker.com/r/moinvinchhi/cloudai-mixed
+# CPU-light profile
+workflow cpu-light --iterations 500000 --seed 101
+
+# Memory-heavy profile
+workflow memory-heavy --memory-mib 512 --passes 3 --seed 303
+
+# Failure helper profile
+workflow exit-nonzero --code 23
+
+Notes
+-----
+- Workload manifests in testbench/workloads/ use this pinned tag plus
+  explicit workflow parameter blocks.
+- The worker executor still runs each task in an isolated /output mount,
+  so generated result files remain per-task and deterministic.

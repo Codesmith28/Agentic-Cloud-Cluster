@@ -27,7 +27,7 @@ The CloudAI system follows a master-worker distributed architecture:
 | CLI Interface | `internal/cli/` | Interactive readline-based command prompt for task submission, worker management, monitoring, and file operations |
 | HTTP/WebSocket Server | `internal/http/` | REST API endpoints for tasks, workers, files, auth; WebSocket for real-time telemetry |
 | gRPC Server | `internal/server/` | Worker ↔ Master communication: registration, heartbeats, task assignment, file uploads |
-| Scheduler | `internal/scheduler/` | Risk-aware Task Scheduler (RTS) with Round-Robin fallback. Optimizes for SLA compliance. |
+| Scheduler | `internal/scheduler/` | Risk-aware Task Scheduler (RTS) with Round-Robin fallback. Optimizes for SLA compliance. Also supports PPO-based scheduling with shadow/active/fallback deployment modes. |
 | Telemetry Manager | `internal/telemetry/` | Per-worker telemetry data, WebSocket broadcasting, real-time monitoring |
 | AOD Trainer | `internal/aod/` | Adaptive Online Decision module. Trains scheduling parameters (Theta, Affinity) using historical data (Linear Regression). |
 | File Storage | `internal/storage/` | Secure file storage with per-user/per-task isolation and access control |
@@ -53,6 +53,50 @@ The CloudAI system follows a master-worker distributed architecture:
 | Authentication | `src/context/`, `src/pages/auth/` | JWT-based auth, login/register pages, protected routes |
 | Page Components | `src/pages/` | Dashboard, TasksPage, WorkersPage, SubmitTaskPage |
 | API Integration | `src/api/`, `src/hooks/` | Axios HTTP client, WebSocket client, custom hooks |
+
+## Scheduler Architecture
+
+### Scheduling Algorithms
+
+| Algorithm | Mode | Description |
+|-----------|------|-------------|
+| Round-Robin (RR) | Always available | Simple baseline: distribute tasks cyclically across workers |
+| Risk-aware Task Scheduler (RTS) | `SCHED_ALGO=RTS` | Optimizes for SLA compliance using historical performance data (trained via AOD) |
+| PPO | `SCHED_ALGO=PPO` | Reinforcement learning-based scheduler trained on real traces (see `docs/PPO_TRACE_REPLAY.md`) |
+
+### PPO Deployment Modes
+
+PPO supports multiple deployment strategies via `PPO_DEPLOYMENT_MODE`:
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| `shadow` | PPO runs parallel but RTS decides tasks | Offline evaluation, convergence tracking |
+| `active` | PPO makes all decisions, RR fallback if unavailable | Production scheduling with learned policy |
+| `fallback` | RTS primary, PPO validates/ranks (future) | Hybrid approach for safety |
+
+**Configuration:**
+```bash
+export SCHED_ALGO=PPO
+export PPO_DEPLOYMENT_MODE=active
+export PPO_ONLINE_UPDATES_ENABLED=true    # Enable adaptive learning
+export PPO_REQUEST_TIMEOUT_MS=1500        # PPO decision timeout
+./runMaster.sh
+```
+
+### Recovery Semantics
+
+When a worker becomes unavailable:
+
+1. Master detects missing heartbeats (5s interval)
+2. Active task attempt is marked `lost`
+3. Logical task is requeued automatically to another worker
+4. Late results from old attempts are recorded but cannot overwrite current outcome
+5. Recovery-aware schedulers (RR+recovery, RTS+recovery, PPO+recovery) apply failure prioritization
+
+**Inspection:**
+```bash
+curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
+```
 
 ## Communication Flow
 
@@ -165,11 +209,29 @@ When no worker is available:
 | `/api/auth/register` | User registration |
 | `/api/auth/login` | User authentication |
 | `/api/tasks` | Task CRUD operations |
+| `/api/tasks/{id}/attempts` | Task attempt history with recovery details |
 | `/api/workers` | Worker list, details, metrics |
 | `/api/files` | File list, download with access control |
-| `/telemetry`, `/health` | System telemetry and health checks |
-| `/ws/telemetry` | Real-time telemetry streaming |
-| `/ws/telemetry/{id}` | Per-worker telemetry streaming |
+| `/telemetry`, `/workers` | System telemetry and worker status |
+| `/health` | Health check endpoint |
+| `/metrics` | Prometheus metrics (scheduler, PPO, recovery stats) |
+| `/ws/telemetry` | Real-time all-workers telemetry streaming |
+| `/ws/telemetry/{id}` | Per-worker real-time telemetry streaming |
+
+### Observability Exports
+
+The campaign framework exports observability artifacts:
+
+```bash
+# Prometheus range queries (time-series metrics)
+results/campaign/observability/prometheus-range.json
+
+# Prometheus instant queries (final snapshots)
+results/campaign/observability/prometheus-instant.json
+
+# Master diagnostics (scheduler, recovery, PPO stats)
+results/campaign/observability/master-diagnostics.json
+```
 
 ### Protocol Stack
 

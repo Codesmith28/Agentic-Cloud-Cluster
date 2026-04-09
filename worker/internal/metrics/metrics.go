@@ -8,14 +8,17 @@ import (
 )
 
 type Recorder struct {
-	lastHeartbeatUnix prometheus.Gauge
-	runningTasks      prometheus.Gauge
-	resourceUsage     *prometheus.GaugeVec
-	imagePullDuration *prometheus.HistogramVec
-	containerCreate   *prometheus.HistogramVec
-	taskRuntime       *prometheus.HistogramVec
-	dockerErrors      *prometheus.CounterVec
-	taskStarts        *prometheus.CounterVec
+	lastHeartbeatUnix        prometheus.Gauge
+	runningTasks             prometheus.Gauge
+	resourceUsage            *prometheus.GaugeVec
+	imagePullDuration        *prometheus.HistogramVec
+	containerCreate          *prometheus.HistogramVec
+	taskRuntime              *prometheus.HistogramVec
+	containerCPUSecondsTotal *prometheus.CounterVec
+	containerMemoryPeakBytes *prometheus.HistogramVec
+	containerIOBytesTotal    *prometheus.CounterVec
+	dockerErrors             *prometheus.CounterVec
+	taskStarts               *prometheus.CounterVec
 }
 
 var (
@@ -65,6 +68,25 @@ func Get() *Recorder {
 				Help:      "Task runtime observed by the worker.",
 				Buckets:   prometheus.DefBuckets,
 			}, []string{"task_type", "status"}),
+			containerCPUSecondsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+				Namespace: "cloudai",
+				Subsystem: "worker",
+				Name:      "container_cpu_seconds_total",
+				Help:      "Cumulative container CPU time consumed by completed task attempts.",
+			}, []string{"task_type"}),
+			containerMemoryPeakBytes: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+				Namespace: "cloudai",
+				Subsystem: "worker",
+				Name:      "container_memory_peak_bytes",
+				Help:      "Peak memory usage observed for completed task attempt containers.",
+				Buckets:   prometheus.ExponentialBuckets(16*1024*1024, 2, 11), // 16 MiB -> 16 GiB
+			}, []string{"task_type"}),
+			containerIOBytesTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+				Namespace: "cloudai",
+				Subsystem: "worker",
+				Name:      "container_io_bytes_total",
+				Help:      "Cumulative block I/O bytes used by completed task attempt containers.",
+			}, []string{"task_type"}),
 			dockerErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
 				Namespace: "cloudai",
 				Subsystem: "worker",
@@ -86,6 +108,9 @@ func Get() *Recorder {
 			recorder.imagePullDuration,
 			recorder.containerCreate,
 			recorder.taskRuntime,
+			recorder.containerCPUSecondsTotal,
+			recorder.containerMemoryPeakBytes,
+			recorder.containerIOBytesTotal,
 			recorder.dockerErrors,
 			recorder.taskStarts,
 		)
@@ -129,6 +154,15 @@ func (r *Recorder) ObserveContainerCreate(taskType string, started time.Time) {
 func (r *Recorder) ObserveTaskRuntime(taskType, status string, started time.Time) {
 	if r != nil {
 		r.taskRuntime.WithLabelValues(normalizeTaskType(taskType), status).Observe(time.Since(started).Seconds())
+	}
+}
+
+func (r *Recorder) ObserveContainerUsage(taskType string, cpuSeconds float64, memoryPeakBytes, ioBytes uint64) {
+	if r != nil {
+		normalizedTaskType := normalizeTaskType(taskType)
+		r.containerCPUSecondsTotal.WithLabelValues(normalizedTaskType).Add(cpuSeconds)
+		r.containerMemoryPeakBytes.WithLabelValues(normalizedTaskType).Observe(float64(memoryPeakBytes))
+		r.containerIOBytesTotal.WithLabelValues(normalizedTaskType).Add(float64(ioBytes))
 	}
 }
 

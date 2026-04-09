@@ -107,6 +107,7 @@ class PPOState:
     model_version: str
     fingerprint_hash: str
     training_steps: int
+    lineage_metadata: Dict[str, str]
 
     def checkpoint_payload(self) -> bytes:
         payload = {
@@ -116,6 +117,7 @@ class PPOState:
             "model_version": self.model_version,
             "fingerprint_hash": self.fingerprint_hash,
             "training_steps": self.training_steps,
+            "lineage_metadata": self.lineage_metadata,
             "saved_at_unix": time.time(),
         }
         buffer = io.BytesIO()
@@ -133,7 +135,7 @@ class PPOState:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         normalizer = RunningNormalizer(TASK_FEATURE_DIM + WORKER_FEATURE_DIM)
 
-        payload = torch.load(io.BytesIO(checkpoint_bytes), map_location=device)
+        payload = torch.load(io.BytesIO(checkpoint_bytes), map_location=device, weights_only=True)
         model.load_state_dict(payload["model_state_dict"])
         optimizer_state = payload.get("optimizer_state_dict")
         if optimizer_state:
@@ -143,6 +145,10 @@ class PPOState:
             TASK_FEATURE_DIM + WORKER_FEATURE_DIM,
         )
 
+        lineage_payload = payload.get("lineage_metadata") or {}
+        if not isinstance(lineage_payload, dict):
+            lineage_payload = {}
+
         return cls(
             model=model,
             optimizer=optimizer,
@@ -150,6 +156,7 @@ class PPOState:
             model_version=str(payload.get("model_version", "v1")),
             fingerprint_hash=str(payload.get("fingerprint_hash", "")),
             training_steps=int(payload.get("training_steps", 0)),
+            lineage_metadata={str(k): str(v) for k, v in lineage_payload.items()},
         )
 
 
@@ -164,6 +171,7 @@ def build_fresh_state(learning_rate: float, device: torch.device) -> PPOState:
         model_version="v0",
         fingerprint_hash="",
         training_steps=0,
+        lineage_metadata={},
     )
 
 
@@ -239,4 +247,3 @@ def ppo_update(
         state.optimizer.step()
 
     state.training_steps += 1
-

@@ -7,8 +7,8 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: cloudai
-      MONGO_INITDB_ROOT_PASSWORD: cloudai_secret
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-cloudai}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?Set MONGO_PASSWORD in .env}
     volumes:
       - mongo_data:/data/db
 

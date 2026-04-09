@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
+import shlex
 import sys
 import time
 import urllib.error
@@ -14,6 +16,7 @@ from typing import Any
 
 
 TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
+DEFAULT_WORKFLOW_IMAGE = "cloudai/workflow-deterministic:v1"
 
 
 def default_workload_path() -> pathlib.Path:
@@ -39,13 +42,75 @@ def request_json(method: str, url: str, payload: dict[str, Any] | None = None, t
         return json.loads(body)
 
 
+def resolve_workflow_image(task: dict[str, Any]) -> str:
+    if "docker_image" in task and str(task["docker_image"]).strip():
+        return str(task["docker_image"]).strip()
+
+    if task.get("workflow") or task.get("workflow_params") or task.get("workflow_profile"):
+        return os.environ.get("CLOUDAI_WORKFLOW_IMAGE_TAG", DEFAULT_WORKFLOW_IMAGE)
+
+    raise ValueError("task missing docker_image")
+
+
+def resolve_command(task: dict[str, Any]) -> str:
+    workflow = task.get("workflow") or task.get("workflow_params")
+    legacy_profile = task.get("workflow_profile")
+    legacy_args = task.get("workflow_args")
+
+    if workflow is None and legacy_profile:
+        cmd_parts: list[str] = ["/usr/local/bin/workflow", str(legacy_profile)]
+        if legacy_args is None:
+            return shlex.join(cmd_parts)
+        if isinstance(legacy_args, list):
+            cmd_parts.extend(str(item) for item in legacy_args if item is not None)
+            return shlex.join(cmd_parts)
+        if isinstance(legacy_args, str):
+            cmd_parts.extend(shlex.split(legacy_args))
+            return shlex.join(cmd_parts)
+        raise ValueError("workflow_args must be a list or string")
+
+    if workflow is None:
+        return str(task.get("command", "")).strip()
+
+    if not isinstance(workflow, dict):
+        raise ValueError(f"workflow block must be an object, got {type(workflow).__name__}")
+
+    profile = workflow.get("profile") or workflow.get("subcommand")
+    if not profile:
+        raise ValueError("workflow block requires profile")
+
+    args = workflow.get("args", {})
+    if not isinstance(args, dict):
+        raise ValueError("workflow args must be an object")
+
+    cmd_parts: list[str] = ["/usr/local/bin/workflow", str(profile)]
+    for key in sorted(args.keys()):
+        flag = f"--{key}"
+        value = args[key]
+        if value is None:
+            continue
+        if isinstance(value, bool):
+            if value:
+                cmd_parts.append(flag)
+            continue
+        if isinstance(value, list):
+            for item in value:
+                cmd_parts.extend([flag, str(item)])
+            continue
+        cmd_parts.extend([flag, str(value)])
+
+    return shlex.join(cmd_parts)
+
+
 def submit_tasks(master_url: str, tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     submitted: list[dict[str, Any]] = []
 
     for idx, task in enumerate(tasks, start=1):
+        docker_image = resolve_workflow_image(task)
+        command = resolve_command(task)
         payload = {
-            "docker_image": task["docker_image"],
-            "command": task.get("command", ""),
+            "docker_image": docker_image,
+            "command": command,
             "cpu_required": task["cpu_required"],
             "memory_required": task["memory_required"],
             "storage_required": task.get("storage_required", 1),
@@ -67,6 +132,7 @@ def submit_tasks(master_url: str, tasks: list[dict[str, Any]]) -> list[dict[str,
                 "cpu_required": payload["cpu_required"],
                 "memory_required": payload["memory_required"],
                 "docker_image": payload["docker_image"],
+                "command": payload["command"],
             }
         )
         print(f"[submit {idx:02d}/{len(tasks):02d}] {task_id} queued")

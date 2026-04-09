@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -33,12 +34,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fingerprint-hash", default="")
     parser.add_argument("--fingerprint-payload", default="")
     # Trace replay options
-    parser.add_argument("--trace-source", default="", choices=["", "alibaba", "google"],
+    parser.add_argument("--trace-source", default="", choices=["", "alibaba", "google", "cloudai"],
                         help="Use real cluster trace instead of synthetic env")
     parser.add_argument("--trace-path", default="",
-                        help="Path to trace data directory")
+                        help="Path to trace data directory (optional for cloudai when mongo-uri is set)")
     parser.add_argument("--max-trace-tasks", type=int, default=5000,
                         help="Maximum tasks to load from trace")
+    parser.add_argument("--trace-window", default="",
+                        help="Optional trace window label (used by cloudai replay lineage/filter)")
+    parser.add_argument("--trace-window-start", default="",
+                        help="Optional trace window start timestamp (unix or ISO-8601)")
+    parser.add_argument("--trace-window-end", default="",
+                        help="Optional trace window end timestamp (unix or ISO-8601)")
     return parser.parse_args()
 
 
@@ -53,19 +60,54 @@ def discounted_returns(rewards: np.ndarray, dones: np.ndarray, gamma: float) -> 
     return out
 
 
+def build_lineage_metadata(args: argparse.Namespace, trace) -> dict:
+    if trace is not None:
+        model_source = "offline-trace-replay"
+        training_corpus = trace.source or (args.trace_source or "trace")
+        trace_window = args.trace_window or getattr(trace, "trace_window", "") or "full"
+    else:
+        model_source = "synthetic-training"
+        training_corpus = "synthetic-smoke"
+        trace_window = args.trace_window or "synthetic"
+
+    return {
+        "model_source": model_source,
+        "training_corpus": training_corpus,
+        "trace_window": trace_window,
+        "cluster_fingerprint": args.fingerprint_hash,
+        "train_timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def main() -> None:
     args = parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
+    trace = None
     # Choose environment: trace replay or synthetic
-    if args.trace_source and args.trace_path:
+    if args.trace_source:
+        if args.trace_source in {"alibaba", "google"} and not args.trace_path:
+            raise ValueError(f"--trace-path is required for trace source {args.trace_source}")
+        if args.trace_source == "cloudai" and not args.trace_path and not args.mongo_uri:
+            raise ValueError("--trace-source cloudai requires --trace-path or --mongo-uri")
+
+        trace_path = args.trace_path or ""
         LOGGER.info("Loading %s trace from %s (max %d tasks)",
-                     args.trace_source, args.trace_path, args.max_trace_tasks)
-        trace = load_trace(args.trace_path, args.trace_source, max_tasks=args.max_trace_tasks)
+                     args.trace_source, trace_path or "<mongo>", args.max_trace_tasks)
+        trace = load_trace(
+            trace_path,
+            args.trace_source,
+            max_tasks=args.max_trace_tasks,
+            trace_window=args.trace_window,
+            trace_window_start=args.trace_window_start,
+            trace_window_end=args.trace_window_end,
+            mongo_uri=args.mongo_uri,
+            mongo_db=args.mongo_db,
+        )
         env = TraceReplayEnv(trace, num_workers=args.num_workers, loop=True)
-        LOGGER.info("Trace replay env: %s", trace.description)
+        LOGGER.info("Trace replay env: %s (window=%s)", trace.description, getattr(trace, "trace_window", "full"))
     else:
         env = SchedulingEnv(num_workers=args.num_workers, episode_length=args.episode_length, seed=args.seed)
     state = build_fresh_state(args.learning_rate, torch.device("cpu"))
@@ -176,6 +218,9 @@ def main() -> None:
                 state.training_steps,
             )
 
+    lineage_metadata = build_lineage_metadata(args, trace)
+    state.lineage_metadata = dict(lineage_metadata)
+
     output_path = Path(args.output).expanduser()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(state.checkpoint_payload())
@@ -190,7 +235,11 @@ def main() -> None:
                 fingerprint_payload=args.fingerprint_payload,
                 checkpoint_bytes=output_path.read_bytes(),
                 framework="pytorch-ppo",
-                extra_metadata={"source": "offline-training", "updates": args.updates},
+                extra_metadata={
+                    "source": "offline-training",
+                    "updates": args.updates,
+                    **lineage_metadata,
+                },
             )
             if saved:
                 LOGGER.info("Persisted checkpoint to Mongo version v%s", saved.get("version"))
@@ -200,4 +249,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
