@@ -5,6 +5,7 @@ import os
 import tempfile
 import threading
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -40,9 +41,11 @@ class PPOServiceCore:
         model_path: str,
         learning_rate: float = 3e-4,
         update_batch_size: int = 32,
+        online_updates_enabled: bool = True,
     ):
         self.learning_rate = float(learning_rate)
         self.update_batch_size = max(int(update_batch_size), 4)
+        self.online_updates_enabled = bool(online_updates_enabled)
         self.model_path = Path(model_path).expanduser() if model_path else None
         self.device = torch.device("cpu")
         self.scheduler_type = "PPO"
@@ -162,6 +165,9 @@ class PPOServiceCore:
             if worker_id and decision.worker_id != worker_id:
                 return False, "worker mismatch for task outcome"
 
+            if not self.online_updates_enabled:
+                return True, "online updates disabled"
+
             resolved_reward = float(reward)
             if resolved_reward == 0.0:
                 resolved_reward = self._derive_reward(status, runtime_seconds, sla_success)
@@ -203,6 +209,9 @@ class PPOServiceCore:
         return reward
 
     def _train_from_replay_locked(self) -> None:
+        if not self.online_updates_enabled:
+            self.replay_buffer.clear()
+            return
         if not self.replay_buffer:
             return
         batch_size = len(self.replay_buffer)
@@ -293,6 +302,8 @@ class PPOServiceCore:
         LOGGER.info("Loaded PPO checkpoint from local path %s", checkpoint_path)
 
     def _persist_current_state_locked(self, reason: str) -> None:
+        lineage_metadata = self._build_lineage_metadata(reason)
+        self.state.lineage_metadata = dict(lineage_metadata)
         payload = self.state.checkpoint_payload()
 
         if self.model_path:
@@ -320,6 +331,7 @@ class PPOServiceCore:
             extra_metadata={
                 "reason": reason,
                 "training_steps": self.state.training_steps,
+                **lineage_metadata,
             },
         )
         if doc:
@@ -327,3 +339,28 @@ class PPOServiceCore:
             if version > 0:
                 self.state.model_version = f"v{version}"
 
+    def _build_lineage_metadata(self, reason: str) -> Dict[str, str]:
+        if reason == "online-update":
+            model_source = "online-adaptation"
+            training_corpus = "cloudai-live-outcomes"
+            trace_window = "live"
+        elif reason == "import-local":
+            model_source = "local-checkpoint"
+            training_corpus = "offline-seed"
+            trace_window = "imported"
+        elif reason == "cold-start":
+            model_source = "cold-start"
+            training_corpus = "none"
+            trace_window = "none"
+        else:
+            model_source = "service-update"
+            training_corpus = "cloudai-live-outcomes"
+            trace_window = "live"
+
+        return {
+            "model_source": model_source,
+            "training_corpus": training_corpus,
+            "trace_window": trace_window,
+            "cluster_fingerprint": self.current_fingerprint_hash,
+            "train_timestamp": datetime.now(timezone.utc).isoformat(),
+        }

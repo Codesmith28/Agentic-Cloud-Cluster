@@ -27,7 +27,11 @@ ENV WORKER_BIND_IP=0.0.0.0
 ENV CLOUDAI_WORKER_STATE_DIR=/var/lib/cloudai/worker
 ENV CLOUDAI_OUTPUT_DIR=/var/cloudai/outputs
 
-RUN mkdir -p /var/lib/cloudai/worker /var/cloudai/outputs
+RUN adduser --disabled-password --gecos "" cloudai && \
+    mkdir -p /var/lib/cloudai/worker /var/cloudai/outputs && \
+    chown -R cloudai:cloudai /app /var/lib/cloudai/worker /var/cloudai/outputs
+
+USER cloudai
 
 EXPOSE 50052
 

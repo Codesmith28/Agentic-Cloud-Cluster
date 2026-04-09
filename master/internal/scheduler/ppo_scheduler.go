@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,6 +13,12 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+)
+
+const (
+	PPOModeShadow   = "shadow"
+	PPOModeActive   = "active"
+	PPOModeFallback = "fallback"
 )
 
 // PPOScheduler forwards scheduling decisions to a Python PPO service via gRPC.
@@ -24,21 +31,44 @@ type PPOScheduler struct {
 	fallback       Scheduler
 	requestTimeout time.Duration
 	modelPath      string
+	deploymentMode string
+	onlineUpdates  bool
 
 	mu                  sync.RWMutex
 	lastFingerprintHash string
 	lastModelVersion    string
 }
 
-func NewPPOScheduler(grpcAddr string, requestTimeout time.Duration, fallback Scheduler, modelPath string) (*PPOScheduler, error) {
-	if grpcAddr == "" {
-		return nil, fmt.Errorf("empty PPO gRPC address")
-	}
+func NewPPOScheduler(
+	grpcAddr string,
+	requestTimeout time.Duration,
+	fallback Scheduler,
+	modelPath string,
+	deploymentMode string,
+	onlineUpdates bool,
+) (*PPOScheduler, error) {
 	if fallback == nil {
 		return nil, fmt.Errorf("fallback scheduler is required")
 	}
 	if requestTimeout <= 0 {
 		requestTimeout = 1500 * time.Millisecond
+	}
+	mode := NormalizePPODeploymentMode(deploymentMode)
+
+	scheduler := &PPOScheduler{
+		fallback:       fallback,
+		requestTimeout: requestTimeout,
+		modelPath:      modelPath,
+		deploymentMode: mode,
+		onlineUpdates:  onlineUpdates,
+	}
+
+	// Fallback mode intentionally does not require a live PPO gRPC client.
+	if mode == PPOModeFallback {
+		return scheduler, nil
+	}
+	if grpcAddr == "" {
+		return nil, fmt.Errorf("empty PPO gRPC address")
 	}
 
 	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -53,14 +83,22 @@ func NewPPOScheduler(grpcAddr string, requestTimeout time.Duration, fallback Sch
 	if err != nil {
 		return nil, fmt.Errorf("connect PPO service at %s: %w", grpcAddr, err)
 	}
+	scheduler.conn = conn
+	scheduler.client = pb.NewPPOSchedulerClient(conn)
+	return scheduler, nil
+}
 
-	return &PPOScheduler{
-		client:         pb.NewPPOSchedulerClient(conn),
-		conn:           conn,
-		fallback:       fallback,
-		requestTimeout: requestTimeout,
-		modelPath:      modelPath,
-	}, nil
+func NormalizePPODeploymentMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case PPOModeShadow:
+		return PPOModeShadow
+	case PPOModeFallback:
+		return PPOModeFallback
+	case "", PPOModeActive:
+		return PPOModeActive
+	default:
+		return PPOModeActive
+	}
 }
 
 func (s *PPOScheduler) Close() error {
@@ -74,6 +112,10 @@ func (s *PPOScheduler) GetName() string {
 	return "PPO"
 }
 
+func (s *PPOScheduler) DeploymentMode() string {
+	return s.deploymentMode
+}
+
 func (s *PPOScheduler) Reset() {
 	s.fallback.Reset()
 	s.mu.Lock()
@@ -83,6 +125,9 @@ func (s *PPOScheduler) Reset() {
 }
 
 func (s *PPOScheduler) Ping(ctx context.Context) (*pb.PingResponse, error) {
+	if s.client == nil {
+		return nil, fmt.Errorf("PPO client unavailable in %s mode", s.deploymentMode)
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -92,7 +137,14 @@ func (s *PPOScheduler) Ping(ctx context.Context) (*pb.PingResponse, error) {
 }
 
 func (s *PPOScheduler) SelectWorker(task *pb.Task, workers map[string]*WorkerInfo) string {
+	if s.deploymentMode == PPOModeFallback {
+		return s.fallback.SelectWorker(task, workers)
+	}
 	if task == nil || len(workers) == 0 {
+		return s.fallback.SelectWorker(task, workers)
+	}
+	if s.client == nil {
+		log.Printf("⚠️ PPO: client unavailable, fallback -> %s", s.fallback.GetName())
 		return s.fallback.SelectWorker(task, workers)
 	}
 
@@ -154,10 +206,29 @@ func (s *PPOScheduler) SelectWorker(task *pb.Task, workers map[string]*WorkerInf
 	}
 	s.mu.Unlock()
 
+	if s.deploymentMode == PPOModeShadow {
+		fallbackWorker := s.fallback.SelectWorker(task, workers)
+		if fallbackWorker != resp.WorkerId {
+			log.Printf(
+				"ℹ️ PPO shadow divergence task=%s ppo=%s fallback=%s",
+				task.TaskId,
+				resp.WorkerId,
+				fallbackWorker,
+			)
+		}
+		return fallbackWorker
+	}
+
 	return resp.WorkerId
 }
 
 func (s *PPOScheduler) ReportOutcome(ctx context.Context, outcome TaskOutcome) error {
+	if s.deploymentMode != PPOModeActive || !s.onlineUpdates {
+		return nil
+	}
+	if s.client == nil {
+		return nil
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -203,6 +274,9 @@ func (s *PPOScheduler) ReportOutcome(ctx context.Context, outcome TaskOutcome) e
 func (s *PPOScheduler) ensureModelLoaded(fingerprintHash, fingerprintPayload string) error {
 	if fingerprintHash == "" {
 		return nil
+	}
+	if s.client == nil {
+		return fmt.Errorf("PPO client unavailable")
 	}
 
 	s.mu.RLock()

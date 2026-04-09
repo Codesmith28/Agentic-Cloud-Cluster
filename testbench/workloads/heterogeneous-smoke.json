@@ -1,9 +1,16 @@
 {
   "name": "heterogeneous-smoke",
-  "description": "Mixed CPU, memory, and I/O workload using versioned CloudAI benchmark images for deterministic, reproducible execution.",
+  "description": "Mixed deterministic workflow profile smoke run using a pinned workflow image tag and explicit workflow parameter blocks.",
   "tasks": [
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-light:1",
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": {
+        "profile": "cpu-light",
+        "args": {
+          "iterations": 420000,
+          "seed": 101
+        }
+      },
       "cpu_required": 0.5,
       "memory_required": 0.25,
       "storage_required": 1,
@@ -11,7 +18,14 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-heavy:1",
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": {
+        "profile": "cpu-heavy",
+        "args": {
+          "iterations": 3600000,
+          "seed": 202
+        }
+      },
       "cpu_required": 1.0,
       "memory_required": 0.5,
       "storage_required": 1,
@@ -19,7 +33,15 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-memory-heavy:1",
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": {
+        "profile": "memory-heavy",
+        "args": {
+          "memory-mib": 448,
+          "passes": 2,
+          "seed": 303
+        }
+      },
       "cpu_required": 0.7,
       "memory_required": 1.0,
       "storage_required": 2,
@@ -27,7 +49,16 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-mixed:1",
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": {
+        "profile": "mixed",
+        "args": {
+          "iterations": 1700000,
+          "memory-mib": 192,
+          "passes": 2,
+          "seed": 404
+        }
+      },
       "cpu_required": 1.2,
       "memory_required": 1.2,
       "storage_required": 2,
@@ -35,7 +66,14 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-light:2",
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": {
+        "profile": "cpu-light",
+        "args": {
+          "iterations": 520000,
+          "seed": 105
+        }
+      },
       "cpu_required": 0.4,
       "memory_required": 0.25,
       "storage_required": 1,
@@ -43,7 +81,14 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-heavy:2",
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": {
+        "profile": "cpu-heavy",
+        "args": {
+          "iterations": 4200000,
+          "seed": 206
+        }
+      },
       "cpu_required": 1.5,
       "memory_required": 0.75,
       "storage_required": 1,
@@ -51,7 +96,15 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-memory-heavy:2",
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": {
+        "profile": "memory-heavy",
+        "args": {
+          "memory-mib": 576,
+          "passes": 3,
+          "seed": 307
+        }
+      },
       "cpu_required": 0.8,
       "memory_required": 1.5,
       "storage_required": 3,
@@ -59,7 +112,16 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-mixed:2",
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": {
+        "profile": "mixed",
+        "args": {
+          "iterations": 2000000,
+          "memory-mib": 256,
+          "passes": 2,
+          "seed": 408
+        }
+      },
       "cpu_required": 1.6,
       "memory_required": 1.0,
       "storage_required": 2,
@@ -67,7 +129,14 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-light:3",
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": {
+        "profile": "cpu-light",
+        "args": {
+          "iterations": 610000,
+          "seed": 109
+        }
+      },
       "cpu_required": 0.5,
       "memory_required": 0.25,
       "storage_required": 1,
@@ -75,7 +144,14 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "moinvinchhi/cloudai-cpu-heavy:3",
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": {
+        "profile": "cpu-heavy",
+        "args": {
+          "iterations": 4800000,
+          "seed": 210
+        }
+      },
       "cpu_required": 2.0,
       "memory_required": 1.25,
       "storage_required": 2,

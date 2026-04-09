@@ -30,7 +30,11 @@ ENV GRPC_PORT=:50051
 ENV HTTP_PORT=:8080
 ENV CLOUDAI_FILES_DIR=/var/cloudai/files
 
-RUN mkdir -p /var/cloudai/files
+RUN adduser --disabled-password --gecos "" cloudai && \
+    mkdir -p /var/cloudai/files && \
+    chown -R cloudai:cloudai /app /var/cloudai/files
+
+USER cloudai
 
 EXPOSE 50051 8080
 

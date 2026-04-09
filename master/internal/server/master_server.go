@@ -1978,6 +1978,7 @@ func (s *MasterServer) BroadcastMasterRegistration(masterID, masterAddress strin
 func (s *MasterServer) CancelTask(ctx context.Context, taskID *pb.TaskID) (*pb.TaskAck, error) {
 	// Handle queued tasks first (no worker assignment yet).
 	if s.removeQueuedTaskByID(taskID.TaskId) {
+		mastermetrics.Get().IncTaskDequeued("cancelled")
 		s.clearTaskCancellationRequest(taskID.TaskId)
 		if s.taskDB != nil {
 			if err := s.taskDB.UpdateTaskStatus(ctx, taskID.TaskId, "cancelled"); err != nil {
@@ -2210,6 +2211,7 @@ func (s *MasterServer) processQueue(ticker *time.Ticker, stopCh <-chan struct{})
 			if s.isTaskCancellationRequested(taskID) {
 				s.clearTaskCancellationRequest(taskID)
 				s.updateTaskStatusSafe(taskID, "cancelled")
+				mastermetrics.Get().IncTaskDequeued("cancelled")
 				continue
 			}
 
@@ -2239,6 +2241,7 @@ func (s *MasterServer) processQueue(ticker *time.Ticker, stopCh <-chan struct{})
 			if s.isTaskCancellationRequested(taskID) {
 				s.clearTaskCancellationRequest(taskID)
 				s.updateTaskStatusSafe(taskID, "cancelled")
+				mastermetrics.Get().IncTaskDequeued("cancelled")
 				continue
 			}
 
@@ -2266,6 +2269,7 @@ func (s *MasterServer) processQueue(ticker *time.Ticker, stopCh <-chan struct{})
 						qt.Task.TaskId, selectedWorker, qt.Retries, qt.LastError)
 				}
 			} else {
+				mastermetrics.Get().IncTaskDequeued("assigned")
 				mastermetrics.Get().ObserveQueueWait(s.scheduler.GetName(), qt.Task.TaskType, qt.QueuedAt)
 				mastermetrics.Get().IncSchedulerSelection(s.scheduler.GetName(), qt.Task.TaskType, selectedWorker)
 				log.Printf("✓ Queue: Task %s successfully assigned to %s after %d attempts",
@@ -2450,6 +2454,7 @@ func (s *MasterServer) removeQueuedTaskByID(taskID string) bool {
 		if qt.Task.TaskId == taskID {
 			s.taskQueue = append(s.taskQueue[:i], s.taskQueue[i+1:]...)
 			delete(s.cancellationRequests, taskID)
+			mastermetrics.Get().SetQueueDepth(len(s.taskQueue))
 			return true
 		}
 	}

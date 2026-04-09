@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,6 +41,12 @@ type TaskResult struct {
 	Error          error
 	ResultLocation string   // Path to output directory on worker
 	OutputFiles    []string // List of output files relative to ResultLocation
+}
+
+type containerUsageSnapshot struct {
+	cpuSeconds      float64
+	memoryPeakBytes uint64
+	ioBytes         uint64
 }
 
 // getBaseOutputDir returns the base output directory, using CLOUDAI_OUTPUT_DIR env var if set
@@ -178,6 +186,11 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 		log.Println("")
 	}
 	workermetrics.Get().ObserveTaskRuntime(taskType, result.Status, executionStarted)
+	if usage, err := e.collectContainerUsage(containerID); err != nil {
+		log.Printf("[Task %s] Warning: failed to collect container usage stats: %v", taskID, err)
+	} else {
+		workermetrics.Get().ObserveContainerUsage(taskType, usage.cpuSeconds, usage.memoryPeakBytes, usage.ioBytes)
+	}
 
 	// Collect output files
 	outputDir := filepath.Join(getBaseOutputDir(), taskID)
@@ -327,6 +340,62 @@ func (e *TaskExecutor) collectOutputFiles(outputDir string) ([]string, error) {
 	})
 
 	return files, err
+}
+
+func (e *TaskExecutor) collectContainerUsage(containerID string) (containerUsageSnapshot, error) {
+	snapshot := containerUsageSnapshot{}
+	statsCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	stats, err := e.fetchContainerStats(statsCtx, containerID)
+	if err != nil {
+		return snapshot, err
+	}
+
+	snapshot.cpuSeconds = float64(stats.CPUStats.CPUUsage.TotalUsage) / float64(time.Second)
+	if stats.MemoryStats.MaxUsage > 0 {
+		snapshot.memoryPeakBytes = stats.MemoryStats.MaxUsage
+	} else {
+		snapshot.memoryPeakBytes = stats.MemoryStats.Usage
+	}
+	snapshot.ioBytes = sumContainerIOBytes(stats.BlkioStats.IoServiceBytesRecursive)
+
+	return snapshot, nil
+}
+
+func (e *TaskExecutor) fetchContainerStats(ctx context.Context, containerID string) (container.StatsResponse, error) {
+	statsReader, err := e.dockerClient.ContainerStatsOneShot(ctx, containerID)
+	if err != nil {
+		statsReader, err = e.dockerClient.ContainerStats(ctx, containerID, false)
+		if err != nil {
+			return container.StatsResponse{}, err
+		}
+	}
+	defer statsReader.Body.Close()
+
+	var stats container.StatsResponse
+	if err := json.NewDecoder(statsReader.Body).Decode(&stats); err != nil {
+		return container.StatsResponse{}, err
+	}
+	return stats, nil
+}
+
+func sumContainerIOBytes(entries []container.BlkioStatEntry) uint64 {
+	var allOpsTotal uint64
+	var readWriteTotal uint64
+
+	for _, entry := range entries {
+		allOpsTotal += entry.Value
+		switch strings.ToLower(entry.Op) {
+		case "read", "write":
+			readWriteTotal += entry.Value
+		}
+	}
+
+	if readWriteTotal > 0 {
+		return readWriteTotal
+	}
+	return allOpsTotal
 }
 
 // cleanup removes the container

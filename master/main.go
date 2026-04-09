@@ -237,6 +237,7 @@ func main() {
 	log.Printf("  - Parameter hot-reload: enabled (every 30s from local cache)")
 
 	selectedAlgo := chooseSchedulerAlgorithm(cfg.SchedulerAlgo)
+	ppoDeploymentMode := scheduler.NormalizePPODeploymentMode(cfg.PPODeploymentMode)
 	activeScheduler := scheduler.Scheduler(rtsScheduler)
 	var ppoScheduler *scheduler.PPOScheduler
 	var ppoServiceCmd *exec.Cmd
@@ -246,7 +247,8 @@ func main() {
 		activeScheduler = rrScheduler
 		log.Printf("✓ Selected scheduler: %s", rrScheduler.GetName())
 	case "PPO":
-		if cfg.PPOAutostart {
+		log.Printf("✓ PPO deployment mode: %s (online updates: %t)", ppoDeploymentMode, cfg.PPOOnlineUpdates)
+		if cfg.PPOAutostart && ppoDeploymentMode != scheduler.PPOModeFallback {
 			cmd, err := startPPOServiceIfNeeded(cfg)
 			if err != nil {
 				log.Printf("⚠️  Failed to auto-start PPO service: %v", err)
@@ -254,6 +256,8 @@ func main() {
 				ppoServiceCmd = cmd
 				log.Printf("✓ PPO Python service auto-started (pid=%d)", cmd.Process.Pid)
 			}
+		} else if cfg.PPOAutostart && ppoDeploymentMode == scheduler.PPOModeFallback {
+			log.Println("ℹ️  PPO autostart skipped in fallback deployment mode")
 		}
 
 		ppoSchedulerCandidate, err := scheduler.NewPPOScheduler(
@@ -261,6 +265,8 @@ func main() {
 			time.Duration(cfg.PPORequestTimeoutMS)*time.Millisecond,
 			rtsScheduler,
 			cfg.PPOModelPath,
+			ppoDeploymentMode,
+			cfg.PPOOnlineUpdates,
 		)
 		if err != nil {
 			log.Printf("⚠️  Failed to initialize PPO scheduler: %v", err)
@@ -272,19 +278,34 @@ func main() {
 			activeScheduler = rtsScheduler
 		} else {
 			ppoScheduler = ppoSchedulerCandidate
-			if err := waitForPPOHealth(ppoScheduler, 10*time.Second); err != nil {
-				log.Printf("⚠️  PPO health check failed: %v", err)
-				log.Printf("  Falling back to %s scheduler", rtsScheduler.GetName())
-				_ = ppoScheduler.Close()
-				ppoScheduler = nil
-				if ppoServiceCmd != nil {
-					stopExternalProcess(ppoServiceCmd, 3*time.Second)
-					ppoServiceCmd = nil
+			if ppoScheduler.DeploymentMode() != scheduler.PPOModeFallback {
+				if err := waitForPPOHealth(ppoScheduler, 10*time.Second); err != nil {
+					log.Printf("⚠️  PPO health check failed: %v", err)
+					log.Printf("  Falling back to %s scheduler", rtsScheduler.GetName())
+					_ = ppoScheduler.Close()
+					ppoScheduler = nil
+					if ppoServiceCmd != nil {
+						stopExternalProcess(ppoServiceCmd, 3*time.Second)
+						ppoServiceCmd = nil
+					}
+					activeScheduler = rtsScheduler
+				} else {
+					activeScheduler = ppoScheduler
+					log.Printf(
+						"✓ Selected scheduler: %s (mode=%s fallback=%s)",
+						ppoScheduler.GetName(),
+						ppoScheduler.DeploymentMode(),
+						rtsScheduler.GetName(),
+					)
 				}
-				activeScheduler = rtsScheduler
 			} else {
 				activeScheduler = ppoScheduler
-				log.Printf("✓ Selected scheduler: %s (fallback=%s)", ppoScheduler.GetName(), rtsScheduler.GetName())
+				log.Printf(
+					"✓ Selected scheduler: %s (mode=%s fallback=%s)",
+					ppoScheduler.GetName(),
+					ppoScheduler.DeploymentMode(),
+					rtsScheduler.GetName(),
+				)
 			}
 		}
 	default:
@@ -668,6 +689,7 @@ func startPPOServiceIfNeeded(cfg *config.Config) (*exec.Cmd, error) {
 		"--mongo-uri", cfg.MongoDBURI,
 		"--mongo-db", cfg.MongoDBDatabase,
 		"--model-path", modelPath,
+		"--online-updates", fmt.Sprintf("%t", cfg.PPOOnlineUpdates),
 	)
 	cmd.Dir = projectRoot
 	cmd.Stdout = os.Stdout

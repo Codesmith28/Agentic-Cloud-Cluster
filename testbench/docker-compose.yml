@@ -30,6 +30,7 @@ services:
       CLOUDAI_HEADLESS: "true"
       SCHED_ALGO: RTS
       PPO_AUTOSTART: "false"
+      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
     ports:
       - "50051:50051"
       - "8080:8080"
@@ -63,8 +64,8 @@ services:
       prometheus:
         condition: service_started
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:?Set GF_ADMIN_PASSWORD in .env}
       GF_USERS_ALLOW_SIGN_UP: "false"
     ports:
       - "3000:3000"
@@ -118,6 +119,7 @@ services:
       WORKER_TOTAL_MEMORY_GB: "1.5"
       WORKER_TOTAL_STORAGE_GB: "20"
       DOCKER_HOST: tcp://worker-small-dind:2375
+      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
     volumes:
       - worker-small-state:/var/lib/cloudai/worker
       - worker-small-outputs:/var/cloudai/outputs
@@ -166,6 +168,7 @@ services:
       WORKER_TOTAL_MEMORY_GB: "3"
       WORKER_TOTAL_STORAGE_GB: "40"
       DOCKER_HOST: tcp://worker-medium-dind:2375
+      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
     volumes:
       - worker-medium-state:/var/lib/cloudai/worker
       - worker-medium-outputs:/var/cloudai/outputs
@@ -214,6 +217,7 @@ services:
       WORKER_TOTAL_MEMORY_GB: "5"
       WORKER_TOTAL_STORAGE_GB: "80"
       DOCKER_HOST: tcp://worker-large-dind:2375
+      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
     volumes:
       - worker-large-state:/var/lib/cloudai/worker
       - worker-large-outputs:/var/cloudai/outputs
