@@ -14,6 +14,33 @@ services:
       timeout: 5s
       retries: 20
 
+  ppo-service:
+    build:
+      context: ..
+      dockerfile: testbench/docker/Dockerfile.ppo
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGODB_URI: mongodb://mongo:27017
+      MONGODB_DATABASE: cluster_db
+      PPO_GRPC_ADDR: "${PPO_GRPC_ADDR:-0.0.0.0:50061}"
+      PPO_MODEL_PATH: "${PPO_MODEL_PATH:-/opt/cloudai/models/ppo_latest.pt}"
+      PPO_ONLINE_UPDATES_ENABLED: "${PPO_ONLINE_UPDATES_ENABLED:-false}"
+      PPO_LOG_LEVEL: "${PPO_LOG_LEVEL:-INFO}"
+    volumes:
+      - ../agentic_scheduler/models:/opt/cloudai/models
+    ports:
+      - "50061:50061"
+    networks:
+      - cloudai
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.create_connection(('127.0.0.1', 50061), timeout=2); s.close()"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   master:
     build:
       context: ..
@@ -22,14 +49,20 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+      ppo-service:
+        condition: service_healthy
     environment:
       MONGODB_HOST: mongo:27017
       MONGODB_DATABASE: cluster_db
       GRPC_PORT: ":50051"
       HTTP_PORT: ":8080"
       CLOUDAI_HEADLESS: "true"
-      SCHED_ALGO: RTS
+      SCHED_ALGO: "${SCHED_ALGO:-RTS}"
+      PPO_GRPC_ADDR: "${MASTER_PPO_GRPC_ADDR:-ppo-service:50061}"
       PPO_AUTOSTART: "false"
+      PPO_MODE: "${PPO_MODE:-active}"
+      PPO_MODEL_PATH: "${PPO_MODEL_PATH:-/opt/cloudai/models/ppo_latest.pt}"
+      PPO_ONLINE_UPDATES_ENABLED: "${PPO_ONLINE_UPDATES_ENABLED:-false}"
     ports:
       - "50051:50051"
       - "8080:8080"
@@ -64,7 +97,7 @@ services:
         condition: service_started
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_PASSWORD: "${GF_ADMIN_PASSWORD:-admin}"
       GF_USERS_ALLOW_SIGN_UP: "false"
     ports:
       - "3000:3000"
@@ -84,12 +117,13 @@ services:
       DOCKER_TLS_CERTDIR: ""
       DOCKER_HOST: tcp://127.0.0.1:2375
     command: ["--host=tcp://0.0.0.0:2375"]
-    cpus: 1.0
-    mem_limit: 1536m
-    pids_limit: 512
+    cpus: ${WORKER_SMALL_DIND_CPUS:-1.0}
+    mem_limit: ${WORKER_SMALL_DIND_MEM_LIMIT:-1536m}
+    pids_limit: ${WORKER_SMALL_DIND_PIDS_LIMIT:-512}
     volumes:
       - worker-small-docker:/var/lib/docker
       - worker-small-outputs:/var/cloudai/outputs
+      - ./workflow-image:/opt/cloudai/workflow-image:ro
     networks:
       - cloudai
     healthcheck:
@@ -114,9 +148,9 @@ services:
       WORKER_PORT: "50052"
       WORKER_METRICS_PORT: "9101"
       WORKER_BIND_IP: "0.0.0.0"
-      WORKER_TOTAL_CPU: "1.0"
-      WORKER_TOTAL_MEMORY_GB: "1.5"
-      WORKER_TOTAL_STORAGE_GB: "20"
+      WORKER_TOTAL_CPU: "${WORKER_SMALL_CPU:-1.0}"
+      WORKER_TOTAL_MEMORY_GB: "${WORKER_SMALL_MEMORY_GB:-1.5}"
+      WORKER_TOTAL_STORAGE_GB: "${WORKER_SMALL_STORAGE_GB:-20}"
       DOCKER_HOST: tcp://worker-small-dind:2375
     volumes:
       - worker-small-state:/var/lib/cloudai/worker
@@ -132,12 +166,13 @@ services:
       DOCKER_TLS_CERTDIR: ""
       DOCKER_HOST: tcp://127.0.0.1:2375
     command: ["--host=tcp://0.0.0.0:2375"]
-    cpus: 2.0
-    mem_limit: 3g
-    pids_limit: 768
+    cpus: ${WORKER_MEDIUM_DIND_CPUS:-2.0}
+    mem_limit: ${WORKER_MEDIUM_DIND_MEM_LIMIT:-3g}
+    pids_limit: ${WORKER_MEDIUM_DIND_PIDS_LIMIT:-768}
     volumes:
       - worker-medium-docker:/var/lib/docker
       - worker-medium-outputs:/var/cloudai/outputs
+      - ./workflow-image:/opt/cloudai/workflow-image:ro
     networks:
       - cloudai
     healthcheck:
@@ -162,9 +197,9 @@ services:
       WORKER_PORT: "50052"
       WORKER_METRICS_PORT: "9101"
       WORKER_BIND_IP: "0.0.0.0"
-      WORKER_TOTAL_CPU: "2.0"
-      WORKER_TOTAL_MEMORY_GB: "3"
-      WORKER_TOTAL_STORAGE_GB: "40"
+      WORKER_TOTAL_CPU: "${WORKER_MEDIUM_CPU:-2.0}"
+      WORKER_TOTAL_MEMORY_GB: "${WORKER_MEDIUM_MEMORY_GB:-3}"
+      WORKER_TOTAL_STORAGE_GB: "${WORKER_MEDIUM_STORAGE_GB:-40}"
       DOCKER_HOST: tcp://worker-medium-dind:2375
     volumes:
       - worker-medium-state:/var/lib/cloudai/worker
@@ -180,12 +215,13 @@ services:
       DOCKER_TLS_CERTDIR: ""
       DOCKER_HOST: tcp://127.0.0.1:2375
     command: ["--host=tcp://0.0.0.0:2375"]
-    cpus: 3.0
-    mem_limit: 5g
-    pids_limit: 1024
+    cpus: ${WORKER_LARGE_DIND_CPUS:-3.0}
+    mem_limit: ${WORKER_LARGE_DIND_MEM_LIMIT:-5g}
+    pids_limit: ${WORKER_LARGE_DIND_PIDS_LIMIT:-1024}
     volumes:
       - worker-large-docker:/var/lib/docker
       - worker-large-outputs:/var/cloudai/outputs
+      - ./workflow-image:/opt/cloudai/workflow-image:ro
     networks:
       - cloudai
     healthcheck:
@@ -210,13 +246,111 @@ services:
       WORKER_PORT: "50052"
       WORKER_METRICS_PORT: "9101"
       WORKER_BIND_IP: "0.0.0.0"
-      WORKER_TOTAL_CPU: "3.0"
-      WORKER_TOTAL_MEMORY_GB: "5"
-      WORKER_TOTAL_STORAGE_GB: "80"
+      WORKER_TOTAL_CPU: "${WORKER_LARGE_CPU:-3.0}"
+      WORKER_TOTAL_MEMORY_GB: "${WORKER_LARGE_MEMORY_GB:-5}"
+      WORKER_TOTAL_STORAGE_GB: "${WORKER_LARGE_STORAGE_GB:-80}"
       DOCKER_HOST: tcp://worker-large-dind:2375
     volumes:
       - worker-large-state:/var/lib/cloudai/worker
       - worker-large-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+
+  worker-edge-a-dind:
+    image: docker:27.3-dind
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+      DOCKER_HOST: tcp://127.0.0.1:2375
+    command: ["--host=tcp://0.0.0.0:2375"]
+    cpus: ${WORKER_EDGE_A_DIND_CPUS:-0.75}
+    mem_limit: ${WORKER_EDGE_A_DIND_MEM_LIMIT:-1g}
+    pids_limit: ${WORKER_EDGE_A_DIND_PIDS_LIMIT:-384}
+    volumes:
+      - worker-edge-a-docker:/var/lib/docker
+      - worker-edge-a-outputs:/var/cloudai/outputs
+      - ./workflow-image:/opt/cloudai/workflow-image:ro
+    networks:
+      - cloudai
+    healthcheck:
+      test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  worker-edge-a:
+    build:
+      context: ..
+      dockerfile: testbench/docker/Dockerfile.worker
+    restart: unless-stopped
+    hostname: worker-edge-a
+    depends_on:
+      master:
+        condition: service_started
+      worker-edge-a-dind:
+        condition: service_healthy
+    environment:
+      WORKER_ID: worker-edge-a
+      WORKER_PORT: "50052"
+      WORKER_METRICS_PORT: "9101"
+      WORKER_BIND_IP: "0.0.0.0"
+      WORKER_TOTAL_CPU: "${WORKER_EDGE_A_CPU:-0.75}"
+      WORKER_TOTAL_MEMORY_GB: "${WORKER_EDGE_A_MEMORY_GB:-1.0}"
+      WORKER_TOTAL_STORAGE_GB: "${WORKER_EDGE_A_STORAGE_GB:-12}"
+      DOCKER_HOST: tcp://worker-edge-a-dind:2375
+    volumes:
+      - worker-edge-a-state:/var/lib/cloudai/worker
+      - worker-edge-a-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+
+  worker-edge-b-dind:
+    image: docker:27.3-dind
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+      DOCKER_HOST: tcp://127.0.0.1:2375
+    command: ["--host=tcp://0.0.0.0:2375"]
+    cpus: ${WORKER_EDGE_B_DIND_CPUS:-0.75}
+    mem_limit: ${WORKER_EDGE_B_DIND_MEM_LIMIT:-1g}
+    pids_limit: ${WORKER_EDGE_B_DIND_PIDS_LIMIT:-384}
+    volumes:
+      - worker-edge-b-docker:/var/lib/docker
+      - worker-edge-b-outputs:/var/cloudai/outputs
+      - ./workflow-image:/opt/cloudai/workflow-image:ro
+    networks:
+      - cloudai
+    healthcheck:
+      test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  worker-edge-b:
+    build:
+      context: ..
+      dockerfile: testbench/docker/Dockerfile.worker
+    restart: unless-stopped
+    hostname: worker-edge-b
+    depends_on:
+      master:
+        condition: service_started
+      worker-edge-b-dind:
+        condition: service_healthy
+    environment:
+      WORKER_ID: worker-edge-b
+      WORKER_PORT: "50052"
+      WORKER_METRICS_PORT: "9101"
+      WORKER_BIND_IP: "0.0.0.0"
+      WORKER_TOTAL_CPU: "${WORKER_EDGE_B_CPU:-0.75}"
+      WORKER_TOTAL_MEMORY_GB: "${WORKER_EDGE_B_MEMORY_GB:-1.0}"
+      WORKER_TOTAL_STORAGE_GB: "${WORKER_EDGE_B_STORAGE_GB:-12}"
+      DOCKER_HOST: tcp://worker-edge-b-dind:2375
+    volumes:
+      - worker-edge-b-state:/var/lib/cloudai/worker
+      - worker-edge-b-outputs:/var/cloudai/outputs
     networks:
       - cloudai
 
@@ -238,3 +372,9 @@ volumes:
   worker-large-state:
   worker-large-outputs:
   worker-large-docker:
+  worker-edge-a-state:
+  worker-edge-a-outputs:
+  worker-edge-a-docker:
+  worker-edge-b-state:
+  worker-edge-b-outputs:
+  worker-edge-b-docker:

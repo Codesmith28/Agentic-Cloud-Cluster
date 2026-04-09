@@ -26,8 +26,11 @@ if [[ "${RUN_COMPOSE_UP}" == "true" ]]; then
   docker compose -f "${COMPOSE_FILE}" up -d --build
 fi
 
+echo "Preparing workflow images..."
+"${SCRIPT_DIR}/prepare_workflow_images.sh"
+
 echo "Registering workers..."
-MASTER_URL="${MASTER_URL}" "${SCRIPT_DIR}/register_workers.sh"
+MASTER_URL="${MASTER_URL}" TESTBENCH_WORKERS="${TESTBENCH_WORKERS:-}" "${SCRIPT_DIR}/register_workers.sh"
 
 echo "Running workload..."
 python3 "${SCRIPT_DIR}/run_workload.py" --master-url "${MASTER_URL}" --output "${SUMMARY_PATH}" "$@"

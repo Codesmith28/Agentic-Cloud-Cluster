@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+"""Deterministic workflow profiles for CloudAI testbench tasks."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import pathlib
+import sys
+import time
+from typing import Callable
+
+OUTPUT_DIR = pathlib.Path("/output")
+
+
+def cpu_spin(seconds: float, seed: str) -> int:
+    deadline = time.perf_counter() + max(seconds, 0.0)
+    digest = int(hashlib.sha256(seed.encode("utf-8")).hexdigest()[:8], 16)
+    value = digest % 7919
+    iterations = 0
+    while time.perf_counter() < deadline:
+        value = (value * 1103515245 + 12345) % 2147483647
+        value ^= (value << 13) & 0xFFFFFFFF
+        value ^= (value >> 17)
+        value ^= (value << 5) & 0xFFFFFFFF
+        iterations += 1
+    return iterations
+
+
+def allocate_memory(memory_mb: int, hold_seconds: float) -> int:
+    if memory_mb <= 0:
+        return 0
+    block = bytearray(memory_mb * 1024 * 1024)
+    page = 4096
+    touched = 0
+    for offset in range(0, len(block), page):
+        block[offset] = offset % 251
+        touched += 1
+    time.sleep(max(hold_seconds, 0.0))
+    return touched
+
+
+def write_result(profile: str, payload: dict) -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = int(time.time() * 1000)
+    path = OUTPUT_DIR / f"{profile}-{stamp}.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def run_cpu_light(args: argparse.Namespace) -> int:
+    start = time.time()
+    iterations = cpu_spin(args.seconds, f"cpu-light:{args.label}")
+    write_result("cpu-light", {"profile": "cpu-light", "iterations": iterations, "seconds": args.seconds, "label": args.label, "started_at": start})
+    return 0
+
+
+def run_cpu_heavy(args: argparse.Namespace) -> int:
+    start = time.time()
+    iterations = cpu_spin(args.seconds, f"cpu-heavy:{args.label}")
+    write_result("cpu-heavy", {"profile": "cpu-heavy", "iterations": iterations, "seconds": args.seconds, "label": args.label, "started_at": start})
+    return 0
+
+
+def run_memory_heavy(args: argparse.Namespace) -> int:
+    start = time.time()
+    touched = allocate_memory(args.memory_mb, args.seconds)
+    write_result("memory-heavy", {"profile": "memory-heavy", "memory_mb": args.memory_mb, "pages_touched": touched, "seconds": args.seconds, "label": args.label, "started_at": start})
+    return 0
+
+
+def run_mixed(args: argparse.Namespace) -> int:
+    start = time.time()
+    touched = allocate_memory(args.memory_mb, args.seconds / 3.0)
+    iterations = cpu_spin(args.seconds, f"mixed:{args.label}")
+    checksum = int(math.fabs(math.sin(iterations % 10000) * 1_000_000))
+    write_result("mixed", {"profile": "mixed", "memory_mb": args.memory_mb, "pages_touched": touched, "iterations": iterations, "checksum": checksum, "seconds": args.seconds, "label": args.label, "started_at": start})
+    return 0
+
+
+def run_exit_nonzero(args: argparse.Namespace) -> int:
+    write_result("exit-nonzero", {"profile": "exit-nonzero", "exit_code": args.exit_code, "label": args.label})
+    return int(args.exit_code)
+
+
+def run_hang(args: argparse.Namespace) -> int:
+    end = time.time() + args.seconds
+    while time.time() < end:
+        time.sleep(1.0)
+    write_result("hang", {"profile": "hang", "seconds": args.seconds, "label": args.label})
+    return 0
+
+
+def run_slow_start(args: argparse.Namespace) -> int:
+    time.sleep(max(args.startup_delay, 0.0))
+    return run_cpu_light(args)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="CloudAI deterministic benchmark workflow image")
+    parser.add_argument("profile", choices=["cpu-light", "cpu-heavy", "memory-heavy", "mixed", "exit-nonzero", "hang", "slow-start"])
+    parser.add_argument("--seconds", type=float, default=2.0)
+    parser.add_argument("--memory-mb", type=int, default=128)
+    parser.add_argument("--startup-delay", type=float, default=5.0)
+    parser.add_argument("--exit-code", type=int, default=17)
+    parser.add_argument("--label", default="")
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    handlers: dict[str, Callable[[argparse.Namespace], int]] = {
+        "cpu-light": run_cpu_light,
+        "cpu-heavy": run_cpu_heavy,
+        "memory-heavy": run_memory_heavy,
+        "mixed": run_mixed,
+        "exit-nonzero": run_exit_nonzero,
+        "hang": run_hang,
+        "slow-start": run_slow_start,
+    }
+    return handlers[args.profile](args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

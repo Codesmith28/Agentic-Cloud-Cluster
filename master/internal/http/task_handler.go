@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,8 +14,6 @@ import (
 	"master/internal/db"
 	"master/internal/server"
 	pb "master/proto"
-
-	"github.com/gorilla/websocket"
 )
 
 // TaskAPIHandler handles HTTP REST API requests for task management
@@ -474,16 +473,11 @@ func (h *TaskAPIHandler) HandleTaskLogsStream(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Upgrade to WebSocket
-	upgrader := websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true // Allow all origins (restrict in production)
-		},
-	}
-
+	// Upgrade to WebSocket (reuse the package-level upgrader with origin check)
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("WebSocket upgrade failed: %v", err), http.StatusInternalServerError)
+		log.Printf("WebSocket upgrade failed for task %s: %v", taskID, err)
+		http.Error(w, "WebSocket upgrade failed", http.StatusInternalServerError)
 		return
 	}
 	defer conn.Close()
@@ -492,8 +486,9 @@ func (h *TaskAPIHandler) HandleTaskLogsStream(w http.ResponseWriter, r *http.Req
 	ctx := context.Background()
 	userID, err := h.masterServer.GetUserIDForTask(ctx, taskID)
 	if err != nil {
+		log.Printf("Failed to get task info for task %s: %v", taskID, err)
 		conn.WriteJSON(map[string]interface{}{
-			"error": fmt.Sprintf("Failed to get task information: %v", err),
+			"error": "Failed to get task information",
 		})
 		return
 	}

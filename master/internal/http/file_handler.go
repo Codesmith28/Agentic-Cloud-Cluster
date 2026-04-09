@@ -92,7 +92,7 @@ func (h *FileAPIHandler) HandleListFiles(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		log.Printf("Error listing files for user %s (requested by %s): %v", targetUserID, requestingUserID, err)
-		http.Error(w, fmt.Sprintf("Failed to list files: %v", err), http.StatusInternalServerError)
+		http.Error(w, "Failed to list files", http.StatusInternalServerError)
 		return
 	}
 

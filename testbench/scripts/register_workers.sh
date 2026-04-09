@@ -4,12 +4,9 @@ set -euo pipefail
 MASTER_URL="${MASTER_URL:-http://localhost:8080}"
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-40}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-2}"
+WORKER_SPECS="${TESTBENCH_WORKERS:-worker-small=worker-small:50052,worker-medium=worker-medium:50052,worker-large=worker-large:50052}"
 
-WORKERS=(
-  "worker-small worker-small:50052"
-  "worker-medium worker-medium:50052"
-  "worker-large worker-large:50052"
-)
+readarray -t WORKERS < <(printf '%s' "${WORKER_SPECS}" | tr ',' '\n')
 
 wait_for_master() {
   local attempt
@@ -36,14 +33,9 @@ register_worker() {
     local response_file
     response_file="$(mktemp)"
     local status
-    status=$(
-      curl -sS -o "${response_file}" -w "%{http_code}" \
-        -X POST "${MASTER_URL}/api/workers" \
-        -H "Content-Type: application/json" \
-        -d "${payload}" || true
-    )
+    status=$(curl -sS -o "${response_file}" -w "%{http_code}" -X POST "${MASTER_URL}/api/workers" -H "Content-Type: application/json" -d "${payload}" || true)
 
-    if [[ "${status}" == "201" ]]; then
+    if [[ "${status}" == "201" || "${status}" == "409" ]]; then
       rm -f "${response_file}"
       echo "Registered ${worker_id} (${worker_addr})"
       return 0
@@ -59,7 +51,7 @@ register_worker() {
 
 wait_for_workers_active() {
   local target_ids
-  target_ids="$(printf "%s\n" "${WORKERS[@]}" | awk '{print $1}' | paste -sd, -)"
+  target_ids="$(printf '%s\n' "${WORKERS[@]}" | awk -F= '{print $1}' | paste -sd, -)"
 
   local attempt
   for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
@@ -112,10 +104,11 @@ PY
 main() {
   wait_for_master
 
-  local spec
+  local spec worker_id worker_addr
   for spec in "${WORKERS[@]}"; do
-    # shellcheck disable=SC2086
-    register_worker ${spec}
+    worker_id="${spec%%=*}"
+    worker_addr="${spec#*=}"
+    register_worker "${worker_id}" "${worker_addr}"
   done
 
   wait_for_workers_active

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import shlex
 import sys
 import time
 import urllib.error
@@ -14,6 +15,7 @@ from typing import Any
 
 
 TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
+DEFAULT_WORKFLOW_IMAGE = "cloudai-benchmark:1"
 
 
 def default_workload_path() -> pathlib.Path:
@@ -39,17 +41,32 @@ def request_json(method: str, url: str, payload: dict[str, Any] | None = None, t
         return json.loads(body)
 
 
+def build_workflow_command(task: dict[str, Any]) -> tuple[str, str]:
+    workflow_profile = str(task.get("workflow_profile", "")).strip()
+    workflow_args = task.get("workflow_args", [])
+    if not workflow_profile:
+        return str(task["docker_image"]), str(task.get("command", ""))
+
+    if not isinstance(workflow_args, list):
+        raise ValueError(f"workflow_args must be a list for workflow profile {workflow_profile}")
+
+    image = str(task.get("docker_image") or DEFAULT_WORKFLOW_IMAGE)
+    command_parts = ["cloudai-benchmark", workflow_profile, *[str(item) for item in workflow_args]]
+    return image, shlex.join(command_parts)
+
+
 def submit_tasks(master_url: str, tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     submitted: list[dict[str, Any]] = []
 
     for idx, task in enumerate(tasks, start=1):
+        image, command = build_workflow_command(task)
         payload = {
-            "docker_image": task["docker_image"],
-            "command": task.get("command", ""),
+            "docker_image": image,
+            "command": command,
             "cpu_required": task["cpu_required"],
             "memory_required": task["memory_required"],
             "storage_required": task.get("storage_required", 1),
-            "tag": task.get("tag", ""),
+            "tag": task.get("tag") or task.get("workflow_profile", ""),
             "k_value": task.get("k_value", 2.0),
             "user_id": task.get("user_id", "testbench"),
         }
@@ -63,13 +80,18 @@ def submit_tasks(master_url: str, tasks: list[dict[str, Any]]) -> list[dict[str,
             {
                 "index": idx,
                 "task_id": task_id,
+                "task_name": task.get("task_name", f"task-{idx:02d}"),
                 "tag": payload["tag"],
                 "cpu_required": payload["cpu_required"],
                 "memory_required": payload["memory_required"],
+                "storage_required": payload["storage_required"],
                 "docker_image": payload["docker_image"],
+                "command": payload["command"],
+                "workflow_profile": task.get("workflow_profile", ""),
+                "expected_status": task.get("expected_status", "completed"),
             }
         )
-        print(f"[submit {idx:02d}/{len(tasks):02d}] {task_id} queued")
+        print(f"[submit {idx:02d}/{len(tasks):02d}] {task_id} queued ({payload['docker_image']} {payload['command']})")
 
         delay = float(task.get("arrival_delay_sec", 0.0))
         if delay > 0:
@@ -107,6 +129,7 @@ def wait_for_completion(
             status = str(task_info.get("status", "unknown")).lower()
             statuses[task_id]["status"] = status
             statuses[task_id]["last_update"] = time.time()
+            statuses[task_id]["task"] = task_info
 
             if status in TERMINAL_STATUSES:
                 completed += 1
@@ -132,12 +155,16 @@ def write_summary(
     finished_at = time.time()
     by_status: dict[str, int] = {}
     tasks_out: list[dict[str, Any]] = []
+    expected_mismatches = 0
 
     for task in submitted:
         status = statuses.get(task["task_id"], {}).get("status", "unknown")
         by_status[status] = by_status.get(status, 0) + 1
         enriched = dict(task)
         enriched["status"] = status
+        enriched["task_details"] = statuses.get(task["task_id"], {}).get("task", {})
+        if task.get("expected_status") and task["expected_status"] != status:
+            expected_mismatches += 1
         tasks_out.append(enriched)
 
     summary = {
@@ -150,6 +177,7 @@ def write_summary(
             "completed": by_status.get("completed", 0),
             "failed": by_status.get("failed", 0),
             "cancelled": by_status.get("cancelled", 0),
+            "expected_status_mismatches": expected_mismatches,
         },
         "status_breakdown": by_status,
         "tasks": tasks_out,
@@ -162,40 +190,13 @@ def write_summary(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run CloudAI workload and wait for completion")
-    parser.add_argument(
-        "--master-url",
-        default="http://localhost:8080",
-        help="Base URL for master HTTP API",
-    )
-    parser.add_argument(
-        "--workload",
-        type=pathlib.Path,
-        default=default_workload_path(),
-        help="Path to workload JSON file",
-    )
-    parser.add_argument(
-        "--timeout-seconds",
-        type=int,
-        default=900,
-        help="Max wait time for all tasks to reach terminal status",
-    )
-    parser.add_argument(
-        "--poll-interval",
-        type=float,
-        default=2.0,
-        help="Polling interval in seconds",
-    )
-    parser.add_argument(
-        "--output",
-        type=pathlib.Path,
-        default=None,
-        help="Path to write summary JSON (defaults to results/testbench/<timestamp>.json)",
-    )
-    parser.add_argument(
-        "--fail-on-task-failure",
-        action="store_true",
-        help="Exit non-zero when one or more tasks are failed/cancelled",
-    )
+    parser.add_argument("--master-url", default="http://localhost:8080", help="Base URL for master HTTP API")
+    parser.add_argument("--workload", type=pathlib.Path, default=default_workload_path(), help="Path to workload JSON file")
+    parser.add_argument("--timeout-seconds", type=int, default=900, help="Max wait time for all tasks to reach terminal status")
+    parser.add_argument("--poll-interval", type=float, default=2.0, help="Polling interval in seconds")
+    parser.add_argument("--output", type=pathlib.Path, default=None, help="Path to write summary JSON")
+    parser.add_argument("--fail-on-task-failure", action="store_true", help="Exit non-zero when one or more tasks are failed/cancelled")
+    parser.add_argument("--fail-on-expected-mismatch", action="store_true", help="Exit non-zero when actual task status differs from expected_status in workload")
     return parser.parse_args()
 
 
@@ -229,10 +230,10 @@ def main() -> int:
     print(f"Summary file: {output_path}")
     print(f"Totals: {summary['totals']}")
 
-    if args.fail_on_task_failure:
-        if summary["totals"]["failed"] > 0 or summary["totals"]["cancelled"] > 0:
-            return 1
-
+    if args.fail_on_task_failure and (summary["totals"]["failed"] > 0 or summary["totals"]["cancelled"] > 0):
+        return 1
+    if args.fail_on_expected_mismatch and summary["totals"]["expected_status_mismatches"] > 0:
+        return 1
     return 0
 
 

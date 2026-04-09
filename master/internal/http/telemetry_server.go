@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -17,9 +18,24 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for simplicity (restrict in production)
-	},
+	CheckOrigin: checkOrigin,
+}
+
+func checkOrigin(r *http.Request) bool {
+	allowed := os.Getenv("ALLOWED_ORIGINS")
+	if allowed == "" {
+		allowed = "http://localhost:3000"
+	}
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true // Non-browser clients
+	}
+	for _, a := range strings.Split(allowed, ",") {
+		if strings.TrimSpace(a) == origin {
+			return true
+		}
+	}
+	return false
 }
 
 // WSClient represents a WebSocket client connection
@@ -80,14 +96,24 @@ func NewTelemetryServer(port int, telemetryMgr *telemetry.TelemetryManager) *Tel
 
 // corsMiddleware adds CORS headers to all responses
 func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000") // Vite dev server
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Access-Control-Allow-Credentials", "true") // Allow cookies
+	allowed := os.Getenv("ALLOWED_ORIGINS")
+	if allowed == "" {
+		allowed = "http://localhost:3000"
+	}
+	allowedSet := make(map[string]bool)
+	for _, o := range strings.Split(allowed, ",") {
+		allowedSet[strings.TrimSpace(o)] = true
+	}
 
-		// Handle preflight requests
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if allowedSet[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return

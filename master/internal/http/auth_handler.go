@@ -1,7 +1,10 @@
 package http
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -20,7 +23,16 @@ type AuthHandler struct {
 func NewAuthHandler(userDB *db.UserDB) *AuthHandler {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		secret = "vishvboda"
+		// Generate a random 32-byte secret if none is configured
+		randomBytes := make([]byte, 32)
+		if _, err := rand.Read(randomBytes); err != nil {
+			log.Fatalf("FATAL: failed to generate JWT secret: %v", err)
+		}
+		secret = hex.EncodeToString(randomBytes)
+		log.Println("WARNING: JWT_SECRET not set, generated a random secret. Sessions will not survive restarts.")
+	}
+	if len(secret) < 32 {
+		log.Println("WARNING: JWT_SECRET is shorter than 32 characters; consider using a stronger secret.")
 	}
 
 	return &AuthHandler{
@@ -90,10 +102,10 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(req.Password) < 6 {
+	if len(req.Password) < 12 {
 		json.NewEncoder(w).Encode(AuthResponse{
 			Success: false,
-			Message: "Password must be at least 6 characters",
+			Message: "Password must be at least 12 characters",
 		})
 		return
 	}
@@ -101,9 +113,10 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	// Create user
 	err := h.userDB.CreateUser(req.Name, req.Email, req.Password)
 	if err != nil {
+		log.Printf("Failed to create user %s: %v", req.Email, err)
 		json.NewEncoder(w).Encode(AuthResponse{
 			Success: false,
-			Message: err.Error(),
+			Message: "Failed to create user",
 		})
 		return
 	}

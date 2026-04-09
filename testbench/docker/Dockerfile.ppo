@@ -1,0 +1,18 @@
+FROM python:3.12-slim
+
+WORKDIR /opt/cloudai
+
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY proto ./proto
+COPY agentic_scheduler ./agentic_scheduler
+
+ENV PYTHONPATH=/opt/cloudai
+ENV PPO_GRPC_ADDR=0.0.0.0:50061
+ENV PPO_MODEL_PATH=/opt/cloudai/models/ppo_latest.pt
+ENV PPO_ONLINE_UPDATES_ENABLED=false
+
+EXPOSE 50061
+
+ENTRYPOINT ["python3", "-m", "agentic_scheduler.server"]

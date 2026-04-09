@@ -133,7 +133,7 @@ class PPOState:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         normalizer = RunningNormalizer(TASK_FEATURE_DIM + WORKER_FEATURE_DIM)
 
-        payload = torch.load(io.BytesIO(checkpoint_bytes), map_location=device)
+        payload = torch.load(io.BytesIO(checkpoint_bytes), map_location=device, weights_only=True)
         model.load_state_dict(payload["model_state_dict"])
         optimizer_state = payload.get("optimizer_state_dict")
         if optimizer_state:
