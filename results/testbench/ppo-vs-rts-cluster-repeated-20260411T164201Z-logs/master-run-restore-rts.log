@@ -2458,3 +2458,64 @@
 2026/04/12 00:27:49 ✓ AOD parameters saved to /home/codesmith28/Projects/ACC/BTEP/master/config/ga_output.json
 2026/04/12 00:27:49 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
 2026/04/12 00:27:49 ✅ AOD training cycle completed successfully
+2026/04/12 00:28:19 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/12 00:28:49 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/12 00:28:49 🧬 Starting AOD training cycle...
+2026/04/12 00:28:49 🧬 Starting AOD training cycle...
+2026/04/12 00:28:49 📊 Fetching task history from 2026-04-11T00:28:49+05:30 to 2026-04-12T00:28:49+05:30
+2026/04/12 00:28:49 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-11T00:28:49+05:30 and 2026-04-12T00:28:49+05:30
+2026/04/12 00:28:49 🔍 DEBUG: Query returned 0 task history records
+2026/04/12 00:28:49 📊 Fetching worker stats from 2026-04-11T00:28:49+05:30 to 2026-04-12T00:28:49+05:30
+2026/04/12 00:28:49 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-11T00:28:49+05:30 and 2026-04-12T00:28:49+05:30
+2026/04/12 00:28:49 🔍 DEBUG: Query returned 0 task history records
+2026/04/12 00:28:49 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/12 00:28:49 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/12 00:28:49 ✓ AOD parameters saved to /home/codesmith28/Projects/ACC/BTEP/master/config/ga_output.json
+2026/04/12 00:28:49 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/12 00:28:49 ✅ AOD training cycle completed successfully
+2026/04/12 00:29:19 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/12 00:29:49 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/12 00:29:49 🧬 Starting AOD training cycle...
+2026/04/12 00:29:49 🧬 Starting AOD training cycle...
+2026/04/12 00:29:49 📊 Fetching task history from 2026-04-11T00:29:49+05:30 to 2026-04-12T00:29:49+05:30
+2026/04/12 00:29:49 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-11T00:29:49+05:30 and 2026-04-12T00:29:49+05:30
+2026/04/12 00:29:49 🔍 DEBUG: Query returned 0 task history records
+2026/04/12 00:29:49 📊 Fetching worker stats from 2026-04-11T00:29:49+05:30 to 2026-04-12T00:29:49+05:30
+2026/04/12 00:29:49 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-11T00:29:49+05:30 and 2026-04-12T00:29:49+05:30
+2026/04/12 00:29:49 🔍 DEBUG: Query returned 0 task history records
+2026/04/12 00:29:49 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/12 00:29:49 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/12 00:29:49 ✓ AOD parameters saved to /home/codesmith28/Projects/ACC/BTEP/master/config/ga_output.json
+2026/04/12 00:29:49 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/12 00:29:49 ✅ AOD training cycle completed successfully
+2026/04/12 00:30:19 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/12 00:30:49 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/12 00:30:49 🧬 Starting AOD training cycle...
+2026/04/12 00:30:49 🧬 Starting AOD training cycle...
+2026/04/12 00:30:49 📊 Fetching task history from 2026-04-11T00:30:49+05:30 to 2026-04-12T00:30:49+05:30
+2026/04/12 00:30:49 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-11T00:30:49+05:30 and 2026-04-12T00:30:49+05:30
+2026/04/12 00:30:49 🔍 DEBUG: Query returned 0 task history records
+2026/04/12 00:30:49 📊 Fetching worker stats from 2026-04-11T00:30:49+05:30 to 2026-04-12T00:30:49+05:30
+2026/04/12 00:30:49 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-11T00:30:49+05:30 and 2026-04-12T00:30:49+05:30
+2026/04/12 00:30:49 🔍 DEBUG: Query returned 0 task history records
+2026/04/12 00:30:49 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/12 00:30:49 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/12 00:30:49 ✓ AOD parameters saved to /home/codesmith28/Projects/ACC/BTEP/master/config/ga_output.json
+2026/04/12 00:30:49 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/12 00:30:49 ✅ AOD training cycle completed successfully
+2026/04/12 00:31:19 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/12 00:31:49 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/12 00:31:49 🧬 Starting AOD training cycle...
+2026/04/12 00:31:49 🧬 Starting AOD training cycle...
+2026/04/12 00:31:49 📊 Fetching task history from 2026-04-11T00:31:49+05:30 to 2026-04-12T00:31:49+05:30
+2026/04/12 00:31:49 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-11T00:31:49+05:30 and 2026-04-12T00:31:49+05:30
+2026/04/12 00:31:49 🔍 DEBUG: Query returned 0 task history records
+2026/04/12 00:31:49 📊 Fetching worker stats from 2026-04-11T00:31:49+05:30 to 2026-04-12T00:31:49+05:30
+2026/04/12 00:31:49 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-11T00:31:49+05:30 and 2026-04-12T00:31:49+05:30
+2026/04/12 00:31:49 🔍 DEBUG: Query returned 0 task history records
+2026/04/12 00:31:49 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/12 00:31:49 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/12 00:31:49 ✓ AOD parameters saved to /home/codesmith28/Projects/ACC/BTEP/master/config/ga_output.json
+2026/04/12 00:31:49 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/12 00:31:49 ✅ AOD training cycle completed successfully
+2026/04/12 00:32:19 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
