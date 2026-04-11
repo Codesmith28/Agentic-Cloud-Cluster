@@ -114,6 +114,11 @@ def parse_args() -> argparse.Namespace:
         type=_parse_bool,
         default=_parse_bool(os.getenv("PPO_ONLINE_UPDATES_ENABLED", "true")),
     )
+    parser.add_argument(
+        "--prefer-gpu",
+        type=_parse_bool,
+        default=_parse_bool(os.getenv("PPO_PREFER_GPU", "true")),
+    )
     parser.add_argument("--log-level", default=os.getenv("PPO_LOG_LEVEL", "INFO"))
     return parser.parse_args()
 
@@ -129,6 +134,7 @@ def serve() -> None:
         learning_rate=args.learning_rate,
         update_batch_size=args.update_batch_size,
         online_updates_enabled=args.online_updates,
+        prefer_gpu=args.prefer_gpu,
     )
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=16))

@@ -42,12 +42,22 @@ class PPOServiceCore:
         learning_rate: float = 3e-4,
         update_batch_size: int = 32,
         online_updates_enabled: bool = True,
+        prefer_gpu: bool = True,
     ):
         self.learning_rate = float(learning_rate)
         self.update_batch_size = max(int(update_batch_size), 4)
         self.online_updates_enabled = bool(online_updates_enabled)
+        self.prefer_gpu = bool(prefer_gpu)
         self.model_path = Path(model_path).expanduser() if model_path else None
-        self.device = torch.device("cpu")
+        if self.prefer_gpu and torch.cuda.is_available():
+            self.device = torch.device("cuda")
+            LOGGER.info("Using PPO device %s", self.device)
+        else:
+            self.device = torch.device("cpu")
+            if self.prefer_gpu:
+                LOGGER.info("CUDA unavailable, falling back to PPO device %s", self.device)
+            else:
+                LOGGER.info("GPU preference disabled, using PPO device %s", self.device)
         self.scheduler_type = "PPO"
 
         self.store = MongoSchedulerModelStore(mongo_uri, mongo_db)
