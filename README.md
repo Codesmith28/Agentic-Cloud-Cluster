@@ -191,21 +191,59 @@ curl -X POST http://localhost:8080/api/auth/login \
 
 ## Docker Testbench (Heterogeneous Workers)
 
-A full automated testbench is available under [`testbench/`](testbench/README.md):
+A full automated testbench is available under [`testbench/`](testbench/README.md), including a master-driven workflow.
 
-- containerized `master` + `mongo`
-- multiple containerized workers with different CPU/memory capacities
-- per-worker isolated Docker daemons (DinD sidecars) so tasks are isolated between workers
-- automated worker registration + workload submission scripts for repeatable performance testing
-- deterministic workflow image (`cloudai/workflow-deterministic:v1`) for repeatable load profiles
+### Master-driven test commands
 
-Quick run:
+Interactive (inside `master>`):
 
 ```bash
-make testbench-suite
+test list
+test run <smoke|reliability|ui-smoke|evidence|full> [-profile <hetero-small|recovery-lab>] [-out <dir>] [-keep-env] [-ui-smoke] [-scheduler <current|RR|RTS>]
+test cleanup
 ```
 
-Detailed runbook: **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)**
+Non-interactive:
+
+```bash
+./masterNode test list
+./masterNode test run <smoke|reliability|ui-smoke|evidence|full> [-profile <hetero-small|recovery-lab>] [-out <dir>] [-keep-env] [-ui-smoke] [-scheduler <current|RR|RTS>]
+./masterNode test cleanup
+```
+
+Default artifacts for `test run` land in `results/testbench/<timestamp>-<suite>/`.
+
+### Host-master topology
+
+Use the host-master testbench topology when the master runs on the host:
+
+- Compose stack: `testbench/docker-compose.host-master.yml`
+- Prometheus config: `testbench/observability/prometheus/prometheus.host-master.yml`
+- Host-routable worker registration:
+  `WORKER_SPECS=worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054`
+
+Quick host-master run:
+
+```bash
+make testbench-host-up
+./runMaster.sh
+make testbench-host-register
+make testbench-host-suite
+```
+
+### One-command integration + benchmark automation
+
+Run the complete Docker-backed gate and evidence benchmark pipeline:
+
+```bash
+make testbench-integration
+```
+
+This command runs Go unit-test preflight plus `smoke`, `reliability`, `ui-smoke`, and `evidence` suites and stores artifacts in `results/testbench/<timestamp>-integration/`.
+
+CI equivalent: `.github/workflows/testbench-integration.yml` (manual dispatch + nightly schedule, artifact upload included).
+
+Detailed runbook: **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)**.
 
 ### Evidence Benchmark Campaign
 

@@ -21,10 +21,10 @@ import shlex
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.request
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional
+
+from shared_polling import poll_task_completion, request_json
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -32,7 +32,6 @@ from typing import Any, Dict, List, Optional
 
 SCHEDULERS = ["RR", "RTS", "PPO-pretrained", "PPO-adapted", "RR+recovery", "RTS+recovery", "PPO+recovery"]
 WORKLOADS = ["heterogeneous-smoke", "steady-cpu", "steady-mixed", "memory-pressure", "bursty", "long-tail", "failure-stressed"]
-TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
 DEFAULT_WORKFLOW_IMAGE = "cloudai/workflow-deterministic:v1"
 
 
@@ -66,22 +65,6 @@ class CampaignReport:
     scenarios_run: int = 0
     results: List[Dict] = field(default_factory=list)
     summary: Dict = field(default_factory=dict)
-
-
-# ---------------------------------------------------------------------------
-# HTTP helpers
-# ---------------------------------------------------------------------------
-
-def request_json(method: str, url: str, payload: Optional[Dict] = None, timeout: float = 15.0) -> Dict:
-    data = None
-    headers = {"Accept": "application/json"}
-    if payload is not None:
-        data = json.dumps(payload).encode("utf-8")
-        headers["Content-Type"] = "application/json"
-    req = urllib.request.Request(url=url, method=method, data=data, headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        body = resp.read().decode("utf-8")
-        return json.loads(body) if body else {}
 
 
 def set_scheduler(master_url: str, algo: str) -> bool:
@@ -235,32 +218,6 @@ def submit_tasks(master_url: str, tasks: List[Dict]) -> List[str]:
     return task_ids
 
 
-def poll_completion(master_url: str, task_ids: List[str], timeout: int = 600, interval: float = 3.0) -> Dict[str, str]:
-    """Wait for all tasks to reach terminal status. Returns {task_id: status}."""
-    deadline = time.time() + timeout
-    statuses: Dict[str, str] = {tid: "queued" for tid in task_ids}
-
-    while time.time() < deadline:
-        done = 0
-        for tid in task_ids:
-            if statuses[tid] in TERMINAL_STATUSES:
-                done += 1
-                continue
-            try:
-                info = request_json("GET", f"{master_url}/api/tasks/{tid}", timeout=10.0)
-                statuses[tid] = str(info.get("status", "unknown")).lower()
-                if statuses[tid] in TERMINAL_STATUSES:
-                    done += 1
-            except Exception:
-                pass
-
-        if done == len(task_ids):
-            return statuses
-        time.sleep(interval)
-
-    return statuses
-
-
 # ---------------------------------------------------------------------------
 # Scenario runners
 # ---------------------------------------------------------------------------
@@ -283,7 +240,7 @@ def run_baseline(master_url: str, workload: str, scheduler: str) -> ScenarioResu
         start = time.time()
         task_ids = submit_tasks(master_url, tasks)
         result.task_ids = task_ids
-        statuses = poll_completion(master_url, task_ids)
+        statuses = poll_task_completion(master_url, task_ids)
         elapsed = time.time() - start
 
         result.duration_seconds = round(elapsed, 2)
@@ -316,7 +273,7 @@ def run_burst(master_url: str, workload: str, scheduler: str) -> ScenarioResult:
         start = time.time()
         task_ids = submit_tasks(master_url, tasks)
         result.task_ids = task_ids
-        statuses = poll_completion(master_url, task_ids)
+        statuses = poll_task_completion(master_url, task_ids)
         elapsed = time.time() - start
 
         result.duration_seconds = round(elapsed, 2)
@@ -347,7 +304,7 @@ def run_overload(master_url: str, workload: str, scheduler: str) -> ScenarioResu
         start = time.time()
         task_ids = submit_tasks(master_url, tasks_3x)
         result.task_ids = task_ids
-        statuses = poll_completion(master_url, task_ids, timeout=1200)
+        statuses = poll_task_completion(master_url, task_ids, timeout_seconds=1200)
         elapsed = time.time() - start
 
         result.duration_seconds = round(elapsed, 2)
@@ -398,7 +355,7 @@ def run_failure_stressed(
             ],
         )
 
-        statuses = poll_completion(master_url, task_ids, timeout=1200)
+        statuses = poll_task_completion(master_url, task_ids, timeout_seconds=1200)
         elapsed = time.time() - start
 
         result.duration_seconds = round(elapsed, 2)

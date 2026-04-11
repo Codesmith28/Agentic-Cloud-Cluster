@@ -1,0 +1,351 @@
+2026/04/09 23:14:55 ═══════════════════════════════════════════════════════
+2026/04/09 23:14:55   CloudAI Worker Node - Starting...
+2026/04/09 23:14:55 ═══════════════════════════════════════════════════════
+2026/04/09 23:14:55 ⚠️  Using user directory (no /var/cloudai access): /Users/codesmith28/.cloudai/outputs
+2026/04/09 23:14:55 
+2026/04/09 23:14:55 ═══════════════════════════════════════════════════════
+2026/04/09 23:14:55   Worker Details (use these to register with master):
+2026/04/09 23:14:55 ═══════════════════════════════════════════════════════
+2026/04/09 23:14:55   Hostname:       Thea
+2026/04/09 23:14:55   Worker ID:      ppo-worker-1
+2026/04/09 23:14:55   Bind Address:   127.0.0.1:61152
+2026/04/09 23:14:55   Reachable Addr: 10.63.86.229:61152
+2026/04/09 23:14:55   Metrics Port:   21111
+2026/04/09 23:14:55 ═══════════════════════════════════════════════════════
+2026/04/09 23:14:55 
+2026/04/09 23:14:55 To register this worker, run in master CLI:
+2026/04/09 23:14:55   master> register ppo-worker-1 10.63.86.229:61152
+2026/04/09 23:14:55 
+2026/04/09 23:14:55 ═══════════════════════════════════════════════════════
+2026/04/09 23:14:55 Starting telemetry monitor (interval: 5s)
+2026/04/09 23:14:55 ✓ Metrics server listening on 127.0.0.1:21111
+2026/04/09 23:14:55 ✓ Worker ppo-worker-1 started successfully
+2026/04/09 23:14:55 ✓ gRPC server listening on 127.0.0.1:61152
+2026/04/09 23:14:55 ✓ Ready to receive master registration...
+2026/04/09 23:14:55 ✓ Waiting for tasks...
+2026/04/09 23:16:16 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/09 23:16:16 Updated master address to: 10.63.86.229:61051
+2026/04/09 23:16:16 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/09 23:16:16 Detected System Resources:
+2026/04/09 23:16:16   CPU:     12.00 cores
+2026/04/09 23:16:16   Memory:  24.00 GB
+2026/04/09 23:16:16   Storage: 460.43 GB
+2026/04/09 23:16:16 ✓ Successfully registered with master: Worker registered successfully
+2026/04/09 23:16:21 Heartbeat sent: CPU=8.6%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:16:26 Heartbeat sent: CPU=15.1%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:16:31 Heartbeat sent: CPU=13.3%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:16:36 Heartbeat sent: CPU=12.1%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:16:41 Heartbeat sent: CPU=9.3%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:16:46 Heartbeat sent: CPU=16.6%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:16:51 Heartbeat sent: CPU=9.1%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:16:56 Heartbeat sent: CPU=12.1%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:17:01 Heartbeat sent: CPU=9.0%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:17:06 Heartbeat sent: CPU=9.6%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:17:11 Heartbeat sent: CPU=9.2%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:17:16 Heartbeat sent: CPU=11.2%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:17:21 Heartbeat sent: CPU=9.9%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:17:26 Heartbeat sent: CPU=11.6%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:17:31 Heartbeat sent: CPU=9.6%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:17:36 Heartbeat sent: CPU=11.2%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:17:41 Heartbeat sent: CPU=12.5%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:17:46 Heartbeat sent: CPU=9.5%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:17:51 Heartbeat sent: CPU=10.2%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:17:56 Heartbeat sent: CPU=9.8%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:18:01 Heartbeat sent: CPU=9.1%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:18:06 Heartbeat sent: CPU=11.5%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:18:11 Heartbeat sent: CPU=9.8%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:18:16 Heartbeat sent: CPU=10.8%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:18:21 Heartbeat sent: CPU=8.7%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:18:26 Heartbeat sent: CPU=9.7%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:18:31 Heartbeat sent: CPU=11.5%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:18:36 Heartbeat sent: CPU=9.4%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:18:41 Heartbeat sent: CPU=10.7%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:18:46 Heartbeat sent: CPU=12.5%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:18:51 Heartbeat sent: CPU=9.5%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:18:56 Heartbeat sent: CPU=9.5%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:19:01 Heartbeat sent: CPU=10.8%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:19:06 Heartbeat sent: CPU=9.1%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:19:11 Heartbeat sent: CPU=9.1%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:19:16 Heartbeat sent: CPU=9.4%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:19:21 Heartbeat sent: CPU=7.8%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:19:26 Heartbeat sent: CPU=9.4%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:19:31 Heartbeat sent: CPU=8.9%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:19:36 Heartbeat sent: CPU=9.7%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:19:41 Heartbeat sent: CPU=9.3%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:19:46 Heartbeat sent: CPU=10.4%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:19:51 Heartbeat sent: CPU=12.3%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:19:56 Heartbeat sent: CPU=11.2%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:20:01 Heartbeat sent: CPU=11.5%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:20:06 Heartbeat sent: CPU=9.4%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:20:11 Heartbeat sent: CPU=9.3%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:20:16 Heartbeat sent: CPU=13.8%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:20:21 Heartbeat sent: CPU=9.0%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:20:26 Heartbeat sent: CPU=11.4%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:20:31 Heartbeat sent: CPU=10.0%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:20:36 Heartbeat sent: CPU=9.9%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:20:41 Heartbeat sent: CPU=9.6%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:20:46 Heartbeat sent: CPU=9.3%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:20:51 Heartbeat sent: CPU=10.4%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:20:56 Heartbeat sent: CPU=12.1%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:21:01 Heartbeat sent: CPU=12.3%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:21:06 Heartbeat sent: CPU=9.4%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:21:11 Heartbeat sent: CPU=8.9%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:21:16 Heartbeat sent: CPU=10.9%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:21:21 Heartbeat sent: CPU=10.8%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:21:26 Heartbeat sent: CPU=8.9%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:21:31 Heartbeat sent: CPU=10.5%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:21:36 Heartbeat sent: CPU=10.2%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:21:41 Heartbeat sent: CPU=8.9%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:21:46 Heartbeat sent: CPU=9.1%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:21:51 Heartbeat sent: CPU=9.1%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:21:56 Heartbeat sent: CPU=9.1%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:22:01 Heartbeat sent: CPU=12.4%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:22:06 Heartbeat sent: CPU=10.1%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:22:11 Heartbeat sent: CPU=8.9%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:22:16 Heartbeat sent: CPU=10.9%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:22:21 Heartbeat sent: CPU=11.9%, Memory=68.5%, Storage=75.4%, Tasks=0
+2026/04/09 23:22:26 Heartbeat sent: CPU=9.8%, Memory=68.5%, Storage=75.4%, Tasks=0
+2026/04/09 23:22:31 Heartbeat sent: CPU=10.8%, Memory=68.5%, Storage=75.4%, Tasks=0
+2026/04/09 23:22:36 Heartbeat sent: CPU=9.5%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:22:41 Heartbeat sent: CPU=13.5%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:22:46 Heartbeat sent: CPU=9.5%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:22:51 Heartbeat sent: CPU=9.3%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:22:56 Heartbeat sent: CPU=9.9%, Memory=68.2%, Storage=75.4%, Tasks=0
+2026/04/09 23:23:01 Heartbeat sent: CPU=10.4%, Memory=68.2%, Storage=75.4%, Tasks=0
+2026/04/09 23:23:06 Heartbeat sent: CPU=11.7%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:23:11 Heartbeat sent: CPU=8.7%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:23:16 Heartbeat sent: CPU=11.7%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:23:21 Heartbeat sent: CPU=9.7%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:23:26 Heartbeat sent: CPU=9.4%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:23:31 Heartbeat sent: CPU=9.4%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:23:36 Heartbeat sent: CPU=9.3%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:23:41 Heartbeat sent: CPU=8.8%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:23:46 Heartbeat sent: CPU=9.8%, Memory=68.3%, Storage=75.4%, Tasks=0
+2026/04/09 23:23:51 Heartbeat sent: CPU=10.4%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:23:56 Heartbeat sent: CPU=10.0%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:24:01 Heartbeat sent: CPU=9.3%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:24:06 Heartbeat sent: CPU=9.4%, Memory=68.5%, Storage=75.4%, Tasks=0
+2026/04/09 23:24:11 Heartbeat sent: CPU=11.3%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:24:16 Heartbeat sent: CPU=38.5%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:24:21 Heartbeat sent: CPU=33.6%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:24:26 Heartbeat sent: CPU=37.5%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:24:31 Heartbeat sent: CPU=38.0%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:24:36 Heartbeat sent: CPU=36.8%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:24:41 Heartbeat sent: CPU=36.5%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:24:46 Heartbeat sent: CPU=46.0%, Memory=70.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:24:51 Heartbeat sent: CPU=37.9%, Memory=70.2%, Storage=75.4%, Tasks=0
+2026/04/09 23:24:56 Heartbeat sent: CPU=29.3%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:25:01 Heartbeat sent: CPU=28.9%, Memory=69.1%, Storage=75.4%, Tasks=0
+2026/04/09 23:32:09 Heartbeat sent: CPU=24.5%, Memory=69.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:32:14 Heartbeat sent: CPU=24.7%, Memory=70.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:49:44 Heartbeat sent: CPU=22.9%, Memory=70.9%, Storage=75.4%, Tasks=0
+2026/04/10 00:06:40 Heartbeat sent: CPU=25.9%, Memory=70.8%, Storage=75.4%, Tasks=0
+2026/04/10 00:06:45 Heartbeat sent: CPU=9.9%, Memory=70.3%, Storage=75.4%, Tasks=0
+2026/04/10 00:06:50 Heartbeat sent: CPU=13.2%, Memory=70.3%, Storage=75.4%, Tasks=0
+2026/04/10 00:06:55 Heartbeat sent: CPU=10.9%, Memory=70.1%, Storage=75.4%, Tasks=0
+2026/04/10 00:07:00 Heartbeat sent: CPU=12.8%, Memory=70.0%, Storage=75.4%, Tasks=0
+2026/04/10 00:07:05 Heartbeat sent: CPU=10.4%, Memory=69.8%, Storage=75.4%, Tasks=0
+2026/04/10 00:07:10 Heartbeat sent: CPU=12.7%, Memory=69.6%, Storage=75.4%, Tasks=0
+2026/04/10 00:07:15 Heartbeat sent: CPU=16.7%, Memory=69.7%, Storage=75.4%, Tasks=0
+2026/04/10 00:07:23 Heartbeat sent: CPU=20.1%, Memory=69.7%, Storage=75.4%, Tasks=0
+2026/04/10 00:07:28 Heartbeat sent: CPU=13.6%, Memory=69.6%, Storage=75.4%, Tasks=0
+2026/04/10 00:07:36 Heartbeat sent: CPU=13.0%, Memory=69.5%, Storage=75.4%, Tasks=0
+2026/04/10 00:07:41 Heartbeat sent: CPU=13.0%, Memory=69.5%, Storage=75.4%, Tasks=0
+2026/04/10 00:07:46 Heartbeat sent: CPU=13.4%, Memory=69.4%, Storage=75.4%, Tasks=0
+2026/04/10 00:07:51 Heartbeat sent: CPU=13.7%, Memory=69.5%, Storage=75.4%, Tasks=0
+2026/04/10 00:07:56 Heartbeat sent: CPU=13.9%, Memory=69.4%, Storage=75.4%, Tasks=0
+2026/04/10 00:08:01 Heartbeat sent: CPU=24.1%, Memory=69.5%, Storage=75.4%, Tasks=0
+2026/04/10 00:08:07 Heartbeat sent: CPU=20.1%, Memory=69.2%, Storage=75.4%, Tasks=0
+2026/04/10 00:08:17 Heartbeat sent: CPU=17.2%, Memory=69.1%, Storage=75.4%, Tasks=0
+2026/04/10 00:08:22 Heartbeat sent: CPU=13.3%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/10 00:08:28 Heartbeat sent: CPU=17.0%, Memory=69.2%, Storage=75.4%, Tasks=0
+2026/04/10 00:08:36 Heartbeat sent: CPU=18.6%, Memory=69.2%, Storage=75.4%, Tasks=0
+2026/04/10 00:08:41 Heartbeat sent: CPU=12.7%, Memory=69.1%, Storage=75.4%, Tasks=0
+2026/04/10 00:23:51 Heartbeat sent: CPU=29.9%, Memory=69.2%, Storage=75.4%, Tasks=0
+2026/04/10 00:23:56 Heartbeat sent: CPU=21.4%, Memory=69.1%, Storage=75.4%, Tasks=0
+2026/04/10 00:40:13 Heartbeat sent: CPU=35.0%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/10 00:40:18 Heartbeat sent: CPU=19.7%, Memory=68.1%, Storage=75.4%, Tasks=0
+2026/04/10 00:40:23 Heartbeat sent: CPU=23.7%, Memory=68.5%, Storage=75.4%, Tasks=0
+2026/04/10 00:40:28 Heartbeat sent: CPU=12.4%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/10 00:40:33 Heartbeat sent: CPU=12.8%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/10 00:40:38 Heartbeat sent: CPU=11.9%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/10 00:40:43 Heartbeat sent: CPU=13.7%, Memory=68.3%, Storage=75.4%, Tasks=0
+2026/04/10 00:40:48 Heartbeat sent: CPU=13.7%, Memory=68.3%, Storage=75.4%, Tasks=0
+2026/04/10 00:40:53 Heartbeat sent: CPU=14.7%, Memory=68.3%, Storage=75.4%, Tasks=0
+2026/04/10 00:57:30 Heartbeat sent: CPU=24.5%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/10 01:13:36 Heartbeat sent: CPU=19.5%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/10 01:25:50 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 01:25:50 Updated master address to: 10.63.86.229:61051
+2026/04/10 01:25:50 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 01:25:50 Heartbeat sent: CPU=15.9%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/10 01:25:50 Detected System Resources:
+2026/04/10 01:25:50   CPU:     12.00 cores
+2026/04/10 01:25:50   Memory:  24.00 GB
+2026/04/10 01:25:50   Storage: 460.43 GB
+2026/04/10 01:25:50 ✓ Successfully registered with master: Worker registered successfully
+2026/04/10 01:25:55 Heartbeat sent: CPU=20.9%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/10 01:41:34 Heartbeat sent: CPU=20.5%, Memory=69.2%, Storage=75.4%, Tasks=0
+2026/04/10 01:58:23 Heartbeat sent: CPU=36.0%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/10 02:14:35 Heartbeat sent: CPU=35.5%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/10 02:26:51 Heartbeat sent: CPU=36.5%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/10 02:26:56 Heartbeat sent: CPU=26.1%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/10 02:27:01 Heartbeat sent: CPU=18.8%, Memory=69.2%, Storage=75.4%, Tasks=0
+2026/04/10 02:27:06 Heartbeat sent: CPU=14.2%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/10 02:27:11 Heartbeat sent: CPU=15.6%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/10 02:27:16 Heartbeat sent: CPU=7.8%, Memory=68.1%, Storage=75.4%, Tasks=0
+2026/04/10 02:43:36 Heartbeat sent: CPU=19.1%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/10 02:59:56 Heartbeat sent: CPU=8.8%, Memory=68.0%, Storage=75.4%, Tasks=0
+2026/04/10 03:00:01 Heartbeat sent: CPU=12.2%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/10 03:00:06 Heartbeat sent: CPU=5.4%, Memory=67.9%, Storage=75.4%, Tasks=0
+2026/04/10 03:00:11 Heartbeat sent: CPU=7.0%, Memory=67.4%, Storage=75.4%, Tasks=0
+2026/04/10 03:00:16 Heartbeat sent: CPU=8.0%, Memory=67.8%, Storage=75.4%, Tasks=0
+2026/04/10 03:00:21 Heartbeat sent: CPU=8.5%, Memory=67.7%, Storage=75.4%, Tasks=0
+2026/04/10 03:00:26 Heartbeat sent: CPU=5.7%, Memory=67.5%, Storage=75.4%, Tasks=0
+2026/04/10 03:00:34 Heartbeat sent: CPU=5.9%, Memory=67.8%, Storage=75.4%, Tasks=0
+2026/04/10 03:00:39 Heartbeat sent: CPU=8.7%, Memory=68.1%, Storage=75.4%, Tasks=0
+2026/04/10 03:00:44 Heartbeat sent: CPU=4.0%, Memory=68.0%, Storage=75.4%, Tasks=0
+2026/04/10 03:15:59 Heartbeat sent: CPU=35.1%, Memory=67.9%, Storage=75.4%, Tasks=0
+2026/04/10 03:16:04 Heartbeat sent: CPU=16.8%, Memory=67.9%, Storage=75.4%, Tasks=0
+2026/04/10 03:16:09 Heartbeat sent: CPU=13.9%, Memory=67.7%, Storage=75.4%, Tasks=0
+2026/04/10 03:16:14 Heartbeat sent: CPU=15.3%, Memory=67.8%, Storage=75.4%, Tasks=0
+2026/04/10 03:16:19 Heartbeat sent: CPU=18.1%, Memory=67.6%, Storage=75.4%, Tasks=0
+2026/04/10 03:27:52 Heartbeat sent: CPU=28.3%, Memory=68.1%, Storage=75.4%, Tasks=0
+2026/04/10 03:27:57 Heartbeat sent: CPU=8.1%, Memory=67.5%, Storage=75.4%, Tasks=0
+2026/04/10 03:28:04 Heartbeat sent: CPU=12.1%, Memory=67.6%, Storage=75.4%, Tasks=0
+2026/04/10 03:28:09 Heartbeat sent: CPU=6.3%, Memory=67.5%, Storage=75.4%, Tasks=0
+2026/04/10 03:28:14 Heartbeat sent: CPU=6.8%, Memory=67.2%, Storage=75.4%, Tasks=0
+2026/04/10 03:28:19 Heartbeat sent: CPU=4.8%, Memory=67.1%, Storage=75.4%, Tasks=0
+2026/04/10 03:28:24 Heartbeat sent: CPU=8.5%, Memory=67.2%, Storage=75.4%, Tasks=0
+2026/04/10 03:28:29 Heartbeat sent: CPU=6.6%, Memory=67.2%, Storage=75.4%, Tasks=0
+2026/04/10 03:28:34 Heartbeat sent: CPU=4.7%, Memory=67.3%, Storage=75.4%, Tasks=0
+2026/04/10 03:28:39 Heartbeat sent: CPU=5.1%, Memory=67.2%, Storage=75.4%, Tasks=0
+2026/04/10 03:28:44 Heartbeat sent: CPU=7.2%, Memory=67.4%, Storage=75.4%, Tasks=0
+2026/04/10 03:43:57 Heartbeat sent: CPU=24.6%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/10 03:44:02 Heartbeat sent: CPU=10.1%, Memory=67.8%, Storage=75.4%, Tasks=0
+2026/04/10 04:01:54 Heartbeat sent: CPU=19.2%, Memory=67.7%, Storage=75.4%, Tasks=0
+2026/04/10 04:01:59 Heartbeat sent: CPU=16.9%, Memory=67.4%, Storage=75.4%, Tasks=0
+2026/04/10 04:02:04 Heartbeat sent: CPU=7.5%, Memory=67.6%, Storage=75.4%, Tasks=0
+2026/04/10 04:02:09 Heartbeat sent: CPU=4.3%, Memory=67.4%, Storage=75.4%, Tasks=0
+2026/04/10 04:19:34 Heartbeat sent: CPU=44.1%, Memory=68.2%, Storage=75.4%, Tasks=0
+2026/04/10 04:19:39 Heartbeat sent: CPU=7.0%, Memory=67.5%, Storage=75.4%, Tasks=0
+2026/04/10 04:19:44 Heartbeat sent: CPU=8.8%, Memory=67.3%, Storage=75.4%, Tasks=0
+2026/04/10 04:19:49 Heartbeat sent: CPU=5.6%, Memory=67.4%, Storage=75.4%, Tasks=0
+2026/04/10 04:19:54 Heartbeat sent: CPU=7.5%, Memory=67.4%, Storage=75.4%, Tasks=0
+2026/04/10 04:28:53 Heartbeat sent: CPU=10.2%, Memory=68.1%, Storage=75.4%, Tasks=0
+2026/04/10 04:28:58 Heartbeat sent: CPU=8.1%, Memory=67.5%, Storage=75.4%, Tasks=0
+2026/04/10 04:44:49 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 04:44:49 Updated master address to: 10.63.86.229:61051
+2026/04/10 04:44:49 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 04:44:49 Detected System Resources:
+2026/04/10 04:44:49   CPU:     12.00 cores
+2026/04/10 04:44:49   Memory:  24.00 GB
+2026/04/10 04:44:49   Storage: 460.43 GB
+2026/04/10 04:44:49 ✓ Successfully registered with master: Worker registered successfully
+2026/04/10 04:44:54 Heartbeat sent: CPU=12.1%, Memory=67.7%, Storage=75.4%, Tasks=0
+2026/04/10 04:44:59 Heartbeat sent: CPU=6.0%, Memory=67.4%, Storage=75.4%, Tasks=0
+2026/04/10 04:45:04 Heartbeat sent: CPU=5.1%, Memory=67.4%, Storage=75.4%, Tasks=0
+2026/04/10 04:45:09 Heartbeat sent: CPU=6.4%, Memory=67.6%, Storage=75.4%, Tasks=0
+2026/04/10 05:02:48 Heartbeat sent: CPU=13.6%, Memory=68.2%, Storage=75.4%, Tasks=0
+2026/04/10 05:09:15 Heartbeat sent: CPU=12.7%, Memory=68.1%, Storage=75.4%, Tasks=0
+2026/04/10 05:21:35 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 05:21:35 Updated master address to: 10.63.86.229:61051
+2026/04/10 05:21:35 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 05:21:40 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 05:21:40 Updated master address to: 10.63.86.229:61051
+2026/04/10 05:21:40 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 05:29:53 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 05:29:53 Updated master address to: 10.63.86.229:61051
+2026/04/10 05:29:53 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 05:29:53 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 05:29:58 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 05:29:58 Updated master address to: 10.63.86.229:61051
+2026/04/10 05:29:58 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 05:29:58 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 05:47:57 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 05:47:57 Updated master address to: 10.63.86.229:61051
+2026/04/10 05:47:57 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 05:47:57 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:04:43 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:04:43 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:04:43 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:04:43 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:14:25 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:14:25 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:14:25 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:14:25 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:14:30 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:14:30 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:14:30 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:14:30 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:14:35 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:14:35 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:14:35 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:14:35 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:14:40 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:14:40 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:14:40 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:14:40 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:14:45 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:14:45 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:14:45 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:14:45 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:14:50 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:14:50 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:14:50 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:14:50 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:14:55 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:14:55 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:14:55 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:14:55 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:15:00 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:15:00 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:15:00 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:15:00 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:15:05 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:15:05 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:15:05 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:15:05 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:15:10 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:15:10 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:15:10 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:15:10 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:15:15 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:15:15 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:15:15 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:15:15 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:15:20 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:15:20 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:15:20 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:15:20 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:15:25 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:15:25 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:15:25 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:15:25 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:15:30 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:15:30 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:15:30 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:15:30 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:15:35 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:15:35 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:15:35 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:15:35 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:15:40 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:15:40 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:15:40 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:15:40 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:15:45 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:15:45 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:15:45 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+2026/04/10 06:15:45 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:15:50 Master registration request from: master-1 (10.63.86.229:61051)
+2026/04/10 06:15:50 Updated master address to: 10.63.86.229:61051
+2026/04/10 06:15:50 Failed to connect to master for registration: context deadline exceeded
+2026/04/10 06:15:50 Registering worker ppo-worker-1 with master at 10.63.86.229:61051
+
+╔═══════════════════════════════════════════════════════
+║  Shutdown signal received - gracefully shutting down...
+╚═══════════════════════════════════════════════════════
+╔═══════════════════════════════════════════════════════
+║  Worker Shutdown - Cleaning up running tasks...
+╚═══════════════════════════════════════════════════════
+  ✓ No running tasks to clean up

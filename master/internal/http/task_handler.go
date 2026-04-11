@@ -309,7 +309,7 @@ func (h *TaskAPIHandler) HandleGetTask(w http.ResponseWriter, r *http.Request) {
 	// Get result info if available
 	var resultInfo map[string]interface{}
 	if h.resultDB != nil {
-		if result, err := h.resultDB.GetResult(ctx, taskID); err == nil {
+		if result, err := h.resultDB.GetResult(ctx, taskID); err == nil && result != nil {
 			resultInfo = map[string]interface{}{
 				"status":       result.Status,
 				"completed_at": result.CompletedAt.Unix(),

@@ -1,0 +1,56 @@
+[
+  {
+    "index": 1,
+    "request": {
+      "docker_image": "alpine:3.20",
+      "command": "echo ppo-e2e-task-1",
+      "cpu_required": 0.2,
+      "memory_required": 0.1,
+      "storage_required": 0.1,
+      "tag": "cpu-light",
+      "k_value": 2.0,
+      "user_id": "ppo-e2e"
+    },
+    "response": {
+      "task_id": "task-1775756316507928000",
+      "status": "queued",
+      "message": "Task submitted successfully. Queue position: 1. Scheduler will assign it to an available worker."
+    }
+  },
+  {
+    "index": 2,
+    "request": {
+      "docker_image": "alpine:3.20",
+      "command": "echo ppo-e2e-task-2",
+      "cpu_required": 0.2,
+      "memory_required": 0.1,
+      "storage_required": 0.1,
+      "tag": "cpu-light",
+      "k_value": 2.0,
+      "user_id": "ppo-e2e"
+    },
+    "response": {
+      "task_id": "task-1775756316511411000",
+      "status": "queued",
+      "message": "Task submitted successfully. Queue position: 2. Scheduler will assign it to an available worker."
+    }
+  },
+  {
+    "index": 3,
+    "request": {
+      "docker_image": "alpine:3.20",
+      "command": "echo ppo-e2e-task-3",
+      "cpu_required": 0.2,
+      "memory_required": 0.1,
+      "storage_required": 0.1,
+      "tag": "cpu-light",
+      "k_value": 2.0,
+      "user_id": "ppo-e2e"
+    },
+    "response": {
+      "task_id": "task-1775756316512903000",
+      "status": "queued",
+      "message": "Task submitted successfully. Queue position: 3. Scheduler will assign it to an available worker."
+    }
+  }
+]

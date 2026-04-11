@@ -1,0 +1,7 @@
+# HELP cloudai_master_scheduler_selections_total Number of successful worker selections.
+# TYPE cloudai_master_scheduler_selections_total counter
+cloudai_master_scheduler_selections_total{scheduler="PPO",task_type="cpu-light",worker_id="ppo-worker-1"} 2
+cloudai_master_scheduling_latency_seconds_count{scheduler="PPO"} 2
+# HELP cloudai_master_task_terminal_total Number of logical tasks reaching a terminal state.
+# TYPE cloudai_master_task_terminal_total counter
+cloudai_master_task_terminal_total{status="completed",task_type="cpu-light"} 2

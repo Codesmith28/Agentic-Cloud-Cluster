@@ -1,0 +1,31 @@
+2026-04-10 09:01:24,290 [INFO] agentic_scheduler.persistence: Mongo scheduler model persistence initialized
+2026-04-10 09:01:24,765 [INFO] agentic_scheduler.service: Loaded PPO checkpoint from local path agentic_scheduler/models/ppo_latest.pt
+2026-04-10 09:01:24,768 [INFO] __main__: PPO scheduler service started on 127.0.0.1:61061
+2026-04-10 09:57:54,825 [INFO] agentic_scheduler.service: Loaded PPO checkpoint from local path agentic_scheduler/models/ppo_latest.pt
+2026-04-10 09:57:54,846 [ERROR] grpc._server: Exception calling application: operands could not be broadcast together with shapes (15,) (14,) 
+Traceback (most recent call last):
+  File "/Users/codesmith28/Library/Python/3.9/lib/python/site-packages/grpc/_server.py", line 608, in _call_behavior
+    response_or_iterator = behavior(argument, context)
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/server.py", line 58, in SelectWorker
+    worker_id, used_fallback, reason, model_version = self.core.select_worker(
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/service.py", line 117, in select_worker
+    action = choose_action(
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/model.py", line 192, in choose_action
+    state.normalizer.update(pairwise_rows)
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/model.py", line 34, in update
+    delta = row - self.mean
+ValueError: operands could not be broadcast together with shapes (15,) (14,) 
+2026-04-10 09:57:59,816 [ERROR] grpc._server: Exception calling application: operands could not be broadcast together with shapes (15,) (14,) 
+Traceback (most recent call last):
+  File "/Users/codesmith28/Library/Python/3.9/lib/python/site-packages/grpc/_server.py", line 608, in _call_behavior
+    response_or_iterator = behavior(argument, context)
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/server.py", line 58, in SelectWorker
+    worker_id, used_fallback, reason, model_version = self.core.select_worker(
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/service.py", line 117, in select_worker
+    action = choose_action(
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/model.py", line 192, in choose_action
+    state.normalizer.update(pairwise_rows)
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/model.py", line 34, in update
+    delta = row - self.mean
+ValueError: operands could not be broadcast together with shapes (15,) (14,) 
+2026-04-10 10:35:12,366 [INFO] __main__: Stopping PPO scheduler service

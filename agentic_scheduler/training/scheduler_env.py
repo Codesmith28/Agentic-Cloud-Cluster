@@ -158,7 +158,6 @@ class SchedulingEnv(gym.Env):
                         cpu_usage,
                         mem_usage,
                         storage_usage,
-                        1.0,
                     ],
                     dtype=np.float32,
                 )

@@ -10,12 +10,9 @@ import pathlib
 import shlex
 import sys
 import time
-import urllib.error
-import urllib.request
 from typing import Any
 
-
-TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
+from shared_polling import TERMINAL_STATUSES, poll_task_completion, request_json
 DEFAULT_WORKFLOW_IMAGE = "cloudai/workflow-deterministic:v1"
 
 
@@ -25,21 +22,6 @@ def default_workload_path() -> pathlib.Path:
 
 def default_output_dir() -> pathlib.Path:
     return pathlib.Path(__file__).resolve().parents[2] / "results" / "testbench"
-
-
-def request_json(method: str, url: str, payload: dict[str, Any] | None = None, timeout: float = 10.0) -> dict[str, Any]:
-    data = None
-    headers = {"Accept": "application/json"}
-    if payload is not None:
-        data = json.dumps(payload).encode("utf-8")
-        headers["Content-Type"] = "application/json"
-
-    req = urllib.request.Request(url=url, method=method, data=data, headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        body = resp.read().decode("utf-8")
-        if not body:
-            return {}
-        return json.loads(body)
 
 
 def resolve_workflow_image(task: dict[str, Any]) -> str:
@@ -150,42 +132,22 @@ def wait_for_completion(
     timeout_seconds: int,
     poll_interval: float,
 ) -> dict[str, dict[str, Any]]:
-    deadline = time.time() + timeout_seconds
     task_ids = [item["task_id"] for item in submitted]
-    statuses: dict[str, dict[str, Any]] = {
-        task_id: {"status": "queued", "last_update": time.time()} for task_id in task_ids
-    }
-
-    while time.time() < deadline:
-        completed = 0
-        failed = 0
-
-        for task_id in task_ids:
-            try:
-                task_info = request_json("GET", f"{master_url}/api/tasks/{task_id}", timeout=10.0)
-            except urllib.error.HTTPError as exc:
-                statuses[task_id]["status"] = f"http-{exc.code}"
-                continue
-            except Exception as exc:  # pylint: disable=broad-except
-                statuses[task_id]["status"] = f"error:{type(exc).__name__}"
-                continue
-
-            status = str(task_info.get("status", "unknown")).lower()
-            statuses[task_id]["status"] = status
-            statuses[task_id]["last_update"] = time.time()
-
-            if status in TERMINAL_STATUSES:
-                completed += 1
-                if status != "completed":
-                    failed += 1
-
-        print(f"[poll] completed={completed}/{len(task_ids)} failed={failed}")
-        if completed == len(task_ids):
-            return statuses
-
-        time.sleep(poll_interval)
-
-    raise TimeoutError(f"timeout waiting for workload completion ({timeout_seconds}s)")
+    raw_statuses = poll_task_completion(master_url, task_ids, timeout_seconds, poll_interval)
+    statuses: dict[str, dict[str, Any]] = {}
+    completed = 0
+    failed = 0
+    for task_id in task_ids:
+        status = raw_statuses.get(task_id, "unknown")
+        statuses[task_id] = {"status": status, "last_update": time.time()}
+        if status in TERMINAL_STATUSES:
+            completed += 1
+            if status != "completed":
+                failed += 1
+    print(f"[poll] completed={completed}/{len(task_ids)} failed={failed}")
+    if completed != len(task_ids):
+        raise TimeoutError(f"timeout waiting for workload completion ({timeout_seconds}s)")
+    return statuses
 
 
 def write_summary(

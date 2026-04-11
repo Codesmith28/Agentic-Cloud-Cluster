@@ -1,12 +1,12 @@
 # CloudAI Testbench Runbook
 
-This runbook shows exactly how to run the Docker-based CloudAI testbenches for repeatable performance testing.
+Practical reference for the implemented master-driven test workflow and suite runners.
 
 ## 1) Prerequisites
 
-- Docker Desktop or Docker Engine with `docker compose`
+- Docker with `docker compose`
+- Go (for `masterNode` and optional preflight tests)
 - Python 3.8+
-- Optional: `jq` for pretty JSON output
 
 Quick check:
 
@@ -14,334 +14,226 @@ Quick check:
 docker --version
 docker compose version
 python3 --version
+go version
 ```
 
-## 2) Testbench Types
+## 2) Master command surface
 
-- `testbench-suite` (recommended): start stack + prepare workflow images + register workers + run default workload
-- `campaign` (smoke): evidence benchmark across schedulers and scenarios using heterogeneous-smoke workload
-- `campaign-full`: full evidence benchmark using multiple workloads and scenarios
-- manual flow: run each stage independently
-
-## 3) Deterministic Workflow Image
-
-The testbench uses a deterministic workflow image (`cloudai/workflow-deterministic:v1`) to generate repeatable load profiles for performance benchmarking.
-
-### Building and Preparing the Workflow Image
-
-Before running workloads or campaigns, prepare the image in worker DinD daemons:
+### Interactive (`master>` prompt)
 
 ```bash
-make testbench-prepare-images
+master> test list
+master> test run <smoke|reliability|ui-smoke|evidence|full> [-profile <hetero-small|recovery-lab>] [-out <dir>] [-keep-env] [-ui-smoke] [-scheduler <current|RR|RTS>]
+master> test cleanup
 ```
 
-This script:
-1. Builds the deterministic workflow Docker image from `testbench/workflow-image/`
-2. Loads the image into each worker DinD daemon (worker-small, worker-medium, worker-large)
-3. Verifies the image is ready for task execution
-
-**Configuration:**
-- `IMAGE_TAG`: Override the image tag (default: `cloudai/workflow-deterministic:v1`)
-- `CLOUDAI_WORKFLOW_IMAGE_TAG`: Alternative env var for the tag
-- `SKIP_BUILD`: Set to `true` to skip building and only load existing images
-
-## 4) One-Command Run (Recommended)
-
-From repository root:
+### Non-interactive (`masterNode` CLI mode)
 
 ```bash
-make testbench-suite
+./masterNode test list
+./masterNode test run <smoke|reliability|ui-smoke|evidence|full> [-profile <hetero-small|recovery-lab>] [-out <dir>] [-keep-env] [-ui-smoke] [-scheduler <current|RR|RTS>]
+./masterNode test cleanup
 ```
 
-What it does:
+### Flag behavior
 
-1. Builds and starts `mongo`, `master`, `worker-small`, `worker-medium`, `worker-large`
-2. Prepares deterministic workflow image in worker DinD daemons
-3. Registers workers through `POST /api/workers`
-4. Submits workload from `testbench/workloads/heterogeneous-smoke.json`
-5. Polls task status until completion
-6. Writes summary JSON to `results/testbench/<timestamp>-summary.json`
+- `-profile`: `hetero-small` or `recovery-lab`
+- `-out`: custom artifact directory (default: `results/testbench/<timestamp>-<suite>/`)
+- `-keep-env`: skip compose teardown at end
+- `-ui-smoke`: enable extra UI/API smoke verification in smoke runs
+- `-scheduler`: `current`, `RR`, or `RTS`
 
-## 5) Manual Stage-by-Stage Run
+Notes:
 
-Start stack:
+- `test cleanup` runs `docker compose ... down --remove-orphans` against the configured compose file.
+- Non-interactive `test run evidence` with default scheduler (`current`) runs an RR+RTS matrix and writes a matrix summary.
+
+## 3) Host-master topology (recommended for master-driven tests)
+
+Use:
+
+- Compose file: `testbench/docker-compose.host-master.yml`
+- Prometheus config: `testbench/observability/prometheus/prometheus.host-master.yml`
+
+This topology keeps `master` on the host and runs MongoDB/Prometheus/Grafana/workers in compose.
+Prometheus scrapes:
+
+- `host.docker.internal:8080` (master metrics)
+- `host.docker.internal:19101-19103` (worker metrics)
+
+### Bring up and register workers
 
 ```bash
-make testbench-up
+make testbench-host-up
+make testbench-host-register
 ```
 
-Prepare workflow image:
+`WORKER_SPECS` (host-routable registration) defaults to:
 
 ```bash
-make testbench-prepare-images
+worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054
 ```
 
-Register workers:
+Custom format accepted by `register_workers.sh`:
+
+- comma/semicolon-separated entries
+- each entry as `worker_id=host:port` (or whitespace-separated `worker_id host:port`)
+
+Start master on host (example):
 
 ```bash
-make testbench-register
-```
-
-Run workload:
-
-```bash
-make testbench-workload
+./runMaster.sh
 ```
 
 Teardown:
 
 ```bash
-make testbench-down
+make testbench-host-down
 ```
 
-## 6) Evidence Benchmark Campaign
+## 4) One-command integration + benchmark automation
 
-Run multi-scenario benchmarks across schedulers with failure injection:
-
-### Smoke Campaign (Quick Benchmark)
+Run the full integration gate and evidence benchmark generation with one command:
 
 ```bash
-make campaign
+make testbench-integration
 ```
 
-Runs baseline, burst, overload, and failure-stressed scenarios using the heterogeneous-smoke workload.
+Behavior:
 
-### Full Campaign (Comprehensive Benchmark)
+- validates Docker daemon + `docker compose` availability up front
+- runs `make test-unit` preflight (override with `RUN_UNIT_TESTS=false`)
+- runs `./masterNode test run` suites in sequence: `smoke`, `reliability`, `ui-smoke`, `evidence`
+- stores artifacts under `results/testbench/<timestamp>-integration/`
+- writes `integration-summary.json` with suite output paths
+
+Common overrides:
 
 ```bash
-make campaign-full
+RUN_ROOT=results/testbench/custom-integration \
+PROFILE=hetero-small \
+BASE_SCHEDULER=current \
+EVIDENCE_SCHEDULER=current \
+make testbench-integration
 ```
 
-Runs all scenarios across multiple workload profiles (heterogeneous-smoke, deterministic-full).
+CI automation is defined in:
 
-### Campaign Command-Line Options
+- `.github/workflows/testbench-integration.yml`
+
+It supports manual dispatch and nightly runs, and uploads the full run bundle as a workflow artifact.
+
+## 5) Scenario manifests and `run_suite.sh`
+
+Scenario manifests live in `testbench/scenarios/*.json`:
+
+- `smoke.json`
+- `reliability.json`
+- `ui-smoke.json`
+- `evidence.json`
+- `full.json`
+
+`testbench/scripts/run_suite.sh` selects `testbench/scenarios/${SUITE_NAME}.json` by default.
+
+Recognized manifest fields:
+
+- `suite`, `runner`, `description`
+- `workload`, `ui_url`
+- `scenarios`, `workloads`, `schedulers`
+- `sequence`
+- `assertions`
+- `preflight.go_test`
+- `stop_on_failure`
+
+Runner types implemented by `run_suite.sh`:
+
+- `suite` / `workload`: execute `run_workload.py`
+- `ui-smoke`: execute `run_ui_smoke.py`
+- `campaign`: execute `run_campaign.py`
+- `composite`: run optional preflight `go test`, then child suite sequence
+
+Examples:
 
 ```bash
-python3 testbench/scripts/run_campaign.py \
-  --master-url http://localhost:8080 \
-  --schedulers "RR,RTS,PPO-pretrained,PPO-adapted,RR+recovery,RTS+recovery,PPO+recovery" \
-  --scenarios all \
-  --workloads "heterogeneous-smoke,deterministic-full" \
-  --output-dir results/campaign \
-  --prometheus-url http://localhost:9090 \
-  --skip-observability-export false
+# Default topology (containerized master) unless COMPOSE_FILE is set
+SUITE_NAME=smoke testbench/scripts/run_suite.sh
+
+# Host-master topology
+COMPOSE_FILE=testbench/docker-compose.host-master.yml \
+WORKER_SPECS=worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054 \
+SUITE_NAME=evidence \
+testbench/scripts/run_suite.sh
 ```
 
-**Key Options:**
-- `--schedulers`: Comma-separated list of schedulers to test (default: all 7 variants)
-- `--scenarios`: `baseline`, `burst`, `overload`, `failure-stressed`, or `all`
-- `--workloads`: Comma-separated workload names from `testbench/workloads/`
-- `--output-dir`: Directory for campaign results (default: `results/campaign`)
-- `--prometheus-url`: Prometheus API endpoint for observability exports
-- `--skip-observability-export`: Skip Prometheus/master metrics export (default: false)
-
-**Recovery Scheduler Labels:**
-- `RR+recovery`, `RTS+recovery`, `PPO+recovery`: Task prioritization and failure handling during recovery scenarios
-
-## 7) Run a Custom Workload
-
-Use the Python runner directly:
+Host-master make wrappers:
 
 ```bash
-python3 testbench/scripts/run_workload.py \
-  --master-url http://localhost:8080 \
-  --workload /absolute/path/to/your-workload.json \
-  --timeout-seconds 1200 \
-  --poll-interval 2 \
-  --fail-on-task-failure
+make testbench-host-suite
+make testbench-host-suite-smoke
+make testbench-host-suite-reliability
+make testbench-host-suite-ui-smoke
+make testbench-host-suite-evidence
+make testbench-host-suite-full
 ```
 
-Expected workload JSON shape:
+## 6) Script utilities
 
-```json
-{
-  "name": "my-workload",
-  "tasks": [
-    {
-      "docker_image": "cloudai/workflow-deterministic:v1",
-      "workflow": {
-        "profile": "cpu-light",
-        "args": {
-          "duration": 30,
-          "workers": 2
-        }
-      },
-      "cpu_required": 1.0,
-      "memory_required": 0.5,
-      "storage_required": 1,
-      "tag": "cpu-light",
-      "k_value": 2.0
-    }
-  ]
-}
-```
+- `testbench/scripts/shared_polling.py`
+  - shared HTTP helper (`request_json`) and task polling (`poll_task_completion`)
+  - used by `run_workload.py`, `run_campaign.py`, `run_ui_smoke.py`, `export_attempt_snapshots.py`
+- `testbench/scripts/export_attempt_snapshots.py`
+  - exports per-task snapshots from master APIs
+  - writes `attempt_snapshots/index.json` and `<task_id>.json` files
+- `testbench/scripts/run_ui_smoke.py`
+  - checks API health, workers/tasks endpoints, UI root, and auth register/login/me
+  - writes summary JSON to its `--output` path (in suites this is `summary.json`)
 
-Alternatively, use `docker_image` + `command` for standard containers:
+## 7) Where artifacts land
 
-```json
-{
-  "tasks": [
-    {
-      "docker_image": "ubuntu:latest",
-      "command": "echo 'hello world'",
-      "cpu_required": 0.5,
-      "memory_required": 0.256
-    }
-  ]
-}
-```
+### `run_suite.sh` bundle
 
-## 8) Failure Injection
+Default root:
 
-The campaign framework injects controlled failures during failure-stressed scenarios:
+`results/testbench/<timestamp>-<suite>/` (override with `RUN_ROOT`)
 
-```bash
-python3 testbench/scripts/failure_injector.py \
-  --action kill-worker \
-  --worker worker-small \
-  --delay-seconds 5
-```
+Common outputs:
 
-**Available Failure Actions:**
-- `kill-worker`: Terminate the worker container
-- `kill-dind`: Terminate the DinD daemon (causes containerized tasks to fail)
-- `pause-worker-dind`: Pause the DinD daemon (tasks hang)
-- `resume-worker-dind`: Resume a paused DinD daemon
-- `restart-master`: Restart the master container
-- `bad-image-tag`: Inject bad-image tasks (encoded in workload definitions)
-- `replay-stale-result`: Stale-result replay (scenario-level orchestration)
+- `summary.json`
+- `assertion_results.json`
+- `logs/compose.log`
+- `attempt_snapshots/index.json` (+ per-task files when task IDs exist)
+- `observability/prometheus-range.json`
+- `observability/prometheus-instant.json`
+- `observability/master-snapshot.json`
+- `observability/metrics-summary.csv`
 
-Recovery schedulers use failure injection to test robustness during failure-stressed scenarios.
+Runner-specific:
 
-## 9) Observability: Prometheus, Metrics, and Dashboards
+- `campaign/` timestamped campaign report artifacts (`campaign-report.json`, `REPORT.md`, `REPORT.html`, CSV exports)
+- `composite` creates per-child suite subdirectories; top-level `attempt_snapshots/index.json` and `observability/index.json` point to sub-runs
 
-The master node exports real-time observability data:
+### `master> test run` / `./masterNode test run`
 
-### Master Telemetry Endpoints
+Default root:
 
-```bash
-# Health check
-curl http://localhost:8080/health | jq
+`results/testbench/<timestamp>-<suite>/` (override with `-out`)
 
-# Cluster telemetry (REST)
-curl http://localhost:8080/telemetry | jq
+The workflow writes `run-result.json` with executed steps and step logs under `logs/`.
+Smoke/UI smoke runs also emit workload summary + attempt/observability exports.
+Reliability/Evidence runs emit campaign artifacts under `campaign/<timestamp>/...`.
 
-# Per-worker telemetry (REST)
-curl http://localhost:8080/telemetry/worker-1 | jq
+## 8) Make targets (current)
 
-# All workers summary
-curl http://localhost:8080/workers | jq
+- `make testbench-up` / `make testbench-down` (containerized master topology)
+- `make testbench-host-up` / `make testbench-host-down` (host-master topology)
+- `make testbench-register` / `make testbench-host-register`
+- `make testbench-suite` (default `SUITE_NAME=smoke`)
+- `make testbench-host-suite` (default `SUITE_NAME=smoke`, host-master compose + host-routable `WORKER_SPECS`)
+- `make testbench-integration` (one-command full integration + benchmark automation)
+- `make campaign`, `make campaign-full`
 
-# Prometheus metrics
-curl http://localhost:8080/metrics
+## 9) Quick troubleshooting
 
-# WebSocket: Real-time all-workers telemetry
-wscat -c ws://localhost:8080/ws/telemetry
-
-# WebSocket: Real-time per-worker telemetry
-wscat -c ws://localhost:8080/ws/telemetry/worker-1
-```
-
-### Campaign Observability Export
-
-After campaign completion, export Prometheus metrics and diagnostics:
-
-```bash
-python3 testbench/scripts/export_metrics.py \
-  --prometheus-url http://localhost:9090 \
-  --output-dir results/campaign/observability \
-  --start-time "$(date -u -d '1 hour ago' +%s)" \
-  --end-time "$(date -u +%s)" \
-  --step-seconds 10
-```
-
-This exports:
-- Time-series Prometheus data (range queries)
-- Final metric snapshots (instant queries)
-- Scheduler performance metrics
-- Resource utilization traces
-
-Results are written to `prometheus-range.json` and `prometheus-instant.json`.
-
-## 10) Verify Cluster and Task State
-
-Workers:
-
-```bash
-curl http://localhost:8080/api/workers | jq
-```
-
-Tasks:
-
-```bash
-curl http://localhost:8080/api/tasks | jq
-curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
-```
-
-Master logs:
-
-```bash
-docker compose -f testbench/docker-compose.yml logs -f master
-```
-
-Worker logs:
-
-```bash
-docker compose -f testbench/docker-compose.yml logs -f worker-small
-```
-
-## 11) Where Results Go
-
-- Workload summary: `results/testbench/<timestamp>-summary.json`
-- Campaign report (markdown): `results/campaign/<timestamp>-report.md`
-- Campaign report (HTML): `results/campaign/<timestamp>-report.html`
-- Campaign JSON results: `results/campaign/<timestamp>-results.json`
-- Observability artifacts: `results/campaign/observability/prometheus-*.json`
-- Task-level outputs: stored by worker containers under `/var/cloudai/outputs` (inside worker volumes)
-
-## 12) Tuning Heterogeneous Capacity
-
-Edit `testbench/docker-compose.yml`:
-
-- worker daemon limits (`worker-*-dind`): `cpus`, `mem_limit`, `pids_limit`
-- worker advertised resources (`worker-*`):
-  - `WORKER_TOTAL_CPU`
-  - `WORKER_TOTAL_MEMORY_GB`
-  - `WORKER_TOTAL_STORAGE_GB`
-
-After editing, restart the stack:
-
-```bash
-make testbench-down
-make testbench-up
-make testbench-prepare-images
-make testbench-register
-```
-
-## 13) Troubleshooting
-
-Workers not active:
-
-```bash
-testbench/scripts/register_workers.sh
-docker compose -f testbench/docker-compose.yml logs -f worker-small worker-medium worker-large
-```
-
-Tasks stuck queued:
-
-- confirm workers are `is_active=true` in `/api/workers`
-- inspect master logs for scheduling/resource messages
-
-Workflow image not found in workers:
-
-```bash
-make testbench-prepare-images
-docker compose -f testbench/docker-compose.yml logs -f prepare_images
-```
-
-Clean reset:
-
-```bash
-make testbench-down
-docker compose -f testbench/docker-compose.yml down -v --remove-orphans
-```
+- Master unreachable: verify `curl http://localhost:8080/health`
+- Worker registration issues: rerun `make testbench-host-register` and check `WORKER_SPECS`
+- Missing artifacts: inspect `logs/compose.log` and suite step logs under each run directory
