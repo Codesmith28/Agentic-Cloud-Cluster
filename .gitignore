@@ -7,3 +7,5 @@ test
 master/config/ga_output.json
 master/masterNode
 worker/workerNode
+agentic_scheduler/data
+*.tar.gz
