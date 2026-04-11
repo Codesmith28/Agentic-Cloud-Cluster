@@ -1,0 +1,1 @@
+{"message":"Worker registered successfully. Master is notifying worker to connect and send resource information.","success":true,"worker":{"is_active":false,"worker_id":"ppo-worker-1","worker_ip":"127.0.0.1:61152"},"worker_id":"ppo-worker-1"}

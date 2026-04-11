@@ -164,6 +164,8 @@ func (c *CLI) Run() {
 			c.runBenchmark(parts)
 		case "workload-submit":
 			c.submitWorkload(parts)
+		case "test":
+			c.runTestCommand(parts)
 		case "files":
 			if len(parts) < 2 {
 				fmt.Println("Usage: files <user_id> [requesting_user]")
@@ -248,6 +250,9 @@ func (c *CLI) printHelp() {
 	fmt.Println("  queue                          - Show pending tasks in the queue")
 	fmt.Println("  benchmark [profile|all]        - Run scheduler benchmark suite and generate report artifacts")
 	fmt.Println("  workload-submit <profile> [options] - Submit predefined workload to master at scheduled intervals")
+	fmt.Println("  test list                      - List available live test suites")
+	fmt.Println("  test run <suite> [options]     - Run smoke|reliability|ui-smoke|evidence|full")
+	fmt.Println("  test cleanup                   - Tear down test workflow environment")
 	fmt.Println("  files <user_id> [requesting_user]  - List all files for a user")
 	fmt.Println("  task-files <task_id> <user_id> [requesting_user]  - View files for a specific task")
 	fmt.Println("  download <task_id> <user_id> [requesting_user] [output_dir]  - Download all task files")

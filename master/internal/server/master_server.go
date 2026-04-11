@@ -144,6 +144,16 @@ func (s *MasterServer) SetScheduler(sched scheduler.Scheduler) {
 	log.Printf("Scheduler set: %s", sched.GetName())
 }
 
+// GetSchedulerName returns the currently configured scheduler name.
+func (s *MasterServer) GetSchedulerName() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.scheduler == nil {
+		return ""
+	}
+	return s.scheduler.GetName()
+}
+
 // LoadWorkersFromDB loads registered workers from database into memory
 func (s *MasterServer) LoadWorkersFromDB(ctx context.Context) error {
 	if s.workerDB == nil {

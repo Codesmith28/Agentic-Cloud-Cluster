@@ -18,6 +18,8 @@ type Config struct {
 	MongoDBDatabase string
 	HTTPPort        string // HTTP port for telemetry API
 	Headless        bool   // Run without interactive CLI (for containerized/testbench mode)
+	MasterBindAddr  string // Optional gRPC bind address override
+	MasterAdvAddr   string // Optional gRPC advertise address override
 
 	// Scheduler selection/configuration
 	SchedulerAlgo       string // RR / RTS / PPO
@@ -50,6 +52,8 @@ func LoadConfig() *Config {
 	ppoDeploymentMode := normalizePPODeploymentMode(getEnv("PPO_DEPLOYMENT_MODE", "active"))
 	ppoOnlineUpdates := getEnvBool("PPO_ONLINE_UPDATES_ENABLED", true)
 	headless := getEnvBool("CLOUDAI_HEADLESS", false)
+	masterBindAddr := strings.TrimSpace(getEnv("MASTER_BIND_ADDR", ""))
+	masterAdvAddr := strings.TrimSpace(getEnv("MASTER_ADVERTISE_ADDR", ""))
 
 	// Load SLA multiplier with validation
 	slaMultiplier := getEnvFloat("SCHED_SLA_MULTIPLIER", 2.0)
@@ -77,6 +81,8 @@ func LoadConfig() *Config {
 		MongoDBDatabase:     database,
 		HTTPPort:            httpPort,
 		Headless:            headless,
+		MasterBindAddr:      masterBindAddr,
+		MasterAdvAddr:       masterAdvAddr,
 		SchedulerAlgo:       schedulerAlgo,
 		SLAMultiplier:       slaMultiplier,
 		GAParamsPath:        gaParamsPath,

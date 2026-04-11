@@ -40,12 +40,29 @@ def extract_task_features(task) -> np.ndarray:
 
 
 def extract_worker_features(worker) -> np.ndarray:
+    """Extract a WORKER_FEATURE_DIM-element feature vector from a worker object.
+
+    Feature layout (must stay in sync with SchedulingEnv and TraceReplayEnv):
+      0: available_cpu / total_cpu
+      1: available_memory / total_memory
+      2: available_storage / total_storage
+      3: total_cpu
+      4: total_memory
+      5: total_storage
+      6: used_cpu / total_cpu
+      7: used_memory / total_memory
+      8: used_storage / total_storage
+    """
     total_cpu = float(getattr(worker, "total_cpu", 0.0))
     total_memory = float(getattr(worker, "total_memory", 0.0))
     total_storage = float(getattr(worker, "total_storage", 0.0))
     available_cpu = float(getattr(worker, "available_cpu", 0.0))
     available_memory = float(getattr(worker, "available_memory", 0.0))
     available_storage = float(getattr(worker, "available_storage", 0.0))
+
+    used_cpu = max(total_cpu - available_cpu, 0.0)
+    used_memory = max(total_memory - available_memory, 0.0)
+    used_storage = max(total_storage - available_storage, 0.0)
 
     return np.asarray(
         [
@@ -55,10 +72,9 @@ def extract_worker_features(worker) -> np.ndarray:
             total_cpu,
             total_memory,
             total_storage,
-            float(getattr(worker, "current_cpu_usage", 0.0)),
-            float(getattr(worker, "current_memory_usage", 0.0)),
-            _safe_div(float(getattr(worker, "allocated_storage", 0.0)), max(total_storage, 1e-6)),
-            1.0 if bool(getattr(worker, "is_active", False)) else 0.0,
+            _safe_div(used_cpu, max(total_cpu, 1e-6)),
+            _safe_div(used_memory, max(total_memory, 1e-6)),
+            _safe_div(used_storage, max(total_storage, 1e-6)),
         ],
         dtype=np.float32,
     )

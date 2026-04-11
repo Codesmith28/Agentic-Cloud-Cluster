@@ -1,0 +1,21 @@
+=== master startup ===
+2026/04/09 23:06:58 ✓ PPO deployment mode: active (online updates: true)
+2026/04/09 23:06:58 ✓ PPO service healthy (model=v0, fingerprint=)
+2026/04/09 23:06:58 ✓ Selected scheduler: PPO (mode=active fallback=RTS)
+2026/04/09 23:06:58 ✓ Master server configured with PPO scheduler
+
+=== ppo fallback/runtime errors ===
+2026/04/09 23:08:38 ⚠️ PPO: SelectWorker RPC failed (rpc error: code = Unknown desc = Exception calling application: operands could not be broadcast together with shapes (15,) (14,) ), fallback -> RTS
+2026/04/09 23:08:38 ⚠️ PPO: SelectWorker RPC failed (rpc error: code = Unknown desc = Exception calling application: operands could not be broadcast together with shapes (15,) (14,) ), fallback -> RTS
+2026/04/09 23:08:38 ⚠️ PPO: SelectWorker RPC failed (rpc error: code = Unknown desc = Exception calling application: operands could not be broadcast together with shapes (15,) (14,) ), fallback -> RTS
+2026/04/09 23:12:13 ⚠️ PPO: SelectWorker RPC failed (rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:50061: connect: connection refused"), fallback -> RTS
+
+=== task assignments/completions ===
+2026/04/09 23:08:38 ✓ Queue: Task task-1775756316507928000 successfully assigned to worker-ppo-e2e-1 after 0 attempts
+2026/04/09 23:08:38 ✓ Queue: Task task-1775756316511411000 successfully assigned to worker-ppo-e2e-1 after 0 attempts
+2026/04/09 23:08:38 ✓ Queue: Task task-1775756316512903000 successfully assigned to worker-ppo-e2e-1 after 0 attempts
+2026/04/09 23:08:42 📥 Task completion report received: task-1775756316511411000 from worker-ppo-e2e-1 [Status: success]
+2026/04/09 23:08:42 📥 Task completion report received: task-1775756316507928000 from worker-ppo-e2e-1 [Status: success]
+2026/04/09 23:08:43 📥 Task completion report received: task-1775756316512903000 from worker-ppo-e2e-1 [Status: success]
+2026/04/09 23:12:13 ✓ Queue: Task task-1775756529492855000 successfully assigned to worker-ppo-e2e-1 after 0 attempts
+2026/04/09 23:12:15 📥 Task completion report received: task-1775756529492855000 from worker-ppo-e2e-1 [Status: success]

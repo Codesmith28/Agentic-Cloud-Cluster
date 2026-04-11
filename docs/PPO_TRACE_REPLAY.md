@@ -61,15 +61,66 @@ trace_window = "none"      # No filtering
 ### Training Script Usage
 
 ```bash
-python3 agentic_scheduler/train_ppo.py \
-  --num-episodes 100 \
-  --steps-per-episode 1000 \
+python3 -m agentic_scheduler.train_ppo \
+  --trace-source cloudai \
+  --mongo-uri "mongodb://localhost:27017" \
+  --mongo-db cluster_db \
+  --num-workers 4 \
+  --updates 100 \
+  --rollout-steps 1024 \
   --trace-window "imported" \
   --trace-window-start "2024-01-01T00:00:00Z" \
   --trace-window-end "2024-01-01T06:00:00Z" \
-  --num-workers 4 \
-  --model-output agentic_scheduler/models/ppo_trained.pt
+  --checkpoint-dir agentic_scheduler/models/checkpoints \
+  --checkpoint-every 10 \
+  --output agentic_scheduler/models/ppo_trained.pkl
 ```
+
+### Checkpointing and Resume
+
+`train_ppo.py` saves checkpoints as `.pkl` payloads.
+
+- Periodic local checkpoints are enabled by default (`--checkpoint-every 10`) and written under `--checkpoint-dir` using `--checkpoint-prefix`.
+- Each periodic save also updates `<checkpoint-prefix>_latest.pkl` for quick resume.
+- The final checkpoint is always written to `--output` (default: `agentic_scheduler/models/ppo_trained.pkl`).
+
+Resume precedence is local first:
+- `--resume-from <path>` resumes from an explicit local checkpoint.
+- `--resume-latest` resumes from the newest `.pkl` in `--checkpoint-dir`.
+- `--resume-mongo` is only used when local resume is not selected/found.
+
+```bash
+python3 -m agentic_scheduler.train_ppo \
+  --resume-latest \
+  --checkpoint-dir agentic_scheduler/models/checkpoints
+```
+
+### Optional Mongo Checkpoint Persistence/Resume
+
+Mongo checkpointing is optional and requires `--mongo-uri` plus `--fingerprint-hash`.
+
+- `--mongo-checkpoint-every N`: persist active checkpoint to Mongo every N updates.
+- `--mongo-save-final` (default) / `--no-mongo-save-final`: control final Mongo persistence.
+- `--resume-mongo`: resume from the active Mongo checkpoint for the fingerprint (when local resume is not used).
+- `--fingerprint-payload` is optional metadata stored with the checkpoint.
+
+```bash
+python3 -m agentic_scheduler.train_ppo \
+  --trace-source cloudai \
+  --mongo-uri "mongodb://localhost:27017" \
+  --mongo-db cluster_db \
+  --fingerprint-hash "cluster-fp-123" \
+  --mongo-checkpoint-every 5 \
+  --resume-mongo
+```
+
+### GPU Preference Behavior
+
+- Offline training prefers CUDA automatically (`torch.cuda.is_available()`), otherwise CPU.
+- Service runtime defaults to GPU preference and falls back to CPU if CUDA is unavailable.
+- Configure service GPU preference with:
+  - `--prefer-gpu true|false`
+  - `PPO_PREFER_GPU=true|false`
 
 ## PPO Deployment Modes
 
@@ -145,6 +196,7 @@ With online updates enabled:
 |----------|---------|-------------|
 | `PPO_DEPLOYMENT_MODE` | `active` | Deployment mode: `shadow`, `active`, or `fallback` |
 | `PPO_ONLINE_UPDATES_ENABLED` | `true` | Enable online model updates |
+| `PPO_PREFER_GPU` | `true` | Prefer CUDA for PPO service; fallback to CPU if unavailable |
 | `PPO_GRPC_ADDR` | `127.0.0.1:50061` | PPO gRPC service endpoint |
 | `PPO_REQUEST_TIMEOUT_MS` | `1500` | Timeout for PPO decisions (ms) |
 | `PPO_AUTOSTART` | `true` | Auto-start PPO service |
@@ -154,17 +206,35 @@ With online updates enabled:
 ### Training Script CLI Options
 
 ```bash
-python3 agentic_scheduler/train_ppo.py --help
+python3 -m agentic_scheduler.train_ppo --help
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--num-episodes` | `50` | Number of training episodes |
-| `--steps-per-episode` | `500` | Steps per episode |
-| `--num-workers` | `4` | Number of workers for training |
+| `--num-workers` | `4` | Number of workers in the training environment |
+| `--episode-length` | `96` | Episode length for synthetic (non-trace) training |
+| `--rollout-steps` | `1024` | Steps collected per PPO update |
+| `--updates` | `200` | Number of PPO updates |
+| `--gamma` | `0.99` | Discount factor |
 | `--learning-rate` | `3e-4` | PPO learning rate |
-| `--batch-size` | `32` | Mini-batch size for training |
-| `--model-output` | `agentic_scheduler/models/ppo_trained.pt` | Output model path |
+| `--seed` | `42` | Random seed for NumPy/PyTorch/environment |
+| `--output` | `agentic_scheduler/models/ppo_trained.pkl` | Final output checkpoint path |
+| `--checkpoint-dir` | `agentic_scheduler/models/checkpoints` | Local periodic checkpoint directory |
+| `--checkpoint-prefix` | `ppo_offline` | Prefix for periodic checkpoint filenames |
+| `--checkpoint-every` | `10` | Save local checkpoint every N updates (`<=0` disables) |
+| `--resume-from` | `""` | Resume from explicit local checkpoint path |
+| `--resume-latest` | `false` | Resume from latest `.pkl` in `--checkpoint-dir` |
+| `--log-every` | `10` | Log training progress every N updates |
+| `--mongo-uri` | `""` | MongoDB URI for trace loading/checkpoint persistence |
+| `--mongo-db` | `cluster_db` | MongoDB database name |
+| `--fingerprint-hash` | `""` | Cluster fingerprint hash for Mongo checkpoint namespace |
+| `--fingerprint-payload` | `""` | Optional fingerprint payload metadata |
+| `--mongo-checkpoint-every` | `0` | Persist active Mongo checkpoint every N updates (`<=0` disables) |
+| `--mongo-save-final` / `--no-mongo-save-final` | `true` | Enable/disable final Mongo checkpoint persistence |
+| `--resume-mongo` | `false` | Resume from active Mongo checkpoint if no local resume is used |
+| `--trace-source` | `""` | Trace source: `alibaba`, `google`, `cloudai`, or empty for synthetic |
+| `--trace-path` | `""` | Path to trace data (optional for `cloudai` when `--mongo-uri` is set) |
+| `--max-trace-tasks` | `5000` | Maximum tasks loaded from trace |
 | `--trace-window` | `` | Trace window label or empty for all |
 | `--trace-window-start` | `` | Window start (ISO 8601) |
 | `--trace-window-end` | `` | Window end (ISO 8601) |

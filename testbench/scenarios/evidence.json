@@ -1,0 +1,23 @@
+{
+  "suite": "evidence",
+  "description": "Scheduler comparison evidence run for RR and RTS.",
+  "runner": "campaign",
+  "scenarios": [
+    "baseline",
+    "burst",
+    "overload"
+  ],
+  "workloads": [
+    "heterogeneous-smoke",
+    "deterministic-full"
+  ],
+  "schedulers": [
+    "RR",
+    "RTS"
+  ],
+  "assertions": [
+    "campaign-report-generated",
+    "prometheus-export-generated",
+    "scheduler-comparison-available"
+  ]
+}

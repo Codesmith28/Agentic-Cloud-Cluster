@@ -1,0 +1,22 @@
+{
+  "suite": "reliability",
+  "description": "Failure-stressed campaign with recovery assertions.",
+  "runner": "campaign",
+  "scenarios": [
+    "failure-stressed"
+  ],
+  "workloads": [
+    "failure-stressed"
+  ],
+  "schedulers": [
+    "RR+recovery",
+    "RTS+recovery"
+  ],
+  "assertions": [
+    "queue-and-drain",
+    "cancellation-path",
+    "bad-image-failure",
+    "non-zero-exit-failure",
+    "requeue-after-worker-loss"
+  ]
+}

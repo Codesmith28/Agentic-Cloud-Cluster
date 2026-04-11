@@ -1,0 +1,210 @@
+{
+  "todo_id": "fleet-worker-2-agent",
+  "timestamp_utc": "2026-04-09T16:45:22.826344Z",
+  "master_url": "http://127.0.0.1:19080",
+  "worker_id": "worker-fleet-2",
+  "worker_ip": "127.0.0.1:57153",
+  "worker_grpc_port": 57153,
+  "worker_metrics_port": 19212,
+  "log_path": "/Users/codesmith28/personal/Projects/acc/BTEP/results/testbench/fleet-20260409-202110/retry2/logs/worker-fleet-2.log",
+  "steps": {
+    "wait_local_metrics": {
+      "ok": true,
+      "attempts": 1,
+      "last_error": null,
+      "url": "http://127.0.0.1:19212/metrics"
+    },
+    "local_metrics_contains_cloudai": {
+      "ok": true,
+      "sample": [
+        "# HELP cloudai_worker_last_heartbeat_unix Unix timestamp of the last successful heartbeat sent by this worker.",
+        "# TYPE cloudai_worker_last_heartbeat_unix gauge",
+        "cloudai_worker_last_heartbeat_unix 0",
+        "# HELP cloudai_worker_running_tasks Number of task attempts currently tracked by the worker.",
+        "# TYPE cloudai_worker_running_tasks gauge",
+        "cloudai_worker_running_tasks 0",
+        "# HELP go_gc_duration_seconds A summary of the wall-time pause (stop-the-world) duration in garbage collection cycles.",
+        "# TYPE go_gc_duration_seconds summary",
+        "go_gc_duration_seconds{quantile=\"0\"} 0",
+        "go_gc_duration_seconds{quantile=\"0.25\"} 0",
+        "go_gc_duration_seconds{quantile=\"0.5\"} 0",
+        "go_gc_duration_seconds{quantile=\"0.75\"} 0",
+        "go_gc_duration_seconds{quantile=\"1\"} 0",
+        "go_gc_duration_seconds_sum 0",
+        "go_gc_duration_seconds_count 0",
+        "# HELP go_gc_gogc_percent Heap size target percentage configured by the user, otherwise 100. This value is set by the GOGC environment variable, and the runtime/debug.SetGCPercent function. Sourced from /gc/gogc:percent.",
+        "# TYPE go_gc_gogc_percent gauge",
+        "go_gc_gogc_percent 100",
+        "# HELP go_gc_gomemlimit_bytes Go runtime memory limit configured by the user, otherwise math.MaxInt64. This value is set by the GOMEMLIMIT environment variable, and the runtime/debug.SetMemoryLimit function. Sourced from /gc/gomemlimit:bytes.",
+        "# TYPE go_gc_gomemlimit_bytes gauge"
+      ]
+    },
+    "register_worker": {
+      "ok": false,
+      "url": "http://127.0.0.1:19080/api/workers",
+      "payload": {
+        "worker_id": "worker-fleet-2",
+        "worker_ip": "127.0.0.1:57153"
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 2,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 3,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 4,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 5,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 6,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 7,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 8,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 9,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 10,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 11,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 12,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 13,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 14,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 15,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 16,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 17,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 18,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 19,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        },
+        {
+          "attempt": 20,
+          "http_status": 503,
+          "error": "HTTP Error 503: Service Unavailable",
+          "body": "Worker registration is not available (database not connected)\n"
+        }
+      ]
+    },
+    "verify_workers_list": {
+      "ok": false,
+      "attempts": 90,
+      "found": false,
+      "active": false,
+      "last_http_status": 200,
+      "last_error": null,
+      "last_parse_error": null,
+      "worker": null,
+      "last_body_excerpt": "{\"workers\":null}\n",
+      "field_checked": [
+        "is_active",
+        "active"
+      ]
+    },
+    "verify_worker_metrics_api": {
+      "ok": false,
+      "attempts": 90,
+      "json_ok": false,
+      "active": false,
+      "last_http_status": 404,
+      "last_error": "HTTP Error 404: Not Found",
+      "last_parse_error": null,
+      "payload": null,
+      "url": "http://127.0.0.1:19080/api/workers/worker-fleet-2/metrics",
+      "field_checked": [
+        "is_active",
+        "active"
+      ]
+    }
+  },
+  "success": false,
+  "errors": [
+    "Worker registration POST did not succeed",
+    "Worker not found in /api/workers",
+    "/api/workers/{id}/metrics did not return valid JSON"
+  ],
+  "completed_at_utc": "2026-04-09T16:52:03.757472Z"
+}

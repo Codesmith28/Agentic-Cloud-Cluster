@@ -1,0 +1,292 @@
+2026/04/09 23:06:59 ═══════════════════════════════════════════════════════
+2026/04/09 23:06:59   CloudAI Worker Node - Starting...
+2026/04/09 23:06:59 ═══════════════════════════════════════════════════════
+2026/04/09 23:06:59 ⚠️  Using user directory (no /var/cloudai access): /Users/codesmith28/.cloudai/outputs
+2026/04/09 23:06:59 
+2026/04/09 23:06:59 ═══════════════════════════════════════════════════════
+2026/04/09 23:06:59   Worker Details (use these to register with master):
+2026/04/09 23:06:59 ═══════════════════════════════════════════════════════
+2026/04/09 23:06:59   Hostname:       Thea
+2026/04/09 23:06:59   Worker ID:      worker-ppo-e2e-1
+2026/04/09 23:06:59   Bind Address:   127.0.0.1:60152
+2026/04/09 23:06:59   Reachable Addr: 10.63.86.229:60152
+2026/04/09 23:06:59   Metrics Port:   20111
+2026/04/09 23:06:59 ═══════════════════════════════════════════════════════
+2026/04/09 23:06:59 
+2026/04/09 23:06:59 To register this worker, run in master CLI:
+2026/04/09 23:06:59   master> register worker-ppo-e2e-1 10.63.86.229:60152
+2026/04/09 23:06:59 
+2026/04/09 23:06:59 ═══════════════════════════════════════════════════════
+2026/04/09 23:06:59 Starting telemetry monitor (interval: 5s)
+2026/04/09 23:06:59 ✓ Metrics server listening on 127.0.0.1:20111
+2026/04/09 23:06:59 ✓ Worker worker-ppo-e2e-1 started successfully
+2026/04/09 23:06:59 ✓ gRPC server listening on 127.0.0.1:60152
+2026/04/09 23:06:59 ✓ Ready to receive master registration...
+2026/04/09 23:06:59 ✓ Waiting for tasks...
+2026/04/09 23:06:59 Master registration request from: master-1 (127.0.0.1:60051)
+2026/04/09 23:06:59 Updated master address to: 127.0.0.1:60051
+2026/04/09 23:06:59 Registering worker worker-ppo-e2e-1 with master at 127.0.0.1:60051
+2026/04/09 23:06:59 Detected System Resources:
+2026/04/09 23:06:59   CPU:     12.00 cores
+2026/04/09 23:06:59   Memory:  24.00 GB
+2026/04/09 23:06:59   Storage: 460.43 GB
+2026/04/09 23:06:59 ✓ Successfully registered with master: Worker registered successfully
+2026/04/09 23:06:59 Master registration request from: master-1 (127.0.0.1:60051)
+2026/04/09 23:06:59 Updated master address to: 127.0.0.1:60051
+2026/04/09 23:06:59 Registering worker worker-ppo-e2e-1 with master at 127.0.0.1:60051
+2026/04/09 23:06:59 Detected System Resources:
+2026/04/09 23:06:59   CPU:     12.00 cores
+2026/04/09 23:06:59   Memory:  24.00 GB
+2026/04/09 23:06:59   Storage: 460.43 GB
+2026/04/09 23:06:59 ✓ Successfully registered with master: Worker registered successfully
+2026/04/09 23:07:05 Heartbeat sent: CPU=9.2%, Memory=69.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:07:10 Heartbeat sent: CPU=9.7%, Memory=69.3%, Storage=75.4%, Tasks=0
+2026/04/09 23:07:15 Heartbeat sent: CPU=9.4%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:07:20 Heartbeat sent: CPU=11.3%, Memory=69.2%, Storage=75.4%, Tasks=0
+2026/04/09 23:07:25 Heartbeat sent: CPU=8.9%, Memory=69.2%, Storage=75.4%, Tasks=0
+2026/04/09 23:07:30 Heartbeat sent: CPU=8.9%, Memory=69.1%, Storage=75.4%, Tasks=0
+2026/04/09 23:07:35 Heartbeat sent: CPU=8.8%, Memory=69.2%, Storage=75.4%, Tasks=0
+2026/04/09 23:07:40 Heartbeat sent: CPU=9.0%, Memory=69.1%, Storage=75.4%, Tasks=0
+2026/04/09 23:07:45 Heartbeat sent: CPU=9.1%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:07:50 Heartbeat sent: CPU=10.4%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:07:55 Heartbeat sent: CPU=10.8%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:08:00 Heartbeat sent: CPU=9.3%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:08:05 Heartbeat sent: CPU=9.1%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:08:10 Heartbeat sent: CPU=9.9%, Memory=69.1%, Storage=75.4%, Tasks=0
+2026/04/09 23:08:15 Heartbeat sent: CPU=7.5%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:08:20 Heartbeat sent: CPU=7.4%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:08:25 Heartbeat sent: CPU=7.4%, Memory=68.5%, Storage=75.4%, Tasks=0
+2026/04/09 23:08:30 Heartbeat sent: CPU=5.9%, Memory=68.2%, Storage=75.4%, Tasks=0
+2026/04/09 23:08:35 Heartbeat sent: CPU=9.4%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:08:38  
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   📥 TASK RECEIVED FROM MASTER
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   Task ID:           task-1775756316507928000
+2026/04/09 23:08:38   Docker Image:      alpine:3.20
+2026/04/09 23:08:38   Command:           echo ppo-e2e-task-1
+2026/04/09 23:08:38   Target Worker:     worker-ppo-e2e-1
+2026/04/09 23:08:38 ───────────────────────────────────────────────────────
+2026/04/09 23:08:38   System Requirements:
+2026/04/09 23:08:38     • CPU Cores:     0.20 cores
+2026/04/09 23:08:38     • Memory:        0.10 GB
+2026/04/09 23:08:38     • Storage:       0.10 GB
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   ✓ Task accepted - Starting execution...
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38 
+2026/04/09 23:08:38 Task task-1775756316507928000 added to monitoring (total tasks: 1)
+2026/04/09 23:08:38 [Task task-1775756316507928000] Starting execution...
+2026/04/09 23:08:38 [Task task-1775756316507928000] Pulling image: alpine:3.20
+2026/04/09 23:08:38  
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   📥 TASK RECEIVED FROM MASTER
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   Task ID:           task-1775756316511411000
+2026/04/09 23:08:38   Docker Image:      alpine:3.20
+2026/04/09 23:08:38   Command:           echo ppo-e2e-task-2
+2026/04/09 23:08:38   Target Worker:     worker-ppo-e2e-1
+2026/04/09 23:08:38 ───────────────────────────────────────────────────────
+2026/04/09 23:08:38   System Requirements:
+2026/04/09 23:08:38     • CPU Cores:     0.20 cores
+2026/04/09 23:08:38     • Memory:        0.10 GB
+2026/04/09 23:08:38     • Storage:       0.10 GB
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   ✓ Task accepted - Starting execution...
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38 
+2026/04/09 23:08:38 Task task-1775756316511411000 added to monitoring (total tasks: 2)
+2026/04/09 23:08:38 [Task task-1775756316511411000] Starting execution...
+2026/04/09 23:08:38 [Task task-1775756316511411000] Pulling image: alpine:3.20
+2026/04/09 23:08:38  
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   📥 TASK RECEIVED FROM MASTER
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   Task ID:           task-1775756316512903000
+2026/04/09 23:08:38   Docker Image:      alpine:3.20
+2026/04/09 23:08:38   Command:           echo ppo-e2e-task-3
+2026/04/09 23:08:38   Target Worker:     worker-ppo-e2e-1
+2026/04/09 23:08:38 ───────────────────────────────────────────────────────
+2026/04/09 23:08:38   System Requirements:
+2026/04/09 23:08:38     • CPU Cores:     0.20 cores
+2026/04/09 23:08:38     • Memory:        0.10 GB
+2026/04/09 23:08:38     • Storage:       0.10 GB
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   ✓ Task accepted - Starting execution...
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38 
+2026/04/09 23:08:38 Task task-1775756316512903000 added to monitoring (total tasks: 3)
+2026/04/09 23:08:38 [Task task-1775756316512903000] Starting execution...
+2026/04/09 23:08:38 [Task task-1775756316512903000] Pulling image: alpine:3.20
+2026/04/09 23:08:40 Heartbeat sent: CPU=10.4%, Memory=69.0%, Storage=75.4%, Tasks=3
+2026/04/09 23:08:42 [Task task-1775756316511411000] Creating container with resource limits (CPU: 0.20, Memory: 0.10GB)...
+2026/04/09 23:08:42 [Task task-1775756316511411000] ✓ Created secure output directory: /Users/codesmith28/.cloudai/outputs/task-1775756316511411000
+2026/04/09 23:08:42 [Task task-1775756316512903000] Creating container with resource limits (CPU: 0.20, Memory: 0.10GB)...
+2026/04/09 23:08:42 [Task task-1775756316512903000] ✓ Created secure output directory: /Users/codesmith28/.cloudai/outputs/task-1775756316512903000
+2026/04/09 23:08:42 [Task task-1775756316507928000] Creating container with resource limits (CPU: 0.20, Memory: 0.10GB)...
+2026/04/09 23:08:42 [Task task-1775756316507928000] ✓ Created secure output directory: /Users/codesmith28/.cloudai/outputs/task-1775756316507928000
+2026/04/09 23:08:42 [Task task-1775756316512903000] Starting container: e6e25d761aab
+2026/04/09 23:08:42 [Task task-1775756316511411000] Starting container: 83f9f10cefa2
+2026/04/09 23:08:42 [Task task-1775756316507928000] Starting container: f4804da4562d
+2026/04/09 23:08:42 [Task task-1775756316507928000] Waiting for completion...
+2026/04/09 23:08:42 [Task task-1775756316511411000] Waiting for completion...
+2026/04/09 23:08:42 [Task task-1775756316511411000] ✓ Completed successfully
+2026/04/09 23:08:42  
+2026/04/09 23:08:42 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:42   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/09 23:08:42 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:42   Task ID:           task-1775756316511411000
+2026/04/09 23:08:42   Docker Image:      alpine:3.20
+2026/04/09 23:08:42   Command:           echo ppo-e2e-task-2
+2026/04/09 23:08:42   Exit Code:         0
+2026/04/09 23:08:42 ───────────────────────────────────────────────────────
+2026/04/09 23:08:42   Resources Released:
+2026/04/09 23:08:42     • CPU Cores:     0.20 cores
+2026/04/09 23:08:42     • Memory:        0.10 GB
+2026/04/09 23:08:42 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:42 
+2026/04/09 23:08:42 Task task-1775756316511411000 removed from monitoring (total tasks: 2)
+2026/04/09 23:08:42 [Task task-1775756316507928000] ✓ Completed successfully
+2026/04/09 23:08:42  
+2026/04/09 23:08:42 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:42   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/09 23:08:42 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:42   Task ID:           task-1775756316507928000
+2026/04/09 23:08:42   Docker Image:      alpine:3.20
+2026/04/09 23:08:42   Command:           echo ppo-e2e-task-1
+2026/04/09 23:08:42   Exit Code:         0
+2026/04/09 23:08:42 ───────────────────────────────────────────────────────
+2026/04/09 23:08:42   Resources Released:
+2026/04/09 23:08:42     • CPU Cores:     0.20 cores
+2026/04/09 23:08:42     • Memory:        0.10 GB
+2026/04/09 23:08:42 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:42 
+2026/04/09 23:08:42 ✓ Task result reported: Task result received and processed
+2026/04/09 23:08:42 Task task-1775756316507928000 removed from monitoring (total tasks: 1)
+2026/04/09 23:08:42 ✓ Task result reported: Task result received and processed
+2026/04/09 23:08:43 [Task task-1775756316512903000] Waiting for completion...
+2026/04/09 23:08:43 [Task task-1775756316512903000] ✓ Completed successfully
+2026/04/09 23:08:43  
+2026/04/09 23:08:43 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:43   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/09 23:08:43 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:43   Task ID:           task-1775756316512903000
+2026/04/09 23:08:43   Docker Image:      alpine:3.20
+2026/04/09 23:08:43   Command:           echo ppo-e2e-task-3
+2026/04/09 23:08:43   Exit Code:         0
+2026/04/09 23:08:43 ───────────────────────────────────────────────────────
+2026/04/09 23:08:43   Resources Released:
+2026/04/09 23:08:43     • CPU Cores:     0.20 cores
+2026/04/09 23:08:43     • Memory:        0.10 GB
+2026/04/09 23:08:43 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:43 
+2026/04/09 23:08:43 Task task-1775756316512903000 removed from monitoring (total tasks: 0)
+2026/04/09 23:08:43 ✓ Task result reported: Task result received and processed
+2026/04/09 23:08:45 Heartbeat sent: CPU=9.2%, Memory=69.1%, Storage=75.4%, Tasks=0
+2026/04/09 23:08:50 Heartbeat sent: CPU=9.8%, Memory=69.2%, Storage=75.4%, Tasks=0
+2026/04/09 23:08:55 Heartbeat sent: CPU=9.5%, Memory=69.1%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:00 Heartbeat sent: CPU=10.2%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:05 Heartbeat sent: CPU=9.4%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:10 Heartbeat sent: CPU=7.8%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:15 Heartbeat sent: CPU=19.8%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:20 Heartbeat sent: CPU=10.4%, Memory=69.2%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:25 Heartbeat sent: CPU=11.9%, Memory=69.1%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:30 Heartbeat sent: CPU=9.0%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:35 Heartbeat sent: CPU=9.2%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:40 Heartbeat sent: CPU=9.3%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:45 Heartbeat sent: CPU=9.1%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:50 Heartbeat sent: CPU=10.3%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:55 Heartbeat sent: CPU=9.7%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:10:00 Heartbeat sent: CPU=8.4%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:10:05 Heartbeat sent: CPU=8.8%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:10:10 Heartbeat sent: CPU=9.8%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:10:15 Heartbeat sent: CPU=8.5%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:10:20 Heartbeat sent: CPU=10.2%, Memory=68.5%, Storage=75.4%, Tasks=0
+2026/04/09 23:10:25 Heartbeat sent: CPU=9.2%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:10:30 Heartbeat sent: CPU=10.3%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:10:35 Heartbeat sent: CPU=9.5%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:10:40 Heartbeat sent: CPU=11.4%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:10:45 Heartbeat sent: CPU=9.8%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:10:50 Heartbeat sent: CPU=10.4%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:10:55 Heartbeat sent: CPU=8.2%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:11:00 Heartbeat sent: CPU=10.3%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:11:05 Heartbeat sent: CPU=9.3%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:11:10 Heartbeat sent: CPU=8.9%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:11:15 Heartbeat sent: CPU=9.2%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:11:20 Heartbeat sent: CPU=10.2%, Memory=68.9%, Storage=75.4%, Tasks=0
+2026/04/09 23:11:25 Heartbeat sent: CPU=8.1%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:11:30 Heartbeat sent: CPU=10.1%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:11:35 Heartbeat sent: CPU=10.6%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:11:40 Heartbeat sent: CPU=9.4%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:11:45 Heartbeat sent: CPU=8.7%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:11:50 Heartbeat sent: CPU=9.3%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:11:55 Heartbeat sent: CPU=5.4%, Memory=68.3%, Storage=75.4%, Tasks=0
+2026/04/09 23:12:00 Heartbeat sent: CPU=5.2%, Memory=68.2%, Storage=75.4%, Tasks=0
+2026/04/09 23:12:05 Heartbeat sent: CPU=7.2%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:12:10 Heartbeat sent: CPU=8.4%, Memory=68.5%, Storage=75.4%, Tasks=0
+2026/04/09 23:12:13  
+2026/04/09 23:12:13 ═══════════════════════════════════════════════════════
+2026/04/09 23:12:13   📥 TASK RECEIVED FROM MASTER
+2026/04/09 23:12:13 ═══════════════════════════════════════════════════════
+2026/04/09 23:12:13   Task ID:           task-1775756529492855000
+2026/04/09 23:12:13   Docker Image:      alpine:3.20
+2026/04/09 23:12:13   Command:           echo ppo-negative-path
+2026/04/09 23:12:13   Target Worker:     worker-ppo-e2e-1
+2026/04/09 23:12:13 ───────────────────────────────────────────────────────
+2026/04/09 23:12:13   System Requirements:
+2026/04/09 23:12:13     • CPU Cores:     0.20 cores
+2026/04/09 23:12:13     • Memory:        0.10 GB
+2026/04/09 23:12:13     • Storage:       0.10 GB
+2026/04/09 23:12:13 ═══════════════════════════════════════════════════════
+2026/04/09 23:12:13   ✓ Task accepted - Starting execution...
+2026/04/09 23:12:13 ═══════════════════════════════════════════════════════
+2026/04/09 23:12:13 
+2026/04/09 23:12:13 Task task-1775756529492855000 added to monitoring (total tasks: 1)
+2026/04/09 23:12:13 [Task task-1775756529492855000] Starting execution...
+2026/04/09 23:12:13 [Task task-1775756529492855000] Pulling image: alpine:3.20
+2026/04/09 23:12:15 Heartbeat sent: CPU=9.9%, Memory=68.5%, Storage=75.4%, Tasks=1
+2026/04/09 23:12:15 [Task task-1775756529492855000] Creating container with resource limits (CPU: 0.20, Memory: 0.10GB)...
+2026/04/09 23:12:15 [Task task-1775756529492855000] ✓ Created secure output directory: /Users/codesmith28/.cloudai/outputs/task-1775756529492855000
+2026/04/09 23:12:15 [Task task-1775756529492855000] Starting container: 06e4f9a4994c
+2026/04/09 23:12:15 [Task task-1775756529492855000] Waiting for completion...
+2026/04/09 23:12:15 [Task task-1775756529492855000] ✓ Completed successfully
+2026/04/09 23:12:15  
+2026/04/09 23:12:15 ═══════════════════════════════════════════════════════
+2026/04/09 23:12:15   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/09 23:12:15 ═══════════════════════════════════════════════════════
+2026/04/09 23:12:15   Task ID:           task-1775756529492855000
+2026/04/09 23:12:15   Docker Image:      alpine:3.20
+2026/04/09 23:12:15   Command:           echo ppo-negative-path
+2026/04/09 23:12:15   Exit Code:         0
+2026/04/09 23:12:15 ───────────────────────────────────────────────────────
+2026/04/09 23:12:15   Resources Released:
+2026/04/09 23:12:15     • CPU Cores:     0.20 cores
+2026/04/09 23:12:15     • Memory:        0.10 GB
+2026/04/09 23:12:15 ═══════════════════════════════════════════════════════
+2026/04/09 23:12:15 
+2026/04/09 23:12:15 Task task-1775756529492855000 removed from monitoring (total tasks: 0)
+2026/04/09 23:12:15 ✓ Task result reported: Task result received and processed
+2026/04/09 23:12:20 Heartbeat sent: CPU=13.7%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:12:25 Heartbeat sent: CPU=10.0%, Memory=68.6%, Storage=75.4%, Tasks=0
+2026/04/09 23:12:30 Heartbeat sent: CPU=15.3%, Memory=68.1%, Storage=75.4%, Tasks=0
+2026/04/09 23:12:35 Heartbeat sent: CPU=19.4%, Memory=68.3%, Storage=75.4%, Tasks=0
+2026/04/09 23:12:40 Heartbeat sent: CPU=12.1%, Memory=68.1%, Storage=75.4%, Tasks=0
+2026/04/09 23:12:45 Heartbeat sent: CPU=12.9%, Memory=68.4%, Storage=75.4%, Tasks=0
+2026/04/09 23:12:50 Heartbeat sent: CPU=9.9%, Memory=68.5%, Storage=75.4%, Tasks=0
+2026/04/09 23:12:55 Heartbeat sent: CPU=8.7%, Memory=68.5%, Storage=75.4%, Tasks=0
+2026/04/09 23:13:00 Heartbeat sent: CPU=9.6%, Memory=68.3%, Storage=75.4%, Tasks=0
+2026/04/09 23:13:05 Heartbeat sent: CPU=9.2%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:13:10 Heartbeat sent: CPU=13.2%, Memory=68.8%, Storage=75.4%, Tasks=0
+2026/04/09 23:13:15 Heartbeat sent: CPU=9.9%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:13:20 Heartbeat sent: CPU=8.1%, Memory=68.7%, Storage=75.4%, Tasks=0
+2026/04/09 23:13:25 Heartbeat sent: CPU=5.6%, Memory=68.1%, Storage=75.4%, Tasks=0
+2026/04/09 23:13:30 Heartbeat sent: CPU=6.8%, Memory=68.3%, Storage=75.4%, Tasks=0
+
+╔═══════════════════════════════════════════════════════
+║  Shutdown signal received - gracefully shutting down...
+╚═══════════════════════════════════════════════════════
+╔═══════════════════════════════════════════════════════
+║  Worker Shutdown - Cleaning up running tasks...
+╚═══════════════════════════════════════════════════════
+  ✓ No running tasks to clean up
+  ✓ Telemetry monitor stopped

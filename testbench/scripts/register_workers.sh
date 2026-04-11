@@ -4,12 +4,72 @@ set -euo pipefail
 MASTER_URL="${MASTER_URL:-http://localhost:8080}"
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-40}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-2}"
+WORKER_SPECS="${WORKER_SPECS:-}"
 
-WORKERS=(
+DEFAULT_WORKERS=(
   "worker-small worker-small:50052"
   "worker-medium worker-medium:50052"
   "worker-large worker-large:50052"
 )
+WORKERS=()
+
+trim_whitespace() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf "%s" "${value}"
+}
+
+load_workers() {
+  if [[ -z "${WORKER_SPECS}" ]]; then
+    WORKERS=("${DEFAULT_WORKERS[@]}")
+    return 0
+  fi
+
+  local normalized
+  normalized="${WORKER_SPECS//$'\r'/}"
+  normalized="${normalized//;/$'\n'}"
+  normalized="${normalized//,/$'\n'}"
+
+  WORKERS=()
+  local raw_spec worker_id worker_addr extra
+  while IFS= read -r raw_spec; do
+    raw_spec="$(trim_whitespace "${raw_spec}")"
+    if [[ -z "${raw_spec}" ]]; then
+      continue
+    fi
+
+    worker_id=""
+    worker_addr=""
+    extra=""
+
+    if [[ "${raw_spec}" == *"="* ]]; then
+      worker_id="$(trim_whitespace "${raw_spec%%=*}")"
+      worker_addr="$(trim_whitespace "${raw_spec#*=}")"
+    else
+      IFS=$' \t' read -r worker_id worker_addr extra <<< "${raw_spec}"
+      worker_id="$(trim_whitespace "${worker_id}")"
+      worker_addr="$(trim_whitespace "${worker_addr}")"
+      extra="$(trim_whitespace "${extra}")"
+      if [[ -n "${extra}" ]]; then
+        echo "Invalid WORKER_SPECS entry '${raw_spec}'. Use worker_id=host:port." >&2
+        return 1
+      fi
+    fi
+
+    if [[ -z "${worker_id}" || -z "${worker_addr}" ]]; then
+      echo "Invalid WORKER_SPECS entry '${raw_spec}'. Use worker_id=host:port." >&2
+      return 1
+    fi
+
+    WORKERS+=("${worker_id} ${worker_addr}")
+  done <<< "${normalized}"
+
+  if [[ "${#WORKERS[@]}" -eq 0 ]]; then
+    echo "WORKER_SPECS was provided but no valid worker specs were found." >&2
+    return 1
+  fi
+}
 
 wait_for_master() {
   local attempt
@@ -33,23 +93,19 @@ register_worker() {
     local payload
     payload=$(printf '{"worker_id":"%s","worker_ip":"%s"}' "${worker_id}" "${worker_addr}")
 
-    local response_file
-    response_file="$(mktemp)"
     local status
     status=$(
-      curl -sS -o "${response_file}" -w "%{http_code}" \
+      curl -sS -o /dev/null -w "%{http_code}" \
         -X POST "${MASTER_URL}/api/workers" \
         -H "Content-Type: application/json" \
         -d "${payload}" || true
     )
 
     if [[ "${status}" == "201" ]]; then
-      rm -f "${response_file}"
       echo "Registered ${worker_id} (${worker_addr})"
       return 0
     fi
 
-    rm -f "${response_file}"
     sleep "${SLEEP_SECONDS}"
   done
 
@@ -58,8 +114,14 @@ register_worker() {
 }
 
 wait_for_workers_active() {
-  local target_ids
-  target_ids="$(printf "%s\n" "${WORKERS[@]}" | awk '{print $1}' | paste -sd, -)"
+  local target_ids_csv
+  local ids=()
+  local spec worker_id worker_addr
+  for spec in "${WORKERS[@]}"; do
+    IFS=$' \t' read -r worker_id worker_addr <<< "${spec}"
+    ids+=("${worker_id}")
+  done
+  target_ids_csv="$(IFS=,; printf "%s" "${ids[*]}")"
 
   local attempt
   for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
@@ -70,7 +132,7 @@ wait_for_workers_active() {
       continue
     fi
 
-    if TARGET_IDS="${target_ids}" WORKERS_JSON="${body}" python3 - <<'PY'
+    if TARGET_IDS="${target_ids_csv}" WORKERS_JSON="${body}" python3 - <<'PY'
 import json
 import os
 
@@ -110,12 +172,13 @@ PY
 }
 
 main() {
+  load_workers
   wait_for_master
 
-  local spec
+  local spec worker_id worker_addr
   for spec in "${WORKERS[@]}"; do
-    # shellcheck disable=SC2086
-    register_worker ${spec}
+    IFS=$' \t' read -r worker_id worker_addr <<< "${spec}"
+    register_worker "${worker_id}" "${worker_addr}"
   done
 
   wait_for_workers_active

@@ -1,4 +1,4 @@
-.PHONY: help all proto master worker clean setup test test-unit test-unit-verbose testbench-up testbench-prepare-images testbench-register testbench-workload testbench-suite testbench-down campaign campaign-full
+.PHONY: help all proto master worker clean setup test test-unit test-unit-verbose testbench-up testbench-prepare-images testbench-register testbench-workload testbench-suite testbench-suite-smoke testbench-suite-reliability testbench-suite-ui-smoke testbench-suite-evidence testbench-suite-full testbench-integration testbench-down testbench-host-up testbench-host-register testbench-host-suite testbench-host-suite-smoke testbench-host-suite-reliability testbench-host-suite-ui-smoke testbench-host-suite-evidence testbench-host-suite-full testbench-host-down campaign campaign-full
 
 # Default target
 help:
@@ -15,11 +15,18 @@ help:
 	@echo "  make test-unit    - Run Go unit tests (all packages)"
 	@echo "  make test-unit-verbose - Run Go unit tests with verbose output"
 	@echo "  make testbench-up - Build and start Docker testbench stack"
+	@echo "  make testbench-host-up - Start host-master worker stack (no master container)"
 	@echo "  make testbench-prepare-images - Build/load deterministic workflow image into worker DinD daemons"
 	@echo "  make testbench-register - Register testbench workers with master"
+	@echo "  make testbench-host-register - Register host-master workers with host-routable addresses"
 	@echo "  make testbench-workload - Prepare image, submit default workload, wait for completion"
-	@echo "  make testbench-suite - Start stack, register workers, run workload"
+	@echo "  make testbench-suite [SUITE_NAME=...] - Run scenario manifest (default: smoke)"
+	@echo "  make testbench-host-suite [SUITE_NAME=...] - Run suite against host-run master (default: smoke)"
+	@echo "  make testbench-suite-{smoke,reliability,ui-smoke,evidence,full} - Scenario shortcuts"
+	@echo "  make testbench-host-suite-{smoke,reliability,ui-smoke,evidence,full} - Host topology shortcuts"
+	@echo "  make testbench-integration - Run full Docker-backed integration + benchmark automation"
 	@echo "  make testbench-down - Stop and remove Docker testbench stack"
+	@echo "  make testbench-host-down - Stop host-master worker stack"
 	@echo "  make campaign     - Run evidence benchmark campaign (smoke workload)"
 	@echo "  make campaign-full - Run full campaign (all workloads + all scenarios)"
 	@echo ""
@@ -114,20 +121,70 @@ all: setup master worker
 testbench-up:
 	@docker compose -f testbench/docker-compose.yml up -d --build
 
+testbench-host-up:
+	@docker compose -f testbench/docker-compose.host-master.yml up -d --build
+
 testbench-prepare-images:
 	@testbench/scripts/prepare_workflow_images.sh
 
 testbench-register:
 	@testbench/scripts/register_workers.sh
 
+testbench-host-register:
+	@MASTER_URL=$${MASTER_URL:-http://localhost:8080} \
+	WORKER_SPECS=$${WORKER_SPECS:-worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054} \
+	testbench/scripts/register_workers.sh
+
 testbench-workload: testbench-prepare-images
 	@python3 testbench/scripts/run_workload.py
 
 testbench-suite:
-	@testbench/scripts/run_suite.sh
+	@SUITE_NAME=$${SUITE_NAME:-smoke} testbench/scripts/run_suite.sh
+
+testbench-suite-smoke:
+	@$(MAKE) testbench-suite SUITE_NAME=smoke
+
+testbench-suite-reliability:
+	@$(MAKE) testbench-suite SUITE_NAME=reliability
+
+testbench-suite-ui-smoke:
+	@$(MAKE) testbench-suite SUITE_NAME=ui-smoke
+
+testbench-suite-evidence:
+	@$(MAKE) testbench-suite SUITE_NAME=evidence
+
+testbench-suite-full:
+	@$(MAKE) testbench-suite SUITE_NAME=full
+
+testbench-integration:
+	@testbench/scripts/run_integration.sh
+
+testbench-host-suite:
+	@COMPOSE_FILE=testbench/docker-compose.host-master.yml \
+	WORKER_SPECS=$${WORKER_SPECS:-worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054} \
+	SUITE_NAME=$${SUITE_NAME:-smoke} \
+	testbench/scripts/run_suite.sh
+
+testbench-host-suite-smoke:
+	@$(MAKE) testbench-host-suite SUITE_NAME=smoke
+
+testbench-host-suite-reliability:
+	@$(MAKE) testbench-host-suite SUITE_NAME=reliability
+
+testbench-host-suite-ui-smoke:
+	@$(MAKE) testbench-host-suite SUITE_NAME=ui-smoke
+
+testbench-host-suite-evidence:
+	@$(MAKE) testbench-host-suite SUITE_NAME=evidence
+
+testbench-host-suite-full:
+	@$(MAKE) testbench-host-suite SUITE_NAME=full
 
 testbench-down:
 	@docker compose -f testbench/docker-compose.yml down --remove-orphans
+
+testbench-host-down:
+	@docker compose -f testbench/docker-compose.host-master.yml down --remove-orphans
 
 # Run evidence benchmark campaign across schedulers and scenarios
 campaign:
