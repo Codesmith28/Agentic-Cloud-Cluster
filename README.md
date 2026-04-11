@@ -49,7 +49,7 @@ User Interface (CLI/API)
 **Components:**
 - **Master**: Task assignment, worker management, telemetry aggregation, AOD training (gRPC: 50051, HTTP: 8080)
 - **Worker**: Docker execution, heartbeat monitoring (Port 50052+)
-- **Web UI**: React-based dashboard for monitoring (Port 3000)
+- **Web UI**: React-based dashboard for monitoring (Port 3001)
 - **Database**: MongoDB for persistence
 
 **Communication:**
@@ -98,7 +98,7 @@ cd ui && npm install && cd ..
 # Terminal 1: Start MongoDB
 cd database && docker-compose up -d
 
-# Terminal 2: Start Master (includes Web UI on port 3000)
+# Terminal 2: Start Master (includes Web UI on port 3001)
 ./runMaster.sh
 
 # Terminal 3: Start Worker  

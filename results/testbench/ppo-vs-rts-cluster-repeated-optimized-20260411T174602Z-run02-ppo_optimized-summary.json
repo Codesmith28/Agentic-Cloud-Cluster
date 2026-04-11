@@ -1,0 +1,117 @@
+{
+  "workload_file": "/home/codesmith28/Projects/ACC/BTEP/testbench/workloads/heterogeneous-smoke.json",
+  "started_at_unix": 1775929595.3471508,
+  "finished_at_unix": 1775929607.4179504,
+  "duration_seconds": 12.071,
+  "totals": {
+    "submitted": 10,
+    "completed": 10,
+    "failed": 0,
+    "cancelled": 0
+  },
+  "status_breakdown": {
+    "completed": 10
+  },
+  "tasks": [
+    {
+      "index": 1,
+      "task_id": "task-1775929595353169630",
+      "tag": "cpu-light",
+      "cpu_required": 0.5,
+      "memory_required": 0.25,
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "command": "/usr/local/bin/workflow cpu-light --iterations 420000 --seed 101",
+      "status": "completed"
+    },
+    {
+      "index": 2,
+      "task_id": "task-1775929595354868622",
+      "tag": "cpu-heavy",
+      "cpu_required": 1.0,
+      "memory_required": 0.5,
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "command": "/usr/local/bin/workflow cpu-heavy --iterations 3600000 --seed 202",
+      "status": "completed"
+    },
+    {
+      "index": 3,
+      "task_id": "task-1775929595355980351",
+      "tag": "memory-heavy",
+      "cpu_required": 0.7,
+      "memory_required": 1.0,
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "command": "/usr/local/bin/workflow memory-heavy --memory-mib 448 --passes 2 --seed 303",
+      "status": "completed"
+    },
+    {
+      "index": 4,
+      "task_id": "task-1775929595356787817",
+      "tag": "mixed",
+      "cpu_required": 1.2,
+      "memory_required": 1.2,
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "command": "/usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404",
+      "status": "completed"
+    },
+    {
+      "index": 5,
+      "task_id": "task-1775929595357578054",
+      "tag": "cpu-light",
+      "cpu_required": 0.4,
+      "memory_required": 0.25,
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "command": "/usr/local/bin/workflow cpu-light --iterations 520000 --seed 105",
+      "status": "completed"
+    },
+    {
+      "index": 6,
+      "task_id": "task-1775929595358479686",
+      "tag": "cpu-heavy",
+      "cpu_required": 1.5,
+      "memory_required": 0.75,
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "command": "/usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206",
+      "status": "completed"
+    },
+    {
+      "index": 7,
+      "task_id": "task-1775929595359269432",
+      "tag": "memory-heavy",
+      "cpu_required": 0.8,
+      "memory_required": 1.5,
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "command": "/usr/local/bin/workflow memory-heavy --memory-mib 576 --passes 3 --seed 307",
+      "status": "completed"
+    },
+    {
+      "index": 8,
+      "task_id": "task-1775929595359988420",
+      "tag": "mixed",
+      "cpu_required": 1.6,
+      "memory_required": 1.0,
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "command": "/usr/local/bin/workflow mixed --iterations 2000000 --memory-mib 256 --passes 2 --seed 408",
+      "status": "completed"
+    },
+    {
+      "index": 9,
+      "task_id": "task-1775929595360779506",
+      "tag": "cpu-light",
+      "cpu_required": 0.5,
+      "memory_required": 0.25,
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "command": "/usr/local/bin/workflow cpu-light --iterations 610000 --seed 109",
+      "status": "completed"
+    },
+    {
+      "index": 10,
+      "task_id": "task-1775929595361499602",
+      "tag": "cpu-heavy",
+      "cpu_required": 2.0,
+      "memory_required": 1.25,
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "command": "/usr/local/bin/workflow cpu-heavy --iterations 4800000 --seed 210",
+      "status": "completed"
+    }
+  ]
+}

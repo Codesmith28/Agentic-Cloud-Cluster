@@ -16,6 +16,7 @@ import (
 
 	"worker/internal/logstream"
 	workermetrics "worker/internal/metrics"
+	"worker/internal/system"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -212,6 +213,12 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 func (e *TaskExecutor) pullImage(ctx context.Context, imageName string) error {
 	out, err := e.dockerClient.ImagePull(ctx, imageName, image.PullOptions{})
 	if err != nil {
+		// In offline/dev environments, allow execution to continue when the image
+		// is already present locally but registry pull is unavailable.
+		if _, _, inspectErr := e.dockerClient.ImageInspectWithRaw(ctx, imageName); inspectErr == nil {
+			log.Printf("⚠️  Image pull failed for %s; using local image instead: %v", imageName, err)
+			return nil
+		}
 		return err
 	}
 	defer out.Close()
@@ -247,8 +254,10 @@ func (e *TaskExecutor) createContainer(ctx context.Context, image, command, task
 	log.Printf("[Task %s] ✓ Created secure output directory: %s", taskID, outputDir)
 
 	// Prepare host config with resource limits and volume mount
+	networkMode := system.ResolveWorkerContainerNetworkMode()
 	hostConfig := &container.HostConfig{
-		Resources: container.Resources{},
+		NetworkMode: container.NetworkMode(networkMode),
+		Resources:   container.Resources{},
 		Mounts: []mount.Mount{
 			{
 				Type:   mount.TypeBind,

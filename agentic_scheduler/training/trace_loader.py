@@ -86,6 +86,32 @@ def _classify_task_type(req_cpu: float, req_memory: float) -> str:
     return "mixed"
 
 
+def _normalize_alibaba_cpu(plan_cpu: float) -> float:
+    """Convert Alibaba plan_cpu to CPU cores.
+
+    Alibaba batch traces typically encode CPU in centi-core units where 100 means
+    1 full core. Some preprocessed variants already store cores directly.
+    """
+    if plan_cpu <= 0:
+        return 0.1
+    if plan_cpu > 10.0:
+        return max(plan_cpu / 100.0, 0.1)
+    return max(plan_cpu, 0.1)
+
+
+def _normalize_alibaba_memory(plan_mem: float) -> float:
+    """Convert Alibaba plan_mem to approximate GB.
+
+    Most rows encode memory as a fraction of a nominal host memory budget.
+    If the value is already >1, treat it as an absolute request.
+    """
+    if plan_mem <= 0:
+        return 0.1
+    if plan_mem <= 1.0:
+        return max(plan_mem * 64.0, 0.1)
+    return max(plan_mem, 0.1)
+
+
 def _normalise_tasks(tasks: List[TraceTask], max_tasks: int) -> Tuple[List[TraceTask], float, float]:
     tasks.sort(key=lambda t: t.arrival_time)
     if len(tasks) > max_tasks:
@@ -164,9 +190,8 @@ def load_alibaba_trace(
         for row in reader:
             start_time = _safe_float(row.get("start_time", "0"))
             end_time = _safe_float(row.get("end_time", "0"))
-            plan_cpu = _safe_float(row.get("plan_cpu", "1")) * 100  # Alibaba uses 0-100 scale
+            plan_cpu = _safe_float(row.get("plan_cpu", "1"))
             plan_mem = _safe_float(row.get("plan_mem", "0.5"))
-            status = row.get("status", "")
 
             # Skip tasks without valid timing
             if start_time <= 0:
@@ -176,9 +201,8 @@ def load_alibaba_trace(
             task_type_raw = str(row.get("task_type", "6"))
             task_type = ALIBABA_TASK_TYPE_MAP.get(task_type_raw, "mixed")
 
-            # Normalize CPU to cores (Alibaba uses "100" = 1 core)
-            req_cpu = max(plan_cpu / 100.0, 0.1)
-            req_memory = max(plan_mem * 64.0, 0.1)  # plan_mem fraction of total -> GB approx
+            req_cpu = _normalize_alibaba_cpu(plan_cpu)
+            req_memory = _normalize_alibaba_memory(plan_mem)
 
             tasks.append(TraceTask(
                 task_id=row.get("task_name", f"alibaba-{len(tasks)}"),

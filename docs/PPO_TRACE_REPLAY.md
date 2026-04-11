@@ -14,14 +14,16 @@ The trace replay environment supports window selection for controlled training o
 
 ```python
 from agentic_scheduler.training.trace_replay_env import TraceReplayEnv
-from agentic_scheduler.training.trace_loader import load_cluster_trace
+from agentic_scheduler.training.trace_loader import load_trace
 
 # Load trace data
-trace = load_cluster_trace(
-    csv_path="path/to/trace.csv",
+trace = load_trace(
+    trace_path="path/to/cloudai/replay",
+    source="cloudai",
+    max_tasks=5000,
     trace_window="imported",
     trace_window_start="2024-01-01T00:00:00Z",
-    trace_window_end="2024-01-01T04:00:00Z"
+    trace_window_end="2024-01-01T04:00:00Z",
 )
 
 # Create replay environment
@@ -76,9 +78,151 @@ python3 -m agentic_scheduler.train_ppo \
   --output agentic_scheduler/models/ppo_trained.pkl
 ```
 
+### Bootstrap Alibaba train/test (explicit)
+
+#### Dataset download source URLs used
+
+- `http://aliopentrace.oss-cn-beijing.aliyuncs.com/v2018Traces/machine_meta.tar.gz`
+- `http://aliopentrace.oss-cn-beijing.aliyuncs.com/v2018Traces/batch_task.tar.gz`
+- Upstream fetch script reference: `https://github.com/alibaba/clusterdata/blob/master/cluster-trace-v2018/fetchData.sh`
+
+#### Required local directories and canonical filenames
+
+- Bootstrap source directory (canonical raw CSV names):
+  - `agentic_scheduler/data/alibaba_v2018/bootstrap/machine_meta.csv`
+  - `agentic_scheduler/data/alibaba_v2018/bootstrap/batch_task.csv`
+- Explicit split directories used for training/evaluation:
+  - `agentic_scheduler/data/alibaba_v2018/train/machine_meta.csv`
+  - `agentic_scheduler/data/alibaba_v2018/train/batch_task.csv`
+  - `agentic_scheduler/data/alibaba_v2018/test/machine_meta.csv`
+  - `agentic_scheduler/data/alibaba_v2018/test/batch_task.csv`
+
+> CPU normalization note: Alibaba `plan_cpu` is normalized to cores (`100 => 1 core`) by the trace loader.
+
+#### Deterministic train/test slicing (200k train + 50k test rows)
+
+```bash
+mkdir -p agentic_scheduler/data/alibaba_v2018/train agentic_scheduler/data/alibaba_v2018/test
+
+MACHINE_HEADER='machine_id,time_stamp,failure_domain_1,failure_domain_2,cpu_num,mem_size,status'
+TASK_HEADER='task_name,instance_num,job_name,task_type,status,start_time,end_time,plan_cpu,plan_mem'
+
+{ printf '%s\n' "$MACHINE_HEADER"; cat agentic_scheduler/data/alibaba_v2018/bootstrap/machine_meta.csv; } \
+  > agentic_scheduler/data/alibaba_v2018/train/machine_meta.csv
+cp agentic_scheduler/data/alibaba_v2018/train/machine_meta.csv \
+  agentic_scheduler/data/alibaba_v2018/test/machine_meta.csv
+
+{ printf '%s\n' "$TASK_HEADER"; sed -n '1,200000p' agentic_scheduler/data/alibaba_v2018/bootstrap/batch_task.csv; } \
+  > agentic_scheduler/data/alibaba_v2018/train/batch_task.csv
+{ printf '%s\n' "$TASK_HEADER"; sed -n '200001,250000p' agentic_scheduler/data/alibaba_v2018/bootstrap/batch_task.csv; } \
+  > agentic_scheduler/data/alibaba_v2018/test/batch_task.csv
+```
+
+#### Training command (current `train_ppo.py` flags)
+
+```bash
+python3 -m agentic_scheduler.train_ppo \
+  --trace-source alibaba \
+  --trace-path agentic_scheduler/data/alibaba_v2018/train \
+  --max-trace-tasks 50000 \
+  --num-workers 4 \
+  --updates 120 \
+  --rollout-steps 1024 \
+  --gae-lambda 0.95 \
+  --ppo-epochs 10 \
+  --minibatch-size 256 \
+  --entropy-coeff 0.02 \
+  --lr-anneal \
+  --seed 84 \
+  --output agentic_scheduler/models/ppo_lw4_improved_seed84.pt
+```
+
+#### Evaluation command (explicit replay with `load_trace` + `TraceReplayEnv`)
+
+```bash
+python3 - <<'PY'
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
+import numpy as np
+import torch
+
+from agentic_scheduler.model import PPOState, choose_action
+from agentic_scheduler.training.trace_loader import load_trace
+from agentic_scheduler.training.trace_replay_env import TraceReplayEnv
+
+model_path = Path("agentic_scheduler/models/ppo_lw4_improved_seed84.pt")
+trace = load_trace(
+    trace_path="agentic_scheduler/data/alibaba_v2018/test",
+    source="alibaba",
+    max_tasks=50000,
+)
+env = TraceReplayEnv(trace, num_workers=4, loop=False)
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+state = PPOState.from_checkpoint_bytes(
+    model_path.read_bytes(),
+    learning_rate=3e-4,
+    device=device,
+)
+
+obs, _ = env.reset(seed=42)
+target_steps = 50000
+rewards = []
+feasible = 0
+
+for _ in range(target_steps):
+    action_mask = obs["action_mask"].astype(bool)
+    if action_mask.any():
+        action_info = choose_action(
+            state,
+            task_features=obs["task"],
+            worker_features=obs["workers"],
+            action_mask=action_mask,
+            device=device,
+            deterministic=True,
+            headroom_bias=0.15,
+        )
+        if action_info is None:
+            action = int(np.where(action_mask)[0][0])
+        else:
+            action = int(action_info["action_index"])
+    else:
+        action = 0
+
+    obs, reward, terminated, truncated, info = env.step(action)
+    rewards.append(float(reward))
+    feasible += int(bool(info.get("feasible", False)))
+    if terminated or truncated:
+        break
+
+report = {
+    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    "model_path": str(model_path),
+    "trace_source": "alibaba",
+    "trace_path": "agentic_scheduler/data/alibaba_v2018/test",
+    "target_steps": target_steps,
+    "evaluated_steps": len(rewards),
+    "mean_reward": float(np.mean(rewards)) if rewards else 0.0,
+    "feasible_action_rate": (feasible / len(rewards)) if rewards else 0.0,
+}
+
+report_path = Path("results") / f"ppo-bootstrap-eval-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
+report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+print(report_path)
+PY
+```
+
+#### Output artifacts
+
+- Model checkpoint: `agentic_scheduler/models/ppo_lw4_improved_seed84.pt`
+- Comparison report: `results/ppo-lw4-final-comparison-20260411T122233Z.json`
+- Single-model eval report pattern: `results/ppo-bootstrap-eval-<timestamp>.json`
+
 ### Checkpointing and Resume
 
-`train_ppo.py` saves checkpoints as `.pkl` payloads.
+`train_ppo.py` writes PyTorch checkpoint payloads (`.pkl` for periodic checkpoints by default; `--output` can use `.pkl` or `.pt`).
 
 - Periodic local checkpoints are enabled by default (`--checkpoint-every 10`) and written under `--checkpoint-dir` using `--checkpoint-prefix`.
 - Each periodic save also updates `<checkpoint-prefix>_latest.pkl` for quick resume.
@@ -94,6 +238,24 @@ python3 -m agentic_scheduler.train_ppo \
   --resume-latest \
   --checkpoint-dir agentic_scheduler/models/checkpoints
 ```
+
+### Reproducibility knobs for optimization evidence (2026-04-11)
+
+For the repeated optimized cluster comparison (`results/testbench/ppo-vs-rts-cluster-repeated-optimized-20260411T174602Z.json`), the recorded PPO runtime settings were:
+
+- `PPO_MODEL_PATH=/home/codesmith28/Projects/ACC/BTEP/agentic_scheduler/models/ppo_optA_u140_r2048_e8_mb512_ent0010_seed84.pt`
+- `PPO_DETERMINISTIC_BIAS=0.20`
+- `PPO_ONLINE_UPDATES_ENABLED=false`
+
+Service behavior note for reproducibility:
+- when `PPO_MODEL_PATH` exists, the service preloads that local checkpoint at startup and reuses the preloaded state for the first fingerprint load (instead of re-reading the same file), then optionally persists it for that fingerprint.
+- when `PPO_MODEL_PATH=latest` (default), the service resolves the newest checkpoint (`.pt`/`.pkl`) under `agentic_scheduler/models/` at startup.
+- on graceful shutdown, the service flushes any buffered online-update samples and persists the active fingerprint model snapshot to MongoDB.
+
+Related selection artifacts:
+- `results/ppo-opt-sweep-a-20260411T161235Z.json`
+- `results/ppo-opt-sweep-b-20260411T161342Z.json`
+- `results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z.json`
 
 ### Optional Mongo Checkpoint Persistence/Resume
 
@@ -179,6 +341,7 @@ export PPO_REQUEST_TIMEOUT_MS=1500
 
 Configuration:
 - `PPO_ONLINE_UPDATES_ENABLED`: Enable/disable online updates (default: true)
+- `PPO_DETERMINISTIC_BIAS`: Headroom reranking bias for deterministic PPO inference (default: 0.25)
 - `PPO_GRPC_ADDR`: PPO service gRPC endpoint
 - `PPO_REQUEST_TIMEOUT_MS`: Timeout for PPO decisions (default: 1500ms)
 - `PPO_AUTOSTART`: Auto-start PPO service if available (default: true)
@@ -196,11 +359,12 @@ With online updates enabled:
 |----------|---------|-------------|
 | `PPO_DEPLOYMENT_MODE` | `active` | Deployment mode: `shadow`, `active`, or `fallback` |
 | `PPO_ONLINE_UPDATES_ENABLED` | `true` | Enable online model updates |
+| `PPO_DETERMINISTIC_BIAS` | `0.25` | Deterministic inference reranking strength (higher favors capacity headroom prior) |
 | `PPO_PREFER_GPU` | `true` | Prefer CUDA for PPO service; fallback to CPU if unavailable |
 | `PPO_GRPC_ADDR` | `127.0.0.1:50061` | PPO gRPC service endpoint |
 | `PPO_REQUEST_TIMEOUT_MS` | `1500` | Timeout for PPO decisions (ms) |
 | `PPO_AUTOSTART` | `true` | Auto-start PPO service |
-| `PPO_MODEL_PATH` | `agentic_scheduler/models/ppo_latest.pt` | Path to PPO model file |
+| `PPO_MODEL_PATH` | `latest` | Startup model selector (`latest`, a checkpoint directory, or an explicit file path) |
 | `SCHED_ALGO` | `RTS` | Scheduler algorithm: `RR`, `RTS`, or `PPO` |
 
 ### Training Script CLI Options
@@ -216,7 +380,15 @@ python3 -m agentic_scheduler.train_ppo --help
 | `--rollout-steps` | `1024` | Steps collected per PPO update |
 | `--updates` | `200` | Number of PPO updates |
 | `--gamma` | `0.99` | Discount factor |
+| `--gae-lambda` | `0.95` | GAE lambda for bias/variance trade-off in advantages |
 | `--learning-rate` | `3e-4` | PPO learning rate |
+| `--clip-ratio` | `0.2` | PPO policy clip ratio |
+| `--entropy-coeff` | `0.01` | Entropy regularization coefficient |
+| `--value-coeff` | `0.5` | Value loss coefficient |
+| `--value-clip-range` | `0.2` | Value function clipping range |
+| `--ppo-epochs` | `6` | PPO optimization epochs per rollout batch |
+| `--minibatch-size` | `256` | PPO minibatch size (`<=0` uses full batch) |
+| `--lr-anneal` / `--no-lr-anneal` | `true` | Enable/disable linear LR annealing across updates |
 | `--seed` | `42` | Random seed for NumPy/PyTorch/environment |
 | `--output` | `agentic_scheduler/models/ppo_trained.pkl` | Final output checkpoint path |
 | `--checkpoint-dir` | `agentic_scheduler/models/checkpoints` | Local periodic checkpoint directory |
@@ -283,8 +455,8 @@ docker logs master | grep -i ppo
 **Model file not found:**
 
 ```bash
-# Verify model exists and is readable
-ls -la agentic_scheduler/models/ppo_latest.pt
+# Inspect newest available checkpoints selected by PPO_MODEL_PATH=latest
+ls -lt agentic_scheduler/models/*.{pt,pkl} 2>/dev/null | head
 
 # Use PPO_MODEL_PATH to specify custom path
 export PPO_MODEL_PATH=/custom/path/to/model.pt

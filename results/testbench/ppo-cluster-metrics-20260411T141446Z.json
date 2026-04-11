@@ -1,0 +1,13 @@
+{
+  "scheduler": "PPO",
+  "summary_file": "results/testbench/ppo-cluster-compare-20260411T141446Z.json",
+  "submitted": 10,
+  "completed": 10,
+  "failed": 0,
+  "success_rate": 1.0,
+  "duration_seconds": 12.085,
+  "mean_queue_wait_seconds": 5.0,
+  "p95_queue_wait_seconds": 8.0,
+  "mean_turnaround_seconds": 7.9,
+  "mean_attempts_per_task": 1
+}

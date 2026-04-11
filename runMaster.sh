@@ -7,6 +7,7 @@
 #   master> register <worker_id> <worker_ip:port>
 
 echo "Starting Master Node from script"
+UI_PORT="${WEBUI_PORT:-3001}"
 
 # Check if MongoDB is running (optional but recommended)
 if ! docker ps | grep -q mongo; then
@@ -19,10 +20,11 @@ fi
 echo "Starting UI (npm run dev) in background..."
 (
     cd ui || exit
-    npm run dev
+    npm run dev -- --port "$UI_PORT" --strictPort
 ) &
 UI_PID=$!
-echo "Frontend started on port 3000 (PID: $UI_PID)"
+echo "Frontend started on port $UI_PORT (PID: $UI_PID)"
+echo "Web UI URL: http://localhost:$UI_PORT"
 
 # Function to safely cleanup UI
 cleanup() {

@@ -1,0 +1,90 @@
+{
+  "timestamp_utc": "2026-04-11T11:50:08.170035+00:00",
+  "data_source": "alibaba-v2018-corrected-cpu-scaling",
+  "train_trace": "agentic_scheduler/data/alibaba_v2018/train",
+  "test_trace": "agentic_scheduler/data/alibaba_v2018/test",
+  "baselines": [
+    {
+      "policy": "round_robin",
+      "evaluated_steps": 49909,
+      "mean_reward": 0.8688396804996386,
+      "feasible_action_rate": 0.9437977118355407
+    },
+    {
+      "policy": "first_feasible",
+      "evaluated_steps": 49909,
+      "mean_reward": 0.8145109838322555,
+      "feasible_action_rate": 0.9480053697729869
+    },
+    {
+      "policy": "max_available",
+      "evaluated_steps": 49909,
+      "mean_reward": 0.8800201306133255,
+      "feasible_action_rate": 0.9484461720331002
+    }
+  ],
+  "ppo_reference": {
+    "policy": "ppo_lw4_preupgrade_corrected.pt",
+    "evaluated_steps": 49909,
+    "mean_reward": 0.8790712730460492,
+    "feasible_action_rate": 0.9483660261676251
+  },
+  "ppo_candidates": [
+    {
+      "model_path": "agentic_scheduler/models/ppo_lw4_improved_u120_e10_mb256.pt",
+      "name": "ppo_lw4_improved_u120_e10_mb256.pt",
+      "updates": 120,
+      "rollout_steps": 1024,
+      "ppo_epochs": 10,
+      "minibatch_size": 256,
+      "entropy_coeff": 0.02,
+      "lr_anneal": true,
+      "policy": "ppo_lw4_improved_u120_e10_mb256.pt",
+      "evaluated_steps": 49909,
+      "mean_reward": 0.8797178495244599,
+      "feasible_action_rate": 0.9483860626339938
+    },
+    {
+      "model_path": "agentic_scheduler/models/ppo_lw4_improved_u80_e8_mb512.pt",
+      "name": "ppo_lw4_improved_u80_e8_mb512.pt",
+      "updates": 80,
+      "rollout_steps": 2048,
+      "ppo_epochs": 8,
+      "minibatch_size": 512,
+      "entropy_coeff": 0.015,
+      "lr_anneal": true,
+      "policy": "ppo_lw4_improved_u80_e8_mb512.pt",
+      "evaluated_steps": 49909,
+      "mean_reward": 0.8793329032202114,
+      "feasible_action_rate": 0.9484261355667315
+    },
+    {
+      "model_path": "agentic_scheduler/models/ppo_lw4_improved_u80_e8_mb256.pt",
+      "name": "ppo_lw4_improved_u80_e8_mb256.pt",
+      "updates": 80,
+      "rollout_steps": 1024,
+      "ppo_epochs": 8,
+      "minibatch_size": 256,
+      "entropy_coeff": 0.015,
+      "lr_anneal": true,
+      "policy": "ppo_lw4_improved_u80_e8_mb256.pt",
+      "evaluated_steps": 49909,
+      "mean_reward": 0.860416728377638,
+      "feasible_action_rate": 0.948566390831313
+    }
+  ],
+  "best_ppo": {
+    "model_path": "agentic_scheduler/models/ppo_lw4_improved_u120_e10_mb256.pt",
+    "name": "ppo_lw4_improved_u120_e10_mb256.pt",
+    "updates": 120,
+    "rollout_steps": 1024,
+    "ppo_epochs": 10,
+    "minibatch_size": 256,
+    "entropy_coeff": 0.02,
+    "lr_anneal": true,
+    "policy": "ppo_lw4_improved_u120_e10_mb256.pt",
+    "evaluated_steps": 49909,
+    "mean_reward": 0.8797178495244599,
+    "feasible_action_rate": 0.9483860626339938
+  }
+}

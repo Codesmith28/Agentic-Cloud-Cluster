@@ -54,11 +54,14 @@ cd ui
 # Install dependencies
 npm install
 
-# Start development server
+# Start development server (default port: 3001)
 npm run dev
+
+# Optional: override port explicitly
+WEBUI_PORT=3002 npm run dev
 ```
 
-The app will be available at `http://localhost:3000`
+The app will be available at `http://localhost:3001`
 
 ## Build for Production
 
@@ -69,7 +72,8 @@ npm run preview  # Preview production build
 
 ## API Configuration
 
-Edit `.env` file to configure backend URLs:
+Development mode uses the Vite proxy (`/api` -> `http://localhost:8080`) by default.
+If you need direct backend URLs, create a `.env` file:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8080
@@ -188,11 +192,9 @@ npm install
 ```
 
 ### Port Already in Use
-Edit `vite.config.js` to change port:
-```js
-server: {
-  port: 3001, // Change port
-}
+Run with an explicit port:
+```bash
+WEBUI_PORT=3002 npm run dev
 ```
 
 ## License

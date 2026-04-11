@@ -21,21 +21,30 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: checkOrigin,
 }
 
-func checkOrigin(r *http.Request) bool {
-	allowed := os.Getenv("ALLOWED_ORIGINS")
+func allowedOriginsSet() map[string]bool {
+	allowed := strings.TrimSpace(os.Getenv("ALLOWED_ORIGINS"))
 	if allowed == "" {
-		allowed = "http://localhost:3000"
+		allowed = "http://localhost:3000,http://localhost:3001"
 	}
+
+	allowedSet := make(map[string]bool)
+	for _, origin := range strings.Split(allowed, ",") {
+		trimmed := strings.TrimSpace(origin)
+		if trimmed != "" {
+			allowedSet[trimmed] = true
+		}
+	}
+
+	return allowedSet
+}
+
+func checkOrigin(r *http.Request) bool {
+	allowedSet := allowedOriginsSet()
 	origin := r.Header.Get("Origin")
 	if origin == "" {
 		return true // Non-browser clients
 	}
-	for _, a := range strings.Split(allowed, ",") {
-		if strings.TrimSpace(a) == origin {
-			return true
-		}
-	}
-	return false
+	return allowedSet[origin]
 }
 
 // WSClient represents a WebSocket client connection
@@ -96,14 +105,7 @@ func NewTelemetryServer(port int, telemetryMgr *telemetry.TelemetryManager) *Tel
 
 // corsMiddleware adds CORS headers to all responses
 func corsMiddleware(next http.Handler) http.Handler {
-	allowed := os.Getenv("ALLOWED_ORIGINS")
-	if allowed == "" {
-		allowed = "http://localhost:3000"
-	}
-	allowedSet := make(map[string]bool)
-	for _, o := range strings.Split(allowed, ",") {
-		allowedSet[strings.TrimSpace(o)] = true
-	}
+	allowedSet := allowedOriginsSet()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")

@@ -46,9 +46,9 @@ class TraceReplayEnv(gym.Env):
     """Replay a cluster trace as a Gymnasium RL environment.
 
     Each ``step()`` presents the next task from the trace.  The agent selects a
-    worker (action) and receives a reward based on load balancing, feasibility,
-    and SLA performance.  Active task loads decay over time proportional to the
-    inter-arrival gap between consecutive tasks.
+    worker (action) and receives a reward based on feasibility, queue/turnaround
+    proxies, tail-risk pressure, and load balance.  Active task loads decay over
+    time proportional to the inter-arrival gap between consecutive tasks.
 
     Parameters
     ----------
@@ -134,19 +134,19 @@ class TraceReplayEnv(gym.Env):
 
         selected = self.workers[action]
         feasible = self._is_feasible(self.current_task, selected)
+        reward_details = {
+            "queue_pressure": 0.0,
+            "turnaround_pressure": 0.0,
+            "tail_pressure": 0.0,
+            "imbalance_penalty": 0.0,
+        }
 
         # Reward
         if feasible:
             self._apply_task(selected, self.current_task)
-            load_penalty = self._normalised_load(selected)
-            reward = 1.2 - load_penalty
-
-            # Bonus for scheduling a task that matches worker strength
-            if self.current_task.runtime_seconds > 0:
-                runtime_penalty = min(self.current_task.runtime_seconds / 600.0, 0.3)
-                reward -= runtime_penalty
+            reward, reward_details = self._quality_reward(selected, self.current_task)
         else:
-            reward = -1.4
+            reward = -1.8
 
         # Advance to next task
         self._task_idx += 1
@@ -158,7 +158,8 @@ class TraceReplayEnv(gym.Env):
                 self._prev_arrival = 0.0
             else:
                 terminated = True
-                return self._observation(), float(reward), terminated, False, {"feasible": feasible}
+                terminal_info = {"feasible": feasible, **reward_details}
+                return self._observation(), float(reward), terminated, False, terminal_info
 
         next_task = self.tasks[self._task_idx]
 
@@ -169,7 +170,7 @@ class TraceReplayEnv(gym.Env):
 
         self.current_task = next_task
 
-        info = {"feasible": feasible, "task_idx": self._task_idx}
+        info = {"feasible": feasible, "task_idx": self._task_idx, **reward_details}
         return self._observation(), float(reward), terminated, False, info
 
     # ------------------------------------------------------------------
@@ -239,6 +240,40 @@ class TraceReplayEnv(gym.Env):
         mem = _safe_ratio(worker.used_memory, worker.total_memory)
         sto = _safe_ratio(worker.used_storage, worker.total_storage)
         return min((cpu + mem + sto) / 3.0, 1.5)
+
+    def _quality_reward(self, selected: _WorkerState, task: TraceTask) -> Tuple[float, Dict[str, float]]:
+        runtime_seconds = max(float(task.runtime_seconds), 1.0)
+        sla_multiplier = max(float(task.sla_multiplier), 1.0)
+        projected_load = self._normalised_load(selected)
+        cluster_load = float(np.mean([self._normalised_load(worker) for worker in self.workers]))
+
+        trace_queue_wait = max(float(task.queue_wait_seconds), 0.0)
+        queue_wait_proxy = trace_queue_wait + (runtime_seconds * projected_load)
+        turnaround_proxy = queue_wait_proxy + runtime_seconds
+        sla_budget = max(runtime_seconds * sla_multiplier, 1.0)
+
+        queue_pressure = min(queue_wait_proxy / sla_budget, 3.0)
+        turnaround_pressure = min(turnaround_proxy / sla_budget, 4.0)
+        tail_pressure = max(turnaround_pressure - 1.0, 0.0)
+        imbalance_penalty = max(projected_load - cluster_load, 0.0)
+        headroom_bonus = 1.0 - projected_load
+        requeue_penalty = min(float(task.requeue_count), 4.0) * 0.05
+
+        reward = (
+            1.4
+            + (0.25 * headroom_bonus)
+            - (0.35 * queue_pressure)
+            - (0.55 * tail_pressure)
+            - (0.20 * imbalance_penalty)
+            - requeue_penalty
+        )
+
+        return float(reward), {
+            "queue_pressure": float(queue_pressure),
+            "turnaround_pressure": float(turnaround_pressure),
+            "tail_pressure": float(tail_pressure),
+            "imbalance_penalty": float(imbalance_penalty),
+        }
 
     def _decay_loads(self, dt: float) -> None:
         """Decay worker loads based on elapsed time.
