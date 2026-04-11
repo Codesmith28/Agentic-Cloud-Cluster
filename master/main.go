@@ -1070,7 +1070,7 @@ func startPPOServiceIfNeeded(cfg *config.Config) (*exec.Cmd, error) {
 
 	modelPath := cfg.PPOModelPath
 	if modelPath == "" {
-		modelPath = "agentic_scheduler/models/ppo_latest.pt"
+		modelPath = "latest"
 	}
 
 	cmd := exec.Command(

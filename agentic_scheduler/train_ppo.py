@@ -28,7 +28,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rollout-steps", type=int, default=1024)
     parser.add_argument("--updates", type=int, default=200)
     parser.add_argument("--gamma", type=float, default=0.99)
+    parser.add_argument("--gae-lambda", type=float, default=0.95)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
+    parser.add_argument("--clip-ratio", type=float, default=0.2)
+    parser.add_argument("--entropy-coeff", type=float, default=0.01)
+    parser.add_argument("--value-coeff", type=float, default=0.5)
+    parser.add_argument("--value-clip-range", type=float, default=0.2)
+    parser.add_argument("--ppo-epochs", type=int, default=6)
+    parser.add_argument("--minibatch-size", type=int, default=256)
+    parser.add_argument(
+        "--lr-anneal",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Linearly anneal learning rate to 0 over updates",
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", default="agentic_scheduler/models/ppo_trained.pkl")
     parser.add_argument("--checkpoint-dir", default="agentic_scheduler/models/checkpoints")
@@ -245,15 +258,25 @@ def resume_state_from_mongo(
     return state
 
 
-def discounted_returns(rewards: np.ndarray, dones: np.ndarray, gamma: float) -> np.ndarray:
-    out = np.zeros_like(rewards, dtype=np.float32)
-    running = 0.0
+def generalized_advantage_estimation(
+    rewards: np.ndarray,
+    dones: np.ndarray,
+    values: np.ndarray,
+    next_value: float,
+    gamma: float,
+    gae_lambda: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    advantages = np.zeros_like(rewards, dtype=np.float32)
+    gae = 0.0
     for i in reversed(range(len(rewards))):
-        if dones[i]:
-            running = 0.0
-        running = rewards[i] + gamma * running
-        out[i] = running
-    return out
+        not_done = 1.0 - float(dones[i])
+        bootstrap_value = float(next_value) if i == (len(rewards) - 1) else float(values[i + 1])
+        delta = rewards[i] + gamma * bootstrap_value * not_done - values[i]
+        gae = delta + gamma * gae_lambda * not_done * gae
+        advantages[i] = gae
+
+    returns = advantages + values
+    return advantages.astype(np.float32), returns.astype(np.float32)
 
 
 def build_lineage_metadata(args: argparse.Namespace, trace) -> dict:
@@ -366,6 +389,12 @@ def main() -> None:
         recent_rewards = []
 
         for update_idx in range(1, args.updates + 1):
+            if args.lr_anneal and args.updates > 1:
+                frac = 1.0 - ((update_idx - 1) / float(args.updates - 1))
+                current_lr = max(args.learning_rate * frac, 1e-6)
+                for param_group in state.optimizer.param_groups:
+                    param_group["lr"] = current_lr
+
             transitions = []
             step_rewards = []
 
@@ -374,28 +403,27 @@ def main() -> None:
                 worker_features = observation["workers"]
                 action_mask = observation["action_mask"].astype(bool)
 
-                if not action_mask.any():
-                    action = int(np.random.randint(0, env.num_workers))
+                action_info = choose_action(
+                    state,
+                    task_features=task_features,
+                    worker_features=worker_features,
+                    action_mask=action_mask,
+                    device=device,
+                    deterministic=False,
+                )
+                if action_info is None:
+                    feasible_ids = np.where(action_mask)[0]
+                    if feasible_ids.size:
+                        action = int(np.random.choice(feasible_ids))
+                    else:
+                        action = int(np.random.randint(0, env.num_workers))
                     old_log_prob = 0.0
                     old_value = 0.0
                 else:
-                    action_info = choose_action(
-                        state,
-                        task_features=task_features,
-                        worker_features=worker_features,
-                        action_mask=action_mask,
-                        device=device,
-                    )
-                    if action_info is None:
-                        feasible_ids = np.where(action_mask)[0]
-                        action = int(feasible_ids[0]) if feasible_ids.size else 0
-                        old_log_prob = 0.0
-                        old_value = 0.0
-                    else:
-                        action = int(action_info["action_index"])
-                        old_log_prob = float(action_info["log_prob"])
-                        old_value = float(action_info["value"])
-                        worker_features = np.asarray(action_info["normalized_worker_features"], dtype=np.float32)
+                    action = int(action_info["action_index"])
+                    old_log_prob = float(action_info["log_prob"])
+                    old_value = float(action_info["value"])
+                    worker_features = np.asarray(action_info["normalized_worker_features"], dtype=np.float32)
 
                 next_observation, reward, terminated, truncated, _ = env.step(action)
                 done = bool(terminated or truncated)
@@ -420,9 +448,25 @@ def main() -> None:
 
             rewards = np.asarray([x["reward"] for x in transitions], dtype=np.float32)
             dones = np.asarray([x["done"] for x in transitions], dtype=np.bool_)
-            returns = discounted_returns(rewards, dones, args.gamma)
-            old_values = np.asarray([x["old_value"] for x in transitions], dtype=np.float32)
-            advantages = returns - old_values
+            values = np.asarray([x["old_value"] for x in transitions], dtype=np.float32)
+            bootstrap_info = choose_action(
+                state,
+                task_features=observation["task"],
+                worker_features=observation["workers"],
+                action_mask=observation["action_mask"].astype(bool),
+                device=device,
+                deterministic=True,
+                headroom_bias=0.0,
+            )
+            next_value = float(bootstrap_info["value"]) if bootstrap_info is not None else 0.0
+            advantages, returns = generalized_advantage_estimation(
+                rewards=rewards,
+                dones=dones,
+                values=values,
+                next_value=next_value,
+                gamma=args.gamma,
+                gae_lambda=args.gae_lambda,
+            )
             advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
             batch = {
@@ -451,6 +495,7 @@ def main() -> None:
                     dtype=torch.float32,
                     device=device,
                 ),
+                "old_values": torch.as_tensor(values, dtype=torch.float32, device=device),
                 "returns": torch.as_tensor(returns, dtype=torch.float32, device=device),
                 "advantages": torch.as_tensor(advantages, dtype=torch.float32, device=device),
             }
@@ -458,10 +503,12 @@ def main() -> None:
             ppo_update(
                 state,
                 batch=batch,
-                clip_ratio=0.2,
-                entropy_coeff=0.01,
-                value_coeff=0.5,
-                epochs=6,
+                clip_ratio=args.clip_ratio,
+                entropy_coeff=args.entropy_coeff,
+                value_coeff=args.value_coeff,
+                epochs=args.ppo_epochs,
+                minibatch_size=args.minibatch_size,
+                value_clip_range=args.value_clip_range,
             )
 
             recent_rewards.extend(step_rewards)

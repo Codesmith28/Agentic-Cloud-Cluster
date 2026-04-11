@@ -57,3 +57,24 @@ func TestApplyResourceOverrides(t *testing.T) {
 		t.Fatalf("storage override mismatch: got %.2f", resources.TotalStorage)
 	}
 }
+
+func TestResolveWorkerContainerNetworkModeDefaultsToBridge(t *testing.T) {
+	t.Setenv(workerContainerNetEnv, "")
+	if mode := ResolveWorkerContainerNetworkMode(); mode != "bridge" {
+		t.Fatalf("expected default network mode bridge, got %q", mode)
+	}
+}
+
+func TestResolveWorkerContainerNetworkModeAcceptsHost(t *testing.T) {
+	t.Setenv(workerContainerNetEnv, "host")
+	if mode := ResolveWorkerContainerNetworkMode(); mode != "host" {
+		t.Fatalf("expected network mode host, got %q", mode)
+	}
+}
+
+func TestResolveWorkerContainerNetworkModeRejectsInvalid(t *testing.T) {
+	t.Setenv(workerContainerNetEnv, "invalid-mode")
+	if mode := ResolveWorkerContainerNetworkMode(); mode != "bridge" {
+		t.Fatalf("expected fallback network mode bridge, got %q", mode)
+	}
+}

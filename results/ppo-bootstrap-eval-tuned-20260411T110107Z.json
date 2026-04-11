@@ -1,0 +1,9 @@
+{
+  "timestamp_utc": "2026-04-11T11:01:07.563294+00:00",
+  "model_path": "agentic_scheduler/models/ppo_alibaba_bootstrap_tuned.pt",
+  "trace_source": "alibaba",
+  "trace_path": "agentic_scheduler/data/alibaba_v2018/test",
+  "evaluated_steps": 49909,
+  "mean_reward": -0.7031325804343551,
+  "feasible_action_rate": 0.3082810715502214
+}

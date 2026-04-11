@@ -48,7 +48,7 @@ func LoadConfig() *Config {
 	ppoAddr := getEnv("PPO_GRPC_ADDR", "127.0.0.1:50061")
 	ppoRequestTimeout := getEnvInt("PPO_REQUEST_TIMEOUT_MS", 1500)
 	ppoAutostart := getEnvBool("PPO_AUTOSTART", true)
-	ppoModelPath := getEnv("PPO_MODEL_PATH", "agentic_scheduler/models/ppo_latest.pt")
+	ppoModelPath := getEnv("PPO_MODEL_PATH", "latest")
 	ppoDeploymentMode := normalizePPODeploymentMode(getEnv("PPO_DEPLOYMENT_MODE", "active"))
 	ppoOnlineUpdates := getEnvBool("PPO_ONLINE_UPDATES_ENABLED", true)
 	headless := getEnvBool("CLOUDAI_HEADLESS", false)

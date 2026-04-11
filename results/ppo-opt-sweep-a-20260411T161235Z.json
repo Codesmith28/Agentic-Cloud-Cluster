@@ -1,0 +1,142 @@
+{
+  "timestamp_utc": "2026-04-11T16:12:35.455663+00:00",
+  "trace": {
+    "trace_path": "agentic_scheduler/data/alibaba_v2018/test",
+    "trace_source": "alibaba",
+    "max_tasks": 50000,
+    "env": {
+      "name": "TraceReplayEnv",
+      "num_workers": 4,
+      "loop": false
+    },
+    "seed": 42
+  },
+  "baselines": [
+    {
+      "policy": "round_robin",
+      "metrics": {
+        "evaluated_steps": 49909,
+        "mean_reward": 1.3976153699518876,
+        "feasible_action_rate": 0.9437977118355407
+      }
+    },
+    {
+      "policy": "first_feasible",
+      "metrics": {
+        "evaluated_steps": 49909,
+        "mean_reward": 1.3706074111001576,
+        "feasible_action_rate": 0.9480053697729869
+      }
+    },
+    {
+      "policy": "max_available",
+      "metrics": {
+        "evaluated_steps": 49909,
+        "mean_reward": 1.4138115260198731,
+        "feasible_action_rate": 0.9484461720331002
+      }
+    }
+  ],
+  "candidates": [
+    {
+      "model_path": "agentic_scheduler/models/ppo_optA_u140_r1024_e10_mb256_ent0015_seed84.pt",
+      "headroom_bias": 0.1,
+      "metrics": {
+        "evaluated_steps": 49909,
+        "mean_reward": 1.371873623590688,
+        "feasible_action_rate": 0.948085515638462
+      }
+    },
+    {
+      "model_path": "agentic_scheduler/models/ppo_optA_u140_r1024_e10_mb256_ent0015_seed84.pt",
+      "headroom_bias": 0.15,
+      "metrics": {
+        "evaluated_steps": 49909,
+        "mean_reward": 1.3718237651968155,
+        "feasible_action_rate": 0.9480654791720932
+      }
+    },
+    {
+      "model_path": "agentic_scheduler/models/ppo_optA_u140_r1024_e10_mb256_ent0015_seed84.pt",
+      "headroom_bias": 0.2,
+      "metrics": {
+        "evaluated_steps": 49909,
+        "mean_reward": 1.371711322073882,
+        "feasible_action_rate": 0.9480254062393556
+      }
+    },
+    {
+      "model_path": "agentic_scheduler/models/ppo_optA_u180_r1024_e10_mb256_ent0012_seed121.pt",
+      "headroom_bias": 0.1,
+      "metrics": {
+        "evaluated_steps": 49909,
+        "mean_reward": 1.4129512508244624,
+        "feasible_action_rate": 0.9484461720331002
+      }
+    },
+    {
+      "model_path": "agentic_scheduler/models/ppo_optA_u180_r1024_e10_mb256_ent0012_seed121.pt",
+      "headroom_bias": 0.15,
+      "metrics": {
+        "evaluated_steps": 49909,
+        "mean_reward": 1.412834992492549,
+        "feasible_action_rate": 0.9484060991003627
+      }
+    },
+    {
+      "model_path": "agentic_scheduler/models/ppo_optA_u180_r1024_e10_mb256_ent0012_seed121.pt",
+      "headroom_bias": 0.2,
+      "metrics": {
+        "evaluated_steps": 49909,
+        "mean_reward": 1.4128408385164408,
+        "feasible_action_rate": 0.9484060991003627
+      }
+    },
+    {
+      "model_path": "agentic_scheduler/models/ppo_optA_u140_r2048_e8_mb512_ent0010_seed84.pt",
+      "headroom_bias": 0.1,
+      "metrics": {
+        "evaluated_steps": 49909,
+        "mean_reward": 1.4130714207822055,
+        "feasible_action_rate": 0.9484060991003627
+      }
+    },
+    {
+      "model_path": "agentic_scheduler/models/ppo_optA_u140_r2048_e8_mb512_ent0010_seed84.pt",
+      "headroom_bias": 0.15,
+      "metrics": {
+        "evaluated_steps": 49909,
+        "mean_reward": 1.4130739415680507,
+        "feasible_action_rate": 0.9484060991003627
+      }
+    },
+    {
+      "model_path": "agentic_scheduler/models/ppo_optA_u140_r2048_e8_mb512_ent0010_seed84.pt",
+      "headroom_bias": 0.2,
+      "metrics": {
+        "evaluated_steps": 49909,
+        "mean_reward": 1.4130804633183078,
+        "feasible_action_rate": 0.9484060991003627
+      }
+    }
+  ],
+  "best": {
+    "model_path": "agentic_scheduler/models/ppo_optA_u140_r2048_e8_mb512_ent0010_seed84.pt",
+    "headroom_bias": 0.2,
+    "metrics": {
+      "evaluated_steps": 49909,
+      "mean_reward": 1.4130804633183078,
+      "feasible_action_rate": 0.9484060991003627
+    }
+  },
+  "deltas": {
+    "vs_max_available": {
+      "mean_reward_delta": -0.0007310627015653104,
+      "feasible_action_rate_delta": -4.0072932737555966e-05
+    },
+    "vs_round_robin": {
+      "mean_reward_delta": 0.015465093366420213,
+      "feasible_action_rate_delta": 0.004608387264821934
+    }
+  }
+}

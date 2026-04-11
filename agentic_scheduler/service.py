@@ -18,6 +18,9 @@ from .persistence import MongoSchedulerModelStore
 
 
 LOGGER = logging.getLogger(__name__)
+MODEL_PATH_SENTINELS = {"latest", "auto"}
+MODEL_FILE_EXTENSIONS = {".pt", ".pkl"}
+DEFAULT_MODEL_DIR = Path(__file__).resolve().parent / "models"
 
 
 @dataclass
@@ -43,12 +46,18 @@ class PPOServiceCore:
         update_batch_size: int = 32,
         online_updates_enabled: bool = True,
         prefer_gpu: bool = True,
+        deterministic_bias: float = 0.25,
+        online_gamma: float = 0.97,
+        online_gae_lambda: float = 0.92,
     ):
         self.learning_rate = float(learning_rate)
         self.update_batch_size = max(int(update_batch_size), 4)
         self.online_updates_enabled = bool(online_updates_enabled)
         self.prefer_gpu = bool(prefer_gpu)
-        self.model_path = Path(model_path).expanduser() if model_path else None
+        self.deterministic_bias = max(float(deterministic_bias), 0.0)
+        self.online_gamma = min(max(float(online_gamma), 0.0), 0.999)
+        self.online_gae_lambda = min(max(float(online_gae_lambda), 0.0), 1.0)
+        self.model_path = self._resolve_startup_model_path(model_path)
         if self.prefer_gpu and torch.cuda.is_available():
             self.device = torch.device("cuda")
             LOGGER.info("Using PPO device %s", self.device)
@@ -65,14 +74,30 @@ class PPOServiceCore:
         self.state: PPOState = build_fresh_state(self.learning_rate, self.device)
         self.current_fingerprint_hash = ""
         self.current_fingerprint_payload = ""
+        self.local_checkpoint_path: Optional[Path] = None
         self.pending_decisions: Dict[str, DecisionRecord] = {}
         self.replay_buffer: List[Dict] = []
 
-        if self.model_path and self.model_path.exists():
+        if self.model_path is not None:
             self._load_from_local_path_locked(self.model_path)
 
     def close(self) -> None:
-        self.store.close()
+        with self.lock:
+            try:
+                if self.online_updates_enabled and self.replay_buffer:
+                    LOGGER.info(
+                        "Flushing %d buffered PPO outcomes before shutdown persistence",
+                        len(self.replay_buffer),
+                    )
+                    self._train_from_replay_locked()
+                elif self.current_fingerprint_hash:
+                    LOGGER.info(
+                        "Persisting PPO state on shutdown for fingerprint %s",
+                        self.current_fingerprint_hash,
+                    )
+                    self._persist_current_state_locked("shutdown")
+            finally:
+                self.store.close()
 
     def ping(self) -> Tuple[bool, str, str, str]:
         with self.lock:
@@ -96,6 +121,13 @@ class PPOServiceCore:
                 return True, False, version, message
 
             if self.model_path and self.model_path.exists():
+                if self._can_reuse_preloaded_local_checkpoint_locked(fingerprint_hash):
+                    self.state.fingerprint_hash = fingerprint_hash
+                    self.current_fingerprint_hash = fingerprint_hash
+                    self.current_fingerprint_payload = fingerprint_payload
+                    if create_if_missing:
+                        self._persist_current_state_locked("import-local")
+                    return True, False, self.state.model_version, f"reused preloaded local checkpoint {self.model_path}"
                 self._load_from_local_path_locked(self.model_path)
                 self.current_fingerprint_hash = fingerprint_hash
                 self.current_fingerprint_payload = fingerprint_payload
@@ -116,6 +148,81 @@ class PPOServiceCore:
 
             return True, True, self.state.model_version, "cold-started fresh PPO policy"
 
+    def _resolve_startup_model_path(self, configured_model_path: str) -> Optional[Path]:
+        raw_value = str(configured_model_path or "").strip()
+        if not raw_value or raw_value.lower() in MODEL_PATH_SENTINELS:
+            latest = self._find_latest_model_path(DEFAULT_MODEL_DIR)
+            if latest is None:
+                if raw_value:
+                    LOGGER.warning(
+                        "PPO model path %r requested latest checkpoint, but none found under %s",
+                        raw_value,
+                        DEFAULT_MODEL_DIR,
+                    )
+                return None
+            LOGGER.info("Using latest PPO checkpoint from %s: %s", DEFAULT_MODEL_DIR, latest)
+            return latest
+
+        candidate = Path(raw_value).expanduser()
+        if candidate.is_dir():
+            latest = self._find_latest_model_path(candidate)
+            if latest is None:
+                LOGGER.warning("No PPO checkpoints found under %s", candidate)
+                return None
+            LOGGER.info("Using latest PPO checkpoint from %s: %s", candidate, latest)
+            return latest
+        if candidate.exists():
+            return candidate
+
+        fallback_dir = candidate.parent
+        if str(fallback_dir) in {"", "."}:
+            fallback_dir = DEFAULT_MODEL_DIR
+        latest = self._find_latest_model_path(fallback_dir)
+        if latest is None and fallback_dir != DEFAULT_MODEL_DIR:
+            latest = self._find_latest_model_path(DEFAULT_MODEL_DIR)
+        if latest is not None:
+            LOGGER.warning(
+                "Configured PPO model path %s not found; using latest checkpoint %s",
+                candidate,
+                latest,
+            )
+            return latest
+
+        LOGGER.warning(
+            "Configured PPO model path %s not found and no fallback checkpoint discovered",
+            candidate,
+        )
+        return None
+
+    @staticmethod
+    def _find_latest_model_path(search_dir: Path) -> Optional[Path]:
+        directory = search_dir.expanduser()
+        if not directory.exists() or not directory.is_dir():
+            return None
+
+        latest_path: Optional[Path] = None
+        latest_mtime = float("-inf")
+        for entry in directory.iterdir():
+            if not entry.is_file():
+                continue
+            if entry.suffix.lower() not in MODEL_FILE_EXTENSIONS:
+                continue
+            try:
+                mtime = entry.stat().st_mtime
+            except OSError:
+                continue
+            if mtime > latest_mtime:
+                latest_mtime = mtime
+                latest_path = entry
+        return latest_path
+
+    def _can_reuse_preloaded_local_checkpoint_locked(self, fingerprint_hash: str) -> bool:
+        if not fingerprint_hash:
+            return False
+        if self.current_fingerprint_hash:
+            return False
+        return self.local_checkpoint_path is not None
+
     def select_worker(self, task, workers, fallback_scheduler: str):
         with self.lock:
             encoded = encode_request(task, workers)
@@ -130,6 +237,7 @@ class PPOServiceCore:
                 encoded.worker_features,
                 encoded.action_mask,
                 self.device,
+                headroom_bias=self.deterministic_bias,
             )
             if action is None:
                 return "", True, "policy produced no action", self.state.model_version
@@ -178,9 +286,12 @@ class PPOServiceCore:
             if not self.online_updates_enabled:
                 return True, "online updates disabled"
 
+            normalized_status = (status or "").lower()
             resolved_reward = float(reward)
             if resolved_reward == 0.0:
-                resolved_reward = self._derive_reward(status, runtime_seconds, sla_success)
+                resolved_reward = self._derive_reward(normalized_status, runtime_seconds, sla_success)
+
+            terminal_outcome = normalized_status in {"cancelled", "failed", "error", "timeout", "rejected"}
 
             self.replay_buffer.append(
                 {
@@ -191,6 +302,7 @@ class PPOServiceCore:
                     "old_log_prob": decision.old_log_prob,
                     "old_value": decision.old_value,
                     "reward": resolved_reward,
+                    "done": terminal_outcome,
                 }
             )
 
@@ -217,6 +329,28 @@ class PPOServiceCore:
         if runtime_seconds > 0:
             reward -= min(runtime_seconds / 600.0, 0.5)
         return reward
+
+    @staticmethod
+    def _compute_replay_returns_advantages(
+        rewards: torch.Tensor,
+        values: torch.Tensor,
+        dones: torch.Tensor,
+        gamma: float,
+        gae_lambda: float,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        advantages = torch.zeros_like(rewards)
+        running_gae = torch.zeros((), dtype=rewards.dtype, device=rewards.device)
+        for idx in range(int(rewards.shape[0]) - 1, -1, -1):
+            next_value = torch.zeros((), dtype=values.dtype, device=values.device)
+            if idx < (int(rewards.shape[0]) - 1):
+                next_value = values[idx + 1]
+            not_done = 1.0 - dones[idx]
+            delta = rewards[idx] + (gamma * next_value * not_done) - values[idx]
+            running_gae = delta + (gamma * gae_lambda * not_done * running_gae)
+            advantages[idx] = running_gae
+
+        returns = advantages + values
+        return returns, advantages
 
     def _train_from_replay_locked(self) -> None:
         if not self.online_updates_enabled:
@@ -262,10 +396,23 @@ class PPOServiceCore:
             dtype=torch.float32,
             device=self.device,
         )
+        dones = torch.as_tensor(
+            np.asarray([item.get("done", False) for item in self.replay_buffer], dtype=np.float32),
+            dtype=torch.float32,
+            device=self.device,
+        )
+        if int(dones.shape[0]) > 0:
+            dones[-1] = 1.0
 
-        returns = rewards
-        advantages = returns - old_values
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        returns, advantages = self._compute_replay_returns_advantages(
+            rewards=rewards,
+            values=old_values,
+            dones=dones,
+            gamma=self.online_gamma,
+            gae_lambda=self.online_gae_lambda,
+        )
+        advantages = torch.clamp(advantages, min=-8.0, max=8.0)
+        advantages = (advantages - advantages.mean()) / (advantages.std(unbiased=False) + 1e-8)
 
         batch = {
             "task_features": task_features,
@@ -273,6 +420,7 @@ class PPOServiceCore:
             "action_masks": action_masks,
             "actions": actions,
             "old_log_probs": old_log_probs,
+            "old_values": old_values,
             "returns": returns,
             "advantages": advantages,
         }
@@ -300,6 +448,7 @@ class PPOServiceCore:
         version_number = int(metadata.get("version", 0))
         self.state.model_version = f"v{version_number}" if version_number > 0 else self.state.model_version
         self.state.fingerprint_hash = fingerprint_hash
+        self.local_checkpoint_path = None
         self.pending_decisions.clear()
         self.replay_buffer.clear()
         return self.state.model_version, "loaded checkpoint from mongo"
@@ -307,6 +456,7 @@ class PPOServiceCore:
     def _load_from_local_path_locked(self, checkpoint_path: Path) -> None:
         payload = checkpoint_path.read_bytes()
         self.state = PPOState.from_checkpoint_bytes(payload, self.learning_rate, self.device)
+        self.local_checkpoint_path = checkpoint_path
         self.pending_decisions.clear()
         self.replay_buffer.clear()
         LOGGER.info("Loaded PPO checkpoint from local path %s", checkpoint_path)
@@ -362,6 +512,14 @@ class PPOServiceCore:
             model_source = "cold-start"
             training_corpus = "none"
             trace_window = "none"
+        elif reason == "shutdown":
+            model_source = "service-shutdown"
+            if self.online_updates_enabled:
+                training_corpus = "cloudai-live-outcomes"
+                trace_window = "live"
+            else:
+                training_corpus = "offline-seed"
+                trace_window = "imported"
         else:
             model_source = "service-update"
             training_corpus = "cloudai-live-outcomes"

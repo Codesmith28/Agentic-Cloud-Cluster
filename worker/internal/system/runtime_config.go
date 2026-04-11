@@ -15,6 +15,7 @@ const (
 	workerTotalCPUEnv       = "WORKER_TOTAL_CPU"
 	workerTotalMemoryGBEnv  = "WORKER_TOTAL_MEMORY_GB"
 	workerTotalStorageGBEnv = "WORKER_TOTAL_STORAGE_GB"
+	workerContainerNetEnv   = "WORKER_CONTAINER_NETWORK_MODE"
 )
 
 // ResolveWorkerPort resolves worker gRPC port from environment or picks the first available port.
@@ -48,6 +49,21 @@ func ResolveWorkerBindIP(detected string) string {
 		return override
 	}
 	return detected
+}
+
+// ResolveWorkerContainerNetworkMode resolves Docker network mode for task containers.
+// Supported values: bridge (default), host, none.
+func ResolveWorkerContainerNetworkMode() string {
+	raw := strings.ToLower(strings.TrimSpace(os.Getenv(workerContainerNetEnv)))
+	switch raw {
+	case "", "bridge":
+		return "bridge"
+	case "host", "none":
+		return raw
+	default:
+		log.Printf("⚠️  Ignoring %s=%q: supported values are bridge|host|none", workerContainerNetEnv, raw)
+		return "bridge"
+	}
 }
 
 func parsePort(raw string) (int, error) {

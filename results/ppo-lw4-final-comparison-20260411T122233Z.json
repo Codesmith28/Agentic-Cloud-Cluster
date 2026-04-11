@@ -1,0 +1,39 @@
+{
+  "timestamp_utc": "2026-04-11T12:22:10.813295+00:00",
+  "dataset_note": "Alibaba v2018 with corrected CPU unit normalization (plan_cpu: 100 units = 1 core)",
+  "num_workers": 4,
+  "train_trace": "agentic_scheduler/data/alibaba_v2018/train",
+  "test_trace": "agentic_scheduler/data/alibaba_v2018/test",
+  "baselines": [
+    {
+      "policy": "round_robin",
+      "evaluated_steps": 49909,
+      "mean_reward": 0.8688396804996386,
+      "feasible_action_rate": 0.9437977118355407
+    },
+    {
+      "policy": "first_feasible",
+      "evaluated_steps": 49909,
+      "mean_reward": 0.8145109838322555,
+      "feasible_action_rate": 0.9480053697729869
+    },
+    {
+      "policy": "max_available",
+      "evaluated_steps": 49909,
+      "mean_reward": 0.8800201306133255,
+      "feasible_action_rate": 0.9484461720331002
+    }
+  ],
+  "ppo_reference_corrected": {
+    "policy": "ppo_lw4_preupgrade_corrected.pt",
+    "evaluated_steps": 49909,
+    "mean_reward": 0.8790712730460492,
+    "feasible_action_rate": 0.9483660261676251
+  },
+  "ppo_best_seed84": {
+    "policy": "ppo_lw4_improved_seed84.pt",
+    "evaluated_steps": 49909,
+    "mean_reward": 0.88009658782694,
+    "feasible_action_rate": 0.9485864272976818
+  }
+}

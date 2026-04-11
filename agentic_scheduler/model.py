@@ -181,6 +181,8 @@ def choose_action(
     worker_features: np.ndarray,
     action_mask: np.ndarray,
     device: torch.device,
+    deterministic: bool = True,
+    headroom_bias: float = 0.15,
 ):
     if worker_features.size == 0:
         return None
@@ -196,11 +198,29 @@ def choose_action(
     task_tensor = torch.as_tensor(task_features[None, :], dtype=torch.float32, device=device)
     worker_tensor = torch.as_tensor(normalized_worker[None, :, :], dtype=torch.float32, device=device)
     mask_tensor = torch.as_tensor(action_mask[None, :], dtype=torch.bool, device=device)
+    headroom_bias = max(float(headroom_bias), 0.0)
 
     with torch.no_grad():
-        logits, value = state.model(task_tensor, worker_tensor, mask_tensor)
-        distribution = Categorical(logits=logits)
-        action = torch.argmax(logits, dim=-1)
+        policy_logits, value = state.model(task_tensor, worker_tensor, mask_tensor)
+        selection_logits = policy_logits
+        if deterministic and headroom_bias > 0.0:
+            headroom_scores = _projected_headroom_scores(task_features, worker_features, action_mask)
+            headroom_tensor = torch.as_tensor(headroom_scores[None, :], dtype=torch.float32, device=device)
+            selection_logits = selection_logits + (headroom_bias * headroom_tensor)
+        distribution = Categorical(logits=policy_logits)
+        if deterministic:
+            feasible_count = int(mask_tensor.sum().item())
+            if headroom_bias > 0.0 and feasible_count > 1:
+                rerank_k = min(3, feasible_count)
+                candidate_source = policy_logits.masked_fill(~mask_tensor, float("-inf"))
+                _, candidate_indices = torch.topk(candidate_source, k=rerank_k, dim=-1)
+                rerank_logits = torch.full_like(selection_logits, fill_value=-1e9)
+                rerank_logits.scatter_(1, candidate_indices, selection_logits.gather(1, candidate_indices))
+                action = torch.argmax(rerank_logits, dim=-1)
+            else:
+                action = torch.argmax(selection_logits, dim=-1)
+        else:
+            action = distribution.sample()
         log_prob = distribution.log_prob(action)
 
     return {
@@ -218,32 +238,112 @@ def ppo_update(
     entropy_coeff: float,
     value_coeff: float,
     epochs: int,
+    minibatch_size: int = 0,
+    value_clip_range: float = 0.2,
 ):
     actions = batch["actions"]
     old_log_probs = batch["old_log_probs"]
     returns = batch["returns"]
     advantages = batch["advantages"]
+    old_values = batch["old_values"]
     task_features = batch["task_features"]
     worker_features = batch["worker_features"]
     action_masks = batch["action_masks"]
+    total_samples = int(actions.shape[0])
+    effective_minibatch = int(minibatch_size) if int(minibatch_size) > 0 else total_samples
+    effective_minibatch = max(min(effective_minibatch, total_samples), 1)
 
     for _ in range(epochs):
-        logits, values = state.model(task_features, worker_features, action_masks)
-        distribution = Categorical(logits=logits)
-        new_log_probs = distribution.log_prob(actions)
-        entropy = distribution.entropy().mean()
+        permutation = torch.randperm(total_samples, device=actions.device)
+        for start in range(0, total_samples, effective_minibatch):
+            end = start + effective_minibatch
+            batch_idx = permutation[start:end]
 
-        ratio = torch.exp(new_log_probs - old_log_probs)
-        surrogate_1 = ratio * advantages
-        surrogate_2 = torch.clamp(ratio, 1.0 - clip_ratio, 1.0 + clip_ratio) * advantages
-        policy_loss = -torch.min(surrogate_1, surrogate_2).mean()
-        value_loss = F.mse_loss(values, returns)
+            logits, values = state.model(
+                task_features[batch_idx],
+                worker_features[batch_idx],
+                action_masks[batch_idx],
+            )
+            distribution = Categorical(logits=logits)
+            new_log_probs = distribution.log_prob(actions[batch_idx])
+            entropy = distribution.entropy().mean()
 
-        loss = policy_loss + (value_coeff * value_loss) - (entropy_coeff * entropy)
+            ratio = torch.exp(new_log_probs - old_log_probs[batch_idx])
+            surrogate_1 = ratio * advantages[batch_idx]
+            surrogate_2 = torch.clamp(ratio, 1.0 - clip_ratio, 1.0 + clip_ratio) * advantages[batch_idx]
+            policy_loss = -torch.min(surrogate_1, surrogate_2).mean()
 
-        state.optimizer.zero_grad()
-        loss.backward()
-        nn.utils.clip_grad_norm_(state.model.parameters(), max_norm=1.0)
-        state.optimizer.step()
+            value_targets = returns[batch_idx]
+            old_value_batch = old_values[batch_idx]
+            value_delta = values - old_value_batch
+            clipped_values = old_value_batch + torch.clamp(value_delta, -value_clip_range, value_clip_range)
+            value_loss_unclipped = F.mse_loss(values, value_targets, reduction="none")
+            value_loss_clipped = F.mse_loss(clipped_values, value_targets, reduction="none")
+            value_loss = torch.max(value_loss_unclipped, value_loss_clipped).mean()
+
+            loss = policy_loss + (value_coeff * value_loss) - (entropy_coeff * entropy)
+
+            state.optimizer.zero_grad()
+            loss.backward()
+            nn.utils.clip_grad_norm_(state.model.parameters(), max_norm=1.0)
+            state.optimizer.step()
 
     state.training_steps += 1
+
+
+def _projected_headroom_scores(
+    task_features: np.ndarray,
+    worker_features: np.ndarray,
+    action_mask: np.ndarray,
+) -> np.ndarray:
+    """Deterministic prior blending urgency and capacity trade-offs.
+
+    Higher scores represent better placements under a mix of:
+      - queue/tail risk control for urgent or large tasks
+      - tighter packing for less urgent tasks
+    Infeasible workers receive a large negative score so they stay suppressed by
+    action masking.
+    """
+    req_cpu = float(task_features[0]) if task_features.size > 0 else 0.0
+    req_memory = float(task_features[1]) if task_features.size > 1 else 0.0
+    req_storage = float(task_features[2]) if task_features.size > 2 else 0.0
+    sla_multiplier = float(task_features[3]) if task_features.size > 3 else 2.0
+
+    total_cpu = np.maximum(worker_features[:, 3], 1e-6)
+    total_memory = np.maximum(worker_features[:, 4], 1e-6)
+    total_storage = np.maximum(worker_features[:, 5], 1e-6)
+
+    available_cpu = worker_features[:, 0] * total_cpu
+    available_memory = worker_features[:, 1] * total_memory
+    available_storage = worker_features[:, 2] * total_storage
+
+    residual_cpu = (available_cpu - req_cpu) / total_cpu
+    residual_memory = (available_memory - req_memory) / total_memory
+    residual_storage = (available_storage - req_storage) / total_storage
+
+    residuals = np.stack([residual_cpu, residual_memory, residual_storage], axis=1)
+    min_residual = residuals.min(axis=1)
+    mean_residual = residuals.mean(axis=1)
+
+    projected_cpu = worker_features[:, 6] + (req_cpu / total_cpu)
+    projected_memory = worker_features[:, 7] + (req_memory / total_memory)
+    projected_storage = worker_features[:, 8] + (req_storage / total_storage)
+    projected = np.stack([projected_cpu, projected_memory, projected_storage], axis=1)
+    projected_peak = projected.max(axis=1)
+    projected_spread = projected.std(axis=1)
+
+    median_cpu = max(float(np.median(total_cpu)), 1e-6)
+    median_memory = max(float(np.median(total_memory)), 1e-6)
+    median_storage = max(float(np.median(total_storage)), 1e-6)
+    task_size = max(req_cpu / median_cpu, req_memory / median_memory, req_storage / median_storage)
+    task_size = float(np.clip(task_size, 0.0, 1.5))
+
+    sla_urgency = float(np.clip((sla_multiplier - 1.0) / 2.0, 0.0, 1.0))
+    urgency = float(np.clip((0.7 * sla_urgency) + (0.3 * (task_size / 1.5)), 0.0, 1.0))
+
+    risk_aware_score = (1.25 * min_residual) - (1.0 * projected_peak) - (0.35 * projected_spread)
+    packing_score = (-0.9 * mean_residual) - (0.6 * projected_peak) - (0.2 * projected_spread)
+    scores = ((urgency * risk_aware_score) + ((1.0 - urgency) * packing_score)).astype(np.float32)
+    infeasible = ~np.asarray(action_mask, dtype=np.bool_)
+    scores[infeasible] = -1e6
+    return scores

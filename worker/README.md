@@ -63,6 +63,7 @@ Worker Node
 | `WORKER_TOTAL_CPU` | Override advertised CPU cores | `2.0` |
 | `WORKER_TOTAL_MEMORY_GB` | Override advertised memory (GB) | `3` |
 | `WORKER_TOTAL_STORAGE_GB` | Override advertised storage (GB) | `40` |
+| `WORKER_CONTAINER_NETWORK_MODE` | Task container network mode (`bridge`, `host`, `none`) | `host` |
 
 These overrides make it easy to emulate heterogeneous worker capacity in a Docker testbench.
 
