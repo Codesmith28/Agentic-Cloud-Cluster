@@ -1,12 +1,14 @@
 #!/bin/bash
 
-# Usage: ./runMaster.sh
+# Usage: ./runMaster.sh [cli|tui]
 #
 # This script builds and launches the master node.
+# Pass "tui" for full-screen TUI mode, defaults to "cli".
 # After master starts, use the CLI to register workers:
 #   master> register <worker_id> <worker_ip:port>
 
-echo "Starting Master Node from script"
+UI_MODE="${1:-cli}"
+echo "Starting Master Node (mode: $UI_MODE)"
 UI_PORT="${WEBUI_PORT:-3001}"
 
 # Check if MongoDB is running (optional but recommended)
@@ -68,7 +70,7 @@ if [ ! -f "masterNode" ]; then
 fi
 
 # Start the master node
-echo "Launching master node..."
-./masterNode
+echo "Launching master node (mode: $UI_MODE)..."
+./masterNode --mode "$UI_MODE"
 
 # After master exits, cleanup will be called automatically

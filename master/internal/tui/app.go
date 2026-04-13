@@ -452,3 +452,8 @@ func paneFromString(s string) controlplane.Pane {
 func itoa(i int) string {
 	return strconv.Itoa(i)
 }
+
+// NewProgram creates a Bubble Tea program with fullscreen + alt screen.
+func NewProgram(m Model) *tea.Program {
+	return tea.NewProgram(m, tea.WithAltScreen())
+}

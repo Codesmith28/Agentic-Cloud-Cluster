@@ -18,6 +18,7 @@ type Config struct {
 	MongoDBDatabase string
 	HTTPPort        string // HTTP port for telemetry API
 	Headless        bool   // Run without interactive CLI (for containerized/testbench mode)
+	UIMode          string // "cli" (default) or "tui" - resolved from --mode flag or CLOUDAI_UI_MODE env
 	MasterBindAddr  string // Optional gRPC bind address override
 	MasterAdvAddr   string // Optional gRPC advertise address override
 
@@ -52,6 +53,11 @@ func LoadConfig() *Config {
 	ppoDeploymentMode := normalizePPODeploymentMode(getEnv("PPO_DEPLOYMENT_MODE", "active"))
 	ppoOnlineUpdates := getEnvBool("PPO_ONLINE_UPDATES_ENABLED", true)
 	headless := getEnvBool("CLOUDAI_HEADLESS", false)
+	uiMode := strings.ToLower(strings.TrimSpace(getEnv("CLOUDAI_UI_MODE", "cli")))
+	if uiMode != "cli" && uiMode != "tui" {
+		log.Printf("⚠️  Invalid UI mode %q, using default 'cli'", uiMode)
+		uiMode = "cli"
+	}
 	masterBindAddr := strings.TrimSpace(getEnv("MASTER_BIND_ADDR", ""))
 	masterAdvAddr := strings.TrimSpace(getEnv("MASTER_ADVERTISE_ADDR", ""))
 
@@ -81,6 +87,7 @@ func LoadConfig() *Config {
 		MongoDBDatabase:     database,
 		HTTPPort:            httpPort,
 		Headless:            headless,
+		UIMode:              uiMode,
 		MasterBindAddr:      masterBindAddr,
 		MasterAdvAddr:       masterAdvAddr,
 		SchedulerAlgo:       schedulerAlgo,
@@ -95,6 +102,22 @@ func LoadConfig() *Config {
 	}
 
 	return config
+}
+
+// ResolveUIMode determines the final UI mode given CLI flag override.
+// Precedence: Headless=true (highest) > explicit flag > env var > default "cli"
+func (c *Config) ResolveUIMode(flagMode string) string {
+	if c.Headless {
+		return "headless"
+	}
+	if flagMode != "" {
+		mode := strings.ToLower(strings.TrimSpace(flagMode))
+		if mode == "cli" || mode == "tui" {
+			return mode
+		}
+		log.Printf("⚠️  Invalid --mode value %q, falling back to config", flagMode)
+	}
+	return c.UIMode
 }
 
 // loadDotEnv loads environment variables from .env file
