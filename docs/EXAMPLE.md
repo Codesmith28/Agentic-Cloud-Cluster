@@ -52,16 +52,19 @@ cd /path/to/CloudAI
 Expected output:
 ```
 Worker ID:      <hostname>
-Worker Address: <ip>:<port>
+Reachable Addr: <ip>:<port>
 
 ✓ Worker gRPC server started on :50052
-✓ Registered with master at localhost:50051
-✓ Telemetry monitor started (5s interval)
+✓ Ready to receive master registration...
 
 Waiting for tasks...
 ```
 
-> **Note:** Worker auto-registers with master on startup!
+Register the worker from the master CLI:
+
+```bash
+master> register <worker_id> <worker_ip:port>
+```
 
 ---
 
@@ -187,7 +190,7 @@ If you see the following, the implementation is working correctly:
 |---------|----------|
 | **"Worker not found"** | Register the worker first using the `register` command |
 | **"Worker is not active"** | Check that the worker is running and sending heartbeats. Wait a few seconds after registration |
-| **"Master not registered yet"** | Wait for master to register with worker (automatic), or restart the worker after master is running |
+| **"Master not registered yet"** | Register worker from master CLI (`register <worker_id> <worker_ip:port>`), then retry |
 | **"Failed to pull image"** | Check Docker is running on worker machine. Verify image name is correct. Check network connectivity |
 | **"Cannot connect to worker"** | Verify worker IP and port are correct. Check firewall settings. Ensure worker is actually running |
 
@@ -288,7 +291,7 @@ wscat -c ws://localhost:8080/ws/telemetry
 
 ## Documentation
 
-- **[README.md](README.md)** - Project overview
+- **[README.md](../README.md)** - Project overview
 - **[GETTING_STARTED.md](GETTING_STARTED.md)** - Setup guide
 - **[DOCUMENTATION.md](DOCUMENTATION.md)** - Complete reference
 

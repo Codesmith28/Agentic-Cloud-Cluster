@@ -66,13 +66,13 @@ The CloudAI system follows a master-worker distributed architecture:
 
 ### PPO Deployment Modes
 
-PPO supports multiple deployment strategies via `PPO_DEPLOYMENT_MODE`:
+When `SCHED_ALGO=PPO`, PPO supports multiple deployment strategies via `PPO_DEPLOYMENT_MODE`:
 
 | Mode | Behavior | Use Case |
 |------|----------|----------|
-| `shadow` | PPO runs parallel but RTS decides tasks | Offline evaluation, convergence tracking |
-| `active` | PPO makes all decisions, RR fallback if unavailable | Production scheduling with learned policy |
-| `fallback` | RTS primary, PPO validates/ranks (future) | Hybrid approach for safety |
+| `shadow` | PPO is queried, but fallback scheduler decides tasks | Offline evaluation, convergence tracking |
+| `active` | PPO makes decisions, fallback scheduler handles PPO failures | Production scheduling with learned policy |
+| `fallback` | PPO RPC is bypassed; fallback scheduler always decides | Safety mode without PPO dependency |
 
 **Configuration:**
 ```bash
@@ -104,10 +104,11 @@ curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
 
 ![Worker Registration](docs/Diagrams/worker-registration.png)
 
-1. Worker sends `RegisterWorker()` with WorkerInfo (worker_id, worker_ip, total_cpu, total_memory, total_storage)
-2. Master stores worker info in database and memory
-3. Master responds with `RegisterAck(success: true)`
-4. Master sends `MasterRegister()` to worker with master_id and master_address
+1. Worker starts and waits for master registration on its gRPC endpoint
+2. Operator registers worker endpoint in master (`register <worker_id> <worker_ip:port>`)
+3. Master sends `MasterRegister()` to worker with `master_id` and `master_address`
+4. Worker sends `RegisterWorker()` with capacity details (cpu/memory/storage)
+5. Master stores worker info in database and memory, then accepts heartbeats
 
 ### 2. Heartbeat Monitoring
 

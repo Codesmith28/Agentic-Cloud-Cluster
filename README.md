@@ -24,7 +24,7 @@ CloudAI is a distributed computing platform for executing Docker-based workloads
 - **Docker Native** - Run any containerized workload
 - **REST & gRPC APIs** - Full programmatic access
 - **MongoDB Persistence** - Task history and results
-- **Auto-Registration** - Workers connect automatically
+- **Worker Registration Handshake** - Register workers from CLI, then workers self-report resources
 - **Task Scheduling** - Risk-aware Task Scheduling (RTS) with Round-Robin fallback
 - **Adaptive Optimization** - AOD module trains scheduling parameters using historical data
 - **Task Queuing** - Automatic queuing when resources unavailable
@@ -108,7 +108,8 @@ cd database && docker-compose up -d
 ### Your First Task
 
 ```bash
-# In master CLI
+# In master CLI (use worker ID/address shown by runWorker.sh)
+master> register <worker_id> <worker_ip:port>
 master> workers                              # List workers
 master> task hello-world:latest              # Submit task (scheduler picks worker)
 master> monitor task-<id>                    # Watch execution
@@ -150,16 +151,14 @@ master> download task-<id> alice ./output         # Download files
 curl http://localhost:8080/telemetry | jq
 curl http://localhost:8080/workers | jq
 
-# REST API - Tasks (requires auth)
-curl http://localhost:8080/api/tasks \
-  -H "Authorization: Bearer <token>" | jq
+# REST API - Tasks
+curl http://localhost:8080/api/tasks | jq
 
 # WebSocket (real-time)
 wscat -c ws://localhost:8080/ws/telemetry
 
 # Submit Task via REST API
 curl -X POST http://localhost:8080/api/tasks \
-  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
     "docker_image": "ubuntu:latest",
@@ -177,12 +176,12 @@ curl -X POST http://localhost:8080/api/tasks \
 # Register new user
 curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"secure123"}'
+  -d '{"name":"Alice","email":"alice@example.com","password":"securepassword123"}'
 
 # Login (returns JWT token)
 curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"secure123"}'
+  -d '{"email":"alice@example.com","password":"securepassword123"}'
 ```
 
 **See [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md) for complete API reference**

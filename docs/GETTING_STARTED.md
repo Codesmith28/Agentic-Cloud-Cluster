@@ -20,11 +20,12 @@ cd database && docker-compose up -d                     # Terminal 1
 
 # 4. Use it!
 # In master CLI:
+master> register <worker_id> <worker_ip:port>
 master> workers
-master> task worker-1 hello-world:latest
+master> task hello-world:latest
 master> monitor task-<id>
 
-# Or open the Web UI at http://localhost:3000
+# Or open the Web UI at http://localhost:3001
 ```
 
 ---
@@ -188,13 +189,18 @@ cd worker && ./workerNode
 Expected output:
 ```
 Worker ID:      hostname-abc123
-Worker Address: 192.168.1.100:50052
+Reachable Addr: 192.168.1.100:50052
 
 ✓ Worker gRPC server started on :50052
-✓ Registered with master at localhost:50051
-✓ Telemetry monitor started (5s interval)
+✓ Ready to receive master registration...
 
 Waiting for tasks...
+```
+
+Then register the worker from the master CLI using the values printed above:
+
+```bash
+master> register hostname-abc123 192.168.1.100:50052
 ```
 
 ---
@@ -362,7 +368,7 @@ master> download task-123 alice ./output-dir
 
 ## Web Dashboard
 
-The Web UI is available at **http://localhost:3000** when using `./runMaster.sh`.
+The Web UI is available at **http://localhost:3001** when using `./runMaster.sh` (or `http://localhost:$WEBUI_PORT` if overridden).
 
 Features:
 - **Dashboard**: Real-time cluster overview
@@ -380,12 +386,12 @@ Features:
 # Register a new user
 curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"name":"John","email":"john@example.com","password":"secret123"}'
+  -d '{"name":"John","email":"john@example.com","password":"securepassword123"}'
 
 # Login
 curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"john@example.com","password":"secret123"}'
+  -d '{"email":"john@example.com","password":"securepassword123"}'
 ```
 
 ### Task Management
@@ -486,9 +492,8 @@ netstat -tuln | grep 50051
 # 3. Check firewall
 sudo ufw allow 50051/tcp
 
-# 4. Verify master address
-export MASTER_ADDR=localhost:50051
-./workerNode
+# 4. Register worker in master CLI (use worker output values)
+master> register <worker_id> <worker_ip:port>
 ```
 
 ### Problem: "MongoDB connection failed"
@@ -540,7 +545,7 @@ docker run --rm <image-name>
 ### Advanced Features to Explore
 
 1. **Scale horizontally** - Add more workers
-2. **Use the Web UI** - Full dashboard at http://localhost:3000
+2. **Use the Web UI** - Full dashboard at http://localhost:3001
 3. **File management** - Upload/download task outputs
 4. **Task queuing** - Automatic queuing when resources are full
 5. **Resource management** - `fix-resources` and `internal-state` commands

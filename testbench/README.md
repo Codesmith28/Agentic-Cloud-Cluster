@@ -58,8 +58,10 @@ make testbench-integration
 This executes `testbench/scripts/run_integration.sh`, which:
 
 - checks Docker daemon/compose availability before starting
+- builds `master/masterNode` by default (`BUILD_MASTER=true`)
 - runs `make test-unit` (disable with `RUN_UNIT_TESTS=false`)
 - runs `./masterNode test run` for `smoke`, `reliability`, `ui-smoke`, and `evidence`
+- uses `TESTBENCH_COMPOSE_FILE` (default: `testbench/docker-compose.host-master.yml`) and host-routable `WORKER_SPECS` defaults
 - writes artifacts under `results/testbench/<timestamp>-integration/`
 
 Useful overrides:
@@ -69,6 +71,10 @@ RUN_ROOT=results/testbench/my-run \
 PROFILE=hetero-small \
 BASE_SCHEDULER=current \
 EVIDENCE_SCHEDULER=current \
+TESTBENCH_COMPOSE_FILE=testbench/docker-compose.host-master.yml \
+WORKER_SPECS=worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054 \
+BUILD_MASTER=false \
+KEEP_ENV=true \
 make testbench-integration
 ```
 
