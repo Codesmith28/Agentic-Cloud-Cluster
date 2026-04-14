@@ -102,8 +102,10 @@ make testbench-integration
 Behavior:
 
 - validates Docker daemon + `docker compose` availability up front
+- builds `master/masterNode` by default (`BUILD_MASTER=true`)
 - runs `make test-unit` preflight (override with `RUN_UNIT_TESTS=false`)
 - runs `./masterNode test run` suites in sequence: `smoke`, `reliability`, `ui-smoke`, `evidence`
+- uses `TESTBENCH_COMPOSE_FILE` (default: `testbench/docker-compose.host-master.yml`) and host-routable `WORKER_SPECS` defaults
 - stores artifacts under `results/testbench/<timestamp>-integration/`
 - writes `integration-summary.json` with suite output paths
 
@@ -114,6 +116,10 @@ RUN_ROOT=results/testbench/custom-integration \
 PROFILE=hetero-small \
 BASE_SCHEDULER=current \
 EVIDENCE_SCHEDULER=current \
+TESTBENCH_COMPOSE_FILE=testbench/docker-compose.host-master.yml \
+WORKER_SPECS=worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054 \
+BUILD_MASTER=false \
+KEEP_ENV=true \
 make testbench-integration
 ```
 

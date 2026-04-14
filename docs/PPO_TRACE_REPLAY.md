@@ -44,21 +44,28 @@ for step in range(10000):
 
 ### Trace Window Parameters
 
-When loading traces for replay, specify the time window:
+When loading traces for replay:
 
 ```python
-# Option 1: No window filtering (use entire trace)
+# No window filtering (default)
 trace_window = ""  # or omitted
 
-# Option 2: Specify custom window by ISO 8601 timestamps
+# Filter by time bounds (CloudAI trace source)
+# Accepted formats: Unix epoch or ISO-8601
 trace_window_start = "2024-01-01T00:00:00Z"
 trace_window_end = "2024-01-01T06:00:00Z"
 
-# Option 3: Preset window labels
-trace_window = "imported"  # Use preset labeled window
-trace_window = "live"      # Live cluster data window
-trace_window = "none"      # No filtering
+# Filter by trace label (CloudAI trace source)
+# Exact match against record.trace_window when labels are present
+trace_window = "imported"
 ```
+
+Behavior details from `trace_loader.py`:
+
+- `--trace-window`, `--trace-window-start`, and `--trace-window-end` are applied for `--trace-source cloudai`.
+- `--trace-window` is an exact label match when CloudAI records carry a `trace_window` field.
+- `--trace-window-start` / `--trace-window-end` filter by record arrival/submission timestamps.
+- For `alibaba` and `google` sources, these window flags are currently ignored.
 
 ### Training Script Usage
 
@@ -222,15 +229,17 @@ PY
 
 ### Checkpointing and Resume
 
-`train_ppo.py` writes PyTorch checkpoint payloads (`.pkl` for periodic checkpoints by default; `--output` can use `.pkl` or `.pt`).
+`train_ppo.py` writes PyTorch checkpoint payload bytes. Periodic checkpoints are `.pkl`; final output can use `.pkl` or `.pt` (extension is path naming only).
 
 - Periodic local checkpoints are enabled by default (`--checkpoint-every 10`) and written under `--checkpoint-dir` using `--checkpoint-prefix`.
+- Periodic filename pattern: `<checkpoint-prefix>_u<update>_s<training_steps>.pkl`.
 - Each periodic save also updates `<checkpoint-prefix>_latest.pkl` for quick resume.
 - The final checkpoint is always written to `--output` (default: `agentic_scheduler/models/ppo_trained.pkl`).
 
 Resume precedence is local first:
 - `--resume-from <path>` resumes from an explicit local checkpoint.
-- `--resume-latest` resumes from the newest `.pkl` in `--checkpoint-dir`.
+- If `--resume-from` does not exist and `--resume-latest` is set, training falls back to latest local `.pkl`.
+- `--resume-latest` scans only `.pkl` files in `--checkpoint-dir`.
 - `--resume-mongo` is only used when local resume is not selected/found.
 
 ```bash
@@ -249,8 +258,9 @@ For the repeated optimized cluster comparison (`results/testbench/ppo-vs-rts-clu
 
 Service behavior note for reproducibility:
 - when `PPO_MODEL_PATH` exists, the service preloads that local checkpoint at startup and reuses the preloaded state for the first fingerprint load (instead of re-reading the same file), then optionally persists it for that fingerprint.
-- when `PPO_MODEL_PATH=latest` (default), the service resolves the newest checkpoint (`.pt`/`.pkl`) under `agentic_scheduler/models/` at startup.
-- on graceful shutdown, the service flushes any buffered online-update samples and persists the active fingerprint model snapshot to MongoDB.
+- when `PPO_MODEL_PATH=latest` or `PPO_MODEL_PATH=auto`, the service resolves the newest checkpoint (`.pt`/`.pkl`) under `agentic_scheduler/models/` at startup.
+- when `PPO_MODEL_PATH` points to a missing file, the service falls back to the newest checkpoint in the file's parent directory (then `agentic_scheduler/models/`).
+- on graceful shutdown, the service flushes buffered online-update samples; if a fingerprint is active, it persists the current snapshot for that fingerprint.
 
 Related selection artifacts:
 - `results/ppo-opt-sweep-a-20260411T161235Z.json`
@@ -286,26 +296,25 @@ python3 -m agentic_scheduler.train_ppo \
 
 ## PPO Deployment Modes
 
-The master node supports three PPO deployment modes controlled via `PPO_DEPLOYMENT_MODE` environment variable:
+`PPO_DEPLOYMENT_MODE` applies when `SCHED_ALGO=PPO`.
 
 ### 1. Shadow Mode (`shadow`)
 
-PPO runs alongside the active scheduler but does not influence decisions. Used for offline evaluation and convergence tracking.
+PPO is queried, but the fallback scheduler's decision is used for dispatch.
 
 ```bash
 export PPO_DEPLOYMENT_MODE=shadow
-export SCHED_ALGO=RTS  # Primary scheduler remains active
+export SCHED_ALGO=PPO
 ./runMaster.sh
 ```
 
 In shadow mode:
-- RTS (or other primary scheduler) makes all dispatch decisions
-- PPO runs in parallel and reports metrics to `/metrics`
-- No latency impact on task assignment
+- fallback scheduler (RTS, then RR fallback inside RTS) still decides assignments
+- PPO runs in parallel and logs divergence when PPO and fallback disagree
 
 ### 2. Active Mode (`active`)
 
-PPO makes scheduling decisions. If PPO becomes unavailable, falls back to RR.
+PPO makes scheduling decisions. RPC/validation failures fall back to RTS (which itself falls back to RR).
 
 ```bash
 export PPO_DEPLOYMENT_MODE=active
@@ -315,22 +324,27 @@ export SCHED_ALGO=PPO
 
 In active mode:
 - PPO decides worker assignment for every task
-- If PPO service is unavailable, Round-Robin fallback handles dispatch
+- If PPO service is unavailable or returns invalid output, fallback scheduler handles dispatch
 - Full latency budget applies (see `PPO_REQUEST_TIMEOUT_MS`)
 
 ### 3. Fallback Mode (`fallback`)
 
-PPO-assisted mode: primary scheduler makes decisions, PPO validates/ranks candidates (future feature).
+PPO gRPC is bypassed; fallback scheduler is always used.
 
 ```bash
 export PPO_DEPLOYMENT_MODE=fallback
-export SCHED_ALGO=RTS
+export SCHED_ALGO=PPO
 ./runMaster.sh
 ```
 
+In fallback mode:
+- PPO autostart is skipped
+- no PPO RPC calls are required
+- dispatch is handled by fallback scheduler (RTS, then RR fallback inside RTS)
+
 ## Online Update Gate (Adaptive Training)
 
-When `PPO_ONLINE_UPDATES_ENABLED=true`, the PPO service can accept task outcomes and update the model online. This requires the PPO gRPC service to be configured and running.
+When `PPO_ONLINE_UPDATES_ENABLED=true`, PPO can accept task outcomes and run online updates in **active mode**. This requires the PPO gRPC service to be configured and reachable.
 
 ```bash
 export PPO_ONLINE_UPDATES_ENABLED=true
@@ -340,16 +354,17 @@ export PPO_REQUEST_TIMEOUT_MS=1500
 ```
 
 Configuration:
-- `PPO_ONLINE_UPDATES_ENABLED`: Enable/disable online updates (default: true)
+- `PPO_ONLINE_UPDATES_ENABLED`: Enable/disable online updates (default: true; active mode only)
 - `PPO_DETERMINISTIC_BIAS`: Headroom reranking bias for deterministic PPO inference (default: 0.25)
 - `PPO_GRPC_ADDR`: PPO service gRPC endpoint
 - `PPO_REQUEST_TIMEOUT_MS`: Timeout for PPO decisions (default: 1500ms)
 - `PPO_AUTOSTART`: Auto-start PPO service if available (default: true)
+- `PPO_UPDATE_BATCH_SIZE`: PPO service replay batch size for online updates (default: 32)
 
 With online updates enabled:
 - Task completion outcomes are sent to PPO service
-- PPO can incrementally refine the model during deployment
-- Scheduler performance improves over time in production
+- outcomes are buffered and PPO updates run when replay buffer size reaches `PPO_UPDATE_BATCH_SIZE`
+- service shutdown flushes buffered outcomes before close
 
 ## Configuration Reference
 
@@ -357,14 +372,14 @@ With online updates enabled:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PPO_DEPLOYMENT_MODE` | `active` | Deployment mode: `shadow`, `active`, or `fallback` |
-| `PPO_ONLINE_UPDATES_ENABLED` | `true` | Enable online model updates |
+| `PPO_DEPLOYMENT_MODE` | `active` | PPO mode (`shadow`, `active`, `fallback`) when `SCHED_ALGO=PPO` |
+| `PPO_ONLINE_UPDATES_ENABLED` | `true` | Enable online model updates in active mode |
 | `PPO_DETERMINISTIC_BIAS` | `0.25` | Deterministic inference reranking strength (higher favors capacity headroom prior) |
 | `PPO_PREFER_GPU` | `true` | Prefer CUDA for PPO service; fallback to CPU if unavailable |
 | `PPO_GRPC_ADDR` | `127.0.0.1:50061` | PPO gRPC service endpoint |
 | `PPO_REQUEST_TIMEOUT_MS` | `1500` | Timeout for PPO decisions (ms) |
 | `PPO_AUTOSTART` | `true` | Auto-start PPO service |
-| `PPO_MODEL_PATH` | `latest` | Startup model selector (`latest`, a checkpoint directory, or an explicit file path) |
+| `PPO_MODEL_PATH` | `latest` | Startup model selector (`latest`/`auto`, checkpoint directory, or file path; missing path falls back to latest checkpoint) |
 | `SCHED_ALGO` | `RTS` | Scheduler algorithm: `RR`, `RTS`, or `PPO` |
 
 ### Training Script CLI Options
@@ -407,9 +422,9 @@ python3 -m agentic_scheduler.train_ppo --help
 | `--trace-source` | `""` | Trace source: `alibaba`, `google`, `cloudai`, or empty for synthetic |
 | `--trace-path` | `""` | Path to trace data (optional for `cloudai` when `--mongo-uri` is set) |
 | `--max-trace-tasks` | `5000` | Maximum tasks loaded from trace |
-| `--trace-window` | `` | Trace window label or empty for all |
-| `--trace-window-start` | `` | Window start (ISO 8601) |
-| `--trace-window-end` | `` | Window end (ISO 8601) |
+| `--trace-window` | `` | CloudAI trace-window label filter (exact match when labels exist) |
+| `--trace-window-start` | `` | CloudAI window start (Unix epoch or ISO 8601) |
+| `--trace-window-end` | `` | CloudAI window end (Unix epoch or ISO 8601) |
 
 ## Metrics and Monitoring
 

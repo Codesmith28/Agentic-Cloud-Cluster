@@ -242,10 +242,11 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 
 ### 3.2 Worker Management
 
-**Auto-Registration:**
-- Workers automatically register on startup
-- Resource capacity reporting (CPU, memory, storage)
-- Unique worker identification
+**Registration Handshake:**
+- Workers start and expose a reachable gRPC address
+- Operator registers worker ID/address from the master CLI
+- Worker then self-reports resource capacity (CPU, memory, storage)
+- Unique worker identification with persistent IDs
 
 **Health Monitoring:**
 - Periodic heartbeats (5-second interval)
@@ -254,9 +255,9 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 - Running task inventory
 
 **Manual Registration:**
-- Admin can pre-register workers in database
-- Workers auto-populate specs on first connection
-- Persistent worker registry
+- Admin registers or refreshes worker addresses in the master CLI
+- Registration persists in MongoDB for restart recovery
+- Master can re-notify workers after reconnects
 
 ### 3.3 Real-Time Telemetry
 
@@ -538,12 +539,17 @@ Create `.env` file in the root directory (optional - system works with defaults)
 
 ```bash
 # Database (optional - defaults shown)
-MONGO_URI=mongodb://localhost:27017
-DB_NAME=cluster_db
+MONGODB_HOST=localhost:27017
+MONGODB_DATABASE=cluster_db
+MONGODB_USERNAME=
+MONGODB_PASSWORD=
 
 # Server ports (optional - defaults shown)
 GRPC_PORT=:50051
 HTTP_PORT=:8080
+
+# Auth (optional but recommended in persistent environments)
+JWT_SECRET=replace-with-a-strong-secret
 
 # Logging (optional)
 LOG_LEVEL=info  # debug|info|warn|error
@@ -556,13 +562,13 @@ LOG_LEVEL=info  # debug|info|warn|error
 
 **Worker Node Configuration:**
 
-Environment variables or command-line flags:
+Environment variables:
 
 ```bash
-export MASTER_ADDR=localhost:50051
 export WORKER_ID=worker-1
-export WORKER_IP=192.168.1.100
 export WORKER_PORT=:50052
+export WORKER_BIND_IP=0.0.0.0
+export WORKER_METRICS_PORT=9101
 ```
 
 ---
@@ -611,14 +617,19 @@ cd worker
 # ./runWorker.sh
 ```
 
+Register the worker in the master CLI using the worker ID and reachable address printed by the worker process:
+
+```bash
+master> register <worker_id> <worker_ip:port>
+```
+
 Expected output:
 ```
 Worker ID:      hostname-123
-Worker Address: 192.168.1.100:50052
+Reachable Addr: 192.168.1.100:50052
 
 ✓ Worker gRPC server started on :50052
-✓ Registered with master at localhost:50051
-✓ Telemetry monitor started (5s interval)
+✓ Ready to receive master registration...
 
 Waiting for tasks...
 ```
@@ -1855,7 +1866,7 @@ cd worker && go test ./... -v
 
 # Run test tasks
 # In master CLI:
-master> task worker-1 hello-world:latest
+master> task hello-world:latest
 ```
 
 ### 10.4 Debugging
@@ -1908,10 +1919,10 @@ db.TASKS.find().sort({created_at: -1}).limit(5)
    telnet master-ip 50051
    ```
 
-2. Verify master address:
+2. Verify worker registration:
    ```bash
-   # Worker should use correct master IP
-   export MASTER_ADDR=master-ip:50051
+   # Register worker with the address printed by runWorker.sh
+   master> register <worker_id> <worker_ip:port>
    ```
 
 3. Check firewall rules:
@@ -1972,7 +1983,8 @@ db.TASKS.find().sort({created_at: -1}).limit(5)
 2. Check connection string:
    ```bash
    # In .env file
-   MONGO_URI=mongodb://localhost:27017
+   MONGODB_HOST=localhost:27017
+   MONGODB_DATABASE=cluster_db
    ```
 
 3. Test connection:
@@ -1996,7 +2008,7 @@ db.TASKS.find().sort({created_at: -1}).limit(5)
 
 1. Limit container resources:
    ```bash
-   master> task worker-1 image:latest -mem 2.0
+   master> task image:latest -mem 2.0
    ```
 
 2. Clean up old containers:
@@ -2227,12 +2239,12 @@ CloudAI includes JWT-based authentication:
 # Register a new user
 curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"name":"John","email":"john@example.com","password":"secret123"}'
+  -d '{"name":"John","email":"john@example.com","password":"securepassword123"}'
 
 # Login
 curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"john@example.com","password":"secret123"}'
+  -d '{"email":"john@example.com","password":"securepassword123"}'
 ```
 
 **File Access Control:**
@@ -2292,7 +2304,10 @@ services:
 **Connection string with auth:**
 
 ```bash
-MONGO_URI=mongodb://admin:secure_password@localhost:27017/cluster_db?authSource=admin
+MONGODB_HOST=localhost:27017
+MONGODB_DATABASE=cluster_db
+MONGODB_USERNAME=admin
+MONGODB_PASSWORD=secure_password
 ```
 
 **Network isolation:**
@@ -2336,14 +2351,15 @@ func validateTask(task *Task) error {
 
 | Variable | Default | Description | Status |
 |----------|---------|-------------|--------|
-| `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection string | Implemented |
+| `MONGODB_HOST` | `localhost:27017` | MongoDB host:port | Implemented |
 | `MONGODB_USERNAME` | - | MongoDB username | Implemented |
 | `MONGODB_PASSWORD` | - | MongoDB password | Implemented |
-| `MONGODB_DATABASE` | `cloudai` | Database name | Implemented |
+| `MONGODB_DATABASE` | `cluster_db` | Database name | Implemented |
 | `GRPC_PORT` | `:50051` | gRPC server port | Implemented |
 | `HTTP_PORT` | `:8080` | HTTP/WebSocket server port | Implemented |
-| `JWT_SECRET` | `vishvboda` | Secret for JWT signing | Implemented |
+| `JWT_SECRET` | auto-generated at startup | Secret for JWT signing | Implemented |
 | `LOG_LEVEL` | `info` | Logging level (debug/info/warn/error) | Implemented |
+| `CLOUDAI_HEADLESS` | `false` | Run master without interactive CLI | Implemented |
 | `TLS_ENABLED` | - | Enable TLS for gRPC | Planned |
 | `TLS_CERT_FILE` | - | TLS certificate file path | Planned |
 | `TLS_KEY_FILE` | - | TLS private key file path | Planned |
@@ -2353,11 +2369,13 @@ func validateTask(task *Task) error {
 | Variable | Default | Description | Status |
 |----------|---------|-------------|--------|
 | `WORKER_ID` | hostname | Worker unique identifier | Implemented |
-| `WORKER_IP` | auto-detected | Worker IP address | Implemented |
 | `WORKER_PORT` | `:50052` | Worker gRPC server port | Implemented |
-| `MASTER_ADDR` | `localhost:50051` | Master server address | Implemented |
-| `HEARTBEAT_INTERVAL` | `5s` | Heartbeat send interval | Implemented |
-| `LOG_LEVEL` | `info` | Logging level | Implemented |
+| `WORKER_BIND_IP` | detected worker IP | Worker bind IP override | Implemented |
+| `WORKER_METRICS_PORT` | `9101` | Worker Prometheus metrics port | Implemented |
+| `WORKER_TOTAL_CPU` | detected CPU cores | Override reported CPU cores | Implemented |
+| `WORKER_TOTAL_MEMORY_GB` | detected memory | Override reported memory (GB) | Implemented |
+| `WORKER_TOTAL_STORAGE_GB` | detected storage | Override reported storage (GB) | Implemented |
+| `WORKER_CONTAINER_NETWORK_MODE` | `bridge` | Docker network mode (bridge/host/none) | Implemented |
 | `CLOUDAI_OUTPUT_DIR` | `/var/cloudai/outputs` | Task output directory | Implemented |
 
 ---
@@ -2397,7 +2415,7 @@ See `proto/master_worker.proto` for full definitions.
 A: Yes, workers authenticate using the host's Docker credentials. Run `docker login` on worker machines.
 
 **Q: How do I scale to more workers?**  
-A: Simply start more worker nodes with unique IDs. The master automatically handles them.
+A: Start more worker nodes, then register each from the master CLI using `register <worker_id> <worker_ip:port>`.
 
 **Q: Can tasks communicate with each other?**  
 A: Not directly. For inter-task communication, use external services (Redis, RabbitMQ, etc.).

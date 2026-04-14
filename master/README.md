@@ -1,25 +1,22 @@
 # CloudAI Master Node
 
-Central coordinator for the CloudAI distributed task execution system.
+Central coordinator for CloudAI distributed execution.
 
 ## Features
 
-- **Interactive CLI**: Command-line interface for cluster management
-- **gRPC Server**: Handles worker registration, heartbeats, task assignment, and log streaming
-- **Worker Management**: Track worker health and capacity
-- **Cluster Monitoring**: Real-time status and statistics
-- **MongoDB Integration**: Persistent storage for tasks, users, and results
-- **HTTP API Server**: REST API and WebSocket telemetry (port 8080)
-- **JWT Authentication**: User registration, login, and protected endpoints
-- **File Storage**: Secure file management with access control
-- **Task Scheduler**: Pluggable scheduler with round-robin implementation
-- **Task Queuing**: Queue tasks when no workers available
+- Interactive CLI for worker/task operations
+- gRPC control plane for workers
+- HTTP API + WebSocket telemetry server
+- Task queue with automatic retry/requeue paths
+- Scheduler stack: **RTS (default)**, **RR**, optional **PPO**
+- MongoDB-backed persistence (workers, tasks, attempts, results, files, scheduler models)
+- File metadata + auth endpoints when backing services are enabled
 
 ## Architecture
 
-```
+```text
 Master Node
-├── gRPC Server (port 50051)
+├── gRPC Server (default :50051)
 │   ├── RegisterWorker
 │   ├── SendHeartbeat
 │   ├── AssignTask
@@ -27,438 +24,143 @@ Master Node
 │   ├── UploadTaskFiles
 │   ├── StreamTaskLogs
 │   └── ReportTaskCompletion
-├── HTTP Server (port 8080)
+├── HTTP Server (default :8080)
 │   ├── REST API (/api/*)
 │   ├── WebSocket (/ws/telemetry)
-│   └── Telemetry endpoint (/telemetry)
-├── CLI Interface
-│   ├── Task submission (scheduler-based)
-│   ├── Worker listing
-│   ├── Task monitoring
-│   ├── Queue management
-│   └── File management
-├── Scheduler
-│   └── Round-Robin (default)
-└── Database Layer
-    └── MongoDB (6 collections)
+│   ├── Telemetry REST (/telemetry, /workers)
+│   └── Prometheus metrics (/metrics)
+├── CLI
+│   ├── Worker registration/management
+│   ├── Task submission/dispatch/cancel/monitor
+│   └── Queue + state inspection
+└── Scheduler Layer
+    ├── RR
+    ├── RTS (default)
+    └── PPO (optional, Python gRPC service)
 ```
 
-## Usage
+## Runtime Usage
 
-### Start Master
+### Start master
 
 ```bash
-./master-node
+./masterNode
 ```
 
-### Start Master in Headless Mode (no interactive CLI)
+### Headless mode (no interactive CLI)
 
 ```bash
-CLOUDAI_HEADLESS=true ./master-node
+CLOUDAI_HEADLESS=true ./masterNode
 ```
 
-The interactive CLI will start automatically:
-
-```
-═══════════════════════════════════════════════════════
-  CloudAI Master Node - Interactive CLI
-═══════════════════════════════════════════════════════
-Type 'help' for available commands
-
-master>
-```
-
-## CLI Commands
-
-### help
-
-Show available commands and usage examples.
+### Non-interactive test workflow mode
 
 ```bash
-master> help
+./masterNode test list
+./masterNode test run smoke -scheduler RR
+./masterNode test cleanup
 ```
 
-### status
+## Scheduler selection behavior
 
-Display current cluster status (workers, tasks).
+At startup, the scheduler is selected in this order:
+
+1. `SCHED_ALGO` env override (if set)
+2. Interactive prompt (TTY only)
+3. Config default (`RTS`)
+
+Supported values: `RR`, `RTS`, `PPO`.
+
+## Worker registration behavior (current runtime flow)
+
+Workers must be pre-registered with an endpoint before they can fully join:
+
+1. Start worker (it listens and waits for master registration)
+2. Register worker endpoint from master CLI or API:
+   - CLI: `register <worker_id> <worker_ip:port>`
+3. Master calls worker `MasterRegister`
+4. Worker calls back `RegisterWorker` with capacity details
+5. Worker heartbeats begin (every 5s)
+
+If a worker is not pre-registered, `RegisterWorker` is rejected.
+
+## Common CLI commands
+
+- `help`
+- `status`
+- `workers`
+- `stats <worker_id>`
+- `register <id> <ip:port>` / `unregister <id>`
+- `task <docker_image> [-name <name>] [-cpu_cores <n>] [-mem <gb>] [-storage <gb>] [-k <1.5-2.5>] [-type <cpu-light|cpu-heavy|memory-heavy|mixed>]`
+- `dispatch <worker_id> <docker_image> [resource flags]`
+- `monitor <task_id>`
+- `cancel <task_id>`
+- `list-tasks [queued|pending|running|completed|failed|cancelled]`
+- `queue`
+- `internal-state`
+- `fix-resources`
+- `files`, `task-files`, `download`
+
+## Runtime Configuration
+
+### Core env vars
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `GRPC_PORT` | `:50051` | gRPC listen port suffix/address |
+| `HTTP_PORT` | `:8080` | HTTP API/telemetry port |
+| `CLOUDAI_HEADLESS` | `false` | Disable interactive CLI |
+| `MASTER_BIND_ADDR` | auto | gRPC bind address override |
+| `MASTER_ADVERTISE_ADDR` | auto | Address advertised to workers |
+
+### MongoDB env vars
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `MONGODB_HOST` | `localhost:27017` | Host/port used to build Mongo URI |
+| `MONGODB_DATABASE` | `cluster_db` | Database name |
+| `MONGODB_USERNAME` | _empty_ | Optional |
+| `MONGODB_PASSWORD` | _empty_ | Optional |
+
+### Scheduler env vars
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `SCHED_ALGO` | `RTS` | `RR`/`RTS`/`PPO` |
+| `SCHED_GA_PARAMS_PATH` | `config/ga_output.json` | RTS parameter file |
+| `SCHED_SLA_MULTIPLIER` | `2.0` | Validated to `1.5-2.5` |
+| `PPO_GRPC_ADDR` | `127.0.0.1:50061` | PPO service address |
+| `PPO_REQUEST_TIMEOUT_MS` | `1500` | PPO request timeout |
+| `PPO_AUTOSTART` | `true` | Auto-start PPO Python service |
+| `PPO_MODEL_PATH` | `latest` | PPO model selector |
+| `PPO_DEPLOYMENT_MODE` | `active` | `active`, `shadow`, `fallback` |
+| `PPO_ONLINE_UPDATES_ENABLED` | `true` | PPO online update toggle |
+
+### API/Auth/Telemetry env vars
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `JWT_SECRET` | random at startup if unset | Set explicitly for stable auth sessions |
+| `ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:3001` | CORS/WebSocket origin allowlist |
+
+## Operational Notes
+
+- Task queue processor runs every **5 seconds**.
+- Worker reconnection/inactivity checks run every **5 seconds**.
+- Workers are marked inactive after **~30s** without heartbeat.
+- Heartbeat usage values are normalized in worker RPCs and displayed as percentages in logs/telemetry.
+- File base directory is initialized at startup (`/var/cloudai/files`, fallback `~/.cloudai/files`).
+
+## Build
 
 ```bash
-master> status
-```
-
-Output:
-
-```
-╔═══ Cluster Status ═══
-║ Total Workers: 2
-║ Active Workers: 2
-║ Running Tasks: 1
-╚══════════════════════
-```
-
-### workers
-
-List all registered workers with details.
-
-```bash
-master> workers
-```
-
-Output:
-
-```
-╔═══ Registered Workers ═══
-║ worker-1
-║   Status: 🟢 Active
-║   IP: 192.168.1.100
-║   Resources: CPU=4.0, Memory=8.0GB, Storage=100.0GB
-║   Running Tasks: 1
-║
-║ worker-2
-║   Status: 🟢 Active
-║   IP: 192.168.1.101
-║   Resources: CPU=8.0, Memory=16.0GB, Storage=250.0GB
-║   Running Tasks: 0
-╚═══════════════════════
-```
-
-### task
-
-Submit a task to the cluster. The scheduler automatically selects an appropriate worker.
-
-```bash
-master> task <docker_image> [options]
-```
-
-**Parameters:**
-
-- `docker_image`: Docker image to run
-- `options`: Resource allocation and task flags
-  - `-name <string>`: Task name (optional)
-  - `-cpu_cores <num>`: CPU cores to allocate (default: 1.0)
-  - `-mem <gb>`: Memory in GB (default: 0.5)
-  - `-storage <gb>`: Storage in GB (default: 1.0)
-
-**Examples:**
-
-```bash
-# Basic task submission (scheduler picks worker)
-master> task docker.io/username/sample-task:latest
-
-# Task with name and resource allocation
-master> task docker.io/username/data-pipeline:latest -name daily-etl -cpu_cores 4.0 -mem 8.0 -storage 20.0
-```
-
-### dispatch
-
-Assign a task directly to a specific worker (bypasses scheduler).
-
-```bash
-master> dispatch <worker_id> <docker_image> [options]
-```
-
-**Example:**
-
-```bash
-master> dispatch worker-1 ubuntu:latest -cpu_cores 2.0 -mem 4.0
-```
-
-### monitor
-
-Stream live logs from a running task.
-
-```bash
-master> monitor <task_id>
-```
-
-### list-tasks
-
-List all tasks with optional status filter.
-
-```bash
-master> list-tasks [status]
-```
-
-**Status filters:** `queued`, `pending`, `running`, `completed`, `failed`
-
-### queue
-
-Display tasks waiting in the queue.
-
-```bash
-master> queue
-```
-
-### files
-
-List files for a specific user.
-
-```bash
-master> files <username>
-```
-
-### task-files
-
-List files associated with a specific task.
-
-```bash
-master> task-files <task_id> <username>
-```
-
-### download
-
-Download task output files.
-
-```bash
-master> download <task_id> <username> <output_dir>
-```
-
-### internal-state
-
-Debug command to show internal state.
-
-```bash
-master> internal-state
-```
-
-### fix-resources
-
-Reconcile worker resource allocations.
-
-```bash
-master> fix-resources
-```
-
-### exit / quit
-
-Shutdown the master node.
-
-```bash
-master> exit
-```
-
-## Building
-
-```bash
-# Install dependencies
 go mod tidy
-
-# Build
-go build -o master-node .
-
-# Run
-./master-node
+go build -o masterNode .
+./masterNode
 ```
-
-## Components
-
-### 1. gRPC Server (`internal/server/`)
-
-Handles worker communication:
-
-- **RegisterWorker**: Accept new workers
-- **SendHeartbeat**: Monitor worker health
-- **AssignTask**: Send tasks to workers
-- **CancelTask**: Cancel running tasks
-- **UploadTaskFiles**: Receive task output files
-- **StreamTaskLogs**: Stream task execution logs
-- **ReportTaskCompletion**: Receive task results
-
-### 2. HTTP Server (`internal/http/`)
-
-REST API and WebSocket server:
-
-- **auth_handler.go**: JWT authentication (register, login)
-- **task_handler.go**: Task CRUD operations
-- **worker_handler.go**: Worker listing
-- **file_handler.go**: File upload/download with access control
-- **middleware.go**: JWT validation middleware
-- **telemetry_server.go**: WebSocket telemetry streaming
-
-### 3. CLI (`internal/cli/`)
-
-Interactive command interface:
-
-- Task submission (scheduler-based)
-- Direct task dispatch
-- Worker management
-- Task monitoring with log streaming
-- Queue management
-- File operations
-- Status display
-
-### 4. Scheduler (`internal/scheduler/`)
-
-Pluggable task scheduling:
-
-- **scheduler.go**: Scheduler interface
-- **round_robin.go**: Round-robin implementation
-
-### 5. Database (`internal/db/`)
-
-MongoDB integration for:
-
-- Worker registry
-- Task tracking
-- Result storage
-- User management
-- File metadata
-- Task assignments
-
-### 6. Storage (`internal/storage/`)
-
-File storage with access control:
-
-- **file_storage.go**: Basic file operations
-- **file_storage_secure.go**: Secure file operations
-- **access_control.go**: User-based access control
-
-## Configuration
-
-### Environment Variables
-
-Create `.env` in project root:
-
-```bash
-MONGODB_USERNAME=admin
-MONGODB_PASSWORD=password123
-JWT_SECRET=your-secret-key
-```
-
-### Ports
-
-- **gRPC Server**: `50051`
-- **HTTP Server**: `8080`
-- **MongoDB**: `27017` (via docker-compose)
-
-## Worker Registration Flow
-
-```
-1. Worker starts and connects to master
-   ↓
-2. Worker sends RegisterWorker request
-   ↓
-3. Master validates and stores worker info
-   ↓
-4. Worker added to active pool
-   ↓
-5. Worker begins sending heartbeats
-```
-
-## Heartbeat Monitoring
-
-Workers send heartbeat every 5 seconds containing:
-
-- CPU usage percentage
-- Memory usage
-- Storage usage
-- List of running tasks
-
-Master logs heartbeat activity:
-
-```
-Heartbeat from worker-1: CPU=45.00%, Memory=120.50MB, Running Tasks=2
-```
-
-## Task Assignment (Scheduler-Based)
-
-```
-1. User enters: task docker.io/image:tag
-   ↓
-2. Scheduler selects best available worker
-   ↓
-3. Master generates unique task ID
-   ↓
-4. Master sends task via gRPC to selected worker
-   ↓
-5. Worker acknowledges receipt
-   ↓
-6. CLI shows success message with task ID
-```
-
-## Direct Task Dispatch
-
-```
-1. User enters: dispatch worker-1 docker.io/image:tag
-   ↓
-2. Master validates worker exists
-   ↓
-3. Master generates unique task ID
-   ↓
-4. Master sends task via gRPC to worker
-   ↓
-5. Worker acknowledges receipt
-   ↓
-6. CLI shows success message
-```
-
-## Task Result Handling
-
-When a task completes:
-
-```
-1. Worker sends ReportTaskCompletion
-   ↓
-2. Master logs completion status
-   ↓
-3. Master prints task logs
-   ↓
-4. Master updates database (optional)
-   ↓
-5. Task removed from worker's running list
-```
-
-## MongoDB Collections
-
-| Collection        | Purpose                          |
-| ----------------- | -------------------------------- |
-| `USERS`           | User accounts and authentication |
-| `WORKER_REGISTRY` | Worker nodes and capacities      |
-| `TASKS`           | Task definitions and status      |
-| `ASSIGNMENTS`     | Task-to-worker mappings          |
-| `RESULTS`         | Task execution results           |
-| `FILE_METADATA`   | File storage metadata            |
 
 ## Requirements
 
 - Go 1.22+
-- MongoDB 5.0+ (optional)
-- Network access for workers to connect
-
-## Monitoring
-
-Master logs show:
-
-- Worker registrations
-- Heartbeat activity
-- Task assignments
-- Task completions
-- Error conditions
-
-Example output:
-
-```
-✓ MongoDB collections ensured
-Starting gRPC server on :50051...
-✓ Master node started successfully
-✓ gRPC server listening on :50051
-
-Worker registration: worker-1 (IP: localhost, CPU: 4.00, Memory: 8.00 GB)
-Heartbeat from worker-1: CPU=30.00%, Memory=45.20MB, Running Tasks=0
-Task completion: task-123 from worker worker-1 [Status: success]
-```
-
-## Error Handling
-
-- MongoDB unavailable → Warning logged, continues without DB
-- Worker connection lost → Marked inactive after missed heartbeats
-- Invalid task assignment → Error shown in CLI
-- Worker not found → CLI shows error message
-
-## Future Enhancements
-
-- [ ] Advanced scheduling algorithms (priority-based, resource-aware)
-- [ ] Multi-master setup for HA
-- [ ] Metrics and analytics dashboard
-- [ ] Task dependencies and workflows
-- [ ] Container networking configuration
+- Network reachability between master and workers
+- MongoDB (optional but recommended for persistence)

@@ -20,6 +20,7 @@ import (
 	"master/internal/aod"
 	"master/internal/cli"
 	"master/internal/config"
+	"master/internal/controlplane"
 	"master/internal/db"
 	httpserver "master/internal/http"
 	"master/internal/scheduler"
@@ -28,6 +29,7 @@ import (
 	"master/internal/system"
 	"master/internal/telemetry"
 	"master/internal/testworkflow"
+	"master/internal/tui"
 	pb "master/proto"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -37,9 +39,22 @@ import (
 func main() {
 	// Load configuration
 	cfg := config.LoadConfig()
+
+	// Handle "test" subcommand before flag parsing
 	if len(os.Args) > 1 && strings.EqualFold(os.Args[1], "test") {
 		os.Exit(runNonInteractiveTestCommand(cfg, os.Args[2:]))
 	}
+
+	// Parse --mode flag for UI mode selection
+	var modeFlag string
+	for i, arg := range os.Args[1:] {
+		if arg == "--mode" && i+2 < len(os.Args) {
+			modeFlag = os.Args[i+2]
+		} else if strings.HasPrefix(arg, "--mode=") {
+			modeFlag = strings.TrimPrefix(arg, "--mode=")
+		}
+	}
+	uiMode := cfg.ResolveUIMode(modeFlag)
 
 	// Determine file storage base directory with fallback
 	fileStorageBaseDir := "/var/cloudai/files"
@@ -554,8 +569,23 @@ func main() {
 		select {}
 	}
 
-	cliInterface := cli.NewCLI(masterServer, fileStorage)
-	cliInterface.Run()
+	// Create host resource sampler and shared executor
+	hostSampler := system.NewHostResourceSampler(2 * time.Second)
+	defer hostSampler.Stop()
+	exec := controlplane.NewExecutor(masterServer, fileStorage, hostSampler)
+
+	switch uiMode {
+	case "tui":
+		log.Println("✓ Starting TUI mode")
+		m := tui.New(exec)
+		p := tui.NewProgram(m)
+		if _, err := p.Run(); err != nil {
+			log.Fatalf("TUI error: %v", err)
+		}
+	default:
+		cliInterface := cli.NewCLI(masterServer, fileStorage, exec)
+		cliInterface.Run()
+	}
 }
 
 func startGRPCServer(grpcServer *grpc.Server, address string) {
