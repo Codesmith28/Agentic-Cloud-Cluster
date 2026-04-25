@@ -533,7 +533,7 @@ def _load_cloudai_records_from_mongo(
             ).limit(256)
         )
         workers = [_normalise_worker_record(doc, idx) for idx, doc in enumerate(worker_docs)]
-        LOGGER.info("Loaded %d CloudAI records from Mongo %s/%s", len(records), mongo_uri, mongo_db)
+        LOGGER.info("Loaded %d CloudAI records from Mongo (db=%s)", len(records), mongo_db)
         return records, workers
     finally:
         client.close()
@@ -652,7 +652,12 @@ def _normalise_worker_record(row: Dict, idx: int) -> Dict:
     }
 
 
-def _load_structured_records(path: Path) -> List[Dict]:
+def _load_structured_records(path: Path, max_file_bytes: int = 500 * 1024 * 1024) -> List[Dict]:
+    file_size = path.stat().st_size
+    if file_size > max_file_bytes:
+        raise ValueError(
+            f"Trace file {path} is {file_size} bytes, exceeding limit of {max_file_bytes} bytes"
+        )
     suffix = path.suffix.lower()
     if suffix == ".json":
         with open(path, encoding="utf-8") as fh:

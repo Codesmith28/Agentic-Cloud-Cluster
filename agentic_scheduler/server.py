@@ -36,9 +36,17 @@ class PPOSchedulerServicer(ppo_scheduler_pb2_grpc.PPOSchedulerServicer):
         )
 
     def LoadModelForFingerprint(self, request, context):  # noqa: N802
+        fingerprint_hash = _sanitize_string(request.fingerprint_hash, max_length=256)
+        fingerprint_payload = _sanitize_string(request.fingerprint_payload, max_length=4096)
+        if not fingerprint_hash:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details("fingerprint_hash is required")
+            return ppo_scheduler_pb2.LoadModelForFingerprintResponse(
+                loaded=False, message="fingerprint_hash is required"
+            )
         loaded, cold_start, version, message = self.core.ensure_fingerprint_loaded(
-            fingerprint_hash=request.fingerprint_hash,
-            fingerprint_payload=request.fingerprint_payload,
+            fingerprint_hash=fingerprint_hash,
+            fingerprint_payload=fingerprint_payload,
             create_if_missing=bool(request.create_if_missing),
         )
         return ppo_scheduler_pb2.LoadModelForFingerprintResponse(
@@ -49,10 +57,19 @@ class PPOSchedulerServicer(ppo_scheduler_pb2_grpc.PPOSchedulerServicer):
         )
 
     def SelectWorker(self, request, context):  # noqa: N802
-        if request.cluster_fingerprint_hash:
+        if len(request.workers) > _MAX_WORKERS_PER_REQUEST:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details(f"too many workers (max {_MAX_WORKERS_PER_REQUEST})")
+            return ppo_scheduler_pb2.SelectWorkerResponse(
+                used_fallback_policy=True, reason="too many workers"
+            )
+        cluster_fp = _sanitize_string(request.cluster_fingerprint_hash, max_length=256)
+        if cluster_fp:
             self.core.ensure_fingerprint_loaded(
-                fingerprint_hash=request.cluster_fingerprint_hash,
-                fingerprint_payload=request.cluster_fingerprint_payload,
+                fingerprint_hash=cluster_fp,
+                fingerprint_payload=_sanitize_string(
+                    request.cluster_fingerprint_payload, max_length=4096
+                ),
                 create_if_missing=True,
             )
         worker_id, used_fallback, reason, model_version = self.core.select_worker(
@@ -68,14 +85,23 @@ class PPOSchedulerServicer(ppo_scheduler_pb2_grpc.PPOSchedulerServicer):
         )
 
     def ReportOutcome(self, request, context):  # noqa: N802
+        task_id = _sanitize_string(request.task_id, max_length=512)
+        if not task_id:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details("task_id is required")
+            return ppo_scheduler_pb2.ReportOutcomeResponse(
+                accepted=False, message="task_id is required"
+            )
+        reward = _clamp_float(request.reward, -10.0, 10.0)
+        runtime_seconds = max(float(request.runtime_seconds), 0.0)
         accepted, message = self.core.report_outcome(
-            task_id=request.task_id,
-            worker_id=request.worker_id,
-            status=request.status,
-            reward=request.reward,
-            runtime_seconds=request.runtime_seconds,
+            task_id=task_id,
+            worker_id=_sanitize_string(request.worker_id, max_length=256),
+            status=_sanitize_string(request.status, max_length=64),
+            reward=reward,
+            runtime_seconds=runtime_seconds,
             sla_success=request.sla_success,
-            fingerprint_hash=request.fingerprint_hash,
+            fingerprint_hash=_sanitize_string(request.fingerprint_hash, max_length=256),
         )
         return ppo_scheduler_pb2.ReportOutcomeResponse(
             accepted=accepted,
@@ -83,9 +109,28 @@ class PPOSchedulerServicer(ppo_scheduler_pb2_grpc.PPOSchedulerServicer):
         )
 
 
+_MAX_WORKERS_PER_REQUEST = 512
+
+
+def _sanitize_string(value: str, max_length: int = 256) -> str:
+    """Strip and truncate a string input to prevent oversized data."""
+    return str(value or "").strip()[:max_length]
+
+
+def _clamp_float(value: float, lo: float, hi: float) -> float:
+    """Clamp a float to a safe range, treating NaN/Inf as 0."""
+    v = float(value)
+    if v != v or v == float("inf") or v == float("-inf"):
+        return 0.0
+    return max(lo, min(v, hi))
+
+
 def _configure_logging(level: str) -> None:
+    _ALLOWED_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+    normalized = str(level).upper().strip()
+    resolved = normalized if normalized in _ALLOWED_LOG_LEVELS else "INFO"
     logging.basicConfig(
-        level=getattr(logging, level.upper(), logging.INFO),
+        level=getattr(logging, resolved),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 

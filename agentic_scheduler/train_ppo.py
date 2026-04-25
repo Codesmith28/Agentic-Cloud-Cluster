@@ -43,7 +43,7 @@ def parse_args() -> argparse.Namespace:
         help="Linearly anneal learning rate to 0 over updates",
     )
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--output", default="agentic_scheduler/models/ppo_trained.pkl")
+    parser.add_argument("--output", default="agentic_scheduler/models/ppo_trained.pt")
     parser.add_argument("--checkpoint-dir", default="agentic_scheduler/models/checkpoints")
     parser.add_argument("--checkpoint-prefix", default="ppo_offline")
     parser.add_argument(
@@ -56,7 +56,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--resume-latest",
         action="store_true",
-        help="Resume from the latest .pkl checkpoint in --checkpoint-dir",
+        help="Resume from the latest .pt checkpoint in --checkpoint-dir",
     )
     parser.add_argument("--log-every", type=int, default=10)
     parser.add_argument("--mongo-uri", default="")
@@ -94,6 +94,30 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--trace-window-end", default="",
                         help="Optional trace window end timestamp (unix or ISO-8601)")
     return parser.parse_args()
+
+
+_MAX_NUM_WORKERS = 256
+_MAX_ROLLOUT_STEPS = 65536
+_MAX_UPDATES = 100000
+_MAX_EPISODE_LENGTH = 10000
+
+
+def _validate_training_args(args: argparse.Namespace) -> None:
+    """Enforce upper bounds on resource-controlling parameters."""
+    if args.num_workers > _MAX_NUM_WORKERS:
+        raise ValueError(f"--num-workers must be <= {_MAX_NUM_WORKERS}")
+    if args.rollout_steps > _MAX_ROLLOUT_STEPS:
+        raise ValueError(f"--rollout-steps must be <= {_MAX_ROLLOUT_STEPS}")
+    if args.updates > _MAX_UPDATES:
+        raise ValueError(f"--updates must be <= {_MAX_UPDATES}")
+    if args.episode_length > _MAX_EPISODE_LENGTH:
+        raise ValueError(f"--episode-length must be <= {_MAX_EPISODE_LENGTH}")
+    if args.num_workers < 1:
+        raise ValueError("--num-workers must be >= 1")
+    if args.rollout_steps < 1:
+        raise ValueError("--rollout-steps must be >= 1")
+    if args.learning_rate <= 0:
+        raise ValueError("--learning-rate must be > 0")
 
 
 def resolve_training_device() -> torch.device:
@@ -134,6 +158,15 @@ def find_latest_checkpoint(checkpoint_dir: Path) -> Optional[Path]:
     if not directory.exists():
         return None
     candidates: list[tuple[int, str, Path]] = []
+    for candidate in directory.glob("*.pt"):
+        if not candidate.is_file():
+            continue
+        try:
+            mtime = candidate.stat().st_mtime_ns
+        except OSError:
+            continue
+        candidates.append((mtime, candidate.name, candidate))
+    # Also check legacy .pkl files for backward compatibility
     for candidate in directory.glob("*.pkl"):
         if not candidate.is_file():
             continue
@@ -165,7 +198,7 @@ def resolve_resume_path(args: argparse.Namespace) -> Optional[Path]:
     if args.resume_latest:
         latest = find_latest_checkpoint(checkpoint_dir)
         if latest is None:
-            raise FileNotFoundError(f"No .pkl checkpoints found in {checkpoint_dir}")
+            raise FileNotFoundError(f"No .pt checkpoints found in {checkpoint_dir}")
         return latest
     return None
 
@@ -176,7 +209,7 @@ def periodic_checkpoint_path(
     update_idx: int,
     training_steps: int,
 ) -> Path:
-    return checkpoint_dir / f"{checkpoint_prefix}_u{update_idx:06d}_s{training_steps:06d}.pkl"
+    return checkpoint_dir / f"{checkpoint_prefix}_u{update_idx:06d}_s{training_steps:06d}.pt"
 
 
 def create_mongo_store(args: argparse.Namespace, purpose: str) -> MongoSchedulerModelStore:
@@ -300,6 +333,7 @@ def build_lineage_metadata(args: argparse.Namespace, trace) -> dict:
 
 def main() -> None:
     args = parse_args()
+    _validate_training_args(args)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -540,7 +574,7 @@ def main() -> None:
                         state.training_steps,
                     )
                     atomic_write_bytes(local_checkpoint_path, payload)
-                    atomic_write_bytes(checkpoint_dir / f"{args.checkpoint_prefix}_latest.pkl", payload)
+                    atomic_write_bytes(checkpoint_dir / f"{args.checkpoint_prefix}_latest.pt", payload)
                     LOGGER.info("Saved periodic local checkpoint to %s", local_checkpoint_path)
 
                 if save_mongo_checkpoint:

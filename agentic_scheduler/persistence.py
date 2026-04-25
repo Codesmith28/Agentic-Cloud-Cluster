@@ -16,6 +16,13 @@ from gridfs import GridFSBucket
 LOGGER = logging.getLogger(__name__)
 
 
+def _sanitize_mongo_value(value: str) -> str:
+    """Ensure a value used in MongoDB queries is a plain string, not operator injection."""
+    if not isinstance(value, str):
+        value = str(value)
+    return value.strip()[:512]
+
+
 class MongoSchedulerModelStore:
     """Stores scheduler checkpoints in GridFS with versioned metadata."""
 
@@ -75,6 +82,9 @@ class MongoSchedulerModelStore:
         assert self.collection is not None
         assert self.bucket is not None
 
+        scheduler_type = _sanitize_mongo_value(scheduler_type)
+        fingerprint_hash = _sanitize_mongo_value(fingerprint_hash)
+
         try:
             doc = self.collection.find_one(
                 {
@@ -113,6 +123,10 @@ class MongoSchedulerModelStore:
             return None
         assert self.collection is not None
         assert self.bucket is not None
+
+        scheduler_type = _sanitize_mongo_value(scheduler_type)
+        fingerprint_hash = _sanitize_mongo_value(fingerprint_hash)
+        fingerprint_payload = str(fingerprint_payload or "")[:4096]
 
         now = datetime.now(timezone.utc)
         sha256 = hashlib.sha256(checkpoint_bytes).hexdigest()
@@ -181,6 +195,9 @@ class MongoSchedulerModelStore:
             return False
         assert self.collection is not None
         now = datetime.now(timezone.utc)
+
+        scheduler_type = _sanitize_mongo_value(scheduler_type)
+        fingerprint_hash = _sanitize_mongo_value(fingerprint_hash)
 
         try:
             target = self.collection.find_one(

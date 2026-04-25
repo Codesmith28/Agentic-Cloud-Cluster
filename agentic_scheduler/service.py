@@ -19,8 +19,10 @@ from .persistence import MongoSchedulerModelStore
 
 LOGGER = logging.getLogger(__name__)
 MODEL_PATH_SENTINELS = {"latest", "auto"}
-MODEL_FILE_EXTENSIONS = {".pt", ".pkl"}
+MODEL_FILE_EXTENSIONS = {".pt"}
 DEFAULT_MODEL_DIR = Path(__file__).resolve().parent / "models"
+_MAX_REPLAY_BUFFER = 4096
+_MAX_PENDING_DECISIONS = 8192
 
 
 @dataclass
@@ -163,7 +165,10 @@ class PPOServiceCore:
             LOGGER.info("Using latest PPO checkpoint from %s: %s", DEFAULT_MODEL_DIR, latest)
             return latest
 
-        candidate = Path(raw_value).expanduser()
+        candidate = Path(raw_value).expanduser().resolve()
+        if not self._is_safe_model_path(candidate):
+            LOGGER.warning("Refusing model path outside allowed directories: %s", candidate)
+            return None
         if candidate.is_dir():
             latest = self._find_latest_model_path(candidate)
             if latest is None:
@@ -193,6 +198,13 @@ class PPOServiceCore:
             candidate,
         )
         return None
+
+    @staticmethod
+    def _is_safe_model_path(path: Path) -> bool:
+        """Reject paths that traverse outside the project tree or /tmp."""
+        resolved = path.resolve()
+        project_root = Path(__file__).resolve().parents[1]
+        return str(resolved).startswith(str(project_root))
 
     @staticmethod
     def _find_latest_model_path(search_dir: Path) -> Optional[Path]:
@@ -251,6 +263,9 @@ class PPOServiceCore:
             worker_id = workers[index].worker_id
             task_id = getattr(task, "task_id", "")
             if task_id:
+                if len(self.pending_decisions) >= _MAX_PENDING_DECISIONS:
+                    oldest_key = next(iter(self.pending_decisions))
+                    del self.pending_decisions[oldest_key]
                 self.pending_decisions[task_id] = DecisionRecord(
                     task_features=encoded.task_features.copy(),
                     worker_features=np.asarray(action["normalized_worker_features"], dtype=np.float32).copy(),
@@ -305,6 +320,9 @@ class PPOServiceCore:
                     "done": terminal_outcome,
                 }
             )
+
+            if len(self.replay_buffer) > _MAX_REPLAY_BUFFER:
+                self.replay_buffer = self.replay_buffer[-_MAX_REPLAY_BUFFER:]
 
             if len(self.replay_buffer) >= self.update_batch_size:
                 self._train_from_replay_locked()
