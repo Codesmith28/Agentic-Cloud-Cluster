@@ -6,6 +6,13 @@ import (
 	"net/http"
 )
 
+type contextKey string
+
+const (
+	ctxKeyUserEmail contextKey = "user_email"
+	ctxKeyUserName  contextKey = "user_name"
+)
+
 // AuthMiddleware wraps a handler and requires authentication
 func (h *AuthHandler) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -31,9 +38,9 @@ func (h *AuthHandler) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		// Add user info to context
-		ctx := context.WithValue(r.Context(), "user_email", claims.Email)
-		ctx = context.WithValue(ctx, "user_name", claims.Name)
+		// Add user info to context using typed keys to prevent collisions
+		ctx := context.WithValue(r.Context(), ctxKeyUserEmail, claims.Email)
+		ctx = context.WithValue(ctx, ctxKeyUserName, claims.Name)
 
 		// Call next handler with updated context
 		next.ServeHTTP(w, r.WithContext(ctx))

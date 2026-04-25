@@ -4,14 +4,22 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"master/internal/db"
 )
+
+// maxAuthBodySize limits the request body size for auth endpoints (1MB)
+const maxAuthBodySize = 1 << 20
+
+// emailRegex validates basic email format
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
 // AuthHandler handles authentication endpoints
 type AuthHandler struct {
@@ -85,6 +93,7 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req RegisterRequest
+	r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		json.NewEncoder(w).Encode(AuthResponse{
 			Success: false,
@@ -98,6 +107,14 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(AuthResponse{
 			Success: false,
 			Message: "Name, email, and password are required",
+		})
+		return
+	}
+
+	if !emailRegex.MatchString(req.Email) {
+		json.NewEncoder(w).Encode(AuthResponse{
+			Success: false,
+			Message: "Invalid email format",
 		})
 		return
 	}
@@ -152,6 +169,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req LoginRequest
+	r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		json.NewEncoder(w).Encode(AuthResponse{
 			Success: false,
@@ -207,6 +225,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		Expires:  expirationTime,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -238,6 +257,7 @@ func (h *AuthHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Unix(0, 0),
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   true,
 		MaxAge:   -1,
 	})
 
@@ -256,7 +276,7 @@ func (h *AuthHandler) HandleMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get email from context (set by middleware)
-	email, ok := r.Context().Value("user_email").(string)
+	email, ok := r.Context().Value(ctxKeyUserEmail).(string)
 	if !ok {
 		json.NewEncoder(w).Encode(AuthResponse{
 			Success: false,
@@ -293,6 +313,10 @@ func (h *AuthHandler) VerifyToken(tokenString string) (*Claims, error) {
 	claims := &Claims{}
 
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		// Verify the signing method to prevent algorithm confusion attacks
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
 		return h.jwtSecret, nil
 	})
 

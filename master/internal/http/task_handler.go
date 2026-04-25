@@ -81,7 +81,8 @@ func (h *TaskAPIHandler) HandleCreateTask(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Parse request body
+	// Parse request body with size limit (1MB)
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)

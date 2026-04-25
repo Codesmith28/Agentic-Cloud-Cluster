@@ -18,7 +18,9 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: checkOrigin,
+	CheckOrigin:  checkOrigin,
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
 }
 
 func allowedOriginsSet() map[string]bool {
@@ -93,8 +95,13 @@ func NewTelemetryServer(port int, telemetryMgr *telemetry.TelemetryManager) *Tel
 	mux.HandleFunc("/workers", ts.handleWorkersREST)
 
 	ts.server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: corsMiddleware(mux),
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           corsMiddleware(mux),
+		ReadTimeout:       15 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1MB
 	}
 
 	// Set callback on telemetry manager to broadcast updates
@@ -388,6 +395,7 @@ func (ts *TelemetryServer) readPump(client *WSClient) {
 		client.conn.Close()
 	}()
 
+	client.conn.SetReadLimit(4096) // Limit incoming WebSocket message size
 	client.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	client.conn.SetPongHandler(func(string) error {
 		client.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
@@ -454,7 +462,14 @@ func (ts *TelemetryServer) unregisterClient(client *WSClient) {
 	defer ts.clientsMu.Unlock()
 	if _, ok := ts.clients[client]; ok {
 		delete(ts.clients, client)
-		close(client.send)
+		select {
+		case _, open := <-client.send:
+			if open {
+				close(client.send)
+			}
+		default:
+			close(client.send)
+		}
 		if !ts.quietMode {
 			log.Printf("WebSocket client disconnected")
 		}
