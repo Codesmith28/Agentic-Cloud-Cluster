@@ -32,12 +32,23 @@ class RunningNormalizer:
         data = np.asarray(samples, dtype=np.float64)
         if data.ndim == 1:
             data = data[None, :]
-        for row in data:
-            self.count += 1
-            delta = row - self.mean
-            self.mean += delta / self.count
-            delta2 = row - self.mean
-            self.m2 += delta * delta2
+        n = data.shape[0]
+        if n == 0:
+            return
+        batch_mean = data.mean(axis=0)
+        batch_var = data.var(axis=0) if n > 1 else np.zeros_like(batch_mean)
+        batch_count = n
+
+        old_count = self.count
+        new_count = old_count + batch_count
+        if new_count == 0:
+            return
+        delta = batch_mean - self.mean
+        new_mean = self.mean + delta * (batch_count / new_count)
+        m2_batch = batch_var * batch_count
+        self.m2 = self.m2 + m2_batch + (delta ** 2) * (old_count * batch_count / new_count)
+        self.mean = new_mean
+        self.count = new_count
 
     def normalize(self, samples: np.ndarray) -> np.ndarray:
         if self.count < 2:
@@ -198,7 +209,8 @@ def choose_action(
     normalized_rows = state.normalizer.normalize(pairwise_rows)
 
     normalized_worker = normalized_rows[:, TASK_FEATURE_DIM:]
-    task_tensor = torch.as_tensor(task_features[None, :], dtype=torch.float32, device=device)
+    normalized_task = normalized_rows[0, :TASK_FEATURE_DIM]
+    task_tensor = torch.as_tensor(normalized_task[None, :], dtype=torch.float32, device=device)
     worker_tensor = torch.as_tensor(normalized_worker[None, :, :], dtype=torch.float32, device=device)
     mask_tensor = torch.as_tensor(action_mask[None, :], dtype=torch.bool, device=device)
     headroom_bias = max(float(headroom_bias), 0.0)
@@ -231,6 +243,7 @@ def choose_action(
         "log_prob": float(log_prob.item()),
         "value": float(value.item()),
         "normalized_worker_features": normalized_worker,
+        "normalized_task_features": normalized_task,
     }
 
 

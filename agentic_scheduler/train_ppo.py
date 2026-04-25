@@ -11,6 +11,7 @@ from typing import Dict, Optional
 import numpy as np
 import torch
 
+from .features import TASK_FEATURE_DIM
 from .model import PPOState, build_fresh_state, choose_action, ppo_update
 from .persistence import MongoSchedulerModelStore
 from .training.scheduler_env import SchedulingEnv
@@ -344,6 +345,9 @@ def main() -> None:
     else:
         LOGGER.info("Using CPU for offline PPO training")
 
+    if device.type == "cuda":
+        torch.backends.cudnn.benchmark = True
+
     resume_path: Optional[Path]
     try:
         resume_path = resolve_resume_path(args)
@@ -453,11 +457,20 @@ def main() -> None:
                         action = int(np.random.randint(0, env.num_workers))
                     old_log_prob = 0.0
                     old_value = 0.0
+                    # Normalize features for consistency even in fallback path
+                    pairwise = np.concatenate(
+                        [np.repeat(task_features[None, :], worker_features.shape[0], axis=0), worker_features],
+                        axis=1,
+                    )
+                    normalized = state.normalizer.normalize(pairwise)
+                    task_features = normalized[0, :TASK_FEATURE_DIM].astype(np.float32)
+                    worker_features = normalized[:, TASK_FEATURE_DIM:].astype(np.float32)
                 else:
                     action = int(action_info["action_index"])
                     old_log_prob = float(action_info["log_prob"])
                     old_value = float(action_info["value"])
                     worker_features = np.asarray(action_info["normalized_worker_features"], dtype=np.float32)
+                    task_features = np.asarray(action_info["normalized_task_features"], dtype=np.float32)
 
                 next_observation, reward, terminated, truncated, _ = env.step(action)
                 done = bool(terminated or truncated)
@@ -551,16 +564,23 @@ def main() -> None:
 
             if update_idx % args.log_every == 0 or update_idx == 1:
                 processed = update_idx * args.rollout_steps
-                total_tasks = len(trace.tasks)
-                percent = (processed / total_tasks) * 100 if total_tasks > 0 else 0.0
-                LOGGER.info(
-                    "update=%d avg_reward=%.4f records_processed=%d/%d (%.2f%%)",
-                    update_idx,
-                    float(np.mean(recent_rewards) if recent_rewards else 0.0),
-                    processed,
-                    total_tasks,
-                    percent
-                )
+                if trace is not None:
+                    total_tasks = len(trace.tasks)
+                    epochs = processed / total_tasks if total_tasks > 0 else 0.0
+                    LOGGER.info(
+                        "update=%d avg_reward=%.4f steps=%d epoch=%.2f",
+                        update_idx,
+                        float(np.mean(recent_rewards) if recent_rewards else 0.0),
+                        processed,
+                        epochs,
+                    )
+                else:
+                    LOGGER.info(
+                        "update=%d avg_reward=%.4f steps=%d",
+                        update_idx,
+                        float(np.mean(recent_rewards) if recent_rewards else 0.0),
+                        processed,
+                    )
 
             save_local_checkpoint = args.checkpoint_every > 0 and update_idx % args.checkpoint_every == 0
             save_mongo_checkpoint = args.mongo_checkpoint_every > 0 and update_idx % args.mongo_checkpoint_every == 0

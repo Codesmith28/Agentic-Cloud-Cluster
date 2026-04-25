@@ -45,6 +45,8 @@ python -m agentic_scheduler.train_ppo \
   --checkpoint-every 50 \
   --output "$RESULTS_DIR/ppo_trained_final.pt" \
   --checkpoint-dir "$CHECKPOINT_DIR" \
+  --num-workers 64 \
+  --log-every 1 \
   2>&1 | tee "$LOG_FILE"
 
 echo ""

@@ -156,6 +156,10 @@ class TraceReplayEnv(gym.Env):
             if self.loop:
                 self._task_idx = 0
                 self._prev_arrival = 0.0
+                for w in self.workers:
+                    w.used_cpu = 0.0
+                    w.used_memory = 0.0
+                    w.used_storage = 0.0
             else:
                 terminated = True
                 terminal_info = {"feasible": feasible, **reward_details}
