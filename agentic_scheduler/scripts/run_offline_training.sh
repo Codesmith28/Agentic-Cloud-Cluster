@@ -32,11 +32,12 @@ echo "Checkpoints:        $CHECKPOINT_DIR"
 echo "======================================================="
 
 # Run the training command
-# Output is saved to the logs folder within agentic_scheduler
+# Uses the curated train/ split (200K tasks with headers) instead of raw/ (14.3M rows, no header).
+# The test/ split (50K tasks) is held out for post-training evaluation.
 python -m agentic_scheduler.train_ppo \
   --trace-source alibaba \
-  --trace-path agentic_scheduler/data/alibaba_v2018/raw \
-  --max-trace-tasks 10000000 \
+  --trace-path agentic_scheduler/data/alibaba_v2018/train \
+  --max-trace-tasks 200000 \
   --rollout-steps 16384 \
   --minibatch-size 4096 \
   --ppo-epochs 15 \
@@ -56,4 +57,14 @@ if [ -f "$REPORT_SCRIPT" ]; then
     echo "A compiled training report has been generated at: $REPORT_FILE"
 else
     echo "Warning: Report script not found at $REPORT_SCRIPT"
+fi
+
+# Generate the training reward curve plot
+PLOT_SCRIPT="${SCRIPT_DIR}/plot_training_curve.py"
+PLOT_FILE="${RESULTS_DIR}/training_reward_curve.png"
+if [ -f "$PLOT_SCRIPT" ]; then
+    echo "Generating training reward curve..."
+    python "$PLOT_SCRIPT" "$LOG_FILE" "$PLOT_FILE"
+else
+    echo "Warning: Plot script not found at $PLOT_SCRIPT"
 fi
