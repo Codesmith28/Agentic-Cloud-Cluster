@@ -1,0 +1,3 @@
+2026-04-25 16:42:57,317 [INFO] Using GPU for offline PPO training: NVIDIA GeForce RTX 4060 Laptop GPU
+2026-04-25 16:42:57,317 [INFO] Loading alibaba trace from agentic_scheduler/data/alibaba_v2018/raw (max 10000000 tasks)
+2026-04-25 16:42:57,346 [INFO] Loaded 17592 machines from agentic_scheduler/data/alibaba_v2018/raw/machine_meta.csv

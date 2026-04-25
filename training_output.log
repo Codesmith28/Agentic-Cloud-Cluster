@@ -1,0 +1,24 @@
+2026-04-25 16:29:27,529 [INFO] Using GPU for offline PPO training: NVIDIA GeForce RTX 4060 Laptop GPU
+2026-04-25 16:29:27,529 [INFO] Loading alibaba trace from agentic_scheduler/data/alibaba_v2018/raw (max 10000000 tasks)
+2026-04-25 16:29:27,565 [INFO] Loaded 17592 machines from agentic_scheduler/data/alibaba_v2018/raw/machine_meta.csv
+2026-04-25 16:30:28,613 [INFO] Loaded 10000000 Alibaba tasks (capped at 10000000)
+2026-04-25 16:30:28,774 [INFO] Trace replay env: Alibaba cluster-trace-v2018 (10000000 tasks, 17592 machines) (window=1970-01-01T00:54:57+00:00..1970-01-07T01:21:03+00:00)
+2026-04-25 16:30:32,645 [INFO] update=1 avg_reward=-0.5333 model_steps=1
+2026-04-25 16:30:54,278 [INFO] update=10 avg_reward=-1.3798 model_steps=10
+2026-04-25 16:30:54,292 [INFO] Saved periodic local checkpoint to agentic_scheduler/models/checkpoints/ppo_offline_u000010_s000010.pt
+2026-04-25 16:31:18,838 [INFO] update=20 avg_reward=-1.3954 model_steps=20
+2026-04-25 16:31:18,845 [INFO] Saved periodic local checkpoint to agentic_scheduler/models/checkpoints/ppo_offline_u000020_s000020.pt
+2026-04-25 16:31:45,864 [INFO] update=30 avg_reward=-1.3334 model_steps=30
+2026-04-25 16:31:45,873 [INFO] Saved periodic local checkpoint to agentic_scheduler/models/checkpoints/ppo_offline_u000030_s000030.pt
+2026-04-25 16:32:12,717 [INFO] update=40 avg_reward=-1.3629 model_steps=40
+2026-04-25 16:32:12,725 [INFO] Saved periodic local checkpoint to agentic_scheduler/models/checkpoints/ppo_offline_u000040_s000040.pt
+2026-04-25 16:32:39,351 [INFO] update=50 avg_reward=-1.4605 model_steps=50
+2026-04-25 16:32:39,384 [INFO] Saved periodic local checkpoint to agentic_scheduler/models/checkpoints/ppo_offline_u000050_s000050.pt
+2026-04-25 16:33:05,925 [INFO] update=60 avg_reward=-1.5806 model_steps=60
+2026-04-25 16:33:05,933 [INFO] Saved periodic local checkpoint to agentic_scheduler/models/checkpoints/ppo_offline_u000060_s000060.pt
+2026-04-25 16:33:32,760 [INFO] update=70 avg_reward=-1.6280 model_steps=70
+2026-04-25 16:33:32,768 [INFO] Saved periodic local checkpoint to agentic_scheduler/models/checkpoints/ppo_offline_u000070_s000070.pt
+2026-04-25 16:33:58,652 [INFO] update=80 avg_reward=-1.6071 model_steps=80
+2026-04-25 16:33:58,686 [INFO] Saved periodic local checkpoint to agentic_scheduler/models/checkpoints/ppo_offline_u000080_s000080.pt
+2026-04-25 16:34:23,498 [INFO] update=90 avg_reward=-1.5040 model_steps=90
+2026-04-25 16:34:23,524 [INFO] Saved periodic local checkpoint to agentic_scheduler/models/checkpoints/ppo_offline_u000090_s000090.pt

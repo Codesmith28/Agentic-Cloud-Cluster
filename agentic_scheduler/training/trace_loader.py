@@ -166,7 +166,8 @@ def load_alibaba_trace(
     machine_path = trace_dir / machine_csv
     if machine_path.exists():
         with open(machine_path, newline="", encoding="utf-8") as fh:
-            reader = csv.DictReader(fh)
+            machine_fields = ["machine_id", "time_stamp", "failure_domain_1", "failure_domain_2", "cpu_num", "mem_size", "status"]
+            reader = csv.DictReader(fh, fieldnames=machine_fields)
             for idx, row in enumerate(reader):
                 workers.append({
                     "worker_id": row.get("machine_id", f"machine-{idx}"),
@@ -186,7 +187,8 @@ def load_alibaba_trace(
         raise FileNotFoundError(f"Task file not found: {task_path}")
 
     with open(task_path, newline="", encoding="utf-8") as fh:
-        reader = csv.DictReader(fh)
+        task_fields = ["task_name", "instance_num", "job_name", "task_type", "status", "start_time", "end_time", "plan_cpu", "plan_mem"]
+        reader = csv.DictReader(fh, fieldnames=task_fields)
         for row in reader:
             start_time = _safe_float(row.get("start_time", "0"))
             end_time = _safe_float(row.get("end_time", "0"))
