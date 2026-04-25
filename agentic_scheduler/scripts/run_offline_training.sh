@@ -37,10 +37,11 @@ python -m agentic_scheduler.train_ppo \
   --trace-source alibaba \
   --trace-path agentic_scheduler/data/alibaba_v2018/raw \
   --max-trace-tasks 10000000 \
-  --rollout-steps 4096 \
-  --minibatch-size 1024 \
-  --ppo-epochs 10 \
-  --checkpoint-every 10 \
+  --rollout-steps 16384 \
+  --minibatch-size 4096 \
+  --ppo-epochs 15 \
+  --updates 1000 \
+  --checkpoint-every 50 \
   --output "$RESULTS_DIR/ppo_trained_final.pt" \
   --checkpoint-dir "$CHECKPOINT_DIR" \
   2>&1 | tee "$LOG_FILE"

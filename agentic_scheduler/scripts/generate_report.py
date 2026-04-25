@@ -23,12 +23,14 @@ def parse_log(log_path):
             if match:
                 tasks_loaded = int(match.group(1))
         elif "update=" in line and "avg_reward=" in line:
-            match = re.search(r'update=(\d+) avg_reward=([-\d.]+) model_steps=(\d+)', line)
+            match = re.search(r'update=(\d+) avg_reward=([-\d.]+) records_processed=(\d+)/(\d+) \(([\d.]+)%\)', line)
             if match:
                 updates.append({
                     'update': int(match.group(1)),
                     'avg_reward': float(match.group(2)),
-                    'model_steps': int(match.group(3))
+                    'records': int(match.group(3)),
+                    'total': int(match.group(4)),
+                    'percent': float(match.group(5))
                 })
                 
     return gpu_info, machines_loaded, tasks_loaded, updates
@@ -44,10 +46,10 @@ def generate_markdown(gpu_info, machines_loaded, tasks_loaded, updates, output_p
     if not updates:
         md += "Training is still initializing (loading dataset) or no updates have been logged yet.\n"
     else:
-        md += "| Update | Avg Reward | Total Steps |\n"
+        md += "| Update | Avg Reward | Records Processed |\n"
         md += "|---|---|---|\n"
         for u in updates:
-            md += f"| {u['update']} | {u['avg_reward']:.4f} | {u['model_steps']} |\n"
+            md += f"| {u['update']} | {u['avg_reward']:.4f} | {u['records']}/{u['total']} ({u['percent']}%) |\n"
             
         md += "\n### Summary\n"
         md += f"The model has completed **{updates[-1]['update']}** PPO updates.\n"

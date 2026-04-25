@@ -550,11 +550,16 @@ def main() -> None:
                 recent_rewards = recent_rewards[-5000:]
 
             if update_idx % args.log_every == 0 or update_idx == 1:
+                processed = update_idx * args.rollout_steps
+                total_tasks = len(trace.tasks)
+                percent = (processed / total_tasks) * 100 if total_tasks > 0 else 0.0
                 LOGGER.info(
-                    "update=%d avg_reward=%.4f model_steps=%d",
+                    "update=%d avg_reward=%.4f records_processed=%d/%d (%.2f%%)",
                     update_idx,
                     float(np.mean(recent_rewards) if recent_rewards else 0.0),
-                    state.training_steps,
+                    processed,
+                    total_tasks,
+                    percent
                 )
 
             save_local_checkpoint = args.checkpoint_every > 0 and update_idx % args.checkpoint_every == 0
