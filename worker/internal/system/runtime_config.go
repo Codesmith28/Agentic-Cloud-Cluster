@@ -31,7 +31,10 @@ func ResolveWorkerPort(defaultPort int) (int, error) {
 	return FindAvailablePort(defaultPort)
 }
 
-// ResolveWorkerMetricsPort resolves the worker metrics HTTP port from environment or defaults to a fixed port.
+// ResolveWorkerMetricsPort resolves the worker metrics HTTP port.
+// If WORKER_METRICS_PORT is set, that exact port is used.
+// Otherwise it probes from defaultPort upward to find a free port,
+// mirroring the behaviour of ResolveWorkerPort.
 func ResolveWorkerMetricsPort(defaultPort int) (int, error) {
 	if raw := strings.TrimSpace(os.Getenv(workerMetricsPortEnv)); raw != "" {
 		parsed, err := parsePort(raw)
@@ -40,7 +43,7 @@ func ResolveWorkerMetricsPort(defaultPort int) (int, error) {
 		}
 		return parsed, nil
 	}
-	return defaultPort, nil
+	return FindAvailablePort(defaultPort)
 }
 
 // ResolveWorkerBindIP resolves worker bind IP from environment or uses the detected default.

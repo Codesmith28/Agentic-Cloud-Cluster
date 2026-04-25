@@ -104,9 +104,20 @@ func (s *SystemInfo) GetWorkerPort() string {
 	return fmt.Sprintf(":%d", s.WorkerPort)
 }
 
-// FindAvailablePort finds an available port starting from the given port number
+// PortScanRange is the number of consecutive ports to probe when
+// searching for a free port. 500 allows up to ~500 co-located workers
+// on a single host before exhaustion (bare-metal without containers).
+const PortScanRange = 500
+
+// FindAvailablePort finds an available port starting from the given port number.
+// It probes up to PortScanRange consecutive ports and returns the first one
+// that can be bound. For truly unlimited scaling, deploy workers in
+// containers (each gets its own network namespace) or on separate hosts.
 func FindAvailablePort(startPort int) (int, error) {
-	for port := startPort; port < startPort+100; port++ { // Try up to 100 ports
+	for port := startPort; port < startPort+PortScanRange; port++ {
+		if port > 65535 {
+			break
+		}
 		address := fmt.Sprintf(":%d", port)
 		listener, err := net.Listen("tcp", address)
 		if err == nil {
@@ -114,7 +125,7 @@ func FindAvailablePort(startPort int) (int, error) {
 			return port, nil
 		}
 	}
-	return 0, fmt.Errorf("no available ports found starting from %d", startPort)
+	return 0, fmt.Errorf("no available port in range %d–%d", startPort, min(startPort+PortScanRange-1, 65535))
 }
 
 // GetSystemResources retrieves actual system resources (CPU, Memory, Storage).
