@@ -5,12 +5,24 @@ services:
     container_name: cloudai-mongo
     restart: always
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-cloudai}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?Set MONGO_PASSWORD in .env}
     volumes:
       - mongo_data:/data/db
+    networks:
+      - cloudai-db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  cloudai-db:
+    driver: bridge
 
 volumes:
   mongo_data:

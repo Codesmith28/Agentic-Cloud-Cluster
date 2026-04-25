@@ -32,7 +32,7 @@ jobs:
           RUN_ROOT: ${{ github.workspace }}/results/testbench/ci-${{ github.run_id }}-${{ github.run_attempt }}
           RUN_UNIT_TESTS: "true"
           GF_ADMIN_USER: "admin"
-          GF_ADMIN_PASSWORD: "admin"
+          GF_ADMIN_PASSWORD: ${{ secrets.GF_ADMIN_PASSWORD || 'ci-ephemeral-pw' }}
         run: make testbench-integration
 
       - name: Upload integration artifacts

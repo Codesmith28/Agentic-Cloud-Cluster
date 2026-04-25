@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Usage: ./runMaster.sh [cli|tui]
 #
@@ -8,7 +9,7 @@
 #   master> register <worker_id> <worker_ip:port>
 
 UI_MODE="${1:-cli}"
-echo "Starting Master Node (mode: $UI_MODE)"
+echo "Starting Master Node (mode: ${UI_MODE})"
 UI_PORT="${WEBUI_PORT:-3001}"
 
 # Check if MongoDB is running (optional but recommended)

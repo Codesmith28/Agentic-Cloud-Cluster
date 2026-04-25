@@ -38,4 +38,7 @@ USER cloudai
 
 EXPOSE 50051 8080
 
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+  CMD ["/app/masterNode", "--healthcheck"] || exit 1
+
 ENTRYPOINT ["/app/masterNode"]

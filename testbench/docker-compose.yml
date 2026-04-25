@@ -3,7 +3,10 @@ services:
     image: mongo:7.0
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-cloudai}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-testbench}
     volumes:
       - mongo-data:/data/db
     networks:
@@ -19,11 +22,16 @@ services:
       context: ..
       dockerfile: testbench/docker/Dockerfile.master
     restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       mongo:
         condition: service_healthy
     environment:
       MONGODB_HOST: mongo:27017
+      MONGODB_USERNAME: ${MONGO_USERNAME:-cloudai}
+      MONGODB_PASSWORD: ${MONGO_PASSWORD:-testbench}
       MONGODB_DATABASE: cluster_db
       GRPC_PORT: ":50051"
       HTTP_PORT: ":8080"
@@ -34,6 +42,8 @@ services:
     ports:
       - "50051:50051"
       - "8080:8080"
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
     volumes:
       - master-files:/var/cloudai/files
     networks:
@@ -104,6 +114,9 @@ services:
       context: ..
       dockerfile: testbench/docker/Dockerfile.worker
     restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
     hostname: worker-small
     depends_on:
       master:
@@ -120,6 +133,8 @@ services:
       WORKER_TOTAL_STORAGE_GB: "20"
       DOCKER_HOST: tcp://worker-small-dind:2375
       CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
     volumes:
       - worker-small-state:/var/lib/cloudai/worker
       - worker-small-outputs:/var/cloudai/outputs
@@ -153,6 +168,9 @@ services:
       context: ..
       dockerfile: testbench/docker/Dockerfile.worker
     restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
     hostname: worker-medium
     depends_on:
       master:
@@ -169,6 +187,8 @@ services:
       WORKER_TOTAL_STORAGE_GB: "40"
       DOCKER_HOST: tcp://worker-medium-dind:2375
       CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
     volumes:
       - worker-medium-state:/var/lib/cloudai/worker
       - worker-medium-outputs:/var/cloudai/outputs
@@ -202,6 +222,9 @@ services:
       context: ..
       dockerfile: testbench/docker/Dockerfile.worker
     restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
     hostname: worker-large
     depends_on:
       master:
@@ -218,6 +241,8 @@ services:
       WORKER_TOTAL_STORAGE_GB: "80"
       DOCKER_HOST: tcp://worker-large-dind:2375
       CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
     volumes:
       - worker-large-state:/var/lib/cloudai/worker
       - worker-large-outputs:/var/cloudai/outputs

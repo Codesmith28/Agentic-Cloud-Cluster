@@ -3,7 +3,7 @@
 # Dependency installation script for Agentic-Cloud-Cluster
 # Optimized for macOS (Homebrew) and Linux (apt)
 
-set -e
+set -euo pipefail
 
 echo "🚀 Starting dependency installation..."
 
