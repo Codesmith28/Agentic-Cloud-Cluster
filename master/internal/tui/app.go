@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"master/internal/controlplane"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -136,6 +138,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle effects
 		for _, effect := range msg.outcome.Effects {
 			switch effect.Type {
+			case controlplane.EffectToast:
+				m.transcript = append(m.transcript, "💬 "+effect.Payload)
 			case controlplane.EffectRefresh:
 				cmds = append(cmds, m.refreshData())
 			case controlplane.EffectSwitchPane:
@@ -169,7 +173,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.monitoring = false
 		m.monitorCancel = nil
 		m.monitorCh = nil
-		if msg.err != nil && msg.err != context.Canceled {
+		if msg.err != nil && !errors.Is(msg.err, context.Canceled) {
 			m.transcript = append(m.transcript, fmt.Sprintf("❌ Monitor error: %v", msg.err))
 		} else {
 			m.transcript = append(m.transcript, fmt.Sprintf("✅ Task %s completed: %s", msg.taskID, msg.status))
@@ -197,18 +201,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// handleKey processes keyboard input.
+// handleKey processes keyboard input using the declared key bindings.
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Global keys always work
-	if msg.String() == "ctrl+c" {
+	if key.Matches(msg, keys.Quit) {
 		m.quitting = true
 		return m, tea.Quit
 	}
 
-	// Command bar focused
+	// Command bar focused — forward most keys to the text input
 	if m.focus == FocusCommandBar {
-		switch msg.String() {
-		case "esc":
+		switch {
+		case key.Matches(msg, keys.Escape):
 			if m.monitoring && m.monitorCancel != nil {
 				m.monitorCancel()
 				m.monitoring = false
@@ -217,7 +221,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.focus = FocusPane
 			m.cmdInput.Blur()
 			return m, nil
-		case "enter":
+		case key.Matches(msg, keys.Enter):
 			input := strings.TrimSpace(m.cmdInput.Value())
 			m.cmdInput.SetValue("")
 			if input == "" {
@@ -237,30 +241,54 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Pane navigation
-	switch msg.String() {
-	case "esc":
+	// Pane-level navigation and shortcuts
+	switch {
+	case key.Matches(msg, keys.Escape):
 		if m.monitoring && m.monitorCancel != nil {
 			m.monitorCancel()
 			m.monitoring = false
 			m.transcript = append(m.transcript, "⏹ Monitoring stopped")
 		}
 		return m, nil
-	case "tab":
+	case key.Matches(msg, keys.NextPane):
 		m.activePane = controlplane.Pane((int(m.activePane) + 1) % controlplane.PaneCount)
 		return m, nil
-	case "shift+tab":
+	case key.Matches(msg, keys.PrevPane):
 		m.activePane = controlplane.Pane((int(m.activePane) - 1 + controlplane.PaneCount) % controlplane.PaneCount)
 		return m, nil
-	case "/":
+	case key.Matches(msg, keys.FocusCmd):
 		m.focus = FocusCommandBar
 		m.cmdInput.Focus()
 		return m, textinput.Blink
-	case "r":
+	case key.Matches(msg, keys.Refresh):
 		return m, m.refreshData()
-	case "q":
+	case key.Matches(msg, keys.Monitor):
+		m.focus = FocusCommandBar
+		m.cmdInput.SetValue("monitor ")
+		m.cmdInput.Focus()
+		return m, textinput.Blink
+	case key.Matches(msg, keys.Cancel):
+		m.focus = FocusCommandBar
+		m.cmdInput.SetValue("cancel ")
+		m.cmdInput.Focus()
+		return m, textinput.Blink
+	case key.Matches(msg, keys.Unregister):
+		m.focus = FocusCommandBar
+		m.cmdInput.SetValue("unregister ")
+		m.cmdInput.Focus()
+		return m, textinput.Blink
+	case key.Matches(msg, keys.QuitSubview):
 		m.quitting = true
 		return m, tea.Quit
+	default:
+		// Number keys 1-6 for direct pane navigation
+		if n := msg.String(); len(n) == 1 && n[0] >= '1' && n[0] <= '6' {
+			paneIdx := int(n[0] - '1')
+			if paneIdx < controlplane.PaneCount {
+				m.activePane = controlplane.Pane(paneIdx)
+			}
+			return m, nil
+		}
 	}
 
 	return m, nil
@@ -369,38 +397,40 @@ func (m Model) renderStatusRail() string {
 	return left + strings.Repeat(" ", gap) + right
 }
 
-// renderTabBar renders the pane tab bar.
+// renderTabBar renders the pane tab bar with number-key shortcuts.
 func (m Model) renderTabBar() string {
 	var tabs []string
 	for i := 0; i < controlplane.PaneCount; i++ {
 		p := controlplane.Pane(i)
+		label := fmt.Sprintf("%d:%s", i+1, p.String())
 		if p == m.activePane {
-			tabs = append(tabs, activeTabStyle.Render(p.String()))
+			tabs = append(tabs, activeTabStyle.Render(label))
 		} else {
-			tabs = append(tabs, tabStyle.Render(p.String()))
+			tabs = append(tabs, tabStyle.Render(label))
 		}
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
 }
 
-// renderMainPane renders the currently active pane content.
+// renderMainPane renders the currently active pane content wrapped in the
+// active panel style (highlighted border).
 func (m Model) renderMainPane() string {
+	var content string
 	switch m.activePane {
 	case controlplane.PaneOverview:
-		return m.renderOverview()
+		content = m.renderOverview()
 	case controlplane.PaneWorkers:
-		return m.renderWorkers()
+		content = m.renderWorkers()
 	case controlplane.PaneTasks:
-		return m.renderTasks()
+		content = m.renderTasks()
 	case controlplane.PaneQueue:
-		return m.renderQueue()
+		content = m.renderQueue()
 	case controlplane.PaneLogs:
-		return m.renderLogs()
+		content = m.renderLogs()
 	case controlplane.PaneActivity:
-		return m.renderActivity()
-	default:
-		return ""
+		content = m.renderActivity()
 	}
+	return activePanelStyle.Width(m.width - 4).Render(content)
 }
 
 // renderCommandBar renders the bottom command input area.
@@ -416,7 +446,7 @@ func (m Model) renderCommandBar() string {
 
 	transcript := transcriptStyle.Render(strings.Join(recent, "\n"))
 	prompt := m.cmdInput.View()
-	help := helpStyle.Render("  tab:pane  /:cmd  r:refresh  ctrl+c:exit")
+	help := helpStyle.Render("  tab/1-6:pane  /:cmd  r:refresh  m:monitor  c:cancel  u:unreg  q/ctrl+c:exit")
 
 	content := lipgloss.JoinVertical(lipgloss.Left, transcript, prompt, help)
 
