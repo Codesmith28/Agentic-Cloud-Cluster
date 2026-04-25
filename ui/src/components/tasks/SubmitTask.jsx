@@ -54,16 +54,26 @@ const SubmitTask = () => {
       setError('Docker image is required');
       return false;
     }
+    // Validate docker image name format to prevent injection
+    const dockerImagePattern = /^[a-zA-Z0-9][a-zA-Z0-9._\-/]*(?::[a-zA-Z0-9._\-]+)?$/;
+    if (!dockerImagePattern.test(formData.docker_image.trim())) {
+      setError('Invalid Docker image name format');
+      return false;
+    }
     if (!formData.tag) {
       setError('Task tag is required');
       return false;
     }
-    if (formData.cpu_required <= 0) {
-      setError('CPU must be greater than 0');
+    if (formData.cpu_required <= 0 || formData.cpu_required > 64) {
+      setError('CPU must be between 0.1 and 64');
       return false;
     }
-    if (formData.memory_required <= 0) {
-      setError('Memory must be greater than 0');
+    if (formData.memory_required <= 0 || formData.memory_required > 256) {
+      setError('Memory must be between 0.5 and 256');
+      return false;
+    }
+    if (formData.storage_required < 1 || formData.storage_required > 1000) {
+      setError('Storage must be between 1 and 1000');
       return false;
     }
     return true;

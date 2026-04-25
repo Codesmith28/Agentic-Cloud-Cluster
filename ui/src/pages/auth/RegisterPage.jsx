@@ -108,6 +108,7 @@ const RegisterPage = () => {
               margin="normal"
               required
               autoFocus
+              autoComplete="name"
             />
 
             <TextField
@@ -119,6 +120,7 @@ const RegisterPage = () => {
               onChange={handleChange}
               margin="normal"
               required
+              autoComplete="email"
             />
 
             <TextField
@@ -131,6 +133,7 @@ const RegisterPage = () => {
               margin="normal"
               required
               helperText="At least 6 characters"
+              autoComplete="new-password"
             />
 
             <TextField
@@ -142,6 +145,7 @@ const RegisterPage = () => {
               onChange={handleChange}
               margin="normal"
               required
+              autoComplete="new-password"
             />
 
             <Button

@@ -89,6 +89,7 @@ const LoginPage = () => {
               margin="normal"
               required
               autoFocus
+              autoComplete="email"
             />
 
             <TextField
@@ -100,6 +101,7 @@ const LoginPage = () => {
               onChange={handleChange}
               margin="normal"
               required
+              autoComplete="current-password"
             />
 
             <Button

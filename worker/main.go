@@ -126,7 +126,9 @@ func main() {
 		log.Fatalf("Failed to listen on %s: %v", workerAddress, err)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.MaxRecvMsgSize(4*1024*1024), // 4 MB max inbound message
+	)
 	pb.RegisterMasterWorkerServer(grpcServer, workerServer)
 
 	// Handle graceful shutdown

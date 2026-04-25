@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -172,9 +173,16 @@ func (r *Recorder) IncDockerError(stage, taskType string) {
 	}
 }
 
+// normalizeTaskType prevents unbounded label cardinality by restricting values to
+// a known set. Unknown types are mapped to "other".
 func normalizeTaskType(taskType string) string {
 	if taskType == "" {
 		return "unknown"
 	}
-	return taskType
+	switch strings.ToLower(taskType) {
+	case "batch", "interactive", "training", "inference", "etl", "benchmark", "test", "unknown":
+		return strings.ToLower(taskType)
+	default:
+		return "other"
+	}
 }

@@ -5,6 +5,9 @@ const WEBUI_PORT = Number(process.env.WEBUI_PORT || 3001)
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    sourcemap: false,
+  },
   server: {
     port: WEBUI_PORT,
     strictPort: true,

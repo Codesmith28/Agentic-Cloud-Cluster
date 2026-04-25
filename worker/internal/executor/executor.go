@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -24,6 +25,42 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-units"
 )
+
+const (
+	maxLogBytes = 10 * 1024 * 1024 // 10 MB cap for collected logs
+	maxPidsLimit = 512              // prevent fork bombs inside containers
+)
+
+// validTaskID matches alphanumeric, hyphens, and underscores only.
+var validTaskID = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_\-]{0,253}$`)
+
+// validDockerImage matches standard Docker image references (registry/repo:tag@digest).
+var validDockerImage = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._\-/]*(:[a-zA-Z0-9._\-]+)?(@sha256:[a-f0-9]{64})?$`)
+
+// ValidateTaskID checks that a task ID is safe for use in file paths and container names.
+func ValidateTaskID(taskID string) error {
+	if taskID == "" {
+		return fmt.Errorf("task ID must not be empty")
+	}
+	if !validTaskID.MatchString(taskID) {
+		return fmt.Errorf("task ID %q contains invalid characters", taskID)
+	}
+	if strings.Contains(taskID, "..") {
+		return fmt.Errorf("task ID %q must not contain '..'", taskID)
+	}
+	return nil
+}
+
+// ValidateDockerImage checks that a Docker image reference is well-formed.
+func ValidateDockerImage(img string) error {
+	if img == "" {
+		return fmt.Errorf("docker image must not be empty")
+	}
+	if !validDockerImage.MatchString(img) {
+		return fmt.Errorf("docker image %q is not a valid image reference", img)
+	}
+	return nil
+}
 
 // TaskExecutor handles Docker container execution
 type TaskExecutor struct {
@@ -78,6 +115,19 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 		TaskID: taskID,
 		Status: "failed",
 	}
+
+	// Validate inputs before proceeding
+	if err := ValidateTaskID(taskID); err != nil {
+		result.Error = fmt.Errorf("invalid task ID: %w", err)
+		result.Logs = fmt.Sprintf("Rejected: %v", err)
+		return result
+	}
+	if err := ValidateDockerImage(dockerImage); err != nil {
+		result.Error = fmt.Errorf("invalid docker image: %w", err)
+		result.Logs = fmt.Sprintf("Rejected: %v", err)
+		return result
+	}
+
 	executionStarted := time.Now()
 	workermetrics.Get().IncTaskStart(taskType)
 
@@ -253,11 +303,16 @@ func (e *TaskExecutor) createContainer(ctx context.Context, image, command, task
 	}
 	log.Printf("[Task %s] ✓ Created secure output directory: %s", taskID, outputDir)
 
-	// Prepare host config with resource limits and volume mount
+	// Prepare host config with resource limits, volume mount, and security hardening
 	networkMode := system.ResolveWorkerContainerNetworkMode()
+	pidsLimit := int64(maxPidsLimit)
 	hostConfig := &container.HostConfig{
 		NetworkMode: container.NetworkMode(networkMode),
-		Resources:   container.Resources{},
+		Resources: container.Resources{
+			PidsLimit: &pidsLimit,
+		},
+		SecurityOpt: []string{"no-new-privileges"},
+		ReadonlyRootfs: false, // tasks may need to write; /output is bind-mounted
 		Mounts: []mount.Mount{
 			{
 				Type:   mount.TypeBind,
@@ -265,6 +320,8 @@ func (e *TaskExecutor) createContainer(ctx context.Context, image, command, task
 				Target: "/output",
 			},
 		},
+		CapDrop: []string{"ALL"},
+		CapAdd:  []string{"CHOWN", "DAC_OVERRIDE", "FOWNER", "SETGID", "SETUID"},
 	}
 
 	// Set CPU limit (in nano CPUs: 1 CPU = 1e9 nano CPUs)
@@ -292,7 +349,7 @@ func (e *TaskExecutor) createContainer(ctx context.Context, image, command, task
 	return resp.ID, nil
 }
 
-// collectLogs streams container logs
+// collectLogs streams container logs with a size cap to prevent OOM.
 func (e *TaskExecutor) collectLogs(ctx context.Context, containerID string) (string, error) {
 	logReader, err := e.dockerClient.ContainerLogs(ctx, containerID, container.LogsOptions{
 		ShowStdout: true,
@@ -314,13 +371,18 @@ func (e *TaskExecutor) collectLogs(ctx context.Context, containerID string) (str
 		if len(line) > 8 {
 			line = line[8:]
 		}
+		if logBuffer.Len()+len(line)+1 > maxLogBytes {
+			logBuffer.WriteString("\n... [log output truncated at 10 MB] ...\n")
+			break
+		}
 		logBuffer.WriteString(line + "\n")
 	}
 
 	return logBuffer.String(), scanner.Err()
 }
 
-// collectOutputFiles collects all files from the output directory
+// collectOutputFiles collects all files from the output directory.
+// It validates that all files are within the expected directory to prevent traversal.
 func (e *TaskExecutor) collectOutputFiles(outputDir string) ([]string, error) {
 	var files []string
 
@@ -329,16 +391,28 @@ func (e *TaskExecutor) collectOutputFiles(outputDir string) ([]string, error) {
 		return files, nil // No output directory, return empty list
 	}
 
+	absOutputDir, err := filepath.Abs(outputDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve output directory: %w", err)
+	}
+
 	// Walk through directory and collect all file paths
-	err := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(absOutputDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(absPath, absOutputDir) {
+			return fmt.Errorf("path %q escapes output directory", path)
+		}
+
 		// Skip directories, only collect files
 		if !info.IsDir() {
-			// Get relative path from output directory
-			relPath, err := filepath.Rel(outputDir, path)
+			relPath, err := filepath.Rel(absOutputDir, absPath)
 			if err != nil {
 				return err
 			}
