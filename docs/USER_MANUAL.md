@@ -1430,4 +1430,431 @@ WEBUI_PORT=3002 npm run dev
 
 ---
 
+## 21. Data Lifecycle — Provisioning, Processing & Consumption
+
+This section traces the end-to-end lifecycle of data through the system, from raw inputs to trained scheduling models and production decisions.
+
+### 21.1 Data Flow Overview
+
+```
+                     ┌─────────────────────────────────────────────────────────┐
+                     │                  DATA SOURCES                          │
+                     │                                                         │
+                     │  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐  │
+                     │  │ Alibaba  │  │ Google   │  │ CloudAI Live Cluster │  │
+                     │  │ Traces   │  │ Traces   │  │ (MongoDB history)    │  │
+                     │  └────┬─────┘  └────┬─────┘  └──────────┬───────────┘  │
+                     └───────┼─────────────┼───────────────────┼──────────────┘
+                             │             │                   │
+                     ┌───────▼─────────────▼───────────────────▼──────────────┐
+                     │              TRACE LOADERS (Provisioning)               │
+                     │  Normalize → TraceTask → TraceCluster                  │
+                     └────────────────────────┬───────────────────────────────┘
+                                              │
+               ┌──────────────────────────────┼──────────────────────────────┐
+               │                              │                              │
+      ┌────────▼─────────┐          ┌─────────▼──────────┐       ┌───────────▼──────────┐
+      │  SchedulingEnv   │          │  TraceReplayEnv    │       │   AOD Trainer        │
+      │  (Synthetic)     │          │  (Real traces)     │       │   (RTS learning)     │
+      │  Gymnasium env   │          │  Gymnasium env     │       │   Linear regression  │
+      └────────┬─────────┘          └─────────┬──────────┘       └───────────┬──────────┘
+               │                              │                              │
+               │ observations + rewards       │ observations + rewards       │ Theta, Affinity,
+               │                              │                              │ Penalty
+      ┌────────▼──────────────────────────────▼──────────┐       ┌───────────▼──────────┐
+      │             PPO Training Loop                     │       │   GA Params (JSON)   │
+      │  rollout → GAE → policy gradient → checkpoint    │       │   + MongoDB store    │
+      └───────────────────────┬───────────────────────────┘       └───────────┬──────────┘
+                              │                                               │
+                     ┌────────▼──────────┐                        ┌───────────▼──────────┐
+                     │  Model (.pt file) │                        │  RTS Scheduler       │
+                     │  + MongoDB GridFS │                        │  (risk scoring)      │
+                     └────────┬──────────┘                        └───────────┬──────────┘
+                              │                                               │
+                     ┌────────▼──────────────────────────────────────────────▼──┐
+                     │                PRODUCTION SCHEDULING                     │
+                     │  Task arrives → Feature extraction → Model inference →   │
+                     │  Worker selected → Task dispatched → Outcome reported    │
+                     └──────────────────────────┬──────────────────────────────┘
+                                                │
+                                       ┌────────▼────────┐
+                                       │  Online Learning │
+                                       │  (PPO updates   │
+                                       │   from outcomes) │
+                                       └─────────────────┘
+```
+
+### 21.2 Data Provisioning — Where Does the Data Come From?
+
+The system uses three categories of data:
+
+#### A) External Cluster Traces (Offline Training)
+
+Used to train the PPO model before deployment.
+
+**Alibaba cluster-trace-v2018** (`trace_loader.load_alibaba_trace`):
+- **Source**: Public dataset from Alibaba's production cluster
+- **Files needed**: `batch_task.csv` (task definitions) + `machine_meta.csv` (machine specs)
+- **Raw fields**: `task_name`, `start_time`, `end_time`, `plan_cpu`, `plan_mem`, `task_type`, `status`
+- **Normalization**:
+  - CPU: Alibaba uses centi-cores (100 = 1 core). Values >10 are divided by 100, clamped to ≥0.1
+  - Memory: Alibaba uses fractions of host budget. Values ≤1.0 are multiplied by 64 GB
+  - Task types: 12 Alibaba types mapped to 4 canonical types (`cpu-light`, `cpu-heavy`, `memory-heavy`, `mixed`)
+  - Timestamps: Offset-normalized so first task arrival = 0.0 seconds
+
+**Google ClusterData2019** (`trace_loader.load_google_trace`):
+- **Source**: Public dataset from Google's Borg cluster
+- **Files needed**: `instance_events.json` + `machine_events.json` (or CSV equivalents)
+- **Normalization**:
+  - Timestamps: Google uses microseconds — divided by 1e6 for seconds
+  - Memory: Normalized fraction — multiplied by 32 GB for approximate absolute value
+  - Task types: Auto-classified from CPU/memory ratio using `_classify_task_type()`
+
+**CloudAI Own History** (`trace_loader.load_cloudai_trace`):
+- **Source**: The system's own MongoDB (`TASKS`, `ATTEMPTS`, `RESULTS` collections)
+- **Loading**: Directly from MongoDB via `mongo_uri` or from exported JSON/CSV files
+- **Fields**: `task_id`, `req_cpu`, `req_memory`, `req_storage`, `runtime_seconds`, `task_type`, `sla_multiplier`, `queue_wait_seconds`, `sla_success`, `failure_reason`
+- **Time windowing**: Can filter by `trace_window_start` / `trace_window_end` (ISO 8601)
+- **File formats**: Supports `.json`, `.jsonl`, and `.csv`
+
+#### B) Live Telemetry Data (Runtime)
+
+Collected continuously from workers during operation:
+
+| Source | Data | Collection Method | Frequency |
+|--------|------|-------------------|-----------|
+| Worker heartbeats | CPU%, memory%, storage% usage | gRPC `SendHeartbeat` | Every 5 seconds |
+| Task execution | Runtime, exit code, CPU seconds, peak memory, I/O bytes | gRPC `ReportTaskCompletion` | On task completion |
+| Container stats | `docker stats` metrics | Docker API | Per task execution |
+| System resources | Total CPU cores, memory, storage | `gopsutil` library | On worker startup |
+
+#### C) GA-Optimized Parameters (AOD Training)
+
+Generated by the Adaptive Online Decision (AOD) trainer from historical data:
+
+- **Input**: Last 24 hours of task history + worker stats from MongoDB
+- **Output**: `GAParams` (Theta weights, Affinity matrix, Penalty vector)
+- **Training frequency**: Every 60 seconds (background goroutine)
+- **Minimum data**: At least 2 completed tasks required; defaults used otherwise
+
+### 21.3 Data Processing — How Is Data Transformed?
+
+#### Stage 1: Trace Loading & Normalization
+
+Raw traces are loaded into a canonical `TraceCluster` structure:
+
+```python
+@dataclass
+class TraceTask:
+    task_id: str
+    arrival_time: float       # seconds from trace start (normalized)
+    req_cpu: float            # CPU cores
+    req_memory: float         # GB
+    req_storage: float        # GB
+    runtime_seconds: float    # actual duration
+    task_type: str            # cpu-light | cpu-heavy | memory-heavy | mixed
+    sla_multiplier: float     # k-value (1.5–2.5)
+
+@dataclass
+class TraceCluster:
+    workers: List[Dict]       # [{worker_id, total_cpu, total_memory, total_storage}]
+    tasks: List[TraceTask]    # chronologically sorted
+    source: str               # alibaba-v2018 | google-2019 | cloudai-history
+```
+
+Processing steps:
+1. Parse raw CSV/JSON/MongoDB records
+2. Normalize resource units to canonical format (CPU cores, GB memory)
+3. Classify task types using resource ratio heuristics
+4. Sort tasks by arrival time
+5. Offset-normalize timestamps (first task = time 0)
+6. Cap at `max_tasks` (default: 5000) to limit memory
+
+#### Stage 2: Feature Extraction
+
+Every scheduling decision transforms raw task + worker data into neural network input:
+
+**Task features** (5 dimensions):
+```
+[req_cpu, req_memory, req_storage, sla_multiplier, task_type_scalar]
+                                                        ↑
+                                               Encoded: cpu-light=0.0,
+                                               cpu-heavy=0.33, memory-heavy=0.67, mixed=1.0
+```
+
+**Worker features** (9 dimensions per worker):
+```
+[avail_cpu/total_cpu,    # Available CPU ratio
+ avail_mem/total_mem,    # Available memory ratio
+ avail_stor/total_stor,  # Available storage ratio
+ total_cpu,              # Absolute CPU capacity
+ total_memory,           # Absolute memory capacity
+ total_storage,          # Absolute storage capacity
+ used_cpu/total_cpu,     # CPU utilization ratio
+ used_mem/total_mem,     # Memory utilization ratio
+ used_stor/total_stor]   # Storage utilization ratio
+```
+
+**Action mask** (1 dimension per worker):
+```
+mask[i] = 1 if worker[i] has enough resources AND is active, else 0
+```
+
+**Running normalization** (`RunningNormalizer`):
+- Maintains online mean/variance using Welford's algorithm
+- Normalizes pairwise (task+worker) features: `(x - mean) / std`
+- State is persisted with model checkpoints so normalization is consistent
+
+#### Stage 3: Training Environments
+
+Two Gymnasium environments convert trace data into RL training experiences:
+
+**SchedulingEnv** (Synthetic):
+- Generates random tasks and workers each episode
+- Task types sampled uniformly; resource requirements sampled from distributions
+- Worker loads decay by 15% (CPU/memory) and 10% (storage) per step
+- **Reward**: `+1.2 - load_penalty` for feasible placement, `-1.4` for infeasible
+- Episode length: 96 steps
+
+**TraceReplayEnv** (Real traces):
+- Replays `TraceCluster` tasks in chronological order
+- Worker loads decay proportional to inter-arrival gap between tasks
+- Can loop traces for longer training
+- **Reward signal** (multi-component):
+  - Feasibility: `+1.0` feasible, `-2.0` infeasible
+  - Load balance: `+0.3 × (1 - load)` — reward low-load workers
+  - SLA proxy: `+0.4` if predicted headroom > 0.5
+  - Tail-risk: `-0.2 × max(0, load - 0.8)` — penalize overloading
+  - Trace feedback: `+0.3` if trace recorded SLA success
+
+#### Stage 4: PPO Training Loop
+
+The training loop (`train_ppo.py`) executes:
+
+```
+for update in range(num_updates):
+    # Rollout: collect experiences
+    for step in range(rollout_steps):
+        obs = env.observe()                    # task + worker features + mask
+        action, log_prob, value = policy(obs)  # forward pass
+        reward, done = env.step(action)        # execute action
+        buffer.store(obs, action, reward, value, log_prob, done)
+
+    # Compute advantages using GAE (Generalized Advantage Estimation)
+    advantages = GAE(rewards, values, dones, gamma=0.99, lambda=0.95)
+    returns = advantages + values
+
+    # PPO update (4 epochs per batch)
+    for epoch in range(4):
+        for minibatch in buffer.sample(batch_size=64):
+            new_log_prob, new_value, entropy = policy.evaluate(minibatch)
+            ratio = exp(new_log_prob - old_log_prob)
+            clipped = clip(ratio, 1-eps, 1+eps)
+            policy_loss = -min(ratio * advantages, clipped * advantages)
+            value_loss = MSE(new_value, returns)
+            loss = policy_loss + 0.5 * value_loss - 0.01 * entropy
+            optimizer.step(loss)
+
+    # Checkpoint
+    if update % checkpoint_interval == 0:
+        save_model(policy, f"ppo_checkpoint_{update}.pt")
+```
+
+**Output**: `.pt` file containing `PPOActorCritic` weights + `RunningNormalizer` state
+
+#### Stage 5: AOD Training (RTS Parameters)
+
+The AOD trainer runs every 60 seconds in the master's background:
+
+```
+1. Fetch last 24h of task history from MongoDB
+   → (task_id, worker_id, req_cpu, req_memory, runtime, sla_success, ...)
+
+2. Train Theta (linear regression):
+   → runtime_predicted = θ₁·(cpu_ratio) + θ₂·(mem_ratio) + θ₃·(storage_ratio) + θ₄·(load_factor)
+   → Minimize: Σ(runtime_actual - runtime_predicted)²
+
+3. Build Affinity Matrix (direct computation):
+   → For each (task_type, worker_id) pair:
+      affinity = SpeedAdvantage + SLAReliability
+   → SpeedAdvantage = (avg_runtime_others - avg_runtime_this_worker) / avg_runtime_others
+   → SLAReliability = sla_success_rate_this_worker - sla_success_rate_global
+
+4. Build Penalty Vector (direct computation):
+   → For each worker: penalty = f(failure_rate, timeout_rate, overload_time)
+
+5. Persist GAParams → MongoDB (RTS_WEIGHTS collection) + JSON file (config/ga_output.json)
+```
+
+### 21.4 Data Consumption — How Is Data Used in Production?
+
+#### RTS Scheduler Decision Flow
+
+```
+Task arrives → get_tau(task_type)            # EMA-smoothed runtime estimate
+            → get_telemetry(all_workers)     # live CPU/mem/storage usage
+            → load_ga_params()               # Theta, Affinity, Penalty from store
+
+For each candidate worker:
+  predicted_runtime = tau × (1 + θ₁·cpu_ratio + θ₂·mem_ratio + θ₃·stor_ratio + θ₄·load)
+  sla_deadline = sla_multiplier × tau
+  risk = α × max(0, predicted_runtime - sla_deadline)
+       + β × worker_load
+       - affinity[task_type][worker_id]
+       + penalty[worker_id]
+
+Select worker with minimum risk score
+```
+
+After task completion, tau is updated:
+```
+tau_new = 0.2 × actual_runtime + 0.8 × tau_old    # EMA with λ=0.2
+```
+
+#### PPO Scheduler Decision Flow
+
+```
+Task arrives → extract_task_features(task)         # 5-dim vector
+            → extract_worker_features(workers)     # 9-dim × N workers
+            → compute_action_mask(task, workers)   # feasibility check
+            → normalize(task ⊕ worker features)    # RunningNormalizer
+            → policy.forward(features, mask)        # Neural network inference
+            → sample action (or argmax with headroom bias)
+            → store DecisionRecord in pending_decisions[task_id]
+
+Task completes → pop DecisionRecord
+              → derive_reward(status, runtime, sla_success)
+              → append to replay_buffer
+              → if buffer ≥ batch_size: run PPO update (online learning)
+              → periodically persist model to MongoDB GridFS
+```
+
+**Reward derivation** (when master doesn't provide explicit reward):
+```python
+reward = 0.0
+if status in {success, completed}: reward += 1.0
+elif status == cancelled:           reward -= 0.5
+else:                               reward -= 1.0
+
+if sla_success:  reward += 0.5
+else:            reward -= 0.25
+
+if runtime > 0:  reward -= min(runtime / 600, 0.5)  # penalize long tasks
+```
+
+#### Online Learning Cycle
+
+```
+                     ┌──────────────────────────┐
+                     │    Production Traffic     │
+                     │  (task submissions)       │
+                     └────────────┬─────────────┘
+                                  │
+                     ┌────────────▼─────────────┐
+                     │  PPO SelectWorker()       │
+                     │  Store DecisionRecord     │
+                     │  (features, action,       │
+                     │   log_prob, value)         │
+                     └────────────┬─────────────┘
+                                  │
+                     ┌────────────▼─────────────┐
+                     │  Task Executes on Worker  │
+                     └────────────┬─────────────┘
+                                  │
+                     ┌────────────▼─────────────┐
+                     │  ReportOutcome()          │
+                     │  Match DecisionRecord     │
+                     │  Derive reward            │
+                     │  Append to replay_buffer  │
+                     └────────────┬─────────────┘
+                                  │
+                     ┌────────────▼─────────────┐
+                     │  buffer ≥ batch_size?     │
+                     │  YES → PPO mini-update    │
+                     │  • Compute GAE advantages │
+                     │  • Clip policy gradient   │
+                     │  • Update network weights │
+                     │  • Clear buffer           │
+                     └────────────┬─────────────┘
+                                  │
+                     ┌────────────▼─────────────┐
+                     │  Persist checkpoint       │
+                     │  → MongoDB GridFS         │
+                     │  (versioned, SHA-256)      │
+                     └───────────────────────────┘
+```
+
+### 21.5 Model Persistence & Versioning
+
+#### PPO Models (MongoDB GridFS)
+
+```
+Collection: SCHEDULER_MODELS
+{
+  scheduler_type: "PPO",
+  fingerprint_hash: "<cluster-config-hash>",     # identifies cluster topology
+  version: 3,                                     # monotonically increasing
+  active: true,                                   # only one active per fingerprint
+  file_id: ObjectId("..."),                       # GridFS reference
+  file_size: 524288,
+  file_sha256: "a1b2c3...",
+  framework: "pytorch",
+  created_at: ISODate("2026-04-25T..."),
+  activated_at: ISODate("2026-04-25T...")
+}
+
+GridFS Bucket: scheduler_models (files + chunks collections)
+Filename pattern: ppo_<fingerprint>_v<version>.ckpt
+```
+
+**Checkpoint contents** (`.pt` file via `torch.save`):
+- `actor_critic_state_dict` — Neural network weights
+- `optimizer_state_dict` — Adam optimizer state
+- `normalizer_state` — RunningNormalizer mean/variance/count
+- `model_version` — Version string
+- `fingerprint_hash` — Cluster configuration hash
+
+#### RTS Parameters (MongoDB + JSON)
+
+```
+Collection: RTS_WEIGHTS
+{
+  _id: "active",
+  params: {
+    Theta: { Theta1: 0.1, Theta2: 0.1, Theta3: 0.3, Theta4: 0.2 },
+    Risk: { Alpha: 10.0, Beta: 1.0 },
+    AffinityMatrix: { "cpu-heavy": { "worker-large": 0.35, ... }, ... },
+    PenaltyVector: { "worker-small": 0.12, ... }
+  },
+  updated_at: ISODate("2026-04-25T...")
+}
+
+File fallback: config/ga_output.json (same structure)
+```
+
+### 21.6 Data Retention & Buffers
+
+| Buffer | Max Size | Eviction Policy | Purpose |
+|--------|----------|-----------------|---------|
+| `pending_decisions` | 8,192 | FIFO (oldest evicted) | Awaiting task outcome for online learning |
+| `replay_buffer` | 4,096 | Tail trim (keep newest) | Completed outcomes awaiting PPO update |
+| Tau store | 4 entries | One per task type | Runtime EMA estimates |
+| Telemetry data | Per-worker | Overwritten on heartbeat | Latest worker resource state |
+| Worker heartbeat channel | 10 buffered | Non-blocking drop | Incoming heartbeats per worker |
+
+### 21.7 Summary: Data Types at Each Stage
+
+| Stage | Input Data | Processing | Output |
+|-------|-----------|------------|--------|
+| **Provisioning** | Raw CSV/JSON/MongoDB traces | Parse, normalize units, classify types | `TraceCluster` (tasks + workers) |
+| **Env Simulation** | `TraceCluster` or random sampling | Step-by-step task scheduling with rewards | (obs, action, reward) rollout tuples |
+| **Feature Extraction** | Task object + Worker objects | Vectorize resources, ratios, type encoding | 5-dim task + 9-dim×N worker tensors |
+| **PPO Training** | Rollout buffer | GAE → PPO clip loss → gradient descent | `.pt` model checkpoint |
+| **AOD Training** | 24h MongoDB history | Linear regression + direct computation | `GAParams` (Theta, Affinity, Penalty) |
+| **Production Inference** | Live task + live workers | Feature extraction → model forward pass | Worker ID selection |
+| **Online Learning** | Task outcome (status, runtime, SLA) | Reward derivation → replay buffer → PPO update | Updated policy weights |
+| **Telemetry** | Worker heartbeats (every 5s) | Store, broadcast via WebSocket, expose via Prometheus | Real-time dashboards & scheduling input |
+
+---
+
 _Last updated: April 2026_
