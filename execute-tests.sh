@@ -109,11 +109,9 @@ fi
 ok "All pre-flight checks passed"
 
 # ── Step 1: Deploy model ────────────────────────────────────────────────────
-separator "Step 1: Deploying trained model"
+separator "Step 1: Promoting trained model (with version archival)"
 
-mkdir -p "$(dirname "${MODEL_DST}")"
-cp "${MODEL_SRC}" "${MODEL_DST}"
-ok "Copied model: ${MODEL_SRC} → ${MODEL_DST}"
+"${SCRIPT_DIR}/scripts/model_promote.sh" "${MODEL_SRC}"
 
 # ── Step 2: Build binaries ──────────────────────────────────────────────────
 if [[ "${SKIP_BUILD}" == "true" ]]; then

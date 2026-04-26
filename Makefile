@@ -1,4 +1,4 @@
-.PHONY: help all proto master worker clean setup test test-unit test-unit-verbose testbench-up testbench-prepare-images testbench-register testbench-workload testbench-suite testbench-suite-smoke testbench-suite-reliability testbench-suite-ui-smoke testbench-suite-evidence testbench-suite-full testbench-integration testbench-down testbench-host-up testbench-host-register testbench-host-suite testbench-host-suite-smoke testbench-host-suite-reliability testbench-host-suite-ui-smoke testbench-host-suite-evidence testbench-host-suite-full testbench-host-down campaign campaign-full
+.PHONY: help all proto master worker clean setup test test-unit test-unit-verbose testbench-up testbench-prepare-images testbench-register testbench-workload testbench-suite testbench-suite-smoke testbench-suite-reliability testbench-suite-ui-smoke testbench-suite-evidence testbench-suite-full testbench-integration testbench-down testbench-host-up testbench-host-register testbench-host-suite testbench-host-suite-smoke testbench-host-suite-reliability testbench-host-suite-ui-smoke testbench-host-suite-evidence testbench-host-suite-full testbench-host-down campaign campaign-full model-promote model-promote-dry model-archive-list deploy
 
 # Default target
 help:
@@ -29,6 +29,12 @@ help:
 	@echo "  make testbench-host-down - Stop host-master worker stack"
 	@echo "  make campaign     - Run evidence benchmark campaign (smoke workload)"
 	@echo "  make campaign-full - Run full campaign (all workloads + all scenarios)"
+	@echo ""
+	@echo "Model management:"
+	@echo "  make model-promote     - Promote latest trained model (archive old version)"
+	@echo "  make model-promote-dry - Preview promotion without changes"
+	@echo "  make model-archive-list - List archived model versions"
+	@echo "  make deploy            - Build + promote model + start testbench + run campaign"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  make setup        # One-time setup"
@@ -192,3 +198,32 @@ campaign:
 
 campaign-full:
 	@python3 testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke,deterministic-full
+
+# ---------------------------------------------------------------------------
+# Model management
+# ---------------------------------------------------------------------------
+
+# Promote the latest trained model to active, archiving the previous version
+model-promote:
+	@scripts/model_promote.sh $(MODEL_PATH)
+
+# Dry-run: preview what model-promote would do
+model-promote-dry:
+	@scripts/model_promote.sh --dry-run $(MODEL_PATH)
+
+# List all archived model versions
+model-archive-list:
+	@echo "Archived models:"
+	@ls -lh agentic_scheduler/models/archive/*.pt 2>/dev/null \
+		| awk '{print "  " $$NF " (" $$5 ")"}' \
+		|| echo "  (no archived models yet)"
+	@echo ""
+	@if [ -f agentic_scheduler/models/archive/VERSION ]; then \
+		echo "Current version: v$$(printf '%03d' $$(cat agentic_scheduler/models/archive/VERSION))"; \
+	else \
+		echo "Current version: (none)"; \
+	fi
+
+# Full deploy pipeline: build → promote model → start testbench → run campaign
+deploy: master worker model-promote
+	@./execute-tests.sh --skip-build
