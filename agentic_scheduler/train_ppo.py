@@ -12,7 +12,7 @@ import numpy as np
 import torch
 
 from .features import TASK_FEATURE_DIM
-from .model import PPOState, build_fresh_state, choose_action, ppo_update
+from .model import PPOActorCritic, PPOState, build_fresh_state, choose_action, ppo_update
 from .persistence import MongoSchedulerModelStore
 from .training.scheduler_env import SchedulingEnv
 from .training.trace_loader import load_trace
@@ -435,6 +435,12 @@ def main() -> None:
         if args.fingerprint_hash:
             state.fingerprint_hash = args.fingerprint_hash
 
+        # CPU model for fast rollout inference (avoids GPU transfer overhead for batch_size=1)
+        rollout_device = torch.device("cpu")
+        rollout_model = PPOActorCritic().to(rollout_device)
+        rollout_model.load_state_dict({k: v.cpu() for k, v in state.model.state_dict().items()})
+        rollout_model.eval()
+
         observation, _ = env.reset(seed=args.seed)
         recent_rewards = []
 
@@ -458,8 +464,9 @@ def main() -> None:
                     task_features=task_features,
                     worker_features=worker_features,
                     action_mask=action_mask,
-                    device=device,
+                    device=rollout_device,
                     deterministic=False,
+                    inference_model=rollout_model,
                 )
                 if action_info is None:
                     feasible_ids = np.where(action_mask)[0]
@@ -513,9 +520,10 @@ def main() -> None:
                 task_features=observation["task"],
                 worker_features=observation["workers"],
                 action_mask=observation["action_mask"].astype(bool),
-                device=device,
+                device=rollout_device,
                 deterministic=True,
                 headroom_bias=0.0,
+                inference_model=rollout_model,
             )
             next_value = float(bootstrap_info["value"]) if bootstrap_info is not None else 0.0
             advantages, returns = generalized_advantage_estimation(
@@ -570,6 +578,9 @@ def main() -> None:
                 value_clip_range=args.value_clip_range,
                 grad_scaler=grad_scaler,
             )
+
+            # Sync CPU rollout model with updated GPU model
+            rollout_model.load_state_dict({k: v.cpu() for k, v in state.model.state_dict().items()})
 
             recent_rewards.extend(step_rewards)
             if len(recent_rewards) > 5000:

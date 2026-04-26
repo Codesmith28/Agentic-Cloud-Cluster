@@ -197,6 +197,7 @@ def choose_action(
     device: torch.device,
     deterministic: bool = True,
     headroom_bias: float = 0.15,
+    inference_model: Optional[nn.Module] = None,
 ):
     if worker_features.size == 0:
         return None
@@ -215,8 +216,9 @@ def choose_action(
     mask_tensor = torch.as_tensor(action_mask[None, :], dtype=torch.bool, device=device)
     headroom_bias = max(float(headroom_bias), 0.0)
 
+    model = inference_model if inference_model is not None else state.model
     with torch.no_grad():
-        policy_logits, value = state.model(task_tensor, worker_tensor, mask_tensor)
+        policy_logits, value = model(task_tensor, worker_tensor, mask_tensor)
         selection_logits = policy_logits
         if deterministic and headroom_bias > 0.0:
             headroom_scores = _projected_headroom_scores(task_features, worker_features, action_mask)
