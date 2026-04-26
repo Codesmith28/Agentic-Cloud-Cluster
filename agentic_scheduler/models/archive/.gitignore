@@ -1,3 +1,0 @@
-# Archived model checkpoints are local-only (too large for git).
-# VERSION and CHANGELOG.md are tracked for history.
-*.pt
