@@ -33,7 +33,7 @@
 	testbench-suite-evidence testbench-suite-full \
 	testbench-host-suite testbench-host-suite-smoke testbench-host-suite-reliability \
 	testbench-host-suite-ui-smoke testbench-host-suite-evidence testbench-host-suite-full \
-	campaign campaign-full \
+	campaign campaign-full campaign-final \
 	model-promote model-promote-dry model-archive-list \
 	deploy benchmark
 
@@ -105,6 +105,7 @@ help:
 	@echo "Campaigns:"
 	@echo "  make campaign           Evidence benchmark (smoke workload)"
 	@echo "  make campaign-full      Full benchmark (all workloads + scenarios)"
+	@echo "  make campaign-final     HEAVY final evaluation (50 tasks × 3 × 4 schedulers)"
 	@echo ""
 	@echo "Model Management:"
 	@echo "  make model-promote      Promote latest trained model (archives old)"
@@ -349,6 +350,10 @@ campaign:
 
 campaign-full:
 	@python3 testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke,deterministic-full
+
+campaign-final:
+	@echo "🏋️ Running HEAVY final evaluation campaign (50 tasks × 3 scenarios × 4 schedulers = 600 decisions)..."
+	@python3 testbench/scripts/run_campaign.py --scenarios all --workloads stress-heavy
 
 # ===========================================================================
 # Model management
