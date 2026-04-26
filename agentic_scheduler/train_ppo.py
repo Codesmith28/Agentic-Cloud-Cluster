@@ -300,17 +300,27 @@ def generalized_advantage_estimation(
     gamma: float,
     gae_lambda: float,
 ) -> tuple[np.ndarray, np.ndarray]:
-    advantages = np.zeros_like(rewards, dtype=np.float32)
+    n = len(rewards)
+    not_dones = 1.0 - dones.astype(np.float32)
+
+    # Pre-compute bootstrap values vectorized
+    bootstrap_values = np.empty(n, dtype=np.float32)
+    bootstrap_values[:-1] = values[1:]
+    bootstrap_values[-1] = next_value
+
+    # Vectorized delta computation
+    deltas = rewards + gamma * bootstrap_values * not_dones - values
+
+    # Reverse scan for GAE (inherently sequential but avoid Python float conversions)
+    advantages = np.empty(n, dtype=np.float32)
     gae = 0.0
-    for i in reversed(range(len(rewards))):
-        not_done = 1.0 - float(dones[i])
-        bootstrap_value = float(next_value) if i == (len(rewards) - 1) else float(values[i + 1])
-        delta = rewards[i] + gamma * bootstrap_value * not_done - values[i]
-        gae = delta + gamma * gae_lambda * not_done * gae
+    discount = gamma * gae_lambda
+    for i in range(n - 1, -1, -1):
+        gae = deltas[i] + discount * not_dones[i] * gae
         advantages[i] = gae
 
     returns = advantages + values
-    return advantages.astype(np.float32), returns.astype(np.float32)
+    return advantages, returns
 
 
 def build_lineage_metadata(args: argparse.Namespace, trace) -> dict:
@@ -347,6 +357,8 @@ def main() -> None:
 
     if device.type == "cuda":
         torch.backends.cudnn.benchmark = True
+
+    grad_scaler = torch.amp.GradScaler(device="cuda") if device.type == "cuda" else None
 
     resume_path: Optional[Path]
     try:
@@ -556,6 +568,7 @@ def main() -> None:
                 epochs=args.ppo_epochs,
                 minibatch_size=args.minibatch_size,
                 value_clip_range=args.value_clip_range,
+                grad_scaler=grad_scaler,
             )
 
             recent_rewards.extend(step_rewards)

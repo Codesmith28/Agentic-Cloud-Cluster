@@ -256,6 +256,7 @@ def ppo_update(
     epochs: int,
     minibatch_size: int = 0,
     value_clip_range: float = 0.2,
+    grad_scaler: Optional[torch.amp.GradScaler] = None,
 ):
     actions = batch["actions"]
     old_log_probs = batch["old_log_probs"]
@@ -275,34 +276,45 @@ def ppo_update(
             end = start + effective_minibatch
             batch_idx = permutation[start:end]
 
-            logits, values = state.model(
-                task_features[batch_idx],
-                worker_features[batch_idx],
-                action_masks[batch_idx],
-            )
-            distribution = Categorical(logits=logits)
-            new_log_probs = distribution.log_prob(actions[batch_idx])
-            entropy = distribution.entropy().mean()
+            use_amp = grad_scaler is not None
+            device_type = task_features.device.type
 
-            ratio = torch.exp(new_log_probs - old_log_probs[batch_idx])
-            surrogate_1 = ratio * advantages[batch_idx]
-            surrogate_2 = torch.clamp(ratio, 1.0 - clip_ratio, 1.0 + clip_ratio) * advantages[batch_idx]
-            policy_loss = -torch.min(surrogate_1, surrogate_2).mean()
+            with torch.amp.autocast(device_type=device_type, enabled=use_amp):
+                logits, values = state.model(
+                    task_features[batch_idx],
+                    worker_features[batch_idx],
+                    action_masks[batch_idx],
+                )
+                distribution = Categorical(logits=logits)
+                new_log_probs = distribution.log_prob(actions[batch_idx])
+                entropy = distribution.entropy().mean()
 
-            value_targets = returns[batch_idx]
-            old_value_batch = old_values[batch_idx]
-            value_delta = values - old_value_batch
-            clipped_values = old_value_batch + torch.clamp(value_delta, -value_clip_range, value_clip_range)
-            value_loss_unclipped = F.mse_loss(values, value_targets, reduction="none")
-            value_loss_clipped = F.mse_loss(clipped_values, value_targets, reduction="none")
-            value_loss = torch.max(value_loss_unclipped, value_loss_clipped).mean()
+                ratio = torch.exp(new_log_probs - old_log_probs[batch_idx])
+                surrogate_1 = ratio * advantages[batch_idx]
+                surrogate_2 = torch.clamp(ratio, 1.0 - clip_ratio, 1.0 + clip_ratio) * advantages[batch_idx]
+                policy_loss = -torch.min(surrogate_1, surrogate_2).mean()
 
-            loss = policy_loss + (value_coeff * value_loss) - (entropy_coeff * entropy)
+                value_targets = returns[batch_idx]
+                old_value_batch = old_values[batch_idx]
+                value_delta = values - old_value_batch
+                clipped_values = old_value_batch + torch.clamp(value_delta, -value_clip_range, value_clip_range)
+                value_loss_unclipped = F.mse_loss(values, value_targets, reduction="none")
+                value_loss_clipped = F.mse_loss(clipped_values, value_targets, reduction="none")
+                value_loss = torch.max(value_loss_unclipped, value_loss_clipped).mean()
+
+                loss = policy_loss + (value_coeff * value_loss) - (entropy_coeff * entropy)
 
             state.optimizer.zero_grad()
-            loss.backward()
-            nn.utils.clip_grad_norm_(state.model.parameters(), max_norm=1.0)
-            state.optimizer.step()
+            if grad_scaler is not None:
+                grad_scaler.scale(loss).backward()
+                grad_scaler.unscale_(state.optimizer)
+                nn.utils.clip_grad_norm_(state.model.parameters(), max_norm=1.0)
+                grad_scaler.step(state.optimizer)
+                grad_scaler.update()
+            else:
+                loss.backward()
+                nn.utils.clip_grad_norm_(state.model.parameters(), max_norm=1.0)
+                state.optimizer.step()
 
     state.training_steps += 1
 
