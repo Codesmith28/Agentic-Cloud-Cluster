@@ -105,7 +105,7 @@ help:
 	@echo "Campaigns (requires running master + workers):"
 	@echo "  make campaign           Evidence benchmark (smoke workload)"
 	@echo "  make campaign-full      Full benchmark (all workloads + scenarios)"
-	@echo "  make campaign-final     HEAVY final evaluation (50 tasks × 3 × 4 schedulers)"
+	@echo "  make campaign-final     HEAVY final evaluation (50 tasks × 3 × 3 schedulers)"
 	@echo ""
 	@echo "Model Management:"
 	@echo "  make model-promote      Promote latest trained model (archives old)"
@@ -352,10 +352,10 @@ campaign-full:
 	@$(PYTHON) testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke,deterministic-full
 
 campaign-final:
-	@echo "🏋️ Running HEAVY final evaluation campaign (50 tasks × 3 scenarios × 4 schedulers = 600 decisions)..."
+	@echo "🏋️ Running HEAVY final evaluation campaign (50 tasks × 3 scenarios × 3 schedulers = 450 decisions)..."
 	@$(PYTHON) testbench/scripts/run_campaign.py \
 		--scenarios baseline,burst,overload \
-		--schedulers RR,RTS,PPO-pretrained,PPO-adapted \
+		--schedulers RR,RTS,PPO \
 		--workloads stress-heavy
 
 # ===========================================================================

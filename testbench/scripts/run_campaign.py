@@ -30,7 +30,7 @@ from shared_polling import poll_task_completion, request_json
 # Constants
 # ---------------------------------------------------------------------------
 
-SCHEDULERS = ["RR", "RTS", "PPO-pretrained", "PPO-adapted"]
+SCHEDULERS = ["RR", "RTS", "PPO"]
 WORKLOADS = ["heterogeneous-smoke", "steady-cpu", "steady-mixed", "memory-pressure", "bursty", "long-tail"]
 DEFAULT_WORKFLOW_IMAGE = "cloudai/workflow-deterministic:v1"
 
@@ -584,7 +584,7 @@ def parse_args() -> argparse.Namespace:
         help="Comma-separated scenarios: baseline,burst,overload,all",
     )
     parser.add_argument(
-        "--schedulers", default="RR,RTS,PPO-pretrained,PPO-adapted",
+        "--schedulers", default="RR,RTS,PPO",
         help="Comma-separated schedulers to test",
     )
     parser.add_argument(
