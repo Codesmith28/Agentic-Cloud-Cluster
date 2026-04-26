@@ -47,8 +47,8 @@ python -m agentic_scheduler.train_ppo \
   --rollout-steps 16384 \
   --minibatch-size 4096 \
   --ppo-epochs 4 \
-  --updates 1000 \
-  --checkpoint-every 50 \
+  --updates 150 \
+  --checkpoint-every 25 \
   --output "$RESULTS_DIR/ppo_trained_final.pt" \
   --checkpoint-dir "$CHECKPOINT_DIR" \
   --num-workers 8 \
