@@ -131,10 +131,11 @@ separator "Step 1: Promoting trained model (with version archival)"
 if [[ "${SKIP_BUILD}" == "true" ]]; then
     info "Skipping build (--skip-build)"
 else
-    separator "Step 2: Building master and worker"
+    separator "Step 2: Building master, worker, and Python deps"
     make master
     make worker
-    ok "Binaries built"
+    make pip-install
+    ok "Binaries built and Python deps installed"
 fi
 
 # ── Step 3: Set environment for PPO ─────────────────────────────────────────
