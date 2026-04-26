@@ -442,16 +442,16 @@ Key metrics:
 
 ## Integration with Campaign Framework
 
-The evidence benchmark campaign framework includes PPO variants:
+The evidence benchmark campaign framework compares all schedulers:
 
 ```bash
-make campaign  # Tests RR, RTS, PPO-pretrained, PPO-adapted, recovery variants
+make campaign  # Tests RR, RTS, PPO across multiple scenarios
 ```
 
-PPO variants in campaign:
-- `PPO-pretrained`: Uses pre-trained model (offline training)
-- `PPO-adapted`: Adapted on live cluster traces (online learning)
-- `PPO+recovery`: PPO with recovery-aware task prioritization
+Schedulers in campaign:
+- `RR`: Round-Robin (baseline)
+- `RTS`: Risk-aware Task Scheduling with GA-tuned parameters
+- `PPO`: PPO agent trained offline on Alibaba traces, with online learning enabled
 
 Results are aggregated in `results/campaign/<timestamp>-report.html`.
 
