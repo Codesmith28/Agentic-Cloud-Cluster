@@ -1,6 +1,6 @@
 grpcio==1.62.3
 grpcio-tools==1.62.3
-protobuf==5.29.4
+protobuf==4.24.4
 numpy==1.26.4
 gymnasium==0.29.1
 torch==2.2.2
