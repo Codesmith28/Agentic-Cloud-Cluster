@@ -1,0 +1,15 @@
+metric,labels,value
+max_queue_depth,"{""instance"": ""host.docker.internal:8080"", ""job"": ""master""}",30
+task_dequeues,"{""outcome"": ""assigned""}",195.88059701492537
+task_terminals,"{""status"": ""completed"", ""task_type"": ""cpu-heavy""}",58.878787878787875
+task_terminals,"{""status"": ""completed"", ""task_type"": ""cpu-light""}",57.86363636363636
+task_terminals,"{""status"": ""completed"", ""task_type"": ""memory-heavy""}",38.57575757575758
+task_terminals,"{""status"": ""completed"", ""task_type"": ""mixed""}",39.59090909090909
+worker_container_cpu_seconds,"{""task_type"": ""other""}",0
+worker_container_io_bytes,"{""task_type"": ""other""}",0
+worker_container_memory_peak_p95,"{""task_type"": ""other""}",15938355.2
+p95_scheduling_latency,"{""scheduler"": ""PPO""}",0.009466049382716049
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""cpu-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""cpu-light""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""memory-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""mixed""}",10
