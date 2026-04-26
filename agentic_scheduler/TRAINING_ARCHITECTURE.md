@@ -12,6 +12,7 @@
 ## Table of Contents
 
 1. [Introduction & Philosophy](#1-introduction--philosophy)
+   - 1.6 [RL Key Concepts](#16-reinforcement-learning--key-concepts)
 2. [Neural Network Architecture](#2-neural-network-architecture)
 3. [Feature Engineering](#3-feature-engineering)
 4. [Data Sources & Trace Loading](#4-data-sources--trace-loading)
@@ -107,6 +108,143 @@ The model follows the **Actor-Critic** paradigm:
 
 Both heads share a common encoder, which forces the network to learn a general
 "cluster understanding" representation rather than two independent feature sets.
+
+### 1.6 Reinforcement Learning — Key Concepts
+
+This section defines the core RL terminology and maps each concept to its
+concrete implementation in the agentic scheduler.
+
+#### Agent
+
+The decision-maker that learns through interaction with the environment.
+In our system, the agent is the `PPOActorCritic` neural network — a small
+two-layer MLP (229 KB) that takes cluster state as input and outputs
+scheduling decisions.
+
+#### Environment
+
+The world the agent interacts with.  We have two:
+
+| Environment | Source | Purpose |
+|---|---|---|
+| `SchedulingEnv` | `training/scheduler_env.py` | Synthetic random tasks for quick debugging |
+| `TraceReplayEnv` | `training/trace_replay_env.py` | Replays real Alibaba/Google cluster traces |
+
+The environment simulates task placement on worker machines: the agent places
+a task, the environment updates worker loads, and returns the next state and
+a reward signal.
+
+#### State (Observation) Space
+
+The information the agent sees before each decision.  Our state is a
+dictionary with three components:
+
+| Component | Shape | Description |
+|---|---|---|
+| `task` | `[5]` | Current task features: CPU, memory, storage, SLA multiplier, task type |
+| `workers` | `[W, 9]` | Per-worker features: 3 available-resource ratios, 3 total capacities, 3 used-resource ratios |
+| `action_mask` | `[W]` | Binary mask — 1.0 for workers that can fit the task, 0.0 otherwise |
+
+`W` is the number of workers (default 8).  Total observation size =
+5 + (8 × 9) + 8 = **85 floats**.
+
+#### Action Space
+
+The set of choices available to the agent.  Our action space is
+`Discrete(W)` — a single integer selecting which worker receives the current
+task.  With 8 workers, the agent chooses from actions `{0, 1, 2, …, 7}`.
+The `action_mask` ensures the agent only selects feasible workers (those with
+enough CPU, memory, and storage).
+
+#### Reward
+
+The scalar feedback signal after each action.  Our reward function
+(`_quality_reward`) returns a value in approximately `[−1.8, +1.65]`:
+
+| Outcome | Reward |
+|---|---|
+| Infeasible placement | −1.8 (hard penalty) |
+| Perfect placement (empty worker, no pressure) | ~+1.65 |
+| Typical feasible placement | +1.3 to +1.6 |
+
+The reward is composed of six terms (headroom bonus, queue pressure, tail
+pressure, imbalance penalty, delta-imbalance, requeue penalty) documented in
+detail in §5b.
+
+#### Policy (π)
+
+The agent's strategy — a mapping from states to action probabilities.  Our
+policy is the **Actor head** of `PPOActorCritic`: it computes a logit for
+each worker, applies the action mask, and produces a softmax probability
+distribution.  During training the agent **samples** from this distribution
+(exploration); during inference it takes the **argmax** (exploitation).
+
+#### Value Function (V)
+
+An estimate of the expected total future reward from a given state.  Our
+value function is the **Critic head** of `PPOActorCritic`: a single linear
+layer that outputs a scalar prediction.  The critic is used to compute
+**advantages** (how much better an action was than expected) which guide
+policy improvement.
+
+#### Episode
+
+One complete pass through the environment.  In `TraceReplayEnv` with
+`loop=True`, episodes are effectively infinite — the trace restarts when
+exhausted.  Training is bounded by `--updates` (number of PPO update cycles)
+rather than episode count.
+
+#### Rollout
+
+A contiguous sequence of `(state, action, reward, next_state)` transitions
+collected by running the current policy in the environment.  Our rollout
+length is `--rollout-steps 16384` — the agent makes 16,384 scheduling
+decisions before stopping to learn from them.
+
+#### PPO Update
+
+One cycle of learning from a collected rollout:
+
+1. Compute **advantages** using GAE (Generalised Advantage Estimation)
+2. Split the 16,384 transitions into **minibatches** of 4,096
+3. For each of `--ppo-epochs 4` passes over the data:
+   - Compute the clipped surrogate policy loss
+   - Compute the value function loss
+   - Add an entropy bonus (encourages exploration)
+   - Backpropagate and update weights
+
+#### Discount Factor (γ)
+
+How much the agent values future rewards vs immediate ones.  `γ = 0.99`
+means a reward 100 steps in the future is worth `0.99^100 ≈ 0.37` of an
+immediate reward.  High γ encourages the agent to consider long-term
+consequences of placement decisions.
+
+#### GAE-Lambda (λ)
+
+Controls the bias-variance trade-off in advantage estimation.  `λ = 0.95`
+blends one-step TD errors with full Monte Carlo returns.  Higher λ = lower
+bias but higher variance; lower λ = more bias but smoother gradients.
+
+#### Epoch (Training)
+
+One complete pass through the full task trace.  With 199,614 tasks and
+16,384 rollout steps per update: `1 epoch ≈ 12.2 updates`.  Over 150
+updates the model sees the trace ~12 times.
+
+#### Clip Ratio (ε)
+
+PPO's core stability mechanism.  `ε = 0.2` means the new policy cannot
+deviate from the old policy by more than 20 % on any single transition.
+This prevents catastrophically large updates that could destroy a good
+policy.
+
+#### Entropy Coefficient
+
+Weight of the entropy bonus in the loss function (`0.01`).  Entropy
+measures how "spread out" the policy's action probabilities are.  The bonus
+discourages the agent from becoming too confident too early, maintaining
+exploration throughout training.
 
 ---
 
