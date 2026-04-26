@@ -152,20 +152,21 @@ echo "    PPO_DEPLOYMENT_MODE = ${PPO_DEPLOYMENT_MODE}"
 # ── Step 4: Start Docker workers + observability ─────────────────────────────
 separator "Step 4: Starting Docker workers (host-master topology)"
 
-# Bring down any previous testbench stack
-info "Cleaning up any previous testbench stack..."
-docker compose -f "${COMPOSE_FILE}" down --remove-orphans 2>/dev/null || true
-
 # Check if MongoDB is already running on :27017 (e.g. from database/docker-compose.yml)
 MONGO_ALREADY_RUNNING=false
 if curl -fsS --max-time 2 "mongodb://localhost:27017" >/dev/null 2>&1 \
    || docker ps 2>/dev/null | grep -q "27017"; then
     MONGO_ALREADY_RUNNING=true
+fi
+
+# Reuse existing containers — only rebuild if source code changed.
+# `up -d` is idempotent: starts stopped containers, skips already-running ones.
+if [[ "${MONGO_ALREADY_RUNNING}" == "true" ]]; then
     info "MongoDB already running on :27017 — starting workers without testbench mongo"
-    docker compose -f "${COMPOSE_FILE}" up -d --build --scale mongo=0
+    docker compose -f "${COMPOSE_FILE}" up -d --scale mongo=0
 else
     info "Starting stack (mongo, workers, prometheus, grafana)..."
-    docker compose -f "${COMPOSE_FILE}" up -d --build
+    docker compose -f "${COMPOSE_FILE}" up -d
 fi
 
 ok "Docker workers started"
