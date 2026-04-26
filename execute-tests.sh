@@ -42,6 +42,10 @@ while [[ $# -gt 0 ]]; do
             CAMPAIGN_MODE="full"
             shift
             ;;
+        --comprehensive)
+            CAMPAIGN_MODE="comprehensive"
+            shift
+            ;;
         --model)
             MODEL_SRC="$2"
             shift 2
@@ -58,11 +62,12 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --full          Run full campaign (all workloads + scenarios)"
-            echo "  --model <path>  Path to .pt model checkpoint (default: $MODEL_SRC)"
-            echo "  --skip-build    Skip building master/worker binaries"
-            echo "  --teardown      Only tear down the Docker worker stack"
-            echo "  -h, --help      Show this help"
+            echo "  --full            Run full campaign (all workloads + scenarios)"
+            echo "  --comprehensive   Run comprehensive benchmark (multiple workloads, all scenarios)"
+            echo "  --model <path>    Path to .pt model checkpoint (default: $MODEL_SRC)"
+            echo "  --skip-build      Skip building master/worker binaries"
+            echo "  --teardown        Only tear down the Docker worker stack"
+            echo "  -h, --help        Show this help"
             exit 0
             ;;
         *)
@@ -145,12 +150,14 @@ export SCHED_ALGO=PPO
 export PPO_AUTOSTART=true
 export PPO_MODEL_PATH="${MODEL_DST}"
 export PPO_DEPLOYMENT_MODE=active
+export PPO_ONLINE_UPDATES_ENABLED=false
 
 ok "Environment configured:"
-echo "    SCHED_ALGO        = ${SCHED_ALGO}"
-echo "    PPO_AUTOSTART     = ${PPO_AUTOSTART}"
-echo "    PPO_MODEL_PATH    = ${PPO_MODEL_PATH}"
-echo "    PPO_DEPLOYMENT_MODE = ${PPO_DEPLOYMENT_MODE}"
+echo "    SCHED_ALGO              = ${SCHED_ALGO}"
+echo "    PPO_AUTOSTART           = ${PPO_AUTOSTART}"
+echo "    PPO_MODEL_PATH          = ${PPO_MODEL_PATH}"
+echo "    PPO_DEPLOYMENT_MODE     = ${PPO_DEPLOYMENT_MODE}"
+echo "    PPO_ONLINE_UPDATES      = ${PPO_ONLINE_UPDATES_ENABLED}"
 
 # ── Step 4: Start Docker workers + observability ─────────────────────────────
 separator "Step 4: Starting Docker workers (host-master topology)"
@@ -193,7 +200,7 @@ SCHED_ALGO="${SCHED_ALGO}" \
 PPO_AUTOSTART="${PPO_AUTOSTART}" \
 PPO_MODEL_PATH="${PPO_MODEL_PATH}" \
 PPO_DEPLOYMENT_MODE="${PPO_DEPLOYMENT_MODE}" \
-PPO_ONLINE_UPDATES_ENABLED=true \
+PPO_ONLINE_UPDATES_ENABLED="${PPO_ONLINE_UPDATES_ENABLED}" \
     "${MASTER_BIN}" --mode cli &
 MASTER_PID=$!
 
@@ -201,7 +208,7 @@ MASTER_PID=$!
 info "Waiting for master API to become reachable..."
 MAX_WAIT=60
 for i in $(seq 1 "${MAX_WAIT}"); do
-    if curl -fsS "${MASTER_URL}/telemetry" >/dev/null 2>&1; then
+    if curl -fsS "${MASTER_URL}/health" >/dev/null 2>&1; then
         break
     fi
     if ! kill -0 "${MASTER_PID}" 2>/dev/null; then
@@ -232,7 +239,10 @@ separator "Step 8: Running benchmark campaign (mode: ${CAMPAIGN_MODE})"
 CAMPAIGN_ARGS=("--scenarios" "all")
 RESULTS_DIR="results/campaign-$(date +%Y%m%d-%H%M%S)"
 
-if [[ "${CAMPAIGN_MODE}" == "full" ]]; then
+if [[ "${CAMPAIGN_MODE}" == "comprehensive" ]]; then
+    CAMPAIGN_ARGS+=("--workloads" "heterogeneous-smoke,steady-cpu,bursty,memory-pressure")
+    CAMPAIGN_ARGS+=("--timeout" "900")
+elif [[ "${CAMPAIGN_MODE}" == "full" ]]; then
     CAMPAIGN_ARGS+=("--workloads" "heterogeneous-smoke,steady-cpu,steady-mixed,memory-pressure,bursty,long-tail")
 else
     CAMPAIGN_ARGS+=("--workloads" "heterogeneous-smoke")
@@ -240,8 +250,14 @@ fi
 
 CAMPAIGN_ARGS+=("--output-dir" "${RESULTS_DIR}")
 
+VENV_PYTHON="${SCRIPT_DIR}/venv/bin/python3"
+if [[ ! -f "${VENV_PYTHON}" ]]; then
+    VENV_PYTHON="python3"
+    info "Venv python not found, using system python3"
+fi
+
 info "Results will be saved to: ${RESULTS_DIR}"
-python3 testbench/scripts/run_campaign.py "${CAMPAIGN_ARGS[@]}"
+"${VENV_PYTHON}" testbench/scripts/run_campaign.py "${CAMPAIGN_ARGS[@]}"
 ok "Campaign completed"
 
 # ── Step 9: Generate benchmark report ────────────────────────────────────────
@@ -253,7 +269,7 @@ if [[ -z "${CAMPAIGN_SUBDIR}" ]]; then
     CAMPAIGN_SUBDIR="${RESULTS_DIR}"
 fi
 
-python3 scripts/generate_benchmark_report.py \
+"${VENV_PYTHON}" scripts/generate_benchmark_report.py \
     --campaign-dir "${CAMPAIGN_SUBDIR}" \
     --master-url "${MASTER_URL}" \
     --model-path "${MODEL_DST}"

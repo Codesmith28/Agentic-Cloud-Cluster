@@ -24,7 +24,7 @@ import time
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List
 
-from shared_polling import poll_task_completion, request_json
+from shared_polling import poll_task_completion, request_json, TERMINAL_STATUSES
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -52,6 +52,8 @@ class ScenarioResult:
     duration_seconds: float = 0.0
     success_rate: float = 0.0
     avg_wait_seconds: float = 0.0
+    avg_turnaround_seconds: float = 0.0
+    p95_turnaround_seconds: float = 0.0
     task_ids: List[str] = field(default_factory=list)
     error: str = ""
 
@@ -79,6 +81,125 @@ def set_scheduler(master_url: str, algo: str) -> bool:
     except Exception as e:
         print(f"[campaign]   WARNING: scheduler switch to {algo} failed: {e}")
         return False
+
+
+def verify_scheduler(master_url: str, expected: str) -> bool:
+    """Verify the active scheduler matches expectations."""
+    try:
+        resp = request_json("GET", f"{master_url}/api/config/scheduler", timeout=5.0)
+        current = resp.get("current", "").upper()
+        if current == expected.upper():
+            return True
+        print(f"[campaign]   WARNING: scheduler mismatch: expected {expected}, got {current}")
+        return False
+    except Exception as e:
+        print(f"[campaign]   WARNING: could not verify scheduler: {e}")
+        return False
+
+
+def switch_scheduler(master_url: str, algo: str) -> bool:
+    """Switch scheduler and verify. Returns False on failure."""
+    if not set_scheduler(master_url, algo):
+        return False
+    return verify_scheduler(master_url, algo)
+
+
+def drain_cluster(master_url: str, timeout_seconds: int = 120) -> bool:
+    """Wait until all tasks are terminal and workers are idle."""
+    deadline = time.time() + timeout_seconds
+    consecutive_idle = 0
+    while time.time() < deadline:
+        try:
+            tasks_resp = request_json("GET", f"{master_url}/api/tasks", timeout=10.0)
+            tasks = tasks_resp.get("tasks", [])
+            active_tasks = [
+                t for t in tasks
+                if str(t.get("status", "")).lower() not in TERMINAL_STATUSES
+            ]
+            if not active_tasks:
+                consecutive_idle += 1
+                if consecutive_idle >= 2:
+                    return True
+            else:
+                consecutive_idle = 0
+                remaining = len(active_tasks)
+                print(f"[campaign]   draining: {remaining} task(s) still active...")
+        except Exception:
+            consecutive_idle = 0
+
+        time.sleep(3.0)
+    print(f"[campaign]   WARNING: drain timeout after {timeout_seconds}s")
+    return False
+
+
+def check_clean_slate(master_url: str) -> bool:
+    """Verify no non-terminal tasks exist before starting campaign."""
+    try:
+        resp = request_json("GET", f"{master_url}/api/tasks", timeout=10.0)
+        tasks = resp.get("tasks", [])
+        active = [t for t in tasks if str(t.get("status", "")).lower() not in TERMINAL_STATUSES]
+        if active:
+            print(f"[campaign] WARNING: {len(active)} non-terminal task(s) found — cluster not clean")
+            print(f"[campaign]   Draining existing tasks before starting...")
+            return drain_cluster(master_url, timeout_seconds=60)
+        return True
+    except Exception:
+        return True
+
+
+def compute_run_metrics(master_url: str, task_ids: List[str], result: ScenarioResult) -> None:
+    """Compute per-run queue wait and turnaround times from task timestamps."""
+    wait_times: List[float] = []
+    turnaround_times: List[float] = []
+
+    for task_id in task_ids:
+        try:
+            info = request_json("GET", f"{master_url}/api/tasks/{task_id}", timeout=10.0)
+        except Exception:
+            continue
+
+        created = info.get("created_at", "")
+        assigned = info.get("assigned_at", "")
+        completed = info.get("completed_at", "")
+
+        try:
+            if created and assigned:
+                c_ts = _parse_ts(created)
+                a_ts = _parse_ts(assigned)
+                if c_ts and a_ts:
+                    wait_times.append(a_ts - c_ts)
+            if created and completed:
+                c_ts = _parse_ts(created)
+                d_ts = _parse_ts(completed)
+                if c_ts and d_ts:
+                    turnaround_times.append(d_ts - c_ts)
+        except Exception:
+            continue
+
+    if wait_times:
+        result.avg_wait_seconds = round(sum(wait_times) / len(wait_times), 3)
+    if turnaround_times:
+        turnaround_times.sort()
+        result.avg_turnaround_seconds = round(sum(turnaround_times) / len(turnaround_times), 3)
+        p95_idx = int(len(turnaround_times) * 0.95)
+        result.p95_turnaround_seconds = round(turnaround_times[min(p95_idx, len(turnaround_times) - 1)], 3)
+
+
+def _parse_ts(ts_str: str) -> float | None:
+    """Parse an ISO-8601 or RFC-3339 timestamp to Unix seconds."""
+    if not ts_str or ts_str == "0001-01-01T00:00:00Z":
+        return None
+    # Go's time.Time zero value
+    for fmt in ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S%z"):
+        try:
+            from datetime import datetime, timezone
+            dt = datetime.strptime(ts_str, fmt)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        except ValueError:
+            continue
+    return None
 
 
 def resolve_scheduler_algorithm(scheduler_label: str) -> str:
@@ -198,7 +319,7 @@ def submit_tasks(master_url: str, tasks: List[Dict]) -> List[str]:
 # Scenario runners
 # ---------------------------------------------------------------------------
 
-def run_baseline(master_url: str, workload: str, scheduler: str) -> ScenarioResult:
+def run_baseline(master_url: str, workload: str, scheduler: str, timeout_seconds: int = 600) -> ScenarioResult:
     """Run a clean baseline: submit workload under a specific scheduler."""
     scheduler_algo = resolve_scheduler_algorithm(scheduler)
     result = ScenarioResult(
@@ -209,26 +330,29 @@ def run_baseline(master_url: str, workload: str, scheduler: str) -> ScenarioResu
         suite="normal",
     )
     try:
-        set_scheduler(master_url, scheduler_algo)
+        if not switch_scheduler(master_url, scheduler_algo):
+            result.error = f"Failed to switch scheduler to {scheduler_algo}"
+            return result
         tasks = load_workload(workload)
         result.tasks_submitted = len(tasks)
 
         start = time.time()
         task_ids = submit_tasks(master_url, tasks)
         result.task_ids = task_ids
-        statuses = poll_task_completion(master_url, task_ids)
+        statuses = poll_task_completion(master_url, task_ids, timeout_seconds=timeout_seconds)
         elapsed = time.time() - start
 
         result.duration_seconds = round(elapsed, 2)
         result.tasks_completed = sum(1 for s in statuses.values() if s == "completed")
         result.tasks_failed = sum(1 for s in statuses.values() if s in ("failed", "cancelled"))
         result.success_rate = round(result.tasks_completed / max(result.tasks_submitted, 1) * 100, 1)
+        compute_run_metrics(master_url, task_ids, result)
     except Exception as e:
         result.error = str(e)
     return result
 
 
-def run_burst(master_url: str, workload: str, scheduler: str) -> ScenarioResult:
+def run_burst(master_url: str, workload: str, scheduler: str, timeout_seconds: int = 600) -> ScenarioResult:
     """Run burst scenario: submit all tasks simultaneously (no delay)."""
     scheduler_algo = resolve_scheduler_algorithm(scheduler)
     result = ScenarioResult(
@@ -239,7 +363,9 @@ def run_burst(master_url: str, workload: str, scheduler: str) -> ScenarioResult:
         suite="normal",
     )
     try:
-        set_scheduler(master_url, scheduler_algo)
+        if not switch_scheduler(master_url, scheduler_algo):
+            result.error = f"Failed to switch scheduler to {scheduler_algo}"
+            return result
         tasks = load_workload(workload)
         # Strip any arrival delays to create bursty submission
         for t in tasks:
@@ -249,19 +375,20 @@ def run_burst(master_url: str, workload: str, scheduler: str) -> ScenarioResult:
         start = time.time()
         task_ids = submit_tasks(master_url, tasks)
         result.task_ids = task_ids
-        statuses = poll_task_completion(master_url, task_ids)
+        statuses = poll_task_completion(master_url, task_ids, timeout_seconds=timeout_seconds)
         elapsed = time.time() - start
 
         result.duration_seconds = round(elapsed, 2)
         result.tasks_completed = sum(1 for s in statuses.values() if s == "completed")
         result.tasks_failed = sum(1 for s in statuses.values() if s in ("failed", "cancelled"))
         result.success_rate = round(result.tasks_completed / max(result.tasks_submitted, 1) * 100, 1)
+        compute_run_metrics(master_url, task_ids, result)
     except Exception as e:
         result.error = str(e)
     return result
 
 
-def run_overload(master_url: str, workload: str, scheduler: str) -> ScenarioResult:
+def run_overload(master_url: str, workload: str, scheduler: str, timeout_seconds: int = 1200) -> ScenarioResult:
     """Run overload scenario: submit workload 3x to saturate cluster."""
     scheduler_algo = resolve_scheduler_algorithm(scheduler)
     result = ScenarioResult(
@@ -272,7 +399,9 @@ def run_overload(master_url: str, workload: str, scheduler: str) -> ScenarioResu
         suite="normal",
     )
     try:
-        set_scheduler(master_url, scheduler_algo)
+        if not switch_scheduler(master_url, scheduler_algo):
+            result.error = f"Failed to switch scheduler to {scheduler_algo}"
+            return result
         tasks = load_workload(workload)
         tasks_3x = tasks * 3  # Triple the workload
         result.tasks_submitted = len(tasks_3x)
@@ -280,13 +409,14 @@ def run_overload(master_url: str, workload: str, scheduler: str) -> ScenarioResu
         start = time.time()
         task_ids = submit_tasks(master_url, tasks_3x)
         result.task_ids = task_ids
-        statuses = poll_task_completion(master_url, task_ids, timeout_seconds=1200)
+        statuses = poll_task_completion(master_url, task_ids, timeout_seconds=timeout_seconds)
         elapsed = time.time() - start
 
         result.duration_seconds = round(elapsed, 2)
         result.tasks_completed = sum(1 for s in statuses.values() if s == "completed")
         result.tasks_failed = sum(1 for s in statuses.values() if s in ("failed", "cancelled"))
         result.success_rate = round(result.tasks_completed / max(result.tasks_submitted, 1) * 100, 1)
+        compute_run_metrics(master_url, task_ids, result)
     except Exception as e:
         result.error = str(e)
     return result
@@ -325,12 +455,21 @@ def generate_report(results: List[ScenarioResult], started_at: float) -> Campaig
         total_failed = sum(r.tasks_failed for r in sched_results)
         avg_success = round(total_completed / max(total_tasks, 1) * 100, 1)
         avg_duration = round(sum(r.duration_seconds for r in sched_results) / max(len(sched_results), 1), 2)
+        wait_vals = [r.avg_wait_seconds for r in sched_results if r.avg_wait_seconds > 0]
+        avg_wait = round(sum(wait_vals) / max(len(wait_vals), 1), 3) if wait_vals else 0.0
+        ta_vals = [r.avg_turnaround_seconds for r in sched_results if r.avg_turnaround_seconds > 0]
+        avg_turnaround = round(sum(ta_vals) / max(len(ta_vals), 1), 3) if ta_vals else 0.0
+        p95_vals = [r.p95_turnaround_seconds for r in sched_results if r.p95_turnaround_seconds > 0]
+        avg_p95 = round(sum(p95_vals) / max(len(p95_vals), 1), 3) if p95_vals else 0.0
         scheduler_summary[sched] = {
             "total_tasks": total_tasks,
             "total_completed": total_completed,
             "total_failed": total_failed,
             "avg_success_rate": avg_success,
             "avg_duration_seconds": avg_duration,
+            "avg_queue_wait_seconds": avg_wait,
+            "avg_turnaround_seconds": avg_turnaround,
+            "p95_turnaround_seconds": avg_p95,
             "scenarios_run": len(sched_results),
         }
 
@@ -342,7 +481,7 @@ def generate_report(results: List[ScenarioResult], started_at: float) -> Campaig
 
 
 def write_markdown_report(report: CampaignReport, output_path: pathlib.Path) -> None:
-    """Write a Markdown evidence report."""
+    """Write a Markdown evidence report with paper comparison."""
     lines = [
         "# CloudAI Evidence Benchmark Campaign Report",
         "",
@@ -353,14 +492,17 @@ def write_markdown_report(report: CampaignReport, output_path: pathlib.Path) -> 
         "",
         "## Scheduler Comparison",
         "",
-        "| Scheduler | Tasks | Completed | Failed | Success Rate | Avg Duration |",
-        "|-----------|-------|-----------|--------|-------------|-------------|",
+        "| Scheduler | Tasks | Completed | Failed | Success Rate | Avg Duration | Avg Queue Wait | Avg Turnaround | P95 Turnaround |",
+        "|-----------|-------|-----------|--------|-------------|-------------|---------------|---------------|----------------|",
     ]
 
     for sched, stats in report.summary.get("by_scheduler", {}).items():
         lines.append(
             f"| {sched} | {stats['total_tasks']} | {stats['total_completed']} | "
-            f"{stats['total_failed']} | {stats['avg_success_rate']}% | {stats['avg_duration_seconds']}s |"
+            f"{stats['total_failed']} | {stats['avg_success_rate']}% | {stats['avg_duration_seconds']}s | "
+            f"{stats.get('avg_queue_wait_seconds', 'N/A')}s | "
+            f"{stats.get('avg_turnaround_seconds', 'N/A')}s | "
+            f"{stats.get('p95_turnaround_seconds', 'N/A')}s |"
         )
 
     best = report.summary.get("best_scheduler", "")
@@ -377,11 +519,119 @@ def write_markdown_report(report: CampaignReport, output_path: pathlib.Path) -> 
         lines.append(f"- Failed: {r['tasks_failed']}")
         lines.append(f"- Success Rate: {r['success_rate']}%")
         lines.append(f"- Duration: {r['duration_seconds']}s")
+        lines.append(f"- Avg Queue Wait: {r.get('avg_wait_seconds', 0)}s")
+        lines.append(f"- Avg Turnaround: {r.get('avg_turnaround_seconds', 0)}s")
+        lines.append(f"- P95 Turnaround: {r.get('p95_turnaround_seconds', 0)}s")
         if r.get("error"):
             lines.append(f"- Error: {r['error']}")
         lines.append("")
 
+    # Paper comparison section
+    lines.extend(_paper_comparison_section(report))
+
     output_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _paper_comparison_section(report: CampaignReport) -> List[str]:
+    """Generate a qualitative comparison with published scheduling literature."""
+    lines = [
+        "## Comparison with Published Results",
+        "",
+        "### Reference: SAC-CS (Soft Actor-Critic for Container Scheduling)",
+        "",
+        "> Taha, A.; Maher, S.; Manimurugan, S.; Taha, M.; Amin, E. \"Optimized Container",
+        "> Scheduling: A Soft Actor-Critic Deep Reinforcement Learning Approach.\"",
+        "> *Computers* 2025, 14, 560. https://doi.org/10.3390/computers14120560",
+        "",
+        "**SAC-CS Key Claims:**",
+        "",
+        "| Metric | SAC-CS (Paper) | Method |",
+        "|--------|---------------|--------|",
+        "| Optimization target | Min execution time + energy | Multi-objective reward |",
+        "| State space | 6 features/host (affinity, speed, idle, diff-CPU/mem/GPU) | Flattened N×6 vector |",
+        "| Action space | Discrete (host index) | Stochastic policy sampling |",
+        "| Discount factor (γ) | 0.01 | Short-horizon, immediate-reward focus |",
+        "| Batch size | 128 | Replay buffer training |",
+        "| Algorithm | SAC with twin critics + entropy regularization | Maximum entropy RL |",
+        "",
+        "**Our Approach (PPO-based) vs SAC-CS:**",
+        "",
+        "| Aspect | SAC-CS (Paper) | Our PPO Scheduler |",
+        "|--------|---------------|-------------------|",
+        "| RL Algorithm | Soft Actor-Critic | Proximal Policy Optimization |",
+        "| Policy type | Stochastic (entropy-regularized) | Stochastic (clipped surrogate) |",
+        "| Exploration | Entropy bonus (automatic temperature α) | GAE + entropy coefficient |",
+        "| Training data | Simulated datacenter tasks | Alibaba cluster-trace-v2018 (200K real tasks) |",
+        "| Online adaptation | Not described | Online PPO updates from live cluster feedback |",
+        "| Baselines | Random, Round-Robin, First-Fit | Round-Robin (RR), Risk-aware (RTS) |",
+        "| Evaluation | Simulated environment only | Live Docker cluster with real task execution |",
+        "",
+    ]
+
+    # Add our results summary
+    by_sched = report.summary.get("by_scheduler", {})
+    if by_sched:
+        lines.extend([
+            "**Our Benchmark Results Summary:**",
+            "",
+            "| Scheduler | Success Rate | Avg Duration | Avg Queue Wait | Avg Turnaround |",
+            "|-----------|-------------|-------------|---------------|---------------|",
+        ])
+        for sched in ["RR", "RTS", "PPO"]:
+            stats = by_sched.get(sched, {})
+            if stats:
+                lines.append(
+                    f"| {sched} | {stats.get('avg_success_rate', 'N/A')}% | "
+                    f"{stats.get('avg_duration_seconds', 'N/A')}s | "
+                    f"{stats.get('avg_queue_wait_seconds', 'N/A')}s | "
+                    f"{stats.get('avg_turnaround_seconds', 'N/A')}s |"
+                )
+        lines.append("")
+
+        ppo = by_sched.get("PPO", {})
+        rr = by_sched.get("RR", {})
+        if ppo and rr:
+            rr_dur = rr.get("avg_duration_seconds", 0)
+            ppo_dur = ppo.get("avg_duration_seconds", 0)
+            if rr_dur > 0:
+                improvement = round((rr_dur - ppo_dur) / rr_dur * 100, 1)
+                lines.append(f"**PPO duration improvement over RR**: {improvement}%")
+            rr_ta = rr.get("avg_turnaround_seconds", 0)
+            ppo_ta = ppo.get("avg_turnaround_seconds", 0)
+            if rr_ta > 0:
+                ta_improvement = round((rr_ta - ppo_ta) / rr_ta * 100, 1)
+                lines.append(f"**PPO turnaround improvement over RR**: {ta_improvement}%")
+            lines.append("")
+
+    lines.extend([
+        "### Methodology Notes",
+        "",
+        "1. **Different evaluation harnesses**: SAC-CS evaluates in simulation; our results",
+        "   come from a live Docker cluster with real container execution. Direct numeric",
+        "   comparison is not appropriate — the environments measure different things.",
+        "2. **Training data**: Our PPO model is pre-trained on the Alibaba cluster-trace-v2018",
+        "   dataset (199,614 real production tasks from 17,592 machines) [1], providing a more",
+        "   realistic training signal than synthetic workloads.",
+        "3. **Online learning**: Unlike SAC-CS, our PPO continues learning from live cluster",
+        "   feedback during deployment, adapting to the actual workload distribution.",
+        "4. **Cluster topology**: 3-node heterogeneous cluster (small: 1 CPU/1.5 GB,",
+        "   medium: 2 CPU/3 GB, large: 3 CPU/5 GB) with Docker-in-Docker task execution.",
+        "",
+        "### References",
+        "",
+        "[1] Alibaba Cluster Trace Program. \"cluster-trace-v2018.\"",
+        "    https://github.com/alibaba/clusterdata, 2018.",
+        "",
+        "[2] Schulman, J.; Wolski, F.; Dhariwal, P.; Radford, A.; Klimov, O.",
+        "    \"Proximal Policy Optimization Algorithms.\" *arXiv preprint arXiv:1707.06347*, 2017.",
+        "",
+        "[3] Taha, A. et al. \"Optimized Container Scheduling: A Soft Actor-Critic Deep",
+        "    Reinforcement Learning Approach.\" *Computers* 2025, 14, 560.",
+        "    https://doi.org/10.3390/computers14120560",
+        "",
+    ])
+
+    return lines
 
 
 def write_html_report(report: CampaignReport, output_path: pathlib.Path) -> None:
@@ -395,6 +645,9 @@ def write_html_report(report: CampaignReport, output_path: pathlib.Path) -> None
             f"<td>{stats['total_failed']}</td>"
             f"<td>{stats['avg_success_rate']}%</td>"
             f"<td>{stats['avg_duration_seconds']}s</td>"
+            f"<td>{stats.get('avg_queue_wait_seconds', 'N/A')}s</td>"
+            f"<td>{stats.get('avg_turnaround_seconds', 'N/A')}s</td>"
+            f"<td>{stats.get('p95_turnaround_seconds', 'N/A')}s</td>"
             "</tr>"
         )
 
@@ -436,7 +689,7 @@ def write_html_report(report: CampaignReport, output_path: pathlib.Path) -> None
   <h2>Scheduler Comparison</h2>
   <table>
     <thead>
-      <tr><th>Scheduler</th><th>Tasks</th><th>Completed</th><th>Failed</th><th>Success Rate</th><th>Avg Duration</th></tr>
+      <tr><th>Scheduler</th><th>Tasks</th><th>Completed</th><th>Failed</th><th>Success Rate</th><th>Avg Duration</th><th>Queue Wait</th><th>Turnaround</th><th>P95 Turnaround</th></tr>
     </thead>
     <tbody>
       {''.join(summary_rows)}
@@ -459,7 +712,7 @@ def write_html_report(report: CampaignReport, output_path: pathlib.Path) -> None
 
 
 def write_scheduler_summary_csv(report: CampaignReport, output_path: pathlib.Path) -> None:
-    lines = ["scheduler,total_tasks,total_completed,total_failed,avg_success_rate,avg_duration_seconds,scenarios_run"]
+    lines = ["scheduler,total_tasks,total_completed,total_failed,avg_success_rate,avg_duration_seconds,avg_queue_wait_seconds,avg_turnaround_seconds,p95_turnaround_seconds,scenarios_run"]
     for sched, stats in report.summary.get("by_scheduler", {}).items():
         lines.append(
             ",".join(
@@ -470,6 +723,9 @@ def write_scheduler_summary_csv(report: CampaignReport, output_path: pathlib.Pat
                     str(stats.get("total_failed", 0)),
                     str(stats.get("avg_success_rate", 0)),
                     str(stats.get("avg_duration_seconds", 0)),
+                    str(stats.get("avg_queue_wait_seconds", 0)),
+                    str(stats.get("avg_turnaround_seconds", 0)),
+                    str(stats.get("p95_turnaround_seconds", 0)),
                     str(stats.get("scenarios_run", 0)),
                 ]
             )
@@ -618,6 +874,11 @@ def main() -> int:
         print("  Start it with: make run-master-ppo   (or: ./execute-tests.sh)")
         return 1
 
+    # Pre-campaign: verify clean slate
+    if not check_clean_slate(args.master_url):
+        print("ERROR: Could not drain existing tasks. Cluster is not in a clean state.")
+        return 1
+
     # Parse scenario list
     if args.scenarios.strip().lower() == "all":
         scenarios = list(SCENARIO_RUNNERS.keys())
@@ -631,6 +892,7 @@ def main() -> int:
     print(f"Scenarios: {scenarios}")
     print(f"Schedulers: {schedulers}")
     print(f"Workloads: {workloads}")
+    print(f"Timeout: {args.timeout}s per scenario")
     print()
 
     results: List[ScenarioResult] = []
@@ -645,13 +907,18 @@ def main() -> int:
             for workload in workloads:
                 label = f"{scenario_name}/{scheduler}/{workload}"
                 print(f"[campaign] Running {label}...")
-                result = runner(args.master_url, workload, scheduler)
+                result = runner(args.master_url, workload, scheduler, timeout_seconds=args.timeout)
                 results.append(result)
                 if result.error:
                     print(f"[campaign]   ERROR: {result.error}")
                 else:
                     print(f"[campaign]   done: {result.tasks_completed}/{result.tasks_submitted} "
-                          f"({result.success_rate}%) in {result.duration_seconds}s")
+                          f"({result.success_rate}%) in {result.duration_seconds}s "
+                          f"[wait={result.avg_wait_seconds}s turnaround={result.avg_turnaround_seconds}s]")
+
+                # Drain cluster between runs to prevent cross-contamination
+                print(f"[campaign]   draining cluster before next run...")
+                drain_cluster(args.master_url, timeout_seconds=120)
 
     report = generate_report(results, started_at)
 

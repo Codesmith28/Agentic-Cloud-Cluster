@@ -33,7 +33,7 @@
 	testbench-suite-evidence testbench-suite-full \
 	testbench-host-suite testbench-host-suite-smoke testbench-host-suite-reliability \
 	testbench-host-suite-ui-smoke testbench-host-suite-evidence testbench-host-suite-full \
-	campaign campaign-full campaign-final \
+	campaign campaign-full campaign-final campaign-comprehensive \
 	model-promote model-promote-dry model-archive-list \
 	deploy benchmark
 
@@ -357,6 +357,14 @@ campaign-final:
 		--scenarios baseline,burst,overload \
 		--schedulers RR,RTS,PPO \
 		--workloads stress-heavy
+
+campaign-comprehensive:
+	@echo "📊 Running COMPREHENSIVE benchmark (4 workloads × 3 scenarios × 3 schedulers)..."
+	@$(PYTHON) testbench/scripts/run_campaign.py \
+		--scenarios baseline,burst,overload \
+		--schedulers RR,RTS,PPO \
+		--workloads heterogeneous-smoke,steady-cpu,bursty,memory-pressure \
+		--timeout 900
 
 # ===========================================================================
 # Model management
