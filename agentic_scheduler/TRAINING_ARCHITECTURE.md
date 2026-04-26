@@ -26,6 +26,7 @@
 12. [End-to-End Worked Example](#12-end-to-end-worked-example)
 13. [Thread Safety & Concurrency](#13-thread-safety--concurrency)
 14. [Frequently Asked Questions](#14-frequently-asked-questions)
+15. [How the Agent Learns Optimal Assignments](#15-how-the-agent-learns-optimal-assignments)
 
 ---
 
@@ -1703,3 +1704,380 @@ The action mask will be all-False. In `choose_action()`, if no worker features e
 ### Q: "How do we prevent catastrophic forgetting during online learning?"
 
 Three mechanisms: (1) PPO clipping limits policy changes to ±20% per update. (2) Value clipping limits Critic changes to ±0.2 per update. (3) Advantage clamping to [-8, 8] in online mode prevents outlier rewards from causing gradient explosions. The small online batch size (32) and fewer epochs (4 vs 6 offline) further limit the magnitude of each update.
+
+---
+
+## 15. How the Agent Learns Optimal Assignments
+
+This section explains the fundamental question: given a batch of historical
+task–worker data from the live cluster, **how does the PPO agent figure out
+which assignments are good and which are bad?**
+
+### 15.1 The Core Idea
+
+The agent does **not** copy historical assignments. Instead, it:
+
+1. **Replays the workload** — tasks arrive in chronological order with their
+   real resource demands, SLA targets, and runtimes.
+2. **Makes its own decisions** — for each task, the agent chooses which worker
+   to assign it to, using its current neural network policy.
+3. **Simulates the consequences** — the environment tracks resource consumption
+   on every machine, releases resources when tasks finish, and computes a
+   multi-objective reward.
+4. **Updates the policy** — assignments that led to high rewards become more
+   likely; assignments that led to poor outcomes become less likely.
+
+The agent discovers better-than-historical assignments through **stochastic
+exploration**: during training, it samples from a probability distribution
+rather than always picking the "best" option. Occasionally these random choices
+lead to unexpectedly good outcomes, and the policy gradient reinforces them.
+
+### 15.2 What the Agent Sees (State)
+
+At each scheduling step, the agent observes three things:
+
+```
+observation = {
+    "task":        [5]               ← what needs to be scheduled
+    "workers":     [num_workers, 9]  ← current state of every machine
+    "action_mask": [num_workers]     ← which machines have enough capacity
+}
+```
+
+**Task features** (5 values, from `features.py:29-39`):
+
+| Index | Feature | Example |
+|-------|---------|---------|
+| 0 | `req_cpu` — CPU cores needed | 4.0 |
+| 1 | `req_memory` — memory GB needed | 8.0 |
+| 2 | `req_storage` — storage GB needed | 20.0 |
+| 3 | `sla_multiplier` — urgency factor | 2.0 |
+| 4 | `task_type` — normalized type (0–1) | 0.33 |
+
+**Worker features** (9 values per worker, from `features.py:42-80`):
+
+| Index | Feature | Meaning |
+|-------|---------|---------|
+| 0 | available_cpu / total_cpu | CPU headroom ratio |
+| 1 | available_memory / total_memory | Memory headroom ratio |
+| 2 | available_storage / total_storage | Storage headroom ratio |
+| 3 | total_cpu | Machine capacity (absolute) |
+| 4 | total_memory | Machine capacity (absolute) |
+| 5 | total_storage | Machine capacity (absolute) |
+| 6 | used_cpu / total_cpu | CPU utilization ratio |
+| 7 | used_memory / total_memory | Memory utilization ratio |
+| 8 | used_storage / total_storage | Storage utilization ratio |
+
+**Action mask**: a boolean vector marking which workers have enough resources
+to run this task. Infeasible workers are masked out so the agent never picks
+them during inference (training still allows it, with a harsh -1.8 penalty).
+
+### 15.3 How the Actor Decides (Policy Network)
+
+The Actor network processes each (task, worker) pair independently and outputs
+a **score (logit)** per worker. These logits are converted to a probability
+distribution via softmax.
+
+```
+For each worker w_i:
+    pair_i = concat(task_features, worker_i_features)   →  [14]
+    hidden = ReLU(Linear_128(pair_i))                    →  [128]
+    hidden = ReLU(Linear_64(hidden))                     →  [64]
+    logit_i = Linear_1(hidden)                           →  scalar
+
+logits = [logit_0, logit_1, ..., logit_N]
+logits[infeasible] = -∞                    ← action mask
+probabilities = softmax(logits)            ← π(a|s)
+```
+
+**During training**: the agent **samples** from this distribution:
+```python
+distribution = Categorical(logits=masked_logits)
+action = distribution.sample()   # stochastic — enables exploration
+```
+
+**During inference**: the agent picks the **best** option:
+```python
+action = argmax(logits)           # deterministic — exploit learned policy
+```
+
+This is the key mechanism for discovering better assignments: by sampling
+stochastically, the agent tries assignments it would not normally make, and
+if they produce higher rewards, the policy shifts to favor them.
+
+### 15.4 How the Critic Evaluates (Value Network)
+
+The Critic network shares the same encoder as the Actor but has a different
+output head. It estimates the **expected total future reward** from the current
+cluster state:
+
+```
+For each worker w_i:
+    pair_i = concat(task_features, worker_i_features)   →  [14]
+    hidden = shared_encoder(pair_i)                      →  [64]
+    value_i = Linear_1(hidden)                           →  scalar
+
+V(s) = mean(value_0, value_1, ..., value_N)   ← mean-pooled across workers
+```
+
+**What does V(s) mean?**
+
+| V(s) Value | Interpretation |
+|------------|----------------|
+| High (~1.5) | "The cluster is healthy — lots of headroom, SLA targets being met, good balance. Future rewards will be high no matter what I do." |
+| Medium (~1.0) | "Cluster is moderately loaded. Careful placement decisions still matter." |
+| Low (~0.3) | "Cluster is stressed — machines are filling up, SLA pressure is rising. Future rewards will be lower." |
+| Negative | "Cluster is in trouble — overloaded machines, SLA violations imminent." |
+
+The Critic's job is **not** to pick workers. Its job is to provide a
+**baseline** for the Actor. The Advantage function (below) measures whether
+the Actor's choice was better or worse than the Critic expected.
+
+### 15.5 The Reward Function — Defining "Good"
+
+The reward function is what ultimately defines optimal behavior. It is a
+**multi-objective scalar** computed in `trace_replay_env.py:295-342`.
+
+For a **feasible** assignment:
+
+```
+reward = 1.4                                    ← baseline for any valid placement
+       + 0.25 × (1 - projected_load)            ← headroom bonus
+       - 0.35 × min(queue_wait / sla_budget, 3)  ← queue pressure
+       - 0.55 × max(turnaround / sla_budget - 1, 0) ← tail latency penalty
+       - 0.20 × max(load_selected - load_mean, 0)   ← imbalance penalty
+       - 0.40 × (σ_loads_after - σ_loads_before)     ← delta imbalance
+       - 0.05 × min(requeue_count, 4)                ← requeue penalty
+```
+
+For an **infeasible** assignment: `reward = -1.8`
+
+**What each term teaches the agent:**
+
+| Term | Weight | What It Rewards / Penalizes |
+|------|--------|---------------------------|
+| **Baseline** | +1.4 | Any valid placement gets a bonus. Encourages feasibility. |
+| **Headroom bonus** | +0.25 | Placing on a lightly-loaded worker. Prevents packing. |
+| **Queue pressure** | -0.35 | Long predicted wait times relative to SLA. Encourages fast service. |
+| **Tail latency** | -0.55 | Turnaround time exceeding SLA budget. Heaviest penalty — SLA is king. |
+| **Imbalance** | -0.20 | Placing on a worker already above cluster average. Discourages hot-spotting. |
+| **Delta imbalance** | -0.40 | Making the cluster *more* unbalanced than before. Only penalizes change, not pre-existing state. |
+| **Requeue penalty** | -0.05 | Re-queued tasks get a small penalty to discourage overloading their target. |
+
+**Reward range:**
+
+```
+Best case  (light task, empty worker):  +1.4 + 0.25 = +1.65
+Typical    (medium load, medium SLA):   +1.4 + 0.05 - 0.10 - 0.15 - 0.05 = +1.10
+Worst case (full cluster, SLA breach):  +1.4 + 0 - 0.70 - 1.65 - 0.20 = -1.15
+Infeasible:                             -1.80
+```
+
+### 15.6 The Advantage — "Was This Choice Better Than Expected?"
+
+The **advantage** A(s, a) is the key signal that drives policy improvement.
+It answers: "compared to the Critic's expectation, how much better (or worse)
+was the Actor's choice?"
+
+```
+A(s, a) = actual_return - V(s)
+```
+
+We compute it with **Generalized Advantage Estimation (GAE)** which smooths
+out reward noise across multiple future steps (`train_ppo.py:295-323`):
+
+```
+δ_t = r_t + γ × V(s_{t+1}) - V(s_t)          ← TD error at step t
+A_t = δ_t + (γλ) × δ_{t+1} + (γλ)² × δ_{t+2} + ...   ← discounted sum of TD errors
+```
+
+With `γ = 0.99` (discount) and `λ = 0.95` (smoothing).
+
+**What the advantage tells the agent:**
+
+| Advantage | Meaning | Effect on Policy |
+|-----------|---------|-----------------|
+| A > 0 | "This worker was a better choice than average" | **Increase** probability of picking this worker in similar states |
+| A ≈ 0 | "This was about as good as expected" | Little change |
+| A < 0 | "This worker was a worse choice than average" | **Decrease** probability of picking this worker in similar states |
+
+### 15.7 The PPO Update — How the Policy Improves
+
+After collecting 1,024 scheduling decisions (a rollout), the PPO algorithm
+updates the neural network weights using clipped policy gradients
+(`model.py:252-321`):
+
+```
+ratio = π_new(a|s) / π_old(a|s)         ← how much did the policy change?
+clipped_ratio = clamp(ratio, 0.8, 1.2)  ← don't change too much (±20%)
+
+policy_loss = -min(ratio × A, clipped_ratio × A)   ← PPO-Clip objective
+value_loss  = MSE(V(s), actual_return)               ← Critic learning
+entropy     = -Σ π(a|s) log π(a|s)                   ← exploration bonus
+
+total_loss = policy_loss + 0.5 × value_loss - 0.01 × entropy
+```
+
+This is repeated for **6 epochs** with **minibatch size 256**, shuffled each
+epoch. The gradient is clipped to max norm 1.0 to prevent explosions.
+
+**The clipping is critical**: it prevents the policy from changing too
+drastically in a single update, which would destabilize training. The agent
+moves toward better assignments gradually.
+
+### 15.8 Resource Lifecycle — Why Temporal Order Matters
+
+The environment does not just check instantaneous capacity. It simulates a
+**dynamic cluster** where resources are occupied and released over time
+(`trace_replay_env.py:344-355`):
+
+```
+Time t₀ (task arrives):
+  → Agent picks worker W
+  → W.used_cpu += task.req_cpu        (resources occupied)
+  → active_tasks.append({worker=W, end_time=t₀+runtime})
+
+Time t₁ (task finishes, t₁ = t₀ + runtime):
+  → W.used_cpu -= task.req_cpu        (resources released)
+  → Worker W has capacity again
+```
+
+This means the agent must learn **temporal reasoning**: placing a heavy task
+on worker A now will block lighter tasks from fitting there for the next N
+seconds. A seemingly "good" assignment right now might cause cascading SLA
+violations later as the cluster runs out of headroom.
+
+The Critic learns to anticipate this. A state where several heavy tasks were
+recently assigned to the same worker will get a **lower V(s)** — the Critic
+predicts that future rewards will suffer because that worker is now a
+bottleneck.
+
+### 15.9 How Discovery Works — Finding Better-Than-Historical Assignments
+
+**Q: The trace data shows what actually happened in history. How does the
+agent learn to do BETTER than what was historically done?**
+
+The agent never sees the historical assignment decisions. It only sees:
+- When each task arrived
+- What resources each task needed
+- How long each task ran
+- The machine specifications in the cluster
+
+The agent then makes **its own** assignment decisions from scratch. The key
+mechanisms for discovering better strategies:
+
+1. **Stochastic exploration**: During training, the policy samples
+   probabilistically instead of always picking the greedy choice. Sometimes
+   these random choices produce surprisingly good outcomes — the advantage
+   signal reinforces them.
+
+2. **Multi-objective reward shaping**: The reward function encodes domain
+   knowledge about what "good scheduling" means. The agent receives immediate
+   feedback after every single decision, not just at the end of an episode.
+   This dense signal lets it correlate specific assignments with specific
+   outcomes.
+
+3. **Temporal credit assignment**: GAE propagates reward information backward
+   through time. If placing task T₁ on worker W₃ causes a SLA violation for
+   task T₈ two minutes later (because W₃ ran out of memory), the negative
+   advantage reaches back to the T₁ decision.
+
+4. **Advantage normalization**: By subtracting the mean and dividing by the
+   standard deviation of advantages within each batch, the agent focuses on
+   **relative quality** — which of its recent decisions were better than
+   others, regardless of the absolute reward level.
+
+5. **Multiple passes**: The 6-epoch PPO update squeezes maximum learning from
+   each rollout. The agent sees the same batch from different random
+   orderings, strengthening the statistical signal.
+
+### 15.10 Concrete Example
+
+Consider 3 workers and a CPU-heavy task (4 cores, 8 GB RAM):
+
+```
+Worker A: 12/16 cores used (75% load), 20/32 GB used
+Worker B:  2/8  cores used (25% load), 4/16 GB used
+Worker C:  6/8  cores used (75% load), 12/16 GB used
+```
+
+**Round-robin** would pick the next in rotation — maybe worker C (bad choice).
+
+**The PPO agent sees:**
+- Worker A: high load but has 4 free cores and 12 GB free → feasible
+- Worker B: low load, 6 free cores, 12 GB free → feasible, best headroom
+- Worker C: high load, only 2 free cores → infeasible (needs 4, only 2 free)
+
+**Actor outputs:**
+```
+logits = [0.8, 2.1, -∞]        ← C masked out
+probs  = [0.21, 0.79, 0.00]    ← softmax
+```
+
+The agent assigns to Worker B (79% probability). Reward calculation:
+
+```
+projected_load(B) = (2+4)/8 = 0.75   ← load after placement
+headroom = 1 - 0.75 = 0.25
+cluster_mean_load = mean(0.75, 0.75, 0.75) = 0.75
+imbalance = max(0.75 - 0.75, 0) = 0.0
+σ_before = std(0.75, 0.25, 0.75) = 0.236
+σ_after  = std(0.75, 0.75, 0.75) = 0.000
+delta_imbalance = 0.000 - 0.236 = -0.236   ← NEGATIVE! (cluster got MORE balanced)
+
+reward = 1.4 + 0.25×0.25 - 0.35×qp - 0.55×tp - 0.20×0.0 - 0.40×(-0.236)
+       = 1.4 + 0.0625 + 0.0944 - (pressure terms)
+       ≈ 1.35   ← good reward!
+```
+
+The delta-imbalance term is **negative** (cluster became more balanced), so
+`-0.40 × (-0.236)` adds +0.094 to the reward. The agent is rewarded for
+**balancing the cluster**.
+
+If the agent had instead picked Worker A:
+```
+projected_load(A) = (12+4)/16 = 1.0   ← full!
+headroom = 0.0
+imbalance = max(1.0 - 0.75, 0) = 0.25
+σ_after = std(1.0, 0.25, 0.75) = 0.306
+delta_imbalance = 0.306 - 0.236 = 0.070
+
+reward = 1.4 + 0.0 - ... - 0.20×0.25 - 0.40×0.070
+       ≈ 1.12   ← lower reward
+```
+
+The advantage for choosing B over A would be positive → the policy shifts to
+prefer low-load workers for CPU-heavy tasks. Over thousands of similar
+decisions, the agent learns the general principle: **balance the cluster and
+preserve headroom**.
+
+### 15.11 Summary: The Learning Loop
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ 1. OBSERVE: task features + all worker states + mask     │
+├──────────────────────────────────────────────────────────┤
+│ 2. ACT: Actor outputs probabilities, samples a worker    │
+├──────────────────────────────────────────────────────────┤
+│ 3. REWARD: Environment computes multi-objective score    │
+│    (headroom + SLA + balance + latency)                  │
+├──────────────────────────────────────────────────────────┤
+│ 4. EVALUATE: Critic estimates expected future reward     │
+├──────────────────────────────────────────────────────────┤
+│ 5. ADVANTAGE: A = actual - expected                      │
+│    Positive → "better than expected, do more of this"    │
+│    Negative → "worse than expected, do less of this"     │
+├──────────────────────────────────────────────────────────┤
+│ 6. UPDATE: PPO adjusts network weights (clipped, stable) │
+│    Actor: shift probabilities toward high-advantage acts │
+│    Critic: improve future-reward predictions             │
+├──────────────────────────────────────────────────────────┤
+│ 7. REPEAT: over 200 updates × 1,024 decisions each      │
+│    = 204,800 scheduling decisions to learn from          │
+└──────────────────────────────────────────────────────────┘
+```
+
+The agent does not need a labeled "correct answer" for each task. It discovers
+optimal assignments through trial-and-error, guided by the reward function that
+encodes what matters: **SLA compliance, cluster balance, resource headroom, and
+latency minimization**.
