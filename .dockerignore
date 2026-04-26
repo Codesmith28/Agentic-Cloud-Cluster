@@ -11,6 +11,7 @@ proto/py
 # Frontend dependencies and build outputs
 ui/node_modules
 ui/dist
+ui
 
 # Runtime outputs
 results
@@ -23,9 +24,16 @@ __pycache__
 # Training data and artifacts (5+ GB)
 agentic_scheduler/data
 agentic_scheduler/results
-agentic_scheduler/models/archive
+agentic_scheduler/models
 agentic_scheduler/logs
+agentic_scheduler/training
+agentic_scheduler/*.py
+agentic_scheduler/*.md
 papers
+docs
 *.log
 setup.log
 training_output.log
+training_report.md
+ARCHITECTURE.md
+README.md

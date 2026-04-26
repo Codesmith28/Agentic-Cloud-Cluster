@@ -30,6 +30,9 @@ COMPOSE_FILE="testbench/docker-compose.host-master.yml"
 WORKER_SPECS="worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054"
 MASTER_PID=""
 
+# Ensure GF_ADMIN_PASSWORD is always set (required by docker-compose, even for teardown)
+export GF_ADMIN_PASSWORD="${GF_ADMIN_PASSWORD:-benchpass}"
+
 # ── Parse arguments ─────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -140,12 +143,6 @@ export PPO_AUTOSTART=true
 export PPO_MODEL_PATH="${MODEL_DST}"
 export PPO_DEPLOYMENT_MODE=active
 
-# Ensure Grafana .env var is set (required by docker-compose)
-if [[ -z "${GF_ADMIN_PASSWORD:-}" ]]; then
-    export GF_ADMIN_PASSWORD="benchpass"
-    info "Set GF_ADMIN_PASSWORD=benchpass (default for benchmarking)"
-fi
-
 ok "Environment configured:"
 echo "    SCHED_ALGO        = ${SCHED_ALGO}"
 echo "    PPO_AUTOSTART     = ${PPO_AUTOSTART}"
@@ -155,12 +152,21 @@ echo "    PPO_DEPLOYMENT_MODE = ${PPO_DEPLOYMENT_MODE}"
 # ── Step 4: Start Docker workers + observability ─────────────────────────────
 separator "Step 4: Starting Docker workers (host-master topology)"
 
-# Bring down any existing stack first
+# Bring down any previous testbench stack
 info "Cleaning up any previous testbench stack..."
 docker compose -f "${COMPOSE_FILE}" down --remove-orphans 2>/dev/null || true
 
-info "Starting stack (mongo, workers, prometheus, grafana)..."
-docker compose -f "${COMPOSE_FILE}" up -d --build
+# Check if MongoDB is already running on :27017 (e.g. from database/docker-compose.yml)
+MONGO_ALREADY_RUNNING=false
+if curl -fsS --max-time 2 "mongodb://localhost:27017" >/dev/null 2>&1 \
+   || docker ps 2>/dev/null | grep -q "27017"; then
+    MONGO_ALREADY_RUNNING=true
+    info "MongoDB already running on :27017 — starting workers without testbench mongo"
+    docker compose -f "${COMPOSE_FILE}" up -d --build --scale mongo=0
+else
+    info "Starting stack (mongo, workers, prometheus, grafana)..."
+    docker compose -f "${COMPOSE_FILE}" up -d --build
+fi
 
 ok "Docker workers started"
 
