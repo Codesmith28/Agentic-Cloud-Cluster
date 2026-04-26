@@ -386,9 +386,10 @@ All values clamped ≥ 0.1
 **Memory normalization** (`_normalize_alibaba_memory`):
 ```
 if plan_mem <= 0:     return 0.1
-if plan_mem <= 1.0:   return plan_mem × 64.0 GB   (fraction of 64 GB host)
-else:                 return plan_mem              (already in GB)
-All values clamped ≥ 0.1
+else:                 return max(plan_mem, 0.1)
+
+Both plan_mem and machine mem_size are in Alibaba's native normalised scale
+where 100 = full machine capacity.  No unit conversion is needed.
 ```
 
 **Alibaba task type mapping** (12 Alibaba types → 4 canonical types):
@@ -529,23 +530,26 @@ prefer balanced placement) before graduating to the complex trace-based reward.
 Replays a `TraceCluster`'s tasks in chronological order. This is where the agent
 encounters realistic workload distributions, bursty arrivals, and SLA pressures.
 
-**Time-based load decay:**
+**Lifecycle-based resource tracking:**
 ```
-dt = next_task.arrival_time - prev_task.arrival_time
-decay_factor = e^(-dt / 30)       // τ = 30 seconds, half-life ≈ 20.8 seconds
+On placement:
+    worker.used_* += task.req_*
+    active_tasks.append(ActiveTask(worker_idx, req_*, end_time=arrival+runtime))
 
-worker.used_cpu     *= decay_factor
-worker.used_memory  *= decay_factor
-worker.used_storage *= decay_factor
+Before each step:
+    complete_tasks(current_time):
+        for each active task where end_time <= current_time:
+            worker.used_* -= task.req_*
 ```
 
-Unlike the synthetic env's fixed 15% decay per step, the trace env decays
-resources proportionally to real elapsed time, so long gaps between arrivals
-release more capacity naturally.
+Resources are reserved on placement and released when the task's simulated
+runtime elapses.  This replaces the earlier exponential-decay approximation
+which could not model simultaneous arrivals (65 % of the Alibaba trace) and
+released resources at an uncalibrated fixed rate.
 
 **Looping:** When `loop=True` (the default), the trace restarts from the
-beginning when exhausted, resetting all worker loads. This allows training runs
-longer than the trace itself.
+beginning when exhausted, resetting all worker loads and clearing the active
+task list. This allows training runs longer than the trace itself.
 
 **Reward function** (multi-component, `_quality_reward`):
 ```
@@ -566,11 +570,15 @@ If feasible:
     headroom_bonus       = 1.0 - projected_load
     requeue_penalty      = min(requeue_count, 4) × 0.05
 
+    # Delta-imbalance: change in cluster load std from this action
+    delta_imbalance      = std(loads_after) - std(loads_before)
+
     reward = 1.4
            + 0.25 × headroom_bonus          # prefer workers with capacity
            - 0.35 × queue_pressure           # penalise estimated queue delay
            - 0.55 × tail_pressure            # heavily penalise SLA breaches
            - 0.20 × imbalance_penalty        # penalise load imbalance
+           - 0.40 × delta_imbalance          # penalise worsening balance
            - requeue_penalty                 # penalise re-queued tasks
 
 If infeasible:
@@ -584,6 +592,8 @@ Approximate range: [-2.3, 1.65]
 - `queue_pressure` penalises placements that will cause queuing delays
 - `tail_pressure` is the "SLA cop" — strongly penalises turnaround > SLA budget
 - `imbalance_penalty` prevents the agent from always choosing the same few workers
+- `delta_imbalance` penalises actions that worsen cluster-wide balance (uses
+  change in std of worker loads, so pre-existing imbalance is not penalised)
 - `requeue_penalty` discourages placements on workers with a history of failures
 
 The coefficients (0.25, 0.35, 0.55, 0.20, 0.05) were tuned empirically to
@@ -1280,7 +1290,7 @@ What matters is the **trend over time**:
 | Parameter | SchedulingEnv (Synthetic) | TraceReplayEnv (Trace) |
 |---|---|---|
 | Episode length | 96 steps | Full trace (loopable) |
-| Load decay | CPU/mem ×0.85, storage ×0.90 per step | e^(-Δt/30) per inter-arrival gap |
+| Load decay | CPU/mem ×0.85, storage ×0.90 per step | Lifecycle-based: resources released after task runtime elapses |
 | Feasible reward | 1.2 - load_penalty | Multi-component (see §5b) |
 | Infeasible reward | -1.4 | -1.8 |
 | Reward range | [-1.4, 1.2] | ~[-2.3, 1.65] |

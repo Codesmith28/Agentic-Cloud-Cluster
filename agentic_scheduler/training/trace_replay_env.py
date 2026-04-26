@@ -4,6 +4,13 @@ Unlike the synthetic ``SchedulingEnv`` which generates random tasks, this
 environment reads a ``TraceCluster`` produced by the trace loaders and
 replays the recorded task arrivals in chronological order, giving the PPO
 agent a realistic distribution of resource requests and inter-arrival times.
+
+Resource tracking uses **lifecycle-based accounting**: when a task is placed
+on a worker its resource demands are added, and when the simulated runtime
+elapses the resources are released.  This replaces the earlier exponential-
+decay approximation which could not model simultaneous arrivals (65 % of the
+Alibaba trace) and released resources either too fast or too slow depending
+on the chosen time constant.
 """
 
 from __future__ import annotations
@@ -17,6 +24,17 @@ from gymnasium import spaces
 
 from ..features import TASK_FEATURE_DIM, TASK_TYPE_TO_ID, WORKER_FEATURE_DIM
 from .trace_loader import TraceCluster, TraceTask
+
+
+@dataclass
+class _ActiveTask:
+    """A task currently occupying resources on a worker."""
+
+    worker_idx: int
+    req_cpu: float
+    req_memory: float
+    req_storage: float
+    end_time: float  # arrival_time + runtime_seconds
 
 
 @dataclass
@@ -45,10 +63,13 @@ class _WorkerState:
 class TraceReplayEnv(gym.Env):
     """Replay a cluster trace as a Gymnasium RL environment.
 
-    Each ``step()`` presents the next task from the trace.  The agent selects a
-    worker (action) and receives a reward based on feasibility, queue/turnaround
-    proxies, tail-risk pressure, and load balance.  Active task loads decay over
-    time proportional to the inter-arrival gap between consecutive tasks.
+    Each ``step()`` presents the next task from the trace.  The agent selects
+    a worker (action) and receives a reward based on feasibility,
+    queue/turnaround proxies, tail-risk pressure, and load balance.
+
+    Resource occupation is tracked via explicit task lifecycles: resources are
+    reserved on placement and released when the task's simulated runtime
+    expires.
 
     Parameters
     ----------
@@ -100,7 +121,7 @@ class TraceReplayEnv(gym.Env):
         self._task_idx = 0
         self.workers: List[_WorkerState] = []
         self.current_task: Optional[TraceTask] = None
-        self._prev_arrival = 0.0
+        self._active_tasks: List[_ActiveTask] = []
 
         self.observation_space = spaces.Dict({
             "task": spaces.Box(low=0.0, high=256.0, shape=(TASK_FEATURE_DIM,), dtype=np.float32),
@@ -120,7 +141,7 @@ class TraceReplayEnv(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self._task_idx = 0
-        self._prev_arrival = 0.0
+        self._active_tasks.clear()
         self.workers = [
             _WorkerState(
                 worker_id=w["worker_id"],
@@ -137,6 +158,11 @@ class TraceReplayEnv(gym.Env):
         assert self.current_task is not None
         assert 0 <= action < self.num_workers
 
+        current_time = self.current_task.arrival_time
+
+        # Release resources from tasks that have completed by now
+        self._complete_tasks(current_time)
+
         selected = self.workers[action]
         feasible = self._is_feasible(self.current_task, selected)
         reward_details = {
@@ -144,12 +170,30 @@ class TraceReplayEnv(gym.Env):
             "turnaround_pressure": 0.0,
             "tail_pressure": 0.0,
             "imbalance_penalty": 0.0,
+            "delta_imbalance": 0.0,
         }
 
-        # Reward
         if feasible:
+            # Snapshot cluster balance BEFORE placement
+            loads_before_std = float(np.std(
+                [self._normalised_load(w) for w in self.workers]
+            ))
+
             self._apply_task(selected, self.current_task)
-            reward, reward_details = self._quality_reward(selected, self.current_task)
+
+            # Track this task for lifecycle-based resource release
+            runtime = max(self.current_task.runtime_seconds, 1.0)
+            self._active_tasks.append(_ActiveTask(
+                worker_idx=action,
+                req_cpu=self.current_task.req_cpu,
+                req_memory=self.current_task.req_memory,
+                req_storage=self.current_task.req_storage,
+                end_time=current_time + runtime,
+            ))
+
+            reward, reward_details = self._quality_reward(
+                selected, self.current_task, loads_before_std,
+            )
         else:
             reward = -1.8
 
@@ -160,7 +204,7 @@ class TraceReplayEnv(gym.Env):
         if self._task_idx >= len(self.tasks):
             if self.loop:
                 self._task_idx = 0
-                self._prev_arrival = 0.0
+                self._active_tasks.clear()
                 for w in self.workers:
                     w.used_cpu = 0.0
                     w.used_memory = 0.0
@@ -170,14 +214,7 @@ class TraceReplayEnv(gym.Env):
                 terminal_info = {"feasible": feasible, **reward_details}
                 return self._observation(), float(reward), terminated, False, terminal_info
 
-        next_task = self.tasks[self._task_idx]
-
-        # Time-based load decay between task arrivals
-        dt = max(next_task.arrival_time - self._prev_arrival, 0.0)
-        self._decay_loads(dt)
-        self._prev_arrival = next_task.arrival_time
-
-        self.current_task = next_task
+        self.current_task = self.tasks[self._task_idx]
 
         info = {"feasible": feasible, "task_idx": self._task_idx, **reward_details}
         return self._observation(), float(reward), terminated, False, info
@@ -255,11 +292,17 @@ class TraceReplayEnv(gym.Env):
         sto = _safe_ratio(worker.used_storage, worker.total_storage)
         return min((cpu + mem + sto) / 3.0, 1.5)
 
-    def _quality_reward(self, selected: _WorkerState, task: TraceTask) -> Tuple[float, Dict[str, float]]:
+    def _quality_reward(
+        self,
+        selected: _WorkerState,
+        task: TraceTask,
+        loads_before_std: float,
+    ) -> Tuple[float, Dict[str, float]]:
         runtime_seconds = max(float(task.runtime_seconds), 1.0)
         sla_multiplier = max(float(task.sla_multiplier), 1.0)
         projected_load = self._normalised_load(selected)
-        cluster_load = float(np.mean([self._normalised_load(worker) for worker in self.workers]))
+        loads = [self._normalised_load(w) for w in self.workers]
+        cluster_load = float(np.mean(loads))
 
         trace_queue_wait = max(float(task.queue_wait_seconds), 0.0)
         queue_wait_proxy = trace_queue_wait + (runtime_seconds * projected_load)
@@ -273,12 +316,20 @@ class TraceReplayEnv(gym.Env):
         headroom_bonus = 1.0 - projected_load
         requeue_penalty = min(float(task.requeue_count), 4.0) * 0.05
 
+        # Delta-imbalance: penalise actions that *worsen* cluster balance.
+        # Using the change in std(loads) rather than the absolute std avoids
+        # rewarding/penalising based on pre-existing state the agent did not
+        # create.
+        loads_after_std = float(np.std(loads))
+        delta_imbalance = loads_after_std - loads_before_std
+
         reward = (
             1.4
             + (0.25 * headroom_bonus)
             - (0.35 * queue_pressure)
             - (0.55 * tail_pressure)
             - (0.20 * imbalance_penalty)
+            - (0.40 * delta_imbalance)
             - requeue_penalty
         )
 
@@ -287,22 +338,21 @@ class TraceReplayEnv(gym.Env):
             "turnaround_pressure": float(turnaround_pressure),
             "tail_pressure": float(tail_pressure),
             "imbalance_penalty": float(imbalance_penalty),
+            "delta_imbalance": float(delta_imbalance),
         }
 
-    def _decay_loads(self, dt: float) -> None:
-        """Decay worker loads based on elapsed time.
-
-        Uses exponential decay with a half-life of ~30 seconds so that
-        long gaps between arrivals release more resources.
-        """
-        if dt <= 0:
-            return
-        # decay_factor ~ e^(-dt/tau), tau=30s so half-life ≈ 20.8s
-        decay = np.exp(-dt / 30.0)
-        for w in self.workers:
-            w.used_cpu *= decay
-            w.used_memory *= decay
-            w.used_storage *= decay
+    def _complete_tasks(self, current_time: float) -> None:
+        """Release resources from tasks whose runtime has elapsed."""
+        still_active: List[_ActiveTask] = []
+        for at in self._active_tasks:
+            if current_time >= at.end_time:
+                w = self.workers[at.worker_idx]
+                w.used_cpu = max(w.used_cpu - at.req_cpu, 0.0)
+                w.used_memory = max(w.used_memory - at.req_memory, 0.0)
+                w.used_storage = max(w.used_storage - at.req_storage, 0.0)
+            else:
+                still_active.append(at)
+        self._active_tasks = still_active
 
 
 def _safe_ratio(numer: float, denom: float) -> float:

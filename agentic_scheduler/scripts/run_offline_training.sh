@@ -34,6 +34,12 @@ echo "======================================================="
 # Run the training command
 # Uses the curated train/ split (200K tasks with headers) instead of raw/ (14.3M rows, no header).
 # The test/ split (50K tasks) is held out for post-training evaluation.
+#
+# --num-workers 8:  With ~34 avg concurrent tasks, 8 workers gives ~4 concurrent
+#   tasks per worker — enough for meaningful load-balancing signal without
+#   spreading the load so thin that every worker looks identical.
+# --ppo-epochs 4:  Standard range (PPO paper uses 3-10); 4 gives 3.7× speedup
+#   over the earlier 15.
 python -m agentic_scheduler.train_ppo \
   --trace-source alibaba \
   --trace-path agentic_scheduler/data/alibaba_v2018/train \
@@ -45,8 +51,8 @@ python -m agentic_scheduler.train_ppo \
   --checkpoint-every 50 \
   --output "$RESULTS_DIR/ppo_trained_final.pt" \
   --checkpoint-dir "$CHECKPOINT_DIR" \
-  --num-workers 64 \
-  --log-every 1 \
+  --num-workers 8 \
+  --log-every 10 \
   2>&1 | tee "$LOG_FILE"
 
 echo ""
