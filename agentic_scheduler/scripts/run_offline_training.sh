@@ -40,7 +40,7 @@ python -m agentic_scheduler.train_ppo \
   --max-trace-tasks 200000 \
   --rollout-steps 16384 \
   --minibatch-size 4096 \
-  --ppo-epochs 15 \
+  --ppo-epochs 4 \
   --updates 1000 \
   --checkpoint-every 50 \
   --output "$RESULTS_DIR/ppo_trained_final.pt" \
