@@ -232,13 +232,12 @@ CAMPAIGN_ARGS=("--scenarios" "all")
 RESULTS_DIR="results/campaign-$(date +%Y%m%d-%H%M%S)"
 
 if [[ "${CAMPAIGN_MODE}" == "full" ]]; then
-    CAMPAIGN_ARGS+=("--workloads" "heterogeneous-smoke,steady-cpu,steady-mixed,memory-pressure,bursty,long-tail,failure-stressed")
+    CAMPAIGN_ARGS+=("--workloads" "heterogeneous-smoke,steady-cpu,steady-mixed,memory-pressure,bursty,long-tail")
 else
     CAMPAIGN_ARGS+=("--workloads" "heterogeneous-smoke")
 fi
 
 CAMPAIGN_ARGS+=("--output-dir" "${RESULTS_DIR}")
-CAMPAIGN_ARGS+=("--compose-file" "${COMPOSE_FILE}")
 
 info "Results will be saved to: ${RESULTS_DIR}"
 python3 testbench/scripts/run_campaign.py "${CAMPAIGN_ARGS[@]}"

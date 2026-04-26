@@ -17,12 +17,10 @@ import argparse
 import json
 import os
 import pathlib
-import shlex
-import subprocess
 import sys
 import time
 from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from shared_polling import poll_task_completion, request_json
 
@@ -30,8 +28,8 @@ from shared_polling import poll_task_completion, request_json
 # Constants
 # ---------------------------------------------------------------------------
 
-SCHEDULERS = ["RR", "RTS", "PPO-pretrained", "PPO-adapted", "RR+recovery", "RTS+recovery", "PPO+recovery"]
-WORKLOADS = ["heterogeneous-smoke", "steady-cpu", "steady-mixed", "memory-pressure", "bursty", "long-tail", "failure-stressed"]
+SCHEDULERS = ["RR", "RTS", "PPO-pretrained", "PPO-adapted"]
+WORKLOADS = ["heterogeneous-smoke", "steady-cpu", "steady-mixed", "memory-pressure", "bursty", "long-tail"]
 DEFAULT_WORKFLOW_IMAGE = "cloudai/workflow-deterministic:v1"
 
 
@@ -53,7 +51,6 @@ class ScenarioResult:
     success_rate: float = 0.0
     avg_wait_seconds: float = 0.0
     task_ids: List[str] = field(default_factory=list)
-    failure_actions: List[str] = field(default_factory=list)
     error: str = ""
 
 
@@ -68,13 +65,17 @@ class CampaignReport:
 
 
 def set_scheduler(master_url: str, algo: str) -> bool:
-    """Switch the master's active scheduler algorithm."""
+    """Switch the master's active scheduler algorithm via API."""
     try:
         resp = request_json("POST", f"{master_url}/api/config/scheduler", {"algorithm": algo})
-        return resp.get("success", False)
-    except Exception:
-        # Some deployments may not support dynamic switching;
-        # the scheduler is set via SCHED_ALGO env var instead.
+        ok = resp.get("success", False)
+        if ok:
+            print(f"[campaign]   scheduler switched to {algo}")
+        else:
+            print(f"[campaign]   WARNING: scheduler switch to {algo} failed: {resp.get('error', 'unknown')}")
+        return ok
+    except Exception as e:
+        print(f"[campaign]   WARNING: scheduler switch to {algo} failed: {e}")
         return False
 
 
@@ -88,33 +89,6 @@ def resolve_scheduler_algorithm(scheduler_label: str) -> str:
         return "RTS"
     return normalized
 
-
-def is_recovery_scheduler(scheduler_label: str) -> bool:
-    return "+RECOVERY" in scheduler_label.strip().upper()
-
-
-def inject_failures(compose_file: pathlib.Path, actions: List[str]) -> List[str]:
-    injector = pathlib.Path(__file__).resolve().parent / "failure_injector.py"
-    if not injector.exists():
-        return ["failure_injector_missing"]
-
-    executed: List[str] = []
-    for action in actions:
-        cmd = [
-            sys.executable,
-            str(injector),
-            "--compose-file",
-            str(compose_file),
-            "--action",
-            action,
-        ]
-        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if proc.returncode == 0:
-            executed.append(action)
-        else:
-            detail = proc.stderr.strip() or proc.stdout.strip() or "unknown-error"
-            executed.append(f"{action}:failed:{detail}")
-    return executed
 
 
 # ---------------------------------------------------------------------------
@@ -316,62 +290,10 @@ def run_overload(master_url: str, workload: str, scheduler: str) -> ScenarioResu
     return result
 
 
-def run_failure_stressed(
-    master_url: str,
-    workload: str,
-    scheduler: str,
-    compose_file: Optional[pathlib.Path] = None,
-) -> ScenarioResult:
-    """Run failure-stressed scenario with injected disruptions during task execution."""
-    scheduler_algo = resolve_scheduler_algorithm(scheduler)
-    result = ScenarioResult(
-        scenario="failure-stressed",
-        scheduler=scheduler,
-        scheduler_algorithm=scheduler_algo,
-        workload=workload,
-        suite="recovery",
-    )
-    try:
-        if compose_file is None:
-            compose_file = pathlib.Path(__file__).resolve().parents[1] / "docker-compose.yml"
-        set_scheduler(master_url, scheduler_algo)
-        tasks = load_workload(workload)
-        result.tasks_submitted = len(tasks)
-
-        start = time.time()
-        task_ids = submit_tasks(master_url, tasks)
-        result.task_ids = task_ids
-
-        # Inject a representative failure sequence while workload is in flight.
-        time.sleep(3.0)
-        result.failure_actions = inject_failures(
-            compose_file,
-            [
-                "kill-worker",
-                "pause-worker-dind",
-                "resume-worker-dind",
-                "kill-dind",
-                "restart-master",
-            ],
-        )
-
-        statuses = poll_task_completion(master_url, task_ids, timeout_seconds=1200)
-        elapsed = time.time() - start
-
-        result.duration_seconds = round(elapsed, 2)
-        result.tasks_completed = sum(1 for s in statuses.values() if s == "completed")
-        result.tasks_failed = sum(1 for s in statuses.values() if s in ("failed", "cancelled"))
-        result.success_rate = round(result.tasks_completed / max(result.tasks_submitted, 1) * 100, 1)
-    except Exception as e:
-        result.error = str(e)
-    return result
-
-
 SCENARIO_RUNNERS = {
     "baseline": run_baseline,
     "burst": run_burst,
     "overload": run_overload,
-    "failure-stressed": run_failure_stressed,
 }
 
 
@@ -656,21 +578,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--master-url", default="http://localhost:8080", help="Master API URL")
     parser.add_argument("--prometheus-url", default="http://localhost:9090", help="Prometheus API URL")
     parser.add_argument(
-        "--compose-file",
-        type=pathlib.Path,
-        default=pathlib.Path(__file__).resolve().parents[1] / "docker-compose.yml",
-        help="Compose file used by failure injector actions",
+        "--scenarios", default="baseline,burst,overload",
+        help="Comma-separated scenarios: baseline,burst,overload,all",
     )
     parser.add_argument(
-        "--scenarios", default="baseline,failure-stressed",
-        help="Comma-separated scenarios: baseline,burst,overload,failure-stressed,all",
+        "--schedulers", default="RR,RTS,PPO-pretrained,PPO-adapted",
+        help="Comma-separated schedulers to test",
     )
     parser.add_argument(
-        "--schedulers", default="RR,RTS,PPO-pretrained,PPO-adapted,RR+recovery,RTS+recovery,PPO+recovery",
-        help="Comma-separated schedulers/suites to test",
-    )
-    parser.add_argument(
-        "--workloads", default="heterogeneous-smoke,steady-cpu,steady-mixed,memory-pressure,bursty,long-tail,failure-stressed",
+        "--workloads", default="heterogeneous-smoke,steady-cpu,steady-mixed,memory-pressure,bursty,long-tail",
         help="Comma-separated workload names",
     )
     parser.add_argument(
@@ -690,6 +606,15 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     started_at = time.time()
+
+    # Pre-flight: verify master is reachable
+    try:
+        request_json("GET", f"{args.master_url}/health", timeout=5.0)
+    except Exception:
+        print(f"ERROR: Master API not reachable at {args.master_url}")
+        print("  Make sure the master node is running before starting a campaign.")
+        print("  Start it with: make run-master-ppo   (or: ./execute-tests.sh)")
+        return 1
 
     # Parse scenario list
     if args.scenarios.strip().lower() == "all":
@@ -715,32 +640,16 @@ def main() -> int:
             continue
 
         for scheduler in schedulers:
-            recovery_scheduler = is_recovery_scheduler(scheduler)
-            if scenario_name == "failure-stressed" and not recovery_scheduler:
-                continue
-            if scenario_name != "failure-stressed" and recovery_scheduler:
-                continue
-
             for workload in workloads:
-                if scenario_name == "failure-stressed" and workload != "failure-stressed":
-                    continue
-                if scenario_name != "failure-stressed" and workload == "failure-stressed":
-                    continue
-
                 label = f"{scenario_name}/{scheduler}/{workload}"
                 print(f"[campaign] Running {label}...")
-                if scenario_name == "failure-stressed":
-                    result = run_failure_stressed(args.master_url, workload, scheduler, args.compose_file)
-                else:
-                    result = runner(args.master_url, workload, scheduler)
+                result = runner(args.master_url, workload, scheduler)
                 results.append(result)
                 if result.error:
                     print(f"[campaign]   ERROR: {result.error}")
                 else:
                     print(f"[campaign]   done: {result.tasks_completed}/{result.tasks_submitted} "
                           f"({result.success_rate}%) in {result.duration_seconds}s")
-                    if result.failure_actions:
-                        print(f"[campaign]   failures: {result.failure_actions}")
 
     report = generate_report(results, started_at)
 

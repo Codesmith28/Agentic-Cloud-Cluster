@@ -74,6 +74,13 @@ def main() -> int:
     output_dir = args.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Check Prometheus connectivity before querying
+    try:
+        request_json(f"{args.prometheus_url.rstrip('/')}/api/v1/status/config", timeout=5.0)
+    except Exception:
+        print(f"Warning: Prometheus not reachable at {args.prometheus_url}, skipping metrics export")
+        return 0
+
     range_results: dict[str, Any] = {}
     for name, query in RANGE_QUERIES.items():
         range_results[name] = prom_query_range(args.prometheus_url, query, start_ts, end_ts, args.step_seconds)

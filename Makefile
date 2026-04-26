@@ -102,7 +102,7 @@ help:
 	@echo "  make testbench-host-suite SUITE_NAME=smoke  Run suite (host-master)"
 	@echo "  make testbench-integration       Full integration + benchmark"
 	@echo ""
-	@echo "Campaigns:"
+	@echo "Campaigns (requires running master + workers):"
 	@echo "  make campaign           Evidence benchmark (smoke workload)"
 	@echo "  make campaign-full      Full benchmark (all workloads + scenarios)"
 	@echo "  make campaign-final     HEAVY final evaluation (50 tasks × 3 × 4 schedulers)"
@@ -346,14 +346,17 @@ testbench-host-suite-full:
 # ===========================================================================
 
 campaign:
-	@python3 testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke
+	@$(PYTHON) testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke
 
 campaign-full:
-	@python3 testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke,deterministic-full
+	@$(PYTHON) testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke,deterministic-full
 
 campaign-final:
 	@echo "🏋️ Running HEAVY final evaluation campaign (50 tasks × 3 scenarios × 4 schedulers = 600 decisions)..."
-	@python3 testbench/scripts/run_campaign.py --scenarios all --workloads stress-heavy
+	@$(PYTHON) testbench/scripts/run_campaign.py \
+		--scenarios baseline,burst,overload \
+		--schedulers RR,RTS,PPO-pretrained,PPO-adapted \
+		--workloads stress-heavy
 
 # ===========================================================================
 # Model management

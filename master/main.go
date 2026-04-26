@@ -475,6 +475,19 @@ func main() {
 			log.Println("✓ Auth API handlers registered")
 		}
 
+		// Register scheduler switch API (POST/GET /api/config/scheduler)
+		schedulerEntries := map[string]scheduler.Scheduler{
+			"RR":  rrScheduler,
+			"RTS": rtsScheduler,
+		}
+		if ppoScheduler != nil {
+			schedulerEntries["PPO"] = ppoScheduler
+		}
+		schedulerRegistry := httpserver.NewSchedulerRegistry(schedulerEntries)
+		schedulerHandler := httpserver.NewSchedulerSwitchHandler(masterServer, schedulerRegistry)
+		httpTelemetryServer.RegisterSchedulerHandler(schedulerHandler)
+		log.Printf("✓ Scheduler switch API registered (available: %v)", schedulerRegistry.Available())
+
 		go func() {
 			if err := httpTelemetryServer.Start(); err != nil && err != http.ErrServerClosed {
 				log.Printf("HTTP API server error: %v", err)
@@ -485,6 +498,7 @@ func main() {
 		log.Printf("  - WebSocket: WS /ws/telemetry, /ws/telemetry/{worker_id}")
 		log.Printf("  - Tasks: POST/GET/DELETE /api/tasks, GET /api/tasks/{id}")
 		log.Printf("  - Workers: GET /api/workers, /api/workers/{id}")
+		log.Printf("  - Config: POST/GET /api/config/scheduler")
 		if fileStorage != nil {
 			log.Printf("  - Files: GET /api/files, /api/files/{task_id}")
 			log.Printf("           GET /api/files/{task_id}/download/{file_path}")
