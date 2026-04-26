@@ -4,9 +4,9 @@ set -euo pipefail
 # =============================================================================
 # execute-tests.sh — End-to-end deployment and benchmark runner
 #
-# Deploys the trained PPO model into the live testbench, starts the full
-# Docker stack (Mongo, master, workers, observability), registers workers,
-# and runs the evidence benchmark campaign (PPO vs RTS vs RR).
+# Uses the HOST-MASTER topology: the master node runs locally on your machine
+# (so the PPO service can read/write the local .pt model file directly), while
+# workers, MongoDB, and observability run in Docker containers.
 #
 # Usage:
 #   ./execute-tests.sh                  # Run with defaults (smoke workload)
@@ -26,6 +26,9 @@ CAMPAIGN_MODE="smoke"       # "smoke" or "full"
 SKIP_BUILD=false
 TEARDOWN_ONLY=false
 MASTER_URL="http://localhost:8080"
+COMPOSE_FILE="testbench/docker-compose.host-master.yml"
+WORKER_SPECS="worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054"
+MASTER_PID=""
 
 # ── Parse arguments ─────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -53,7 +56,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --full          Run full campaign (all workloads + scenarios)"
             echo "  --model <path>  Path to .pt model checkpoint (default: $MODEL_SRC)"
             echo "  --skip-build    Skip building master/worker binaries"
-            echo "  --teardown      Only tear down the testbench stack"
+            echo "  --teardown      Only tear down the Docker worker stack"
             echo "  -h, --help      Show this help"
             exit 0
             ;;
@@ -79,9 +82,15 @@ separator() {
 }
 
 cleanup() {
+    if [[ -n "${MASTER_PID}" ]]; then
+        info "Stopping local master (PID ${MASTER_PID})..."
+        kill "${MASTER_PID}" 2>/dev/null || true
+        wait "${MASTER_PID}" 2>/dev/null || true
+        ok "Master stopped"
+    fi
     if [[ "${TEARDOWN_DONE:-false}" != "true" ]]; then
-        warn "Script interrupted — testbench stack is still running."
-        warn "Run './execute-tests.sh --teardown' to stop it."
+        warn "Script interrupted — Docker workers may still be running."
+        warn "Run './execute-tests.sh --teardown' to stop them."
     fi
 }
 trap cleanup EXIT
@@ -89,7 +98,7 @@ trap cleanup EXIT
 # ── Teardown mode ────────────────────────────────────────────────────────────
 if [[ "${TEARDOWN_ONLY}" == "true" ]]; then
     separator "Tearing down testbench stack"
-    docker compose -f testbench/docker-compose.yml down --remove-orphans
+    docker compose -f "${COMPOSE_FILE}" down --remove-orphans
     TEARDOWN_DONE=true
     ok "Testbench stack stopped and removed."
     exit 0
@@ -143,15 +152,40 @@ echo "    PPO_AUTOSTART     = ${PPO_AUTOSTART}"
 echo "    PPO_MODEL_PATH    = ${PPO_MODEL_PATH}"
 echo "    PPO_DEPLOYMENT_MODE = ${PPO_DEPLOYMENT_MODE}"
 
-# ── Step 4: Start testbench stack ────────────────────────────────────────────
-separator "Step 4: Starting testbench Docker stack"
+# ── Step 4: Start Docker workers + observability ─────────────────────────────
+separator "Step 4: Starting Docker workers (host-master topology)"
 
 # Bring down any existing stack first
 info "Cleaning up any previous testbench stack..."
-docker compose -f testbench/docker-compose.yml down --remove-orphans 2>/dev/null || true
+docker compose -f "${COMPOSE_FILE}" down --remove-orphans 2>/dev/null || true
 
-info "Starting stack (mongo, master, workers, observability)..."
-docker compose -f testbench/docker-compose.yml up -d --build
+info "Starting stack (mongo, workers, prometheus, grafana)..."
+docker compose -f "${COMPOSE_FILE}" up -d --build
+
+ok "Docker workers started"
+
+# ── Step 5: Start local master node ──────────────────────────────────────────
+separator "Step 5: Starting local master node"
+
+# Build master binary path
+MASTER_BIN="master/masterNode"
+if [[ ! -f "${MASTER_BIN}" ]]; then
+    fail "Master binary not found at ${MASTER_BIN}. Run without --skip-build."
+fi
+
+info "Launching master node locally (PPO model updates write to local .pt)..."
+CLOUDAI_HEADLESS=true \
+MONGODB_HOST=localhost:27017 \
+MONGODB_USERNAME="${MONGO_USERNAME:-cloudai}" \
+MONGODB_PASSWORD="${MONGO_PASSWORD:-testbench}" \
+MONGODB_DATABASE=cluster_db \
+SCHED_ALGO="${SCHED_ALGO}" \
+PPO_AUTOSTART="${PPO_AUTOSTART}" \
+PPO_MODEL_PATH="${PPO_MODEL_PATH}" \
+PPO_DEPLOYMENT_MODE="${PPO_DEPLOYMENT_MODE}" \
+PPO_ONLINE_UPDATES_ENABLED=true \
+    "${MASTER_BIN}" --mode cli &
+MASTER_PID=$!
 
 # Wait for master to become healthy
 info "Waiting for master API to become reachable..."
@@ -160,25 +194,30 @@ for i in $(seq 1 "${MAX_WAIT}"); do
     if curl -fsS "${MASTER_URL}/telemetry" >/dev/null 2>&1; then
         break
     fi
+    if ! kill -0 "${MASTER_PID}" 2>/dev/null; then
+        fail "Master process exited unexpectedly"
+    fi
     if [[ $i -eq ${MAX_WAIT} ]]; then
         fail "Master API did not become ready after ${MAX_WAIT}s"
     fi
     sleep 1
 done
-ok "Master API is up at ${MASTER_URL}"
+ok "Master API is up at ${MASTER_URL} (PID ${MASTER_PID})"
 
-# ── Step 5: Register workers ────────────────────────────────────────────────
-separator "Step 5: Registering workers"
-testbench/scripts/register_workers.sh
+# ── Step 6: Register workers ────────────────────────────────────────────────
+separator "Step 6: Registering workers"
+MASTER_URL="${MASTER_URL}" \
+WORKER_SPECS="${WORKER_SPECS}" \
+    testbench/scripts/register_workers.sh
 ok "Workers registered and active"
 
-# ── Step 6: Prepare workflow images ──────────────────────────────────────────
-separator "Step 6: Preparing workflow images"
+# ── Step 7: Prepare workflow images ──────────────────────────────────────────
+separator "Step 7: Preparing workflow images"
 testbench/scripts/prepare_workflow_images.sh
 ok "Workflow images ready"
 
-# ── Step 7: Run benchmark campaign ───────────────────────────────────────────
-separator "Step 7: Running benchmark campaign (mode: ${CAMPAIGN_MODE})"
+# ── Step 8: Run benchmark campaign ───────────────────────────────────────────
+separator "Step 8: Running benchmark campaign (mode: ${CAMPAIGN_MODE})"
 
 CAMPAIGN_ARGS=("--scenarios" "all")
 RESULTS_DIR="results/campaign-$(date +%Y%m%d-%H%M%S)"
@@ -190,12 +229,28 @@ else
 fi
 
 CAMPAIGN_ARGS+=("--output-dir" "${RESULTS_DIR}")
+CAMPAIGN_ARGS+=("--compose-file" "${COMPOSE_FILE}")
 
 info "Results will be saved to: ${RESULTS_DIR}"
 python3 testbench/scripts/run_campaign.py "${CAMPAIGN_ARGS[@]}"
 ok "Campaign completed"
 
-# ── Step 8: Summary ─────────────────────────────────────────────────────────
+# ── Step 9: Generate benchmark report ────────────────────────────────────────
+separator "Step 9: Generating benchmark report"
+
+# Find the timestamped subdirectory created by run_campaign.py
+CAMPAIGN_SUBDIR="$(find "${RESULTS_DIR}" -maxdepth 1 -type d ! -path "${RESULTS_DIR}" | sort | tail -1)"
+if [[ -z "${CAMPAIGN_SUBDIR}" ]]; then
+    CAMPAIGN_SUBDIR="${RESULTS_DIR}"
+fi
+
+python3 scripts/generate_benchmark_report.py \
+    --campaign-dir "${CAMPAIGN_SUBDIR}" \
+    --master-url "${MASTER_URL}" \
+    --model-path "${MODEL_DST}"
+ok "Benchmark report generated"
+
+# ── Step 10: Summary ─────────────────────────────────────────────────────────
 separator "Done!"
 
 echo "Results directory: ${RESULTS_DIR}"
@@ -205,10 +260,10 @@ if [[ -d "${RESULTS_DIR}" ]]; then
     find "${RESULTS_DIR}" -type f -name "*.json" -o -name "*.md" 2>/dev/null | head -20 | sed 's/^/  /'
 fi
 echo ""
-echo "Testbench stack is still running. To tear down:"
+echo "Docker workers are still running. To tear down:"
 echo "  ./execute-tests.sh --teardown"
 echo ""
-echo "To view Grafana dashboards: http://localhost:3000 (admin/${GF_ADMIN_PASSWORD})"
+echo "To view Grafana dashboards: http://localhost:3300 (admin/${GF_ADMIN_PASSWORD})"
 echo "To view Prometheus:         http://localhost:9090"
 
 TEARDOWN_DONE=true

@@ -19,3 +19,13 @@ database/data
 # Virtual environments
 venv
 __pycache__
+
+# Training data and artifacts (5+ GB)
+agentic_scheduler/data
+agentic_scheduler/results
+agentic_scheduler/models/archive
+agentic_scheduler/logs
+papers
+*.log
+setup.log
+training_output.log
