@@ -92,6 +92,11 @@ class TraceReplayEnv(gym.Env):
         if not self.tasks:
             raise ValueError("TraceCluster has no tasks")
 
+        # Pre-compute task features for all trace tasks
+        self._task_features_cache = np.stack(
+            [self._compute_task_features(t) for t in self.tasks], axis=0
+        )
+
         self._task_idx = 0
         self.workers: List[_WorkerState] = []
         self.current_task: Optional[TraceTask] = None
@@ -189,17 +194,22 @@ class TraceReplayEnv(gym.Env):
             "action_mask": mask,
         }
 
-    def _task_features(self) -> np.ndarray:
-        assert self.current_task is not None
-        tt = self.current_task.task_type
+    @staticmethod
+    def _compute_task_features(task: TraceTask) -> np.ndarray:
+        tt = task.task_type
         task_type_scalar = TASK_TYPE_TO_ID.get(tt, TASK_TYPE_TO_ID["mixed"]) / max(len(TASK_TYPE_TO_ID) - 1, 1)
         return np.asarray([
-            self.current_task.req_cpu,
-            self.current_task.req_memory,
-            self.current_task.req_storage,
-            self.current_task.sla_multiplier,
+            task.req_cpu,
+            task.req_memory,
+            task.req_storage,
+            task.sla_multiplier,
             task_type_scalar,
         ], dtype=np.float32)
+
+    def _task_features(self) -> np.ndarray:
+        # Clamp index for terminal observation when _task_idx overshoots
+        idx = min(self._task_idx, len(self.tasks) - 1)
+        return self._task_features_cache[idx]
 
     def _worker_features(self) -> Tuple[np.ndarray, np.ndarray]:
         rows = []
