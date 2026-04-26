@@ -747,7 +747,7 @@ func mergeEnvironment(overrides map[string]string) []string {
 
 func defaultWorkerSpecsForComposeFile(composeFile string) string {
 	if strings.Contains(strings.ToLower(composeFile), "host-master") {
-		return "worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054"
+		return "worker-small=localhost:55052,worker-medium=localhost:55053,worker-large=localhost:55054"
 	}
 	return ""
 }

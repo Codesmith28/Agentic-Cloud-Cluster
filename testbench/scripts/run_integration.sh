@@ -16,12 +16,12 @@ KEEP_ENV="${KEEP_ENV:-false}"
 CLEANUP_ON_EXIT="${CLEANUP_ON_EXIT:-true}"
 
 TESTBENCH_COMPOSE_FILE="${TESTBENCH_COMPOSE_FILE:-${REPO_ROOT}/testbench/docker-compose.host-master.yml}"
-DEFAULT_WORKER_SPECS="worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054"
+DEFAULT_WORKER_SPECS="worker-small=localhost:55052,worker-medium=localhost:55053,worker-large=localhost:55054"
 WORKER_SPECS="${WORKER_SPECS:-${DEFAULT_WORKER_SPECS}}"
 GF_ADMIN_USER="${GF_ADMIN_USER:-admin}"
-GF_ADMIN_PASSWORD="${GF_ADMIN_PASSWORD:?Set GF_ADMIN_PASSWORD environment variable}"
+GF_ADMIN_PASSWORD="${GF_ADMIN_PASSWORD:-password}"
 MASTER_BIND_ADDR="${MASTER_BIND_ADDR:-0.0.0.0:50051}"
-MASTER_ADVERTISE_ADDR="${MASTER_ADVERTISE_ADDR:-host.docker.internal:50051}"
+MASTER_ADVERTISE_ADDR="${MASTER_ADVERTISE_ADDR:-localhost:50051}"
 
 require_command() {
   local command_name="$1"

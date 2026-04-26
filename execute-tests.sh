@@ -27,11 +27,13 @@ SKIP_BUILD=false
 TEARDOWN_ONLY=false
 MASTER_URL="http://localhost:8080"
 COMPOSE_FILE="testbench/docker-compose.host-master.yml"
-WORKER_SPECS="worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054"
+WORKER_SPECS="worker-small=localhost:55052,worker-medium=localhost:55053,worker-large=localhost:55054"
 MASTER_PID=""
 
 # Ensure GF_ADMIN_PASSWORD is always set (required by docker-compose, even for teardown)
-export GF_ADMIN_PASSWORD="${GF_ADMIN_PASSWORD:-benchpass}"
+export GF_ADMIN_PASSWORD="${GF_ADMIN_PASSWORD:-password}"
+export MONGO_PASSWORD="${MONGO_PASSWORD:-cloudai-stress-test}"
+export MONGO_USERNAME="${MONGO_USERNAME:-cloudai}"
 
 # ── Parse arguments ─────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -183,8 +185,8 @@ fi
 info "Launching master node locally (PPO model updates write to local .pt)..."
 CLOUDAI_HEADLESS=true \
 MONGODB_HOST=localhost:27017 \
-MONGODB_USERNAME="${MONGO_USERNAME:-cloudai}" \
-MONGODB_PASSWORD="${MONGO_PASSWORD:-testbench}" \
+MONGODB_USERNAME="${MONGO_USERNAME}" \
+MONGODB_PASSWORD="${MONGO_PASSWORD}" \
 MONGODB_DATABASE=cluster_db \
 SCHED_ALGO="${SCHED_ALGO}" \
 PPO_AUTOSTART="${PPO_AUTOSTART}" \

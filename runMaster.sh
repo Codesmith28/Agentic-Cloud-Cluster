@@ -56,7 +56,7 @@ if ! docker ps 2>/dev/null | grep -q mongo; then
     echo "Starting MongoDB..."
     if [[ -f database/docker-compose.yml ]]; then
         # Set MONGO_PASSWORD if not already set (required by database compose)
-        export MONGO_PASSWORD="${MONGO_PASSWORD:-testbench}"
+        export MONGO_PASSWORD="${MONGO_PASSWORD:-cloudai-stress-test}"
         docker compose -f database/docker-compose.yml up -d
         echo "✓ MongoDB started"
         # Wait for healthy

@@ -138,7 +138,7 @@ testbench-register:
 
 testbench-host-register:
 	@MASTER_URL=$${MASTER_URL:-http://localhost:8080} \
-	WORKER_SPECS=$${WORKER_SPECS:-worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054} \
+	WORKER_SPECS=$${WORKER_SPECS:-worker-small=localhost:55052,worker-medium=localhost:55053,worker-large=localhost:55054} \
 	testbench/scripts/register_workers.sh
 
 testbench-workload: testbench-prepare-images
@@ -167,7 +167,7 @@ testbench-integration:
 
 testbench-host-suite:
 	@COMPOSE_FILE=testbench/docker-compose.host-master.yml \
-	WORKER_SPECS=$${WORKER_SPECS:-worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054} \
+	WORKER_SPECS=$${WORKER_SPECS:-worker-small=localhost:55052,worker-medium=localhost:55053,worker-large=localhost:55054} \
 	SUITE_NAME=$${SUITE_NAME:-smoke} \
 	testbench/scripts/run_suite.sh
 
