@@ -109,7 +109,7 @@ class PPOActorCritic(nn.Module):
         values = self.value_head(pooled).squeeze(-1)
 
         if action_mask is not None:
-            logits = logits.masked_fill(~action_mask.bool(), -1e9)
+            logits = logits.masked_fill(~action_mask.bool(), -1e4)
         return logits, values
 
 
