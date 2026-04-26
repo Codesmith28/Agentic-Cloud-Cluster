@@ -273,9 +273,8 @@ func (e *Engine) runReliabilitySuite(ctx context.Context, opts normalizedRunOpti
 		scriptPath(opts.repoRoot, "run_campaign.py"),
 		"--master-url", opts.masterURL,
 		"--prometheus-url", opts.prometheusURL,
-		"--compose-file", opts.composeFile,
 		"--output-dir", campaignDir,
-		"--scenarios", "failure-stressed",
+		"--scenarios", "overload",
 		"--workloads", opts.reliabilityWorkloads,
 		"--schedulers", reliabilitySchedulers(opts),
 		"--timeout", strconv.Itoa(int(opts.timeout.Seconds())),
@@ -683,17 +682,21 @@ func evidenceSchedulers(opts normalizedRunOptions) string {
 func reliabilitySchedulers(opts normalizedRunOptions) string {
 	switch opts.scheduler {
 	case "rr":
-		return "RR+recovery"
+		return "RR"
 	case "rts":
-		return "RTS+recovery"
+		return "RTS"
+	case "ppo":
+		return "PPO"
 	default:
 		switch opts.activeScheduler {
 		case "rr":
-			return "RR+recovery"
+			return "RR"
 		case "rts":
-			return "RTS+recovery"
+			return "RTS"
+		case "ppo":
+			return "PPO"
 		}
-		return "RR+recovery,RTS+recovery,PPO+recovery"
+		return "RR,RTS,PPO"
 	}
 }
 
