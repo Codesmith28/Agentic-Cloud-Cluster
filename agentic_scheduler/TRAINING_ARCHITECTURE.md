@@ -1305,7 +1305,7 @@ If no model exists for a fingerprint, a cold-start creates a fresh one.
 | Thread pool workers | 16 |
 | Max workers per request | 512 |
 | Graceful shutdown timeout | 5 seconds |
-| Default listen address | `127.0.0.1:50061` |
+| Default listen address | `127.0.0.1:50050` |
 
 ### 9.4 Input Sanitization
 
