@@ -1,0 +1,31 @@
+metric,labels,value
+max_queue_depth,"{""instance"": ""host.docker.internal:8080"", ""job"": ""master""}",134
+task_requeues,"{""failure_reason"": ""worker_timeout"", ""task_type"": ""cpu-heavy""}",0
+task_requeues,"{""failure_reason"": ""worker_timeout"", ""task_type"": ""cpu-light""}",0
+task_dequeues,"{""outcome"": ""assigned""}",959.6438701784936
+worker_timeouts,"{""worker_id"": ""worker-large""}",0
+worker_timeouts,"{""worker_id"": ""worker-medium""}",0
+worker_timeouts,"{""worker_id"": ""worker-small""}",0
+task_terminals,"{""status"": ""completed"", ""task_type"": ""cpu-heavy""}",259.17396768292684
+task_terminals,"{""status"": ""completed"", ""task_type"": ""cpu-light""}",257.1726243031359
+task_terminals,"{""status"": ""completed"", ""task_type"": ""memory-heavy""}",38.025524216027875
+task_terminals,"{""status"": ""completed"", ""task_type"": ""mixed""}",219.14710008710802
+task_terminals,"{""status"": ""failed"", ""task_type"": ""memory-heavy""}",178.1200313073896
+worker_container_cpu_seconds,"{""task_type"": ""other""}",0
+worker_container_io_bytes,"{""task_type"": ""other""}",0
+worker_container_memory_peak_p95,"{""task_type"": ""other""}",15938355.2
+p95_scheduling_latency,"{""scheduler"": ""PPO""}",0.009747483221476509
+p95_scheduling_latency,"{""scheduler"": ""RTS""}",0.007911290322580644
+p95_scheduling_latency,"{""scheduler"": ""Round-Robin""}",0.006145833333333327
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""memory-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""RTS"", ""task_type"": ""cpu-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""RTS"", ""task_type"": ""cpu-light""}",10
+p95_queue_wait,"{""scheduler"": ""RTS"", ""task_type"": ""memory-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""Round-Robin"", ""task_type"": ""memory-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""cpu-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""cpu-light""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""mixed""}",10
+p95_queue_wait,"{""scheduler"": ""RTS"", ""task_type"": ""mixed""}",10
+p95_queue_wait,"{""scheduler"": ""Round-Robin"", ""task_type"": ""cpu-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""Round-Robin"", ""task_type"": ""cpu-light""}",10
+p95_queue_wait,"{""scheduler"": ""Round-Robin"", ""task_type"": ""mixed""}",10
