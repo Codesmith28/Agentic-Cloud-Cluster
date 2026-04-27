@@ -62,6 +62,11 @@ type MasterServer struct {
 	queueStop            chan struct{}
 	queueWG              sync.WaitGroup
 
+	// In-memory resource cache: taskID -> resource requirements.
+	// Used to free resources on task completion when taskDB is unavailable.
+	taskResourceCache   map[string]*db.Task
+	taskResourceCacheMu sync.Mutex
+
 	// Task scheduler
 	scheduler scheduler.Scheduler
 
@@ -115,6 +120,7 @@ func NewMasterServer(workerDB *db.WorkerDB, taskDB *db.TaskDB, assignmentDB *db.
 		taskQueue:            make([]*QueuedTask, 0),
 		processingTasks:      make(map[string]bool),
 		cancellationRequests: make(map[string]bool),
+		taskResourceCache:    make(map[string]*db.Task),
 		scheduler:            scheduler.NewRoundRobinScheduler(), // Use Round-Robin as default
 		telemetryManager:     telemetryMgr,
 	}
@@ -906,7 +912,8 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 
 	log.Printf("📥 Task completion report received: %s from %s [Status: %s]", result.TaskId, result.WorkerId, result.Status)
 
-	// Get task info to retrieve resource requirements
+	// Get task info to retrieve resource requirements.
+	// Falls back to in-memory cache when taskDB is unavailable.
 	var taskResources *db.Task
 	if s.taskDB != nil {
 		task, err := s.taskDB.GetTask(context.Background(), result.TaskId)
@@ -915,6 +922,12 @@ func (s *MasterServer) ReportTaskCompletion(ctx context.Context, result *pb.Task
 		} else {
 			taskResources = task
 		}
+	}
+	if taskResources == nil {
+		s.taskResourceCacheMu.Lock()
+		taskResources = s.taskResourceCache[result.TaskId]
+		delete(s.taskResourceCache, result.TaskId) // evict on first use
+		s.taskResourceCacheMu.Unlock()
 	}
 
 	currentAttemptID := ""
@@ -2607,6 +2620,17 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 	worker.AvailableCPU -= task.ReqCpu
 	worker.AvailableMemory -= task.ReqMemory
 	worker.AvailableStorage -= task.ReqStorage
+
+	// Cache resource requirements so SendTaskResult can free them without DB.
+	s.taskResourceCacheMu.Lock()
+	s.taskResourceCache[task.TaskId] = &db.Task{
+		TaskID:     task.TaskId,
+		ReqCPU:     task.ReqCpu,
+		ReqMemory:  task.ReqMemory,
+		ReqStorage: task.ReqStorage,
+		TaskType:   task.TaskType,
+	}
+	s.taskResourceCacheMu.Unlock()
 
 	workerIP := worker.Info.WorkerIp
 	loadAtStart := computeWorkerLoadAtStart(worker)
