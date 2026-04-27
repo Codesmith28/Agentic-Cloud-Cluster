@@ -87,10 +87,12 @@ def verify_scheduler(master_url: str, expected: str) -> bool:
     """Verify the active scheduler matches expectations."""
     try:
         resp = request_json("GET", f"{master_url}/api/config/scheduler", timeout=5.0)
-        current = resp.get("current", "").upper()
-        if current == expected.upper():
+        # GET returns {"algorithm": "Round-Robin"} — normalise to short code
+        raw = resp.get("algorithm", resp.get("current", ""))
+        current = resolve_scheduler_algorithm(raw)
+        if current == resolve_scheduler_algorithm(expected):
             return True
-        print(f"[campaign]   WARNING: scheduler mismatch: expected {expected}, got {current}")
+        print(f"[campaign]   WARNING: scheduler mismatch: expected {expected}, got {raw!r} (resolved: {current})")
         return False
     except Exception as e:
         print(f"[campaign]   WARNING: could not verify scheduler: {e}")
