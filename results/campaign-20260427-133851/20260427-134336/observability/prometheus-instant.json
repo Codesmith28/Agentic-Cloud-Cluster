@@ -1,0 +1,271 @@
+{
+  "max_queue_depth": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "instance": "host.docker.internal:8080",
+            "job": "master"
+          },
+          "value": [
+            1777277622.235,
+            "22"
+          ]
+        }
+      ]
+    }
+  },
+  "task_requeues": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "task_dequeues": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "outcome": "assigned"
+          },
+          "value": [
+            1777277622.235,
+            "94.69090909090909"
+          ]
+        }
+      ]
+    }
+  },
+  "stale_results": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "worker_timeouts": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "task_terminals": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "status": "completed",
+            "task_type": "cpu-light"
+          },
+          "value": [
+            1777277622.235,
+            "28.51851851851852"
+          ]
+        },
+        {
+          "metric": {
+            "status": "completed",
+            "task_type": "memory-heavy"
+          },
+          "value": [
+            1777277622.235,
+            "18.333333333333336"
+          ]
+        },
+        {
+          "metric": {
+            "status": "completed",
+            "task_type": "cpu-heavy"
+          },
+          "value": [
+            1777277622.235,
+            "28.52830188679245"
+          ]
+        },
+        {
+          "metric": {
+            "status": "completed",
+            "task_type": "mixed"
+          },
+          "value": [
+            1777277622.235,
+            "19.35849056603773"
+          ]
+        }
+      ]
+    }
+  },
+  "worker_container_cpu_seconds": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "task_type": "other"
+          },
+          "value": [
+            1777277622.235,
+            "0"
+          ]
+        }
+      ]
+    }
+  },
+  "worker_container_io_bytes": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "task_type": "other"
+          },
+          "value": [
+            1777277622.235,
+            "0"
+          ]
+        }
+      ]
+    }
+  },
+  "worker_container_memory_peak_p95": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "task_type": "other"
+          },
+          "value": [
+            1777277622.235,
+            "15938355.2"
+          ]
+        }
+      ]
+    }
+  },
+  "p95_scheduling_latency": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "scheduler": "RTS"
+          },
+          "value": [
+            1777277622.235,
+            "0.022"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "PPO"
+          },
+          "value": [
+            1777277622.235,
+            "0.022984374999999998"
+          ]
+        }
+      ]
+    }
+  },
+  "p95_queue_wait": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "scheduler": "PPO",
+            "task_type": "cpu-heavy"
+          },
+          "value": [
+            1777277622.235,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "PPO",
+            "task_type": "cpu-light"
+          },
+          "value": [
+            1777277622.235,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "PPO",
+            "task_type": "memory-heavy"
+          },
+          "value": [
+            1777277622.235,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "PPO",
+            "task_type": "mixed"
+          },
+          "value": [
+            1777277622.235,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "RTS",
+            "task_type": "cpu-heavy"
+          },
+          "value": [
+            1777277622.235,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "RTS",
+            "task_type": "cpu-light"
+          },
+          "value": [
+            1777277622.235,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "RTS",
+            "task_type": "memory-heavy"
+          },
+          "value": [
+            1777277622.235,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "RTS",
+            "task_type": "mixed"
+          },
+          "value": [
+            1777277622.235,
+            "10"
+          ]
+        }
+      ]
+    }
+  }
+}

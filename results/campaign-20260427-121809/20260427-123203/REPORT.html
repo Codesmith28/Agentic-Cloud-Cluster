@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CloudAI Campaign Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 24px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f5f5f5; }
+  </style>
+</head>
+<body>
+  <h1>CloudAI Evidence Benchmark Campaign Report</h1>
+  <p><strong>Started:</strong> 2026-04-27T06:48:09Z</p>
+  <p><strong>Finished:</strong> 2026-04-27T07:02:03Z</p>
+  <p><strong>Duration:</strong> 833.95s</p>
+  <p><strong>Scenarios executed:</strong> 36</p>
+
+  <h2>Scheduler Comparison</h2>
+  <table>
+    <thead>
+      <tr><th>Scheduler</th><th>Tasks</th><th>Completed</th><th>Failed</th><th>Success Rate</th><th>Avg Duration</th><th>Queue Wait</th><th>Turnaround</th><th>P95 Turnaround</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>RR</td><td>0</td><td>0</td><td>0</td><td>0.0%</td><td>0.0s</td><td>0.0s</td><td>0.0s</td><td>0.0s</td></tr><tr><td>RTS</td><td>170</td><td>140</td><td>30</td><td>82.4%</td><td>31.65s</td><td>0.0s</td><td>0.0s</td><td>0.0s</td></tr><tr><td>PPO</td><td>170</td><td>140</td><td>30</td><td>82.4%</td><td>28.67s</td><td>0.0s</td><td>0.0s</td><td>0.0s</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Scenario Details</h2>
+  <table>
+    <thead>
+      <tr><th>Scenario</th><th>Scheduler Label</th><th>Algorithm</th><th>Workload</th><th>Submitted</th><th>Completed</th><th>Failed</th><th>Success</th><th>Duration</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>baseline</td><td>RR</td><td>RR</td><td>heterogeneous-smoke</td><td>0</td><td>0</td><td>0</td><td>0.0%</td><td>0.0s</td></tr><tr><td>baseline</td><td>RR</td><td>RR</td><td>steady-cpu</td><td>0</td><td>0</td><td>0</td><td>0.0%</td><td>0.0s</td></tr><tr><td>baseline</td><td>RR</td><td>RR</td><td>bursty</td><td>0</td><td>0</td><td>0</td><td>0.0%</td><td>0.0s</td></tr><tr><td>baseline</td><td>RR</td><td>RR</td><td>memory-pressure</td><td>0</td><td>0</td><td>0</td><td>0.0%</td><td>0.0s</td></tr><tr><td>baseline</td><td>RTS</td><td>RTS</td><td>heterogeneous-smoke</td><td>10</td><td>10</td><td>0</td><td>100.0%</td><td>18.2s</td></tr><tr><td>baseline</td><td>RTS</td><td>RTS</td><td>steady-cpu</td><td>8</td><td>8</td><td>0</td><td>100.0%</td><td>73.36s</td></tr><tr><td>baseline</td><td>RTS</td><td>RTS</td><td>bursty</td><td>10</td><td>8</td><td>2</td><td>80.0%</td><td>29.2s</td></tr><tr><td>baseline</td><td>RTS</td><td>RTS</td><td>memory-pressure</td><td>6</td><td>2</td><td>4</td><td>33.3%</td><td>47.79s</td></tr><tr><td>baseline</td><td>PPO</td><td>PPO</td><td>heterogeneous-smoke</td><td>10</td><td>10</td><td>0</td><td>100.0%</td><td>18.22s</td></tr><tr><td>baseline</td><td>PPO</td><td>PPO</td><td>steady-cpu</td><td>8</td><td>8</td><td>0</td><td>100.0%</td><td>19.16s</td></tr><tr><td>baseline</td><td>PPO</td><td>PPO</td><td>bursty</td><td>10</td><td>8</td><td>2</td><td>80.0%</td><td>17.16s</td></tr><tr><td>baseline</td><td>PPO</td><td>PPO</td><td>memory-pressure</td><td>6</td><td>2</td><td>4</td><td>33.3%</td><td>11.64s</td></tr><tr><td>burst</td><td>RR</td><td>RR</td><td>heterogeneous-smoke</td><td>0</td><td>0</td><td>0</td><td>0.0%</td><td>0.0s</td></tr><tr><td>burst</td><td>RR</td><td>RR</td><td>steady-cpu</td><td>0</td><td>0</td><td>0</td><td>0.0%</td><td>0.0s</td></tr><tr><td>burst</td><td>RR</td><td>RR</td><td>bursty</td><td>0</td><td>0</td><td>0</td><td>0.0%</td><td>0.0s</td></tr><tr><td>burst</td><td>RR</td><td>RR</td><td>memory-pressure</td><td>0</td><td>0</td><td>0</td><td>0.0%</td><td>0.0s</td></tr><tr><td>burst</td><td>RTS</td><td>RTS</td><td>heterogeneous-smoke</td><td>10</td><td>10</td><td>0</td><td>100.0%</td><td>15.23s</td></tr><tr><td>burst</td><td>RTS</td><td>RTS</td><td>steady-cpu</td><td>8</td><td>8</td><td>0</td><td>100.0%</td><td>12.17s</td></tr><tr><td>burst</td><td>RTS</td><td>RTS</td><td>bursty</td><td>10</td><td>8</td><td>2</td><td>80.0%</td><td>21.23s</td></tr><tr><td>burst</td><td>RTS</td><td>RTS</td><td>memory-pressure</td><td>6</td><td>2</td><td>4</td><td>33.3%</td><td>12.15s</td></tr><tr><td>burst</td><td>PPO</td><td>PPO</td><td>heterogeneous-smoke</td><td>10</td><td>10</td><td>0</td><td>100.0%</td><td>24.19s</td></tr><tr><td>burst</td><td>PPO</td><td>PPO</td><td>steady-cpu</td><td>8</td><td>8</td><td>0</td><td>100.0%</td><td>15.18s</td></tr><tr><td>burst</td><td>PPO</td><td>PPO</td><td>bursty</td><td>10</td><td>8</td><td>2</td><td>80.0%</td><td>18.24s</td></tr><tr><td>burst</td><td>PPO</td><td>PPO</td><td>memory-pressure</td><td>6</td><td>2</td><td>4</td><td>33.3%</td><td>9.11s</td></tr><tr><td>overload</td><td>RR</td><td>RR</td><td>heterogeneous-smoke</td><td>0</td><td>0</td><td>0</td><td>0.0%</td><td>0.0s</td></tr><tr><td>overload</td><td>RR</td><td>RR</td><td>steady-cpu</td><td>0</td><td>0</td><td>0</td><td>0.0%</td><td>0.0s</td></tr><tr><td>overload</td><td>RR</td><td>RR</td><td>bursty</td><td>0</td><td>0</td><td>0</td><td>0.0%</td><td>0.0s</td></tr><tr><td>overload</td><td>RR</td><td>RR</td><td>memory-pressure</td><td>0</td><td>0</td><td>0</td><td>0.0%</td><td>0.0s</td></tr><tr><td>overload</td><td>RTS</td><td>RTS</td><td>heterogeneous-smoke</td><td>30</td><td>30</td><td>0</td><td>100.0%</td><td>51.96s</td></tr><tr><td>overload</td><td>RTS</td><td>RTS</td><td>steady-cpu</td><td>24</td><td>24</td><td>0</td><td>100.0%</td><td>33.32s</td></tr><tr><td>overload</td><td>RTS</td><td>RTS</td><td>bursty</td><td>30</td><td>24</td><td>6</td><td>80.0%</td><td>39.35s</td></tr><tr><td>overload</td><td>RTS</td><td>RTS</td><td>memory-pressure</td><td>18</td><td>6</td><td>12</td><td>33.3%</td><td>25.89s</td></tr><tr><td>overload</td><td>PPO</td><td>PPO</td><td>heterogeneous-smoke</td><td>30</td><td>30</td><td>0</td><td>100.0%</td><td>82.19s</td></tr><tr><td>overload</td><td>PPO</td><td>PPO</td><td>steady-cpu</td><td>24</td><td>24</td><td>0</td><td>100.0%</td><td>36.39s</td></tr><tr><td>overload</td><td>PPO</td><td>PPO</td><td>bursty</td><td>30</td><td>24</td><td>6</td><td>80.0%</td><td>39.39s</td></tr><tr><td>overload</td><td>PPO</td><td>PPO</td><td>memory-pressure</td><td>18</td><td>6</td><td>12</td><td>33.3%</td><td>53.13s</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

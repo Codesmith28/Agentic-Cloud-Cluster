@@ -1,0 +1,20 @@
+metric,labels,value
+max_queue_depth,"{""instance"": ""host.docker.internal:8080"", ""job"": ""master""}",30
+task_dequeues,"{""outcome"": ""assigned""}",94.8235294117647
+task_terminals,"{""status"": ""completed"", ""task_type"": ""cpu-light""}",28.560000000000002
+task_terminals,"{""status"": ""completed"", ""task_type"": ""memory-heavy""}",19.38
+task_terminals,"{""status"": ""completed"", ""task_type"": ""mixed""}",19.38
+task_terminals,"{""status"": ""completed"", ""task_type"": ""cpu-heavy""}",28.571428571428573
+worker_container_cpu_seconds,"{""task_type"": ""other""}",0
+worker_container_io_bytes,"{""task_type"": ""other""}",0
+worker_container_memory_peak_p95,"{""task_type"": ""other""}",15938355.2
+p95_scheduling_latency,"{""scheduler"": ""RTS""}",0.02251923076923077
+p95_scheduling_latency,"{""scheduler"": ""PPO""}",0.023166666666666665
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""memory-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""mixed""}",10
+p95_queue_wait,"{""scheduler"": ""RTS"", ""task_type"": ""cpu-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""RTS"", ""task_type"": ""cpu-light""}",10
+p95_queue_wait,"{""scheduler"": ""RTS"", ""task_type"": ""memory-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""RTS"", ""task_type"": ""mixed""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""cpu-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""cpu-light""}",10
