@@ -144,9 +144,9 @@ fi
 
 # Check if workers are already running and healthy
 WORKERS_HEALTHY=false
-if docker ps --format "{{.Names}}\t{{.Status}}" 2>/dev/null | grep -q "testbench-worker.*Up"; then
-    # Count how many worker containers are running
-    RUNNING=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -c "testbench-worker-.*-1$" || true)
+if docker ps --format "{{.Names}}\t{{.Status}}" 2>/dev/null | grep -q "testbench-worker.*healthy"; then
+    # Count how many worker containers are running AND healthy
+    RUNNING=$(docker ps --format "{{.Names}}\t{{.Status}}" 2>/dev/null | grep "testbench-worker-.*-1.*healthy" | wc -l)
     if [[ "${RUNNING}" -ge 3 ]]; then
         WORKERS_HEALTHY=true
     fi
