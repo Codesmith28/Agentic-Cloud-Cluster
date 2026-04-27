@@ -102,8 +102,9 @@ cleanup() {
         ok "Master stopped"
     fi
     if [[ "${TEARDOWN_DONE:-false}" != "true" ]]; then
-        warn "Script interrupted — Docker workers may still be running."
-        warn "Run './execute-tests.sh --teardown' to stop them."
+        info "Tearing down Docker workers..."
+        docker compose -f "${COMPOSE_FILE}" down --volumes --remove-orphans 2>/dev/null || true
+        TEARDOWN_DONE=true
     fi
 }
 trap cleanup EXIT
@@ -129,6 +130,18 @@ if [[ ! -f "${MODEL_SRC}" ]]; then
 fi
 
 ok "All pre-flight checks passed"
+
+# ── Auto-teardown any previous run ──────────────────────────────────────────
+separator "Step 0: Cleaning up any previous testbench state"
+# Kill any stale master process
+if pgrep -f "masterNode" >/dev/null 2>&1; then
+    info "Stopping stale master process..."
+    pkill -f "masterNode" 2>/dev/null || true
+    sleep 1
+fi
+info "Tearing down any previous Docker stack..."
+docker compose -f "${COMPOSE_FILE}" down --volumes --remove-orphans 2>/dev/null || true
+ok "Previous state cleaned up"
 
 # ── Step 1: Deploy model ────────────────────────────────────────────────────
 separator "Step 1: Promoting trained model (with version archival)"
