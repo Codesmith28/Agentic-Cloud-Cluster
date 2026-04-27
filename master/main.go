@@ -232,7 +232,13 @@ func main() {
 	rrScheduler := scheduler.NewRoundRobinScheduler()
 	log.Println("✓ Round-Robin scheduler created")
 
-	telemetrySource := scheduler.NewMasterTelemetrySource(telemetryMgr, workerDB)
+	// Pass a nil interface (not a typed-nil *WorkerDB) when DB is unavailable,
+	// so telemetry_source.go's nil check works correctly.
+	var workerDBIface scheduler.WorkerDBInterface
+	if workerDB != nil {
+		workerDBIface = workerDB
+	}
+	telemetrySource := scheduler.NewMasterTelemetrySource(telemetryMgr, workerDBIface)
 	log.Println("✓ Telemetry source adapter created")
 
 	// Initialize optional MongoDB store for RTS learned parameters.
