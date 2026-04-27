@@ -475,6 +475,19 @@ func main() {
 			log.Println("✓ Auth API handlers registered")
 		}
 
+		// Register scheduler switch API (POST/GET /api/config/scheduler)
+		schedulerEntries := map[string]scheduler.Scheduler{
+			"RR":  rrScheduler,
+			"RTS": rtsScheduler,
+		}
+		if ppoScheduler != nil {
+			schedulerEntries["PPO"] = ppoScheduler
+		}
+		schedulerRegistry := httpserver.NewSchedulerRegistry(schedulerEntries)
+		schedulerHandler := httpserver.NewSchedulerSwitchHandler(masterServer, schedulerRegistry)
+		httpTelemetryServer.RegisterSchedulerHandler(schedulerHandler)
+		log.Printf("✓ Scheduler switch API registered (available: %v)", schedulerRegistry.Available())
+
 		go func() {
 			if err := httpTelemetryServer.Start(); err != nil && err != http.ErrServerClosed {
 				log.Printf("HTTP API server error: %v", err)
@@ -485,6 +498,7 @@ func main() {
 		log.Printf("  - WebSocket: WS /ws/telemetry, /ws/telemetry/{worker_id}")
 		log.Printf("  - Tasks: POST/GET/DELETE /api/tasks, GET /api/tasks/{id}")
 		log.Printf("  - Workers: GET /api/workers, /api/workers/{id}")
+		log.Printf("  - Config: POST/GET /api/config/scheduler")
 		if fileStorage != nil {
 			log.Printf("  - Files: GET /api/files, /api/files/{task_id}")
 			log.Printf("           GET /api/files/{task_id}/download/{file_path}")
@@ -888,7 +902,7 @@ func defaultTestExtraEnv(composeFile string) map[string]string {
 		return nil
 	}
 	return map[string]string{
-		"WORKER_SPECS": "worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054",
+		"WORKER_SPECS": "worker-small=localhost:55052,worker-medium=localhost:55053,worker-large=localhost:55054",
 	}
 }
 
@@ -915,7 +929,7 @@ func startHeadlessTestMaster(projectRoot string, scheduler string, cfg *config.C
 	}
 	advAddr := strings.TrimSpace(cfg.MasterAdvAddr)
 	if advAddr == "" {
-		advAddr = "host.docker.internal:50051"
+		advAddr = "localhost:50051"
 	}
 	cmd.Env = append(cmd.Env,
 		fmt.Sprintf("MASTER_BIND_ADDR=%s", bindAddr),
@@ -1103,8 +1117,16 @@ func startPPOServiceIfNeeded(cfg *config.Config) (*exec.Cmd, error) {
 		modelPath = "latest"
 	}
 
+	// Prefer the project venv Python (has grpc, torch, etc.)
+	pythonBin := "python3"
+	venvPython := filepath.Join(projectRoot, "venv", "bin", "python3")
+	if _, err := os.Stat(venvPython); err == nil {
+		pythonBin = venvPython
+		log.Printf("Using venv Python for PPO service: %s", venvPython)
+	}
+
 	cmd := exec.Command(
-		"python3",
+		pythonBin,
 		"-m",
 		"agentic_scheduler.server",
 		"--grpc-addr", cfg.PPOGRPCAddr,

@@ -1,0 +1,57 @@
+{
+  "todo_id": "fleet-worker-3-agent",
+  "worker_id": "worker-fleet-3",
+  "master_url": "http://127.0.0.1:19080",
+  "run_root": "/Users/codesmith28/personal/Projects/acc/BTEP/results/testbench/fleet-20260409-202110/retry2",
+  "generated_at": "2026-04-09T17:04:06.882802+00:00",
+  "overall_status": "blocked",
+  "steps": {
+    "dirs_ready": true,
+    "master_health_ready": true,
+    "worker_started_detached": true,
+    "worker_metrics_ready": true,
+    "worker_registered_via_post": false,
+    "api_workers_active_true": false,
+    "api_worker_metrics_active_true": false,
+    "local_metrics_contains_cloudai": true,
+    "worker_metrics_reachable_after_restart": true
+  },
+  "evidence": {
+    "master_health": {
+      "active_clients": 0,
+      "active_workers": 0,
+      "status": "healthy",
+      "time": 1775752506,
+      "workers": 0
+    },
+    "register_attempts_count": 40,
+    "register_last_status": "503",
+    "register_response": "Worker registration is not available (database not connected)",
+    "api_workers_payload": {
+      "workers": null
+    },
+    "api_workers_last_check": "attempt=20 status=not-active-or-missing",
+    "api_worker_metrics_payload": "Worker worker-fleet-3 not found",
+    "api_worker_metrics_last_check": "attempt=20 status=http-404",
+    "cloudai_metric_sample": [
+      "# HELP cloudai_worker_last_heartbeat_unix Unix timestamp of the last successful heartbeat sent by this worker.",
+      "# TYPE cloudai_worker_last_heartbeat_unix gauge",
+      "cloudai_worker_last_heartbeat_unix 0",
+      "# HELP cloudai_worker_running_tasks Number of task attempts currently tracked by the worker.",
+      "# TYPE cloudai_worker_running_tasks gauge",
+      "cloudai_worker_running_tasks 0"
+    ],
+    "worker_metrics_preview_after_restart": "# HELP cloudai_worker_last_heartbeat_unix Unix timestamp of the last successful heartbeat sent by this worker.\n# TYPE cloudai_worker_last_heartbeat_unix gauge\ncloudai_worker_last_heartbeat_unix 0\n# HELP cloudai_worker_running_tasks Number of task attempts currently tracked by the worker.\n# TYPE cloudai_worker_running_tasks gauge\ncloudai_worker_running_tasks 0"
+  },
+  "blockers": [
+    "POST /api/workers returned HTTP 503 across all retries: Worker registration is not available (database not connected).",
+    "Without successful registration, /api/workers never showed worker-fleet-3 active and /api/workers/worker-fleet-3/metrics stayed 404."
+  ],
+  "next_actions": [
+    "Start master with worker database connectivity enabled, or enable registration endpoint without DB guard.",
+    "Re-run registration and active worker verifications once POST /api/workers returns 200/201."
+  ],
+  "notes": [
+    "Worker process was restarted detached after a later shutdown signal; metrics endpoint became reachable again."
+  ]
+}

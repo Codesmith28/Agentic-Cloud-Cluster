@@ -185,6 +185,6 @@ func defaultTestExtraEnv(composeFile string) map[string]string {
 		return nil
 	}
 	return map[string]string{
-		"WORKER_SPECS": "worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054",
+		"WORKER_SPECS": "worker-small=localhost:55052,worker-medium=localhost:55053,worker-large=localhost:55054",
 	}
 }

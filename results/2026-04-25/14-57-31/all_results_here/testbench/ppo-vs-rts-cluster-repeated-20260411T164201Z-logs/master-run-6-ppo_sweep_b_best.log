@@ -1,0 +1,464 @@
+2026/04/11 22:13:00 Loaded .env from ../.env
+2026/04/11 22:13:00 Warning: Cannot create /var/cloudai/files: mkdir /var/cloudai: permission denied
+2026/04/11 22:13:00 ✓ Using fallback file storage directory: /home/codesmith28/.cloudai/files
+2026/04/11 22:13:00 === System Information ===
+2026/04/11 22:13:00 Hostname: Tessa
+2026/04/11 22:13:00 IP Addresses: [10.237.185.232 172.17.0.1]
+2026/04/11 22:13:00 OS: linux
+2026/04/11 22:13:00 Architecture: amd64
+2026/04/11 22:13:00 CPU Cores: 20
+2026/04/11 22:13:00 Process ID: 2897115
+2026/04/11 22:13:00 User ID: 1000
+2026/04/11 22:13:00 Group ID: 1000
+2026/04/11 22:13:00 Master Address: 10.237.185.232
+2026/04/11 22:13:00 Master Port: :50051
+2026/04/11 22:13:00 ==========================
+2026/04/11 22:13:00 ✓ MongoDB collections ensured
+2026/04/11 22:13:00 ✓ WorkerDB initialized
+2026/04/11 22:13:00 ✓ TaskDB initialized
+2026/04/11 22:13:00 ✓ AssignmentDB initialized
+2026/04/11 22:13:00 ✓ AttemptDB initialized
+2026/04/11 22:13:00 ✓ ResultDB initialized
+2026/04/11 22:13:00 ✓ UserDB initialized
+2026/04/11 22:13:00 ✓ FileMetadataDB initialized
+2026/04/11 22:13:00 ✓ SchedulerModelDB initialized
+2026/04/11 22:13:00 ✓ FileStorageService initialized with access control
+2026/04/11 22:13:00 ✓ FileStorageService initialized (base: /home/codesmith28/.cloudai/files)
+2026/04/11 22:13:00 Telemetry manager started
+2026/04/11 22:13:00 ✓ Telemetry manager started
+2026/04/11 22:13:00 ✓ Tau store initialized with default values:
+2026/04/11 22:13:00   - cpu-light: 5.0s
+2026/04/11 22:13:00   - cpu-heavy: 15.0s
+2026/04/11 22:13:00   - memory-heavy: 20.0s
+2026/04/11 22:13:00   - mixed: 10.0s
+2026/04/11 22:13:00 ✓ SLA multiplier (k): 2.0
+2026/04/11 22:13:00 ✓ RTS params loaded from Mongo (version v270, fingerprint=d41c932be624c215b38534b06572ed8f43b1b7a0f01fd9bb032155b7208048b8)
+2026/04/11 22:13:00 ✓ Round-Robin scheduler created
+2026/04/11 22:13:00 ✓ Telemetry source adapter created
+2026/04/11 22:13:00 ✓ RTS params store initialized (MongoDB: RTS_WEIGHTS)
+2026/04/11 22:13:00 ✓ RTS Scheduler initialized with params from mongodb collection RTS_WEIGHTS
+2026/04/11 22:13:00 ✓ RTS scheduler initialized (params: /home/codesmith28/Projects/ACC/BTEP/master/config/ga_output.json)
+2026/04/11 22:13:00   - Fallback: Round-Robin
+2026/04/11 22:13:00   - Parameter hot-reload: enabled (every 30s from local cache)
+2026/04/11 22:13:00 ✓ PPO deployment mode: active (online updates: false)
+2026/04/11 22:13:00 ✓ PPO Python service auto-started (pid=2897160)
+2026-04-11 22:13:01,416 [INFO] agentic_scheduler.service: GPU preference disabled, using PPO device cpu
+2026-04-11 22:13:01,426 [WARNING] agentic_scheduler.persistence: Failed to initialize Mongo scheduler persistence: Index already exists with a different name: scheduler_lookup_idx, full error: {'ok': 0.0, 'errmsg': 'Index already exists with a different name: scheduler_lookup_idx', 'code': 85, 'codeName': 'IndexOptionsConflict'}
+2026-04-11 22:13:01,883 [INFO] agentic_scheduler.service: Loaded PPO checkpoint from local path /home/codesmith28/Projects/ACC/BTEP/agentic_scheduler/models/ppo_optB_u220_r1024_e8_mb256_ent010_gae093_seed42.pt
+2026-04-11 22:13:01,886 [INFO] __main__: PPO scheduler service started on 127.0.0.1:50061
+2026/04/11 22:13:03 ✓ PPO service healthy (model=v0, fingerprint=)
+2026/04/11 22:13:03 ✓ Selected scheduler: PPO (mode=active fallback=RTS)
+2026/04/11 22:13:03 Scheduler set: PPO
+2026/04/11 22:13:03 ✓ Master server configured with PPO scheduler
+2026/04/11 22:13:03 Master info set: ID=master-1, Address=10.237.185.232:50051
+2026/04/11 22:13:03 ✓ HistoryDB initialized for AOD/GA training
+2026/04/11 22:13:03 ✓ AOD training ticker started (interval: 1m0s)
+2026/04/11 22:13:03   - Training method: Linear regression (Theta) + Direct computation (Affinity/Penalty)
+2026/04/11 22:13:03   - Training data window: 24 hours
+2026/04/11 22:13:03   - Output: /home/codesmith28/Projects/ACC/BTEP/master/config/ga_output.json
+2026/04/11 22:13:03   - Persistent store: MongoDB collection RTS_WEIGHTS
+2026/04/11 22:13:03   - RTS hot-reload: every 30s
+2026/04/11 22:13:03 🔄 Starting resource reconciliation...
+2026/04/11 22:13:03   ✓ Fixed worker-large: CPU -0.0→0.0, Memory 0.0→0.0, Tasks: 0
+2026/04/11 22:13:03 ✓ Resource reconciliation complete: fixed 1 workers
+2026/04/11 22:13:03 Loaded 3 workers from database
+2026/04/11 22:13:03 ✓ Task queue processor started (checking every 5s)
+2026/04/11 22:13:03 ✓ Task queue processor started
+2026/04/11 22:13:03 ✓ Worker reconnection monitor started
+2026/04/11 22:13:03 🔄 Worker reconnection monitor started
+2026/04/11 22:13:03 ✓ File API handlers registered
+2026/04/11 22:13:03 WARNING: JWT_SECRET not set, generated a random secret. Sessions will not survive restarts.
+2026/04/11 22:13:03 ✓ Auth API handlers registered
+2026/04/11 22:13:03 ✓ HTTP API server started on port 8080
+2026/04/11 22:13:03   - Telemetry: GET /health, /telemetry, /workers
+2026/04/11 22:13:03   - WebSocket: WS /ws/telemetry, /ws/telemetry/{worker_id}
+2026/04/11 22:13:03   - Tasks: POST/GET/DELETE /api/tasks, GET /api/tasks/{id}
+2026/04/11 22:13:03   - Workers: GET /api/workers, /api/workers/{id}
+2026/04/11 22:13:03   - Files: GET /api/files, /api/files/{task_id}
+2026/04/11 22:13:03            GET /api/files/{task_id}/download/{file_path}
+2026/04/11 22:13:03            DELETE /api/files/{task_id}
+2026/04/11 22:13:03 Starting WebSocket telemetry server on :8080
+2026/04/11 22:13:03 WebSocket endpoints:
+2026/04/11 22:13:03   - ws://localhost:8080/ws/telemetry (all workers)
+2026/04/11 22:13:03   - ws://localhost:8080/ws/telemetry/{worker_id} (specific worker)
+2026/04/11 22:13:03 
+✓ Master node started successfully
+2026/04/11 22:13:03 ✓ Starting gRPC server on 10.237.185.232:50051 (advertise: 10.237.185.232:50051)
+2026/04/11 22:13:03 ✓ Headless mode enabled (CLOUDAI_HEADLESS=true), CLI disabled
+2026/04/11 22:13:03 MasterRegister acknowledged by worker worker-small: Worker worker-small registered with master master-1
+2026/04/11 22:13:03 MasterRegister acknowledged by worker worker-medium: Worker worker-medium registered with master master-1
+2026/04/11 22:13:03 MasterRegister acknowledged by worker worker-large: Worker worker-large registered with master master-1
+2026/04/11 22:13:03 📋 Task task-1775925783685156584 queued: Task submitted to queue for scheduling
+2026/04/11 22:13:03 📋 Task task-1775925783685156584 submitted and queued (position: 1)
+2026/04/11 22:13:03 📋 Task task-1775925783686441303 queued: Task submitted to queue for scheduling
+2026/04/11 22:13:03 📋 Task task-1775925783686441303 submitted and queued (position: 2)
+2026/04/11 22:13:03 📋 Task task-1775925783687121578 queued: Task submitted to queue for scheduling
+2026/04/11 22:13:03 📋 Task task-1775925783687121578 submitted and queued (position: 3)
+2026/04/11 22:13:03 📋 Task task-1775925783687651382 queued: Task submitted to queue for scheduling
+2026/04/11 22:13:03 📋 Task task-1775925783687651382 submitted and queued (position: 4)
+2026/04/11 22:13:03 📋 Task task-1775925783688410363 queued: Task submitted to queue for scheduling
+2026/04/11 22:13:03 📋 Task task-1775925783688410363 submitted and queued (position: 5)
+2026/04/11 22:13:03 📋 Task task-1775925783689016194 queued: Task submitted to queue for scheduling
+2026/04/11 22:13:03 📋 Task task-1775925783689016194 submitted and queued (position: 6)
+2026/04/11 22:13:03 📋 Task task-1775925783689712807 queued: Task submitted to queue for scheduling
+2026/04/11 22:13:03 📋 Task task-1775925783689712807 submitted and queued (position: 7)
+2026/04/11 22:13:03 📋 Task task-1775925783690470948 queued: Task submitted to queue for scheduling
+2026/04/11 22:13:03 📋 Task task-1775925783690470948 submitted and queued (position: 8)
+2026/04/11 22:13:03 📋 Task task-1775925783690993526 queued: Task submitted to queue for scheduling
+2026/04/11 22:13:03 📋 Task task-1775925783690993526 submitted and queued (position: 9)
+2026/04/11 22:13:03 📋 Task task-1775925783691520081 queued: Task submitted to queue for scheduling
+2026/04/11 22:13:03 📋 Task task-1775925783691520081 submitted and queued (position: 10)
+2026-04-11 22:13:08,178 [INFO] agentic_scheduler.service: Loaded PPO checkpoint from local path /home/codesmith28/Projects/ACC/BTEP/agentic_scheduler/models/ppo_optB_u220_r1024_e8_mb256_ent010_gae093_seed42.pt
+2026/04/11 22:13:08 
+═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   📤 TASK ASSIGNED TO WORKER
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   Task ID:           task-1775925783685156584
+2026/04/11 22:13:08   Attempt:           #1 (att-task-1775925783685156584-1)
+2026/04/11 22:13:08   User ID:           testbench
+2026/04/11 22:13:08   Assigned Worker:   worker-large
+2026/04/11 22:13:08   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 22:13:08 ───────────────────────────────────────────────────────
+2026/04/11 22:13:08   Resource Requirements:
+2026/04/11 22:13:08     • CPU Cores:     0.50 cores
+2026/04/11 22:13:08     • Memory:        0.25 GB
+2026/04/11 22:13:08     • Storage:       1.00 GB
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08 
+2026/04/11 22:13:08 ✓ Queue: Task task-1775925783685156584 successfully assigned to worker-large after 0 attempts
+2026/04/11 22:13:08 
+═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   📤 TASK ASSIGNED TO WORKER
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   Task ID:           task-1775925783686441303
+2026/04/11 22:13:08   Attempt:           #1 (att-task-1775925783686441303-1)
+2026/04/11 22:13:08   User ID:           testbench
+2026/04/11 22:13:08   Assigned Worker:   worker-large
+2026/04/11 22:13:08   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 22:13:08 ───────────────────────────────────────────────────────
+2026/04/11 22:13:08   Resource Requirements:
+2026/04/11 22:13:08     • CPU Cores:     1.00 cores
+2026/04/11 22:13:08     • Memory:        0.50 GB
+2026/04/11 22:13:08     • Storage:       1.00 GB
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08 
+2026/04/11 22:13:08 ✓ Queue: Task task-1775925783686441303 successfully assigned to worker-large after 0 attempts
+2026/04/11 22:13:08 
+═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   📤 TASK ASSIGNED TO WORKER
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   Task ID:           task-1775925783687121578
+2026/04/11 22:13:08   Attempt:           #1 (att-task-1775925783687121578-1)
+2026/04/11 22:13:08   User ID:           testbench
+2026/04/11 22:13:08   Assigned Worker:   worker-large
+2026/04/11 22:13:08   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 22:13:08 ───────────────────────────────────────────────────────
+2026/04/11 22:13:08   Resource Requirements:
+2026/04/11 22:13:08     • CPU Cores:     0.70 cores
+2026/04/11 22:13:08     • Memory:        1.00 GB
+2026/04/11 22:13:08     • Storage:       2.00 GB
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08 
+2026/04/11 22:13:08 ✓ Queue: Task task-1775925783687121578 successfully assigned to worker-large after 0 attempts
+2026/04/11 22:13:08 
+═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   📤 TASK ASSIGNED TO WORKER
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   Task ID:           task-1775925783687651382
+2026/04/11 22:13:08   Attempt:           #1 (att-task-1775925783687651382-1)
+2026/04/11 22:13:08   User ID:           testbench
+2026/04/11 22:13:08   Assigned Worker:   worker-large
+2026/04/11 22:13:08   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 22:13:08 ───────────────────────────────────────────────────────
+2026/04/11 22:13:08   Resource Requirements:
+2026/04/11 22:13:08     • CPU Cores:     1.20 cores
+2026/04/11 22:13:08     • Memory:        1.20 GB
+2026/04/11 22:13:08     • Storage:       2.00 GB
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08 
+2026/04/11 22:13:08 ✓ Queue: Task task-1775925783687651382 successfully assigned to worker-large after 0 attempts
+2026/04/11 22:13:08 
+═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   📤 TASK ASSIGNED TO WORKER
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   Task ID:           task-1775925783688410363
+2026/04/11 22:13:08   Attempt:           #1 (att-task-1775925783688410363-1)
+2026/04/11 22:13:08   User ID:           testbench
+2026/04/11 22:13:08   Assigned Worker:   worker-large
+2026/04/11 22:13:08   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 22:13:08 ───────────────────────────────────────────────────────
+2026/04/11 22:13:08   Resource Requirements:
+2026/04/11 22:13:08     • CPU Cores:     0.40 cores
+2026/04/11 22:13:08     • Memory:        0.25 GB
+2026/04/11 22:13:08     • Storage:       1.00 GB
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08 
+2026/04/11 22:13:08 ✓ Queue: Task task-1775925783688410363 successfully assigned to worker-large after 0 attempts
+2026/04/11 22:13:08 
+═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   📤 TASK ASSIGNED TO WORKER
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   Task ID:           task-1775925783689016194
+2026/04/11 22:13:08   Attempt:           #1 (att-task-1775925783689016194-1)
+2026/04/11 22:13:08   User ID:           testbench
+2026/04/11 22:13:08   Assigned Worker:   worker-large
+2026/04/11 22:13:08   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 22:13:08 ───────────────────────────────────────────────────────
+2026/04/11 22:13:08   Resource Requirements:
+2026/04/11 22:13:08     • CPU Cores:     1.50 cores
+2026/04/11 22:13:08     • Memory:        0.75 GB
+2026/04/11 22:13:08     • Storage:       1.00 GB
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08 
+2026/04/11 22:13:08 ✓ Queue: Task task-1775925783689016194 successfully assigned to worker-large after 0 attempts
+2026/04/11 22:13:08 
+═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   📤 TASK ASSIGNED TO WORKER
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   Task ID:           task-1775925783689712807
+2026/04/11 22:13:08   Attempt:           #1 (att-task-1775925783689712807-1)
+2026/04/11 22:13:08   User ID:           testbench
+2026/04/11 22:13:08   Assigned Worker:   worker-large
+2026/04/11 22:13:08   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 22:13:08 ───────────────────────────────────────────────────────
+2026/04/11 22:13:08   Resource Requirements:
+2026/04/11 22:13:08     • CPU Cores:     0.80 cores
+2026/04/11 22:13:08     • Memory:        1.50 GB
+2026/04/11 22:13:08     • Storage:       3.00 GB
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08 
+2026/04/11 22:13:08 ✓ Queue: Task task-1775925783689712807 successfully assigned to worker-large after 0 attempts
+2026/04/11 22:13:08 
+═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   📤 TASK ASSIGNED TO WORKER
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   Task ID:           task-1775925783690470948
+2026/04/11 22:13:08   Attempt:           #1 (att-task-1775925783690470948-1)
+2026/04/11 22:13:08   User ID:           testbench
+2026/04/11 22:13:08   Assigned Worker:   worker-large
+2026/04/11 22:13:08   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 22:13:08 ───────────────────────────────────────────────────────
+2026/04/11 22:13:08   Resource Requirements:
+2026/04/11 22:13:08     • CPU Cores:     1.60 cores
+2026/04/11 22:13:08     • Memory:        1.00 GB
+2026/04/11 22:13:08     • Storage:       2.00 GB
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08 
+2026/04/11 22:13:08 ✓ Queue: Task task-1775925783690470948 successfully assigned to worker-large after 0 attempts
+2026/04/11 22:13:08 
+═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   📤 TASK ASSIGNED TO WORKER
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   Task ID:           task-1775925783690993526
+2026/04/11 22:13:08   Attempt:           #1 (att-task-1775925783690993526-1)
+2026/04/11 22:13:08   User ID:           testbench
+2026/04/11 22:13:08   Assigned Worker:   worker-large
+2026/04/11 22:13:08   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 22:13:08 ───────────────────────────────────────────────────────
+2026/04/11 22:13:08   Resource Requirements:
+2026/04/11 22:13:08     • CPU Cores:     0.50 cores
+2026/04/11 22:13:08     • Memory:        0.25 GB
+2026/04/11 22:13:08     • Storage:       1.00 GB
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08 
+2026/04/11 22:13:08 ✓ Queue: Task task-1775925783690993526 successfully assigned to worker-large after 0 attempts
+2026/04/11 22:13:08 
+═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   📤 TASK ASSIGNED TO WORKER
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08   Task ID:           task-1775925783691520081
+2026/04/11 22:13:08   Attempt:           #1 (att-task-1775925783691520081-1)
+2026/04/11 22:13:08   User ID:           testbench
+2026/04/11 22:13:08   Assigned Worker:   worker-large
+2026/04/11 22:13:08   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 22:13:08 ───────────────────────────────────────────────────────
+2026/04/11 22:13:08   Resource Requirements:
+2026/04/11 22:13:08     • CPU Cores:     2.00 cores
+2026/04/11 22:13:08     • Memory:        1.25 GB
+2026/04/11 22:13:08     • Storage:       2.00 GB
+2026/04/11 22:13:08 ═══════════════════════════════════════════════════════
+2026/04/11 22:13:08 
+2026/04/11 22:13:08 ✓ Queue: Task task-1775925783691520081 successfully assigned to worker-large after 0 attempts
+2026/04/11 22:13:10 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:10   📤 FILE UPLOAD REQUEST
+2026/04/11 22:13:10 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:10 [FileStorage] 🔒 Receiving files for task task-1775925783689712807 (user: testbench, secure storage)
+2026/04/11 22:13:10 [FileStorage] 📄 Receiving file: workflow-result.json (secure)
+2026/04/11 22:13:10 [FileStorage] ✓ File complete: workflow-result.json
+2026/04/11 22:13:10 [FileStorage] ✓ All files received (1 files) for task task-1775925783689712807
+2026/04/11 22:13:10   ✓ File metadata stored in database
+2026/04/11 22:13:10 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:10   ✓ FILE UPLOAD COMPLETE
+2026/04/11 22:13:10   Task: task-1775925783689712807 | User: testbench | Files: 1
+2026/04/11 22:13:10   Storage Path: /home/codesmith28/.cloudai/files/testbench/cloudai/workflow-deterministic:v1/2026-04-11_22-13-03/task-1775925783689712807
+2026/04/11 22:13:10 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:10 📥 Task completion report received: task-1775925783689712807 from worker-large [Status: success]
+2026/04/11 22:13:10   ✓ Released resources: CPU=0.80, Memory=1.50, Storage=3.00
+2026/04/11 22:13:10   ✓ Task status confirmed as 'completed' in database
+2026/04/11 22:13:10   ✓ Task result stored in RESULTS collection
+2026/04/11 22:13:10 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:10   📤 FILE UPLOAD REQUEST
+2026/04/11 22:13:10 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:10 [FileStorage] 🔒 Receiving files for task task-1775925783687121578 (user: testbench, secure storage)
+2026/04/11 22:13:10 [FileStorage] 📄 Receiving file: workflow-result.json (secure)
+2026/04/11 22:13:10 [FileStorage] ✓ File complete: workflow-result.json
+2026/04/11 22:13:10 [FileStorage] ✓ All files received (1 files) for task task-1775925783687121578
+2026/04/11 22:13:10   ✓ File metadata stored in database
+2026/04/11 22:13:10 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:10   ✓ FILE UPLOAD COMPLETE
+2026/04/11 22:13:10   Task: task-1775925783687121578 | User: testbench | Files: 1
+2026/04/11 22:13:10   Storage Path: /home/codesmith28/.cloudai/files/testbench/cloudai/workflow-deterministic:v1/2026-04-11_22-13-03/task-1775925783687121578
+2026/04/11 22:13:10 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:10 📥 Task completion report received: task-1775925783687121578 from worker-large [Status: success]
+2026/04/11 22:13:10   ✓ Released resources: CPU=0.70, Memory=1.00, Storage=2.00
+2026/04/11 22:13:10   ✓ Task status confirmed as 'completed' in database
+2026/04/11 22:13:10   ✓ Task result stored in RESULTS collection
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   📤 FILE UPLOAD REQUEST
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 [FileStorage] 🔒 Receiving files for task task-1775925783690993526 (user: testbench, secure storage)
+2026/04/11 22:13:11 [FileStorage] 📄 Receiving file: workflow-result.json (secure)
+2026/04/11 22:13:11 [FileStorage] ✓ File complete: workflow-result.json
+2026/04/11 22:13:11 [FileStorage] ✓ All files received (1 files) for task task-1775925783690993526
+2026/04/11 22:13:11   ✓ File metadata stored in database
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   ✓ FILE UPLOAD COMPLETE
+2026/04/11 22:13:11   Task: task-1775925783690993526 | User: testbench | Files: 1
+2026/04/11 22:13:11   Storage Path: /home/codesmith28/.cloudai/files/testbench/cloudai/workflow-deterministic:v1/2026-04-11_22-13-03/task-1775925783690993526
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 📥 Task completion report received: task-1775925783690993526 from worker-large [Status: success]
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   📤 FILE UPLOAD REQUEST
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 [FileStorage] 🔒 Receiving files for task task-1775925783687651382 (user: testbench, secure storage)
+2026/04/11 22:13:11 [FileStorage] 📄 Receiving file: workflow-result.json (secure)
+2026/04/11 22:13:11 [FileStorage] ✓ File complete: workflow-result.json
+2026/04/11 22:13:11 [FileStorage] ✓ All files received (1 files) for task task-1775925783687651382
+2026/04/11 22:13:11   ✓ Released resources: CPU=0.50, Memory=0.25, Storage=1.00
+2026/04/11 22:13:11   ✓ File metadata stored in database
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   ✓ FILE UPLOAD COMPLETE
+2026/04/11 22:13:11   Task: task-1775925783687651382 | User: testbench | Files: 1
+2026/04/11 22:13:11   Storage Path: /home/codesmith28/.cloudai/files/testbench/cloudai/workflow-deterministic:v1/2026-04-11_22-13-03/task-1775925783687651382
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   ✓ Task status confirmed as 'completed' in database
+2026/04/11 22:13:11   ✓ Task result stored in RESULTS collection
+2026/04/11 22:13:11 📥 Task completion report received: task-1775925783687651382 from worker-large [Status: success]
+2026/04/11 22:13:11   ✓ Released resources: CPU=1.20, Memory=1.20, Storage=2.00
+2026/04/11 22:13:11   ✓ Task status confirmed as 'completed' in database
+2026/04/11 22:13:11   ✓ Task result stored in RESULTS collection
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   📤 FILE UPLOAD REQUEST
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 [FileStorage] 🔒 Receiving files for task task-1775925783685156584 (user: testbench, secure storage)
+2026/04/11 22:13:11 [FileStorage] 📄 Receiving file: workflow-result.json (secure)
+2026/04/11 22:13:11 [FileStorage] ✓ File complete: workflow-result.json
+2026/04/11 22:13:11 [FileStorage] ✓ All files received (1 files) for task task-1775925783685156584
+2026/04/11 22:13:11   ✓ File metadata stored in database
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   ✓ FILE UPLOAD COMPLETE
+2026/04/11 22:13:11   Task: task-1775925783685156584 | User: testbench | Files: 1
+2026/04/11 22:13:11   Storage Path: /home/codesmith28/.cloudai/files/testbench/cloudai/workflow-deterministic:v1/2026-04-11_22-13-03/task-1775925783685156584
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 📥 Task completion report received: task-1775925783685156584 from worker-large [Status: success]
+2026/04/11 22:13:11   ✓ Released resources: CPU=0.50, Memory=0.25, Storage=1.00
+2026/04/11 22:13:11   ✓ Task status confirmed as 'completed' in database
+2026/04/11 22:13:11   ✓ Task result stored in RESULTS collection
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   📤 FILE UPLOAD REQUEST
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 [FileStorage] 🔒 Receiving files for task task-1775925783690470948 (user: testbench, secure storage)
+2026/04/11 22:13:11 [FileStorage] 📄 Receiving file: workflow-result.json (secure)
+2026/04/11 22:13:11 [FileStorage] ✓ File complete: workflow-result.json
+2026/04/11 22:13:11 [FileStorage] ✓ All files received (1 files) for task task-1775925783690470948
+2026/04/11 22:13:11   ✓ File metadata stored in database
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   ✓ FILE UPLOAD COMPLETE
+2026/04/11 22:13:11   Task: task-1775925783690470948 | User: testbench | Files: 1
+2026/04/11 22:13:11   Storage Path: /home/codesmith28/.cloudai/files/testbench/cloudai/workflow-deterministic:v1/2026-04-11_22-13-03/task-1775925783690470948
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 📥 Task completion report received: task-1775925783690470948 from worker-large [Status: success]
+2026/04/11 22:13:11   ✓ Released resources: CPU=1.60, Memory=1.00, Storage=2.00
+2026/04/11 22:13:11   ✓ Task status confirmed as 'completed' in database
+2026/04/11 22:13:11   ✓ Task result stored in RESULTS collection
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   📤 FILE UPLOAD REQUEST
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 [FileStorage] 🔒 Receiving files for task task-1775925783688410363 (user: testbench, secure storage)
+2026/04/11 22:13:11 [FileStorage] 📄 Receiving file: workflow-result.json (secure)
+2026/04/11 22:13:11 [FileStorage] ✓ File complete: workflow-result.json
+2026/04/11 22:13:11 [FileStorage] ✓ All files received (1 files) for task task-1775925783688410363
+2026/04/11 22:13:11   ✓ File metadata stored in database
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   ✓ FILE UPLOAD COMPLETE
+2026/04/11 22:13:11   Task: task-1775925783688410363 | User: testbench | Files: 1
+2026/04/11 22:13:11   Storage Path: /home/codesmith28/.cloudai/files/testbench/cloudai/workflow-deterministic:v1/2026-04-11_22-13-03/task-1775925783688410363
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 📥 Task completion report received: task-1775925783688410363 from worker-large [Status: success]
+2026/04/11 22:13:11   ✓ Released resources: CPU=0.40, Memory=0.25, Storage=1.00
+2026/04/11 22:13:11   ✓ Task status confirmed as 'completed' in database
+2026/04/11 22:13:11   ✓ Task result stored in RESULTS collection
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   📤 FILE UPLOAD REQUEST
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 [FileStorage] 🔒 Receiving files for task task-1775925783686441303 (user: testbench, secure storage)
+2026/04/11 22:13:11 [FileStorage] 📄 Receiving file: workflow-result.json (secure)
+2026/04/11 22:13:11 [FileStorage] ✓ File complete: workflow-result.json
+2026/04/11 22:13:11 [FileStorage] ✓ All files received (1 files) for task task-1775925783686441303
+2026/04/11 22:13:11   ✓ File metadata stored in database
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   ✓ FILE UPLOAD COMPLETE
+2026/04/11 22:13:11   Task: task-1775925783686441303 | User: testbench | Files: 1
+2026/04/11 22:13:11   Storage Path: /home/codesmith28/.cloudai/files/testbench/cloudai/workflow-deterministic:v1/2026-04-11_22-13-03/task-1775925783686441303
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 📥 Task completion report received: task-1775925783686441303 from worker-large [Status: success]
+2026/04/11 22:13:11   ✓ Released resources: CPU=1.00, Memory=0.50, Storage=1.00
+2026/04/11 22:13:11   ✓ Task status confirmed as 'completed' in database
+2026/04/11 22:13:11   ✓ Task result stored in RESULTS collection
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   📤 FILE UPLOAD REQUEST
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 [FileStorage] 🔒 Receiving files for task task-1775925783689016194 (user: testbench, secure storage)
+2026/04/11 22:13:11 [FileStorage] 📄 Receiving file: workflow-result.json (secure)
+2026/04/11 22:13:11 [FileStorage] ✓ File complete: workflow-result.json
+2026/04/11 22:13:11 [FileStorage] ✓ All files received (1 files) for task task-1775925783689016194
+2026/04/11 22:13:11   ✓ File metadata stored in database
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   ✓ FILE UPLOAD COMPLETE
+2026/04/11 22:13:11   Task: task-1775925783689016194 | User: testbench | Files: 1
+2026/04/11 22:13:11   Storage Path: /home/codesmith28/.cloudai/files/testbench/cloudai/workflow-deterministic:v1/2026-04-11_22-13-03/task-1775925783689016194
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 📥 Task completion report received: task-1775925783689016194 from worker-large [Status: success]
+2026/04/11 22:13:11   ✓ Released resources: CPU=1.50, Memory=0.75, Storage=1.00
+2026/04/11 22:13:11   ✓ Task status confirmed as 'completed' in database
+2026/04/11 22:13:11   ✓ Task result stored in RESULTS collection
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   📤 FILE UPLOAD REQUEST
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 [FileStorage] 🔒 Receiving files for task task-1775925783691520081 (user: testbench, secure storage)
+2026/04/11 22:13:11 [FileStorage] 📄 Receiving file: workflow-result.json (secure)
+2026/04/11 22:13:11 [FileStorage] ✓ File complete: workflow-result.json
+2026/04/11 22:13:11 [FileStorage] ✓ All files received (1 files) for task task-1775925783691520081
+2026/04/11 22:13:11   ✓ File metadata stored in database
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11   ✓ FILE UPLOAD COMPLETE
+2026/04/11 22:13:11   Task: task-1775925783691520081 | User: testbench | Files: 1
+2026/04/11 22:13:11   Storage Path: /home/codesmith28/.cloudai/files/testbench/cloudai/workflow-deterministic:v1/2026-04-11_22-13-03/task-1775925783691520081
+2026/04/11 22:13:11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026/04/11 22:13:11 📥 Task completion report received: task-1775925783691520081 from worker-large [Status: success]
+2026/04/11 22:13:11   ✓ Released resources: CPU=2.00, Memory=1.25, Storage=2.00
+2026/04/11 22:13:11   ✓ Task status confirmed as 'completed' in database
+2026/04/11 22:13:11   ✓ Task result stored in RESULTS collection
+2026/04/11 22:13:13 
+
+Shutting down master node...
+2026/04/11 22:13:13 ✓ Task queue processor stopped
+2026/04/11 22:13:13 Shutting down WebSocket telemetry server...
+2026-04-11 22:13:13,764 [INFO] __main__: Stopping PPO scheduler service
+2026/04/11 22:13:13 Shutting down telemetry manager...
+2026/04/11 22:13:13 🛑 Worker reconnection monitor stopped
+2026/04/11 22:13:13 Telemetry manager shutdown complete
+2026/04/11 22:13:13 ⏹️  Shutting down RTS scheduler...
+2026/04/11 22:13:13 ⏹️  Shutting down PPO scheduler client...
+2026/04/11 22:13:14 ℹ️  PPO python service exited
+2026/04/11 22:13:14 ✓ Master node shutdown complete

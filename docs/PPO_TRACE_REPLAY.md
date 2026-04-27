@@ -348,7 +348,7 @@ When `PPO_ONLINE_UPDATES_ENABLED=true`, PPO can accept task outcomes and run onl
 
 ```bash
 export PPO_ONLINE_UPDATES_ENABLED=true
-export PPO_GRPC_ADDR=127.0.0.1:50061
+export PPO_GRPC_ADDR=127.0.0.1:50050
 export PPO_REQUEST_TIMEOUT_MS=1500
 ./runMaster.sh
 ```
@@ -376,7 +376,7 @@ With online updates enabled:
 | `PPO_ONLINE_UPDATES_ENABLED` | `true` | Enable online model updates in active mode |
 | `PPO_DETERMINISTIC_BIAS` | `0.25` | Deterministic inference reranking strength (higher favors capacity headroom prior) |
 | `PPO_PREFER_GPU` | `true` | Prefer CUDA for PPO service; fallback to CPU if unavailable |
-| `PPO_GRPC_ADDR` | `127.0.0.1:50061` | PPO gRPC service endpoint |
+| `PPO_GRPC_ADDR` | `127.0.0.1:50050` | PPO gRPC service endpoint |
 | `PPO_REQUEST_TIMEOUT_MS` | `1500` | Timeout for PPO decisions (ms) |
 | `PPO_AUTOSTART` | `true` | Auto-start PPO service |
 | `PPO_MODEL_PATH` | `latest` | Startup model selector (`latest`/`auto`, checkpoint directory, or file path; missing path falls back to latest checkpoint) |
@@ -442,16 +442,16 @@ Key metrics:
 
 ## Integration with Campaign Framework
 
-The evidence benchmark campaign framework includes PPO variants:
+The evidence benchmark campaign framework compares all schedulers:
 
 ```bash
-make campaign  # Tests RR, RTS, PPO-pretrained, PPO-adapted, recovery variants
+make campaign  # Tests RR, RTS, PPO across multiple scenarios
 ```
 
-PPO variants in campaign:
-- `PPO-pretrained`: Uses pre-trained model (offline training)
-- `PPO-adapted`: Adapted on live cluster traces (online learning)
-- `PPO+recovery`: PPO with recovery-aware task prioritization
+Schedulers in campaign:
+- `RR`: Round-Robin (baseline)
+- `RTS`: Risk-aware Task Scheduling with GA-tuned parameters
+- `PPO`: PPO agent trained offline on Alibaba traces, with online learning enabled
 
 Results are aggregated in `results/campaign/<timestamp>-report.html`.
 
@@ -461,7 +461,7 @@ Results are aggregated in `results/campaign/<timestamp>-report.html`.
 
 ```bash
 # Check if PPO gRPC service is running
-grpcurl -plaintext localhost:50061 list
+grpcurl -plaintext localhost:50050 list
 
 # Check master logs for PPO startup/connection issues
 docker logs master | grep -i ppo

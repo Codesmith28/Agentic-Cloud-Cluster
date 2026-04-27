@@ -1,0 +1,18 @@
+=== UNIT TESTS SUMMARY ===
+Status: ✅ PASSED
+
+Master Tests:
+  - master: 0.006s
+  - master/internal/benchmark: 0.021s
+  - master/internal/cli: 0.006s
+  - master/internal/db: 0.006s
+  - master/internal/scheduler: 0.007s
+  - master/internal/server: 0.005s
+  - master/internal/storage: 0.005s
+  - master/internal/testworkflow: 0.003s
+
+Worker Tests:
+  - worker/internal/system: 0.002s
+  - worker/internal/telemetry: 0.003s
+
+Result: ALL TESTS PASSED ✅

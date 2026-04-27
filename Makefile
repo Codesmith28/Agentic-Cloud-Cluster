@@ -1,56 +1,139 @@
-.PHONY: help all proto master worker clean setup test test-unit test-unit-verbose testbench-up testbench-prepare-images testbench-register testbench-workload testbench-suite testbench-suite-smoke testbench-suite-reliability testbench-suite-ui-smoke testbench-suite-evidence testbench-suite-full testbench-integration testbench-down testbench-host-up testbench-host-register testbench-host-suite testbench-host-suite-smoke testbench-host-suite-reliability testbench-host-suite-ui-smoke testbench-host-suite-evidence testbench-host-suite-full testbench-host-down campaign campaign-full
+# ===========================================================================
+# CloudAI – Agentic Cloud Cluster Build System
+# ===========================================================================
+#
+# Port allocation scheme:
+#   50050  PPO scheduler gRPC  (colocated with master)
+#   50051  Master gRPC
+#   50052+ Worker gRPC         (auto-increment per host)
+#   8080   Master HTTP API
+#   9101+  Worker metrics
+#   27017  MongoDB
+#   9090   Prometheus  |  3000/3300  Grafana
+#
+# Quick start:
+#   make setup          # one-time: install deps, generate proto, symlinks
+#   make build          # compile master + worker binaries
+#   make run-master     # start master node (RTS scheduler)
+#   make run-master-ppo # start master node (PPO scheduler)
+#   make run-worker     # start a worker node
+#
+# ===========================================================================
 
-# Default target
+.PHONY: help build all proto master worker clean setup deps \
+	check vet fmt \
+	test test-unit test-unit-verbose \
+	venv pip-install \
+	db-up db-down \
+	run-master run-master-ppo run-worker ppo-server \
+	testbench-up testbench-host-up testbench-down testbench-host-down \
+	testbench-prepare-images testbench-register testbench-host-register \
+	testbench-workload testbench-suite testbench-integration \
+	testbench-suite-smoke testbench-suite-reliability testbench-suite-ui-smoke \
+	testbench-suite-evidence testbench-suite-full \
+	testbench-host-suite testbench-host-suite-smoke testbench-host-suite-reliability \
+	testbench-host-suite-ui-smoke testbench-host-suite-evidence testbench-host-suite-full \
+	campaign campaign-full campaign-final campaign-comprehensive \
+	model-promote model-promote-dry model-archive-list \
+	deploy benchmark
+
+# ---------------------------------------------------------------------------
+# Variables (override with env or make VAR=value)
+# ---------------------------------------------------------------------------
+VENV          ?= venv
+PYTHON        ?= $(VENV)/bin/python3
+PIP           ?= $(VENV)/bin/pip
+COMPOSE_HOST  ?= testbench/docker-compose.host-master.yml
+COMPOSE_FULL  ?= testbench/docker-compose.yml
+DB_COMPOSE    ?= database/docker-compose.yml
+WORKER_SPECS  ?= worker-small=localhost:55052,worker-medium=localhost:55053,worker-large=localhost:55054
+MASTER_URL    ?= http://localhost:8080
+
+# ---------------------------------------------------------------------------
+# Help
+# ---------------------------------------------------------------------------
+
 help:
 	@echo "CloudAI Build System"
 	@echo ""
-	@echo "Available targets:"
-	@echo "  make all          - Build everything (setup + master + worker)"
-	@echo "  make proto        - Generate gRPC code from proto files"
-	@echo "  make master       - Build master node"
-	@echo "  make worker       - Build worker node"
-	@echo "  make setup        - Complete setup (proto + symlinks + deps)"
-	@echo "  make clean        - Clean generated files and binaries"
-	@echo "  make test         - Run basic connectivity tests"
-	@echo "  make test-unit    - Run Go unit tests (all packages)"
-	@echo "  make test-unit-verbose - Run Go unit tests with verbose output"
-	@echo "  make testbench-up - Build and start Docker testbench stack"
-	@echo "  make testbench-host-up - Start host-master worker stack (no master container)"
-	@echo "  make testbench-prepare-images - Build/load deterministic workflow image into worker DinD daemons"
-	@echo "  make testbench-register - Register testbench workers with master"
-	@echo "  make testbench-host-register - Register host-master workers with host-routable addresses"
-	@echo "  make testbench-workload - Prepare image, submit default workload, wait for completion"
-	@echo "  make testbench-suite [SUITE_NAME=...] - Run scenario manifest (default: smoke)"
-	@echo "  make testbench-host-suite [SUITE_NAME=...] - Run suite against host-run master (default: smoke)"
-	@echo "  make testbench-suite-{smoke,reliability,ui-smoke,evidence,full} - Scenario shortcuts"
-	@echo "  make testbench-host-suite-{smoke,reliability,ui-smoke,evidence,full} - Host topology shortcuts"
-	@echo "  make testbench-integration - Run full Docker-backed integration + benchmark automation"
-	@echo "  make testbench-down - Stop and remove Docker testbench stack"
-	@echo "  make testbench-host-down - Stop host-master worker stack"
-	@echo "  make campaign     - Run evidence benchmark campaign (smoke workload)"
-	@echo "  make campaign-full - Run full campaign (all workloads + all scenarios)"
+	@echo "Build & Setup:"
+	@echo "  make setup              One-time setup (deps + proto + symlinks + go mod tidy)"
+	@echo "  make build              Build master + worker binaries"
+	@echo "  make all                Full setup + build"
+	@echo "  make proto              Generate gRPC code from .proto files"
+	@echo "  make master             Build master binary only"
+	@echo "  make worker             Build worker binary only"
+	@echo "  make clean              Remove binaries, generated code, venv"
 	@echo ""
-	@echo "Quick start:"
-	@echo "  make setup        # One-time setup"
-	@echo "  make all          # Build everything"
-	@echo "  make master       # Build master"
-	@echo "  make worker       # Build worker"
+	@echo "Quality:"
+	@echo "  make check              Compile-check both Go modules (no binary output)"
+	@echo "  make vet                Run go vet on master + worker"
+	@echo "  make fmt                Run gofmt on master + worker"
+	@echo ""
+	@echo "Tests:"
+	@echo "  make test               Verify toolchain (go, docker, protoc)"
+	@echo "  make test-unit          Run Go unit tests"
+	@echo "  make test-unit-verbose  Run Go unit tests with verbose output"
+	@echo ""
+	@echo "Python / PPO:"
+	@echo "  make venv               Create Python virtualenv"
+	@echo "  make pip-install        Install Python deps into venv"
+	@echo "  make ppo-server         Start PPO gRPC server (venv)"
+	@echo ""
+	@echo "Database:"
+	@echo "  make db-up              Start MongoDB (docker compose)"
+	@echo "  make db-down            Stop MongoDB"
+	@echo ""
+	@echo "Run:"
+	@echo "  make run-master         Build + start master (RTS scheduler)"
+	@echo "  make run-master-ppo     Build + start master (PPO scheduler)"
+	@echo "  make run-worker         Build + start worker"
+	@echo ""
+	@echo "Testbench (Docker workers):"
+	@echo "  make testbench-up                Start full Docker stack (master + workers)"
+	@echo "  make testbench-host-up           Start worker-only Docker stack"
+	@echo "  make testbench-down              Tear down full Docker stack"
+	@echo "  make testbench-host-down         Tear down worker-only Docker stack"
+	@echo "  make testbench-prepare-images    Build workflow images into worker DinD"
+	@echo "  make testbench-register          Register workers (full stack)"
+	@echo "  make testbench-host-register     Register workers (host-master topology)"
+	@echo "  make testbench-workload          Prepare images + submit default workload"
+	@echo "  make testbench-suite SUITE_NAME=smoke   Run test suite"
+	@echo "  make testbench-host-suite SUITE_NAME=smoke  Run suite (host-master)"
+	@echo "  make testbench-integration       Full integration + benchmark"
+	@echo ""
+	@echo "Campaigns (requires running master + workers):"
+	@echo "  make campaign           Evidence benchmark (smoke workload)"
+	@echo "  make campaign-full      Full benchmark (all workloads + scenarios)"
+	@echo "  make campaign-final     HEAVY final evaluation (50 tasks × 3 × 3 schedulers)"
+	@echo ""
+	@echo "Model Management:"
+	@echo "  make model-promote      Promote latest trained model (archives old)"
+	@echo "  make model-promote-dry  Dry-run promotion preview"
+	@echo "  make model-archive-list List archived model versions"
+	@echo ""
+	@echo "Pipelines:"
+	@echo "  make deploy             Build → promote model → benchmark"
+	@echo "  make benchmark          Run execute-tests.sh end-to-end"
 
-# Build everything
-all: setup master worker
+# ===========================================================================
+# Build
+# ===========================================================================
 
-# Generate gRPC code
+build: master worker
+
+all: setup build
+	@echo "✅ All components built successfully!"
+
 proto:
 	@echo "🔧 Generating gRPC code..."
 	cd proto && chmod +x generate.sh && ./generate.sh
 
-# Setup symlinks and dependencies
 setup: deps proto
 	@echo "🔗 Creating symlinks..."
 	@cd master && (test -L proto || ln -s ../proto/pb proto)
 	@cd worker && (test -L proto || ln -s ../proto/pb proto)
 	@if [ -d agentic_scheduler ]; then \
-		echo "� Creating agentic_scheduler proto symlink..."; \
 		cd agentic_scheduler && (test -L proto && rm proto || true) && ln -s ../proto/py proto; \
 	fi
 	@echo "📦 Installing Go dependencies..."
@@ -58,71 +141,145 @@ setup: deps proto
 	cd worker && go mod tidy
 	@echo "✅ Setup complete!"
 
-# Install external dependencies
 deps:
 	@echo "📦 Installing system and tool dependencies..."
 	chmod +x scripts/install_deps.sh
 	./scripts/install_deps.sh
 
-
-# Build master node
 master:
 	@echo "🏗️  Building master node..."
 	cd master && go build -o masterNode .
 	@echo "✅ Master built: master/masterNode"
 
-# Build worker node
 worker:
 	@echo "🏗️  Building worker node..."
 	cd worker && go build -o workerNode .
 	@echo "✅ Worker built: worker/workerNode"
 
-# Clean generated files
 clean:
 	@echo "🧹 Cleaning..."
 	rm -rf proto/pb proto/py
-	rm -f master/masterNode
-	rm -f worker/workerNode
-	rm -rf venv
+	rm -f master/masterNode worker/workerNode
+	rm -rf $(VENV)
 	cd master && (test -L proto && rm proto || true)
 	cd worker && (test -L proto && rm proto || true)
-	# cd agentic_scheduler && (test -L proto && rm proto || true)
 	@echo "✅ Clean complete"
 
-# Run basic tests
-test:
-	@echo "🧪 Running tests..."
-	@echo "Checking Go version..."
-	@go version
-	@echo "Checking Docker..."
+# ===========================================================================
+# Quality
+# ===========================================================================
 
-# Run Go unit test suite
+check:
+	@echo "🔍 Compile-checking Go code..."
+	cd master && go build -o /dev/null ./...
+	cd worker && go build -o /dev/null ./...
+	@echo "✅ Compile check passed"
+
+vet:
+	@echo "🔍 Running go vet..."
+	cd master && go vet ./...
+	cd worker && go vet ./...
+	@echo "✅ Vet passed"
+
+fmt:
+	@echo "🔍 Running gofmt..."
+	@gofmt -l master/ worker/ | tee /dev/stderr | (! read) && echo "✅ All files formatted" || echo "⚠️  Files above need formatting (run: gofmt -w master/ worker/)"
+
+# ===========================================================================
+# Tests
+# ===========================================================================
+
+test:
+	@echo "🧪 Checking toolchain..."
+	@printf "  Go:      " && go version
+	@printf "  Docker:  " && docker version --format '{{.Server.Version}}' 2>/dev/null || echo "(not running)"
+	@printf "  protoc:  " && protoc --version 2>/dev/null || echo "(not installed)"
+	@printf "  Python:  " && python3 --version 2>/dev/null || echo "(not installed)"
+	@echo "✅ Toolchain check complete"
+
 test-unit:
 	@echo "🧪 Running Go unit tests..."
 	cd master && go test ./... -count=1 -timeout 120s
 	cd worker && go test ./... -count=1 -timeout 120s
 	@echo "✅ All unit tests passed"
 
-# Run Go unit tests with verbose output
 test-unit-verbose:
 	@echo "🧪 Running Go unit tests (verbose)..."
 	cd master && go test ./... -v -count=1 -timeout 120s
 	cd worker && go test ./... -v -count=1 -timeout 120s
 	@echo "✅ All unit tests passed"
-	@docker version --format '{{.Server.Version}}'
-	@echo "Checking protoc..."
-	@protoc --version
-	@echo "✅ All dependencies available"
 
-# Build everything
-all: setup master worker
-	@echo "✅ All components built successfully!"
+# ===========================================================================
+# Python / PPO
+# ===========================================================================
+
+venv:
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "🐍 Creating virtualenv at $(VENV)..."; \
+		python3 -m venv $(VENV); \
+		echo "✅ Virtualenv created"; \
+	else \
+		echo "✅ Virtualenv already exists at $(VENV)"; \
+	fi
+
+pip-install: venv
+	@echo "📦 Installing Python dependencies..."
+	$(PIP) install --quiet -r requirements.txt
+	@echo "✅ Python dependencies installed"
+
+ppo-server: pip-install
+	@echo "🧠 Starting PPO gRPC server..."
+	$(PYTHON) -m agentic_scheduler.server
+
+# ===========================================================================
+# Database
+# ===========================================================================
+
+db-up:
+	@echo "🗄️  Starting MongoDB..."
+	docker compose -f $(DB_COMPOSE) up -d
+	@echo "✅ MongoDB running on localhost:27017"
+
+db-down:
+	@echo "🗄️  Stopping MongoDB..."
+	docker compose -f $(DB_COMPOSE) down
+	@echo "✅ MongoDB stopped"
+
+# ===========================================================================
+# Run services
+# ===========================================================================
+
+run-master: master
+	@echo "🚀 Starting master node (RTS scheduler)..."
+	./runMaster.sh
+
+run-master-ppo: master
+	@echo "🚀 Starting master node (PPO scheduler)..."
+	./runMaster.sh --ppo
+
+run-worker: worker
+	@echo "🚀 Starting worker node..."
+	./runWorker.sh
+
+# ===========================================================================
+# Testbench – Docker stacks
+# ===========================================================================
 
 testbench-up:
-	@docker compose -f testbench/docker-compose.yml up -d --build
+	@docker compose -f $(COMPOSE_FULL) up -d --build
 
 testbench-host-up:
-	@docker compose -f testbench/docker-compose.host-master.yml up -d --build
+	@docker compose -f $(COMPOSE_HOST) up -d
+
+testbench-down:
+	@docker compose -f $(COMPOSE_FULL) down --remove-orphans
+
+testbench-host-down:
+	@docker compose -f $(COMPOSE_HOST) down --remove-orphans
+
+# ===========================================================================
+# Testbench – Workers & Workloads
+# ===========================================================================
 
 testbench-prepare-images:
 	@testbench/scripts/prepare_workflow_images.sh
@@ -131,12 +288,16 @@ testbench-register:
 	@testbench/scripts/register_workers.sh
 
 testbench-host-register:
-	@MASTER_URL=$${MASTER_URL:-http://localhost:8080} \
-	WORKER_SPECS=$${WORKER_SPECS:-worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054} \
+	@MASTER_URL=$(MASTER_URL) \
+	WORKER_SPECS=$(WORKER_SPECS) \
 	testbench/scripts/register_workers.sh
 
 testbench-workload: testbench-prepare-images
 	@python3 testbench/scripts/run_workload.py
+
+# ===========================================================================
+# Testbench – Suites
+# ===========================================================================
 
 testbench-suite:
 	@SUITE_NAME=$${SUITE_NAME:-smoke} testbench/scripts/run_suite.sh
@@ -160,8 +321,8 @@ testbench-integration:
 	@testbench/scripts/run_integration.sh
 
 testbench-host-suite:
-	@COMPOSE_FILE=testbench/docker-compose.host-master.yml \
-	WORKER_SPECS=$${WORKER_SPECS:-worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054} \
+	@COMPOSE_FILE=$(COMPOSE_HOST) \
+	WORKER_SPECS=$(WORKER_SPECS) \
 	SUITE_NAME=$${SUITE_NAME:-smoke} \
 	testbench/scripts/run_suite.sh
 
@@ -180,15 +341,58 @@ testbench-host-suite-evidence:
 testbench-host-suite-full:
 	@$(MAKE) testbench-host-suite SUITE_NAME=full
 
-testbench-down:
-	@docker compose -f testbench/docker-compose.yml down --remove-orphans
+# ===========================================================================
+# Campaigns
+# ===========================================================================
 
-testbench-host-down:
-	@docker compose -f testbench/docker-compose.host-master.yml down --remove-orphans
-
-# Run evidence benchmark campaign across schedulers and scenarios
 campaign:
-	@python3 testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke
+	@$(PYTHON) testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke
 
 campaign-full:
-	@python3 testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke,deterministic-full
+	@$(PYTHON) testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke,deterministic-full
+
+campaign-final:
+	@echo "🏋️ Running HEAVY final evaluation campaign (50 tasks × 3 scenarios × 3 schedulers = 450 decisions)..."
+	@$(PYTHON) testbench/scripts/run_campaign.py \
+		--scenarios baseline,burst,overload \
+		--schedulers RR,RTS,PPO \
+		--workloads stress-heavy
+
+campaign-comprehensive:
+	@echo "📊 Running COMPREHENSIVE benchmark (4 workloads × 3 scenarios × 3 schedulers)..."
+	@$(PYTHON) testbench/scripts/run_campaign.py \
+		--scenarios baseline,burst,overload \
+		--schedulers RR,RTS,PPO \
+		--workloads heterogeneous-smoke,steady-cpu,bursty,memory-pressure \
+		--timeout 900
+
+# ===========================================================================
+# Model management
+# ===========================================================================
+
+model-promote:
+	@scripts/model_promote.sh $(MODEL_PATH)
+
+model-promote-dry:
+	@scripts/model_promote.sh --dry-run $(MODEL_PATH)
+
+model-archive-list:
+	@echo "Archived models:"
+	@ls -lh agentic_scheduler/models/archive/*.pt 2>/dev/null \
+		| awk '{print "  " $$NF " (" $$5 ")"}' \
+		|| echo "  (no archived models yet)"
+	@echo ""
+	@if [ -f agentic_scheduler/models/archive/VERSION ]; then \
+		echo "Current version: v$$(printf '%03d' $$(cat agentic_scheduler/models/archive/VERSION))"; \
+	else \
+		echo "Current version: (none)"; \
+	fi
+
+# ===========================================================================
+# Pipelines
+# ===========================================================================
+
+deploy: build model-promote benchmark
+
+benchmark:
+	@./execute-tests.sh

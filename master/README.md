@@ -129,7 +129,7 @@ If a worker is not pre-registered, `RegisterWorker` is rejected.
 | `SCHED_ALGO` | `RTS` | `RR`/`RTS`/`PPO` |
 | `SCHED_GA_PARAMS_PATH` | `config/ga_output.json` | RTS parameter file |
 | `SCHED_SLA_MULTIPLIER` | `2.0` | Validated to `1.5-2.5` |
-| `PPO_GRPC_ADDR` | `127.0.0.1:50061` | PPO service address |
+| `PPO_GRPC_ADDR` | `127.0.0.1:50050` | PPO service address |
 | `PPO_REQUEST_TIMEOUT_MS` | `1500` | PPO request timeout |
 | `PPO_AUTOSTART` | `true` | Auto-start PPO Python service |
 | `PPO_MODEL_PATH` | `latest` | PPO model selector |

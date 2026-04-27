@@ -91,7 +91,6 @@ When a worker becomes unavailable:
 2. Active task attempt is marked `lost`
 3. Logical task is requeued automatically to another worker
 4. Late results from old attempts are recorded but cannot overwrite current outcome
-5. Recovery-aware schedulers (RR+recovery, RTS+recovery, PPO+recovery) apply failure prioritization
 
 **Inspection:**
 ```bash

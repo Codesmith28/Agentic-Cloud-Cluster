@@ -1,0 +1,2 @@
+testbench/scripts/run_integration.sh: line 22: GF_ADMIN_PASSWORD: Set GF_ADMIN_PASSWORD environment variable
+make: *** [Makefile:160: testbench-integration] Error 1

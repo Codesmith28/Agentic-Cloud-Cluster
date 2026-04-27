@@ -1,0 +1,53 @@
+Sat Apr 25 16:23:27 2026                                                                                                                                                          
++-----------------------------------------------------------------------------------------+                                                                                       
+| NVIDIA-SMI 595.58.03              Driver Version: 595.58.03      CUDA Version: 13.2     |                                                                                       
++-----------------------------------------+------------------------+----------------------+                                                                                       
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |                                                                                       
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |                                                                                       
+|                                         |                        |               MIG M. |                                                                                       
+|=========================================+========================+======================|                                                                                       
+|   0  NVIDIA GeForce RTX 4060 ...    On  |   00000000:01:00.0  On |                  N/A |                                                                                       
+| N/A   57C    P8              5W /  115W |     827MiB /   8188MiB |      0%      Default |                                                                                       
+|                                         |                        |                  N/A |                                                                                       
++-----------------------------------------+------------------------+----------------------+                                                                                       
+                                                                                                                                                                                  
++-----------------------------------------------------------------------------------------+                                                                                       
+| Processes:                                                                              |                                                                                       
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |                                                                                       
+|        ID   ID                                                               Usage      |                                                                                       
+|=========================================================================================|                                                                                       
+|    0   N/A  N/A             881      G   /usr/lib/Xorg                            15MiB |                                                                                       
+|    0   N/A  N/A            1292      G   /usr/bin/ksecretd                         2MiB |                                                                                       
+|    0   N/A  N/A            1330      G   /usr/bin/kwin_wayland                    53MiB |                                                                                       
+|    0   N/A  N/A            1417      G   /usr/bin/Xwayland                         8MiB |                                                                                       
+|    0   N/A  N/A            1451      G   /usr/bin/ksmserver                        2MiB |                                                                                       
+|    0   N/A  N/A            1453      G   /usr/bin/kded6                            2MiB |                                                                                       
+|    0   N/A  N/A            1467      G   /usr/bin/plasmashell                     64MiB |                                                                                       
+|    0   N/A  N/A            1543      G   /usr/bin/kaccess                          2MiB |                                                                                       
+|    0   N/A  N/A            1544      G   ...it-kde-authentication-agent-1          2MiB |                                                                                       
+|    0   N/A  N/A            1598      G   /usr/bin/kwalletd6                        2MiB |                                                                                       
+|    0   N/A  N/A            1700      G   /usr/lib/DiscoverNotifier                 2MiB |                                                                                       
+|    0   N/A  N/A            1727      G   /usr/lib/xdg-desktop-portal-kde           2MiB |                                                                                       
+|    0   N/A  N/A           16186      G   /usr/bin/krunner                         14MiB |                                                                                       
+|    0   N/A  N/A           16291      G   /usr/lib/baloorunner                      2MiB |                                                                                       
+|    0   N/A  N/A           22201      G   /usr/bin/konsole                          2MiB |                                                                                       
+|    0   N/A  N/A           24823      G   /opt/zen-browser-bin/zen-bin            253MiB |                                                                                       
+|    0   N/A  N/A           25440      G   ...asma-browser-integration-host          2MiB |                                                                                       
+|    0   N/A  N/A          132707      G   /opt/Antigravity/antigravity            108MiB |                                                                                       
++-----------------------------------------------------------------------------------------+                                                                                       
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+                                                                                                                                                                                  

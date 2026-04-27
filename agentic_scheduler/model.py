@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import io
 import time
 from dataclasses import dataclass
@@ -12,6 +13,8 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 
 from .features import TASK_FEATURE_DIM, WORKER_FEATURE_DIM
+
+LOGGER = logging.getLogger(__name__)
 
 
 class RunningNormalizer:
@@ -29,12 +32,23 @@ class RunningNormalizer:
         data = np.asarray(samples, dtype=np.float64)
         if data.ndim == 1:
             data = data[None, :]
-        for row in data:
-            self.count += 1
-            delta = row - self.mean
-            self.mean += delta / self.count
-            delta2 = row - self.mean
-            self.m2 += delta * delta2
+        n = data.shape[0]
+        if n == 0:
+            return
+        batch_mean = data.mean(axis=0)
+        batch_var = data.var(axis=0) if n > 1 else np.zeros_like(batch_mean)
+        batch_count = n
+
+        old_count = self.count
+        new_count = old_count + batch_count
+        if new_count == 0:
+            return
+        delta = batch_mean - self.mean
+        new_mean = self.mean + delta * (batch_count / new_count)
+        m2_batch = batch_var * batch_count
+        self.m2 = self.m2 + m2_batch + (delta ** 2) * (old_count * batch_count / new_count)
+        self.mean = new_mean
+        self.count = new_count
 
     def normalize(self, samples: np.ndarray) -> np.ndarray:
         if self.count < 2:
@@ -95,7 +109,7 @@ class PPOActorCritic(nn.Module):
         values = self.value_head(pooled).squeeze(-1)
 
         if action_mask is not None:
-            logits = logits.masked_fill(~action_mask.bool(), -1e9)
+            logits = logits.masked_fill(~action_mask.bool(), -1e4)
         return logits, values
 
 
@@ -183,6 +197,7 @@ def choose_action(
     device: torch.device,
     deterministic: bool = True,
     headroom_bias: float = 0.15,
+    inference_model: Optional[nn.Module] = None,
 ):
     if worker_features.size == 0:
         return None
@@ -195,13 +210,15 @@ def choose_action(
     normalized_rows = state.normalizer.normalize(pairwise_rows)
 
     normalized_worker = normalized_rows[:, TASK_FEATURE_DIM:]
-    task_tensor = torch.as_tensor(task_features[None, :], dtype=torch.float32, device=device)
+    normalized_task = normalized_rows[0, :TASK_FEATURE_DIM]
+    task_tensor = torch.as_tensor(normalized_task[None, :], dtype=torch.float32, device=device)
     worker_tensor = torch.as_tensor(normalized_worker[None, :, :], dtype=torch.float32, device=device)
     mask_tensor = torch.as_tensor(action_mask[None, :], dtype=torch.bool, device=device)
     headroom_bias = max(float(headroom_bias), 0.0)
 
+    model = inference_model if inference_model is not None else state.model
     with torch.no_grad():
-        policy_logits, value = state.model(task_tensor, worker_tensor, mask_tensor)
+        policy_logits, value = model(task_tensor, worker_tensor, mask_tensor)
         selection_logits = policy_logits
         if deterministic and headroom_bias > 0.0:
             headroom_scores = _projected_headroom_scores(task_features, worker_features, action_mask)
@@ -228,6 +245,7 @@ def choose_action(
         "log_prob": float(log_prob.item()),
         "value": float(value.item()),
         "normalized_worker_features": normalized_worker,
+        "normalized_task_features": normalized_task,
     }
 
 
@@ -240,6 +258,7 @@ def ppo_update(
     epochs: int,
     minibatch_size: int = 0,
     value_clip_range: float = 0.2,
+    grad_scaler: Optional[torch.amp.GradScaler] = None,
 ):
     actions = batch["actions"]
     old_log_probs = batch["old_log_probs"]
@@ -259,34 +278,45 @@ def ppo_update(
             end = start + effective_minibatch
             batch_idx = permutation[start:end]
 
-            logits, values = state.model(
-                task_features[batch_idx],
-                worker_features[batch_idx],
-                action_masks[batch_idx],
-            )
-            distribution = Categorical(logits=logits)
-            new_log_probs = distribution.log_prob(actions[batch_idx])
-            entropy = distribution.entropy().mean()
+            use_amp = grad_scaler is not None
+            device_type = task_features.device.type
 
-            ratio = torch.exp(new_log_probs - old_log_probs[batch_idx])
-            surrogate_1 = ratio * advantages[batch_idx]
-            surrogate_2 = torch.clamp(ratio, 1.0 - clip_ratio, 1.0 + clip_ratio) * advantages[batch_idx]
-            policy_loss = -torch.min(surrogate_1, surrogate_2).mean()
+            with torch.amp.autocast(device_type=device_type, enabled=use_amp):
+                logits, values = state.model(
+                    task_features[batch_idx],
+                    worker_features[batch_idx],
+                    action_masks[batch_idx],
+                )
+                distribution = Categorical(logits=logits)
+                new_log_probs = distribution.log_prob(actions[batch_idx])
+                entropy = distribution.entropy().mean()
 
-            value_targets = returns[batch_idx]
-            old_value_batch = old_values[batch_idx]
-            value_delta = values - old_value_batch
-            clipped_values = old_value_batch + torch.clamp(value_delta, -value_clip_range, value_clip_range)
-            value_loss_unclipped = F.mse_loss(values, value_targets, reduction="none")
-            value_loss_clipped = F.mse_loss(clipped_values, value_targets, reduction="none")
-            value_loss = torch.max(value_loss_unclipped, value_loss_clipped).mean()
+                ratio = torch.exp(new_log_probs - old_log_probs[batch_idx])
+                surrogate_1 = ratio * advantages[batch_idx]
+                surrogate_2 = torch.clamp(ratio, 1.0 - clip_ratio, 1.0 + clip_ratio) * advantages[batch_idx]
+                policy_loss = -torch.min(surrogate_1, surrogate_2).mean()
 
-            loss = policy_loss + (value_coeff * value_loss) - (entropy_coeff * entropy)
+                value_targets = returns[batch_idx]
+                old_value_batch = old_values[batch_idx]
+                value_delta = values - old_value_batch
+                clipped_values = old_value_batch + torch.clamp(value_delta, -value_clip_range, value_clip_range)
+                value_loss_unclipped = F.mse_loss(values, value_targets, reduction="none")
+                value_loss_clipped = F.mse_loss(clipped_values, value_targets, reduction="none")
+                value_loss = torch.max(value_loss_unclipped, value_loss_clipped).mean()
+
+                loss = policy_loss + (value_coeff * value_loss) - (entropy_coeff * entropy)
 
             state.optimizer.zero_grad()
-            loss.backward()
-            nn.utils.clip_grad_norm_(state.model.parameters(), max_norm=1.0)
-            state.optimizer.step()
+            if grad_scaler is not None:
+                grad_scaler.scale(loss).backward()
+                grad_scaler.unscale_(state.optimizer)
+                nn.utils.clip_grad_norm_(state.model.parameters(), max_norm=1.0)
+                grad_scaler.step(state.optimizer)
+                grad_scaler.update()
+            else:
+                loss.backward()
+                nn.utils.clip_grad_norm_(state.model.parameters(), max_norm=1.0)
+                state.optimizer.step()
 
     state.training_steps += 1
 

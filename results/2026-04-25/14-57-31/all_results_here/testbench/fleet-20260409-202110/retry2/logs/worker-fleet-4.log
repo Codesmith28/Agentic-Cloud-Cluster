@@ -1,0 +1,402 @@
+2026/04/09 22:05:16 ═══════════════════════════════════════════════════════
+2026/04/09 22:05:16   CloudAI Worker Node - Starting...
+2026/04/09 22:05:16 ═══════════════════════════════════════════════════════
+2026/04/09 22:05:16 ⚠️  Using user directory (no /var/cloudai access): /Users/codesmith28/.cloudai/outputs
+2026/04/09 22:05:16 
+2026/04/09 22:05:16 ═══════════════════════════════════════════════════════
+2026/04/09 22:05:16   Worker Details (use these to register with master):
+2026/04/09 22:05:16 ═══════════════════════════════════════════════════════
+2026/04/09 22:05:16   Hostname:       Thea
+2026/04/09 22:05:16   Worker ID:      worker-fleet-4
+2026/04/09 22:05:16   Bind Address:   127.0.0.1:57155
+2026/04/09 22:05:16   Reachable Addr: 10.63.86.229:57155
+2026/04/09 22:05:16   Metrics Port:   19214
+2026/04/09 22:05:16 ═══════════════════════════════════════════════════════
+2026/04/09 22:05:16 
+2026/04/09 22:05:16 To register this worker, run in master CLI:
+2026/04/09 22:05:16   master> register worker-fleet-4 10.63.86.229:57155
+2026/04/09 22:05:16 
+2026/04/09 22:05:16 ═══════════════════════════════════════════════════════
+2026/04/09 22:05:16 Starting telemetry monitor (interval: 5s)
+2026/04/09 22:05:16 ✓ Metrics server listening on 127.0.0.1:19214
+2026/04/09 22:05:16 ✓ Worker worker-fleet-4 started successfully
+2026/04/09 22:05:16 ✓ gRPC server listening on 127.0.0.1:57155
+2026/04/09 22:05:16 ✓ Ready to receive master registration...
+2026/04/09 22:05:16 ✓ Waiting for tasks...
+2026/04/09 22:25:13 Master registration request from: master-1 (127.0.0.1:59051)
+2026/04/09 22:25:13 Updated master address to: 127.0.0.1:59051
+2026/04/09 22:25:13 Registering worker worker-fleet-4 with master at 127.0.0.1:59051
+2026/04/09 22:25:13 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:25:13 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:25:13 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:25:13 Detected System Resources:
+2026/04/09 22:25:13   CPU:     2.50 cores
+2026/04/09 22:25:13   Memory:  5.00 GB
+2026/04/09 22:25:13   Storage: 35.00 GB
+2026/04/09 22:25:13 ✓ Successfully registered with master: Worker registered successfully
+2026/04/09 22:25:17 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:25:17 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:25:17 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:25:17 Heartbeat sent: CPU=11.1%, Memory=66.0%, Storage=0.0%, Tasks=0
+2026/04/09 22:25:22 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:25:22 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:25:22 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:25:22 Heartbeat sent: CPU=20.4%, Memory=66.0%, Storage=0.0%, Tasks=0
+2026/04/09 22:25:27 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:25:27 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:25:27 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:25:27 Heartbeat sent: CPU=19.5%, Memory=66.4%, Storage=0.0%, Tasks=0
+2026/04/09 22:25:32 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:25:32 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:25:32 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:25:32 Heartbeat sent: CPU=27.5%, Memory=67.4%, Storage=0.0%, Tasks=0
+2026/04/09 22:25:37 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:25:37 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:25:37 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:25:37 Heartbeat sent: CPU=28.5%, Memory=67.1%, Storage=0.0%, Tasks=0
+2026/04/09 22:25:42 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:25:42 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:25:42 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:25:42 Heartbeat sent: CPU=24.0%, Memory=67.7%, Storage=0.0%, Tasks=0
+2026/04/09 22:25:47 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:25:47 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:25:47 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:25:47 Heartbeat sent: CPU=14.9%, Memory=66.1%, Storage=0.0%, Tasks=0
+2026/04/09 22:25:52 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:25:52 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:25:52 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:25:52 Heartbeat sent: CPU=13.5%, Memory=65.1%, Storage=0.0%, Tasks=0
+2026/04/09 22:25:57 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:25:57 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:25:57 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:25:57 Heartbeat sent: CPU=9.4%, Memory=64.8%, Storage=0.0%, Tasks=0
+2026/04/09 22:26:02 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:26:02 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:26:02 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:26:02 Heartbeat sent: CPU=13.0%, Memory=65.1%, Storage=0.0%, Tasks=0
+2026/04/09 22:26:07 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:26:07 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:26:07 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:26:07 Heartbeat sent: CPU=11.0%, Memory=65.2%, Storage=0.0%, Tasks=0
+2026/04/09 22:26:12 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:26:12 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:26:12 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:26:12 Heartbeat sent: CPU=33.1%, Memory=66.2%, Storage=0.0%, Tasks=0
+2026/04/09 22:26:17 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:26:17 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:26:17 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:26:17 Heartbeat sent: CPU=13.4%, Memory=66.4%, Storage=0.0%, Tasks=0
+2026/04/09 22:26:22 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:26:22 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:26:22 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:26:22 Heartbeat sent: CPU=18.6%, Memory=66.6%, Storage=0.0%, Tasks=0
+2026/04/09 22:26:27 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:26:27 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:26:27 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:26:27 Heartbeat sent: CPU=10.6%, Memory=66.4%, Storage=0.0%, Tasks=0
+2026/04/09 22:26:32 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:26:32 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:26:32 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:26:32 Heartbeat sent: CPU=14.0%, Memory=66.2%, Storage=0.0%, Tasks=0
+2026/04/09 22:26:37 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:26:37 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:26:37 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:26:37 Heartbeat sent: CPU=11.6%, Memory=66.4%, Storage=0.0%, Tasks=0
+2026/04/09 22:26:42 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:26:42 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:26:42 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:26:42 Heartbeat sent: CPU=22.3%, Memory=69.9%, Storage=0.0%, Tasks=0
+2026/04/09 22:26:47 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:26:47 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:26:47 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:26:47 Heartbeat sent: CPU=30.7%, Memory=67.9%, Storage=0.0%, Tasks=0
+2026/04/09 22:26:49  
+2026/04/09 22:26:49 ═══════════════════════════════════════════════════════
+2026/04/09 22:26:49   📥 TASK RECEIVED FROM MASTER
+2026/04/09 22:26:49 ═══════════════════════════════════════════════════════
+2026/04/09 22:26:49   Task ID:           task-1775753806562361000
+2026/04/09 22:26:49   Docker Image:      alpine:3.20
+2026/04/09 22:26:49   Command:           sh -c "echo fleet-smoke && sleep 1"
+2026/04/09 22:26:49   Target Worker:     worker-fleet-4
+2026/04/09 22:26:49 ───────────────────────────────────────────────────────
+2026/04/09 22:26:49   System Requirements:
+2026/04/09 22:26:49     • CPU Cores:     0.10 cores
+2026/04/09 22:26:49     • Memory:        0.10 GB
+2026/04/09 22:26:49     • Storage:       0.10 GB
+2026/04/09 22:26:49 ═══════════════════════════════════════════════════════
+2026/04/09 22:26:49   ✓ Task accepted - Starting execution...
+2026/04/09 22:26:49 ═══════════════════════════════════════════════════════
+2026/04/09 22:26:49 
+2026/04/09 22:26:49 Task task-1775753806562361000 added to monitoring (total tasks: 1)
+2026/04/09 22:26:49 [Task task-1775753806562361000] Starting execution...
+2026/04/09 22:26:49 [Task task-1775753806562361000] Pulling image: alpine:3.20
+2026/04/09 22:26:52 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:26:52 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:26:52 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:26:52 Heartbeat sent: CPU=23.4%, Memory=68.1%, Storage=0.0%, Tasks=1
+2026/04/09 22:26:55 [Task task-1775753806562361000] Creating container with resource limits (CPU: 0.10, Memory: 0.10GB)...
+2026/04/09 22:26:55 [Task task-1775753806562361000] ✓ Created secure output directory: /Users/codesmith28/.cloudai/outputs/task-1775753806562361000
+2026/04/09 22:26:56 [Task task-1775753806562361000] Starting container: 179c9acdc13d
+2026/04/09 22:26:57 [Task task-1775753806562361000] Waiting for completion...
+2026/04/09 22:26:57 [Task task-1775753806562361000] ✓ Completed successfully
+2026/04/09 22:26:57  
+2026/04/09 22:26:57 ═══════════════════════════════════════════════════════
+2026/04/09 22:26:57   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/09 22:26:57 ═══════════════════════════════════════════════════════
+2026/04/09 22:26:57   Task ID:           task-1775753806562361000
+2026/04/09 22:26:57   Docker Image:      alpine:3.20
+2026/04/09 22:26:57   Command:           sh -c "echo fleet-smoke && sleep 1"
+2026/04/09 22:26:57   Exit Code:         0
+2026/04/09 22:26:57 ───────────────────────────────────────────────────────
+2026/04/09 22:26:57   Resources Released:
+2026/04/09 22:26:57     • CPU Cores:     0.10 cores
+2026/04/09 22:26:57     • Memory:        0.10 GB
+2026/04/09 22:26:57 ═══════════════════════════════════════════════════════
+2026/04/09 22:26:57 
+2026/04/09 22:26:57 Task task-1775753806562361000 removed from monitoring (total tasks: 0)
+2026/04/09 22:26:57 ✓ Task result reported: Task result received and processed
+2026/04/09 22:26:57 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:26:57 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:26:57 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:26:57 Heartbeat sent: CPU=13.5%, Memory=66.2%, Storage=0.0%, Tasks=0
+2026/04/09 22:27:02 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:27:02 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:27:02 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:27:02 Heartbeat sent: CPU=12.2%, Memory=65.8%, Storage=0.0%, Tasks=0
+2026/04/09 22:27:07 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:27:07 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:27:07 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:27:07 Heartbeat sent: CPU=15.1%, Memory=65.3%, Storage=0.0%, Tasks=0
+2026/04/09 22:27:12 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:27:12 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:27:12 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:27:12 Heartbeat sent: CPU=9.9%, Memory=66.0%, Storage=0.0%, Tasks=0
+2026/04/09 22:27:17 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:27:17 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:27:17 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:27:17 Heartbeat sent: CPU=12.5%, Memory=65.5%, Storage=0.0%, Tasks=0
+2026/04/09 22:27:22 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:27:22 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:27:22 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:27:22 Heartbeat sent: CPU=19.3%, Memory=65.4%, Storage=0.0%, Tasks=0
+2026/04/09 22:27:27 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:27:27 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:27:27 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:27:27 Heartbeat sent: CPU=20.5%, Memory=65.3%, Storage=0.0%, Tasks=0
+2026/04/09 22:27:32 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:27:32 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:27:32 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:27:32 Heartbeat sent: CPU=18.0%, Memory=67.2%, Storage=0.0%, Tasks=0
+2026/04/09 22:27:37 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:27:37 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:27:37 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:27:37 Heartbeat sent: CPU=11.6%, Memory=65.4%, Storage=0.0%, Tasks=0
+2026/04/09 22:27:42 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:27:42 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:27:42 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:27:42 Heartbeat sent: CPU=9.6%, Memory=65.0%, Storage=0.0%, Tasks=0
+2026/04/09 22:27:47 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:27:47 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:27:47 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:27:47 Heartbeat sent: CPU=7.1%, Memory=64.7%, Storage=0.0%, Tasks=0
+2026/04/09 22:27:52 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:27:52 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:27:52 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:27:52 Heartbeat sent: CPU=6.9%, Memory=64.4%, Storage=0.0%, Tasks=0
+2026/04/09 22:27:57 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:27:57 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:27:57 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:27:57 Heartbeat sent: CPU=6.6%, Memory=65.0%, Storage=0.0%, Tasks=0
+2026/04/09 22:28:02 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:28:02 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:28:02 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:28:02 Heartbeat sent: CPU=7.0%, Memory=65.5%, Storage=0.0%, Tasks=0
+2026/04/09 22:28:07 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:28:07 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:28:07 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:28:07 Heartbeat sent: CPU=24.1%, Memory=65.3%, Storage=0.0%, Tasks=0
+2026/04/09 22:28:12 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:28:12 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:28:12 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:28:12 Heartbeat sent: CPU=7.4%, Memory=65.4%, Storage=0.0%, Tasks=0
+2026/04/09 22:28:17 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:28:17 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:28:17 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:28:17 Heartbeat sent: CPU=18.5%, Memory=65.5%, Storage=0.0%, Tasks=0
+2026/04/09 22:28:22 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:28:22 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:28:22 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:28:22 Heartbeat sent: CPU=15.2%, Memory=68.9%, Storage=0.0%, Tasks=0
+2026/04/09 22:28:27 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:28:27 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:28:27 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:28:27 Heartbeat sent: CPU=17.7%, Memory=66.6%, Storage=0.0%, Tasks=0
+2026/04/09 22:28:32 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:28:32 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:28:32 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:28:32 Heartbeat sent: CPU=14.5%, Memory=64.9%, Storage=0.0%, Tasks=0
+2026/04/09 22:28:37 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:28:37 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:28:37 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:28:37 Heartbeat sent: CPU=14.6%, Memory=65.0%, Storage=0.0%, Tasks=0
+2026/04/09 22:28:42 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:28:42 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:28:42 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:28:42 Heartbeat sent: CPU=13.8%, Memory=64.8%, Storage=0.0%, Tasks=0
+2026/04/09 22:28:47 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:28:47 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:28:47 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:28:47 Heartbeat sent: CPU=17.9%, Memory=66.1%, Storage=0.0%, Tasks=0
+2026/04/09 22:28:52 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:28:52 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:28:52 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:28:52 Heartbeat sent: CPU=9.5%, Memory=65.3%, Storage=0.0%, Tasks=0
+2026/04/09 22:28:57 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:28:57 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:28:57 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:28:57 Heartbeat sent: CPU=11.1%, Memory=68.8%, Storage=0.0%, Tasks=0
+2026/04/09 22:29:02 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:29:02 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:29:02 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:29:02 Heartbeat sent: CPU=7.6%, Memory=65.8%, Storage=0.0%, Tasks=0
+2026/04/09 22:29:07 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:29:07 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:29:07 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:29:07 Heartbeat sent: CPU=20.4%, Memory=68.7%, Storage=0.0%, Tasks=0
+2026/04/09 22:29:12 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:29:12 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:29:12 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:29:12 Heartbeat sent: CPU=17.1%, Memory=67.6%, Storage=0.0%, Tasks=0
+2026/04/09 22:29:17 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:29:17 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:29:17 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:29:17 Heartbeat sent: CPU=16.4%, Memory=66.6%, Storage=0.0%, Tasks=0
+2026/04/09 22:29:22 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:29:22 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:29:22 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:29:22 Heartbeat sent: CPU=13.6%, Memory=68.4%, Storage=0.0%, Tasks=0
+2026/04/09 22:29:27 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:29:27 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:29:27 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:29:27 Heartbeat sent: CPU=11.5%, Memory=66.1%, Storage=0.0%, Tasks=0
+2026/04/09 22:29:32 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:29:32 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:29:32 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:29:32 Heartbeat sent: CPU=6.5%, Memory=65.6%, Storage=0.0%, Tasks=0
+2026/04/09 22:29:37 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:29:37 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:29:37 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:29:37 Heartbeat sent: CPU=8.0%, Memory=65.0%, Storage=0.0%, Tasks=0
+2026/04/09 22:29:42 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:29:42 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:29:42 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:29:42 Heartbeat sent: CPU=9.0%, Memory=65.4%, Storage=0.0%, Tasks=0
+2026/04/09 22:29:47 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:29:47 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:29:47 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:29:47 Heartbeat sent: CPU=7.4%, Memory=65.7%, Storage=0.0%, Tasks=0
+2026/04/09 22:29:52 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:29:52 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:29:52 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:29:52 Heartbeat sent: CPU=9.0%, Memory=65.5%, Storage=0.0%, Tasks=0
+2026/04/09 22:29:57 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:29:57 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:29:57 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:29:57 Heartbeat sent: CPU=6.3%, Memory=65.5%, Storage=0.0%, Tasks=0
+2026/04/09 22:30:02 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:30:02 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:30:02 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:30:02 Heartbeat sent: CPU=6.9%, Memory=65.4%, Storage=0.0%, Tasks=0
+2026/04/09 22:30:07 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:30:07 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:30:07 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:30:07 Heartbeat sent: CPU=6.9%, Memory=65.4%, Storage=0.0%, Tasks=0
+2026/04/09 22:30:12 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:30:12 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:30:12 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:30:12 Heartbeat sent: CPU=7.2%, Memory=65.6%, Storage=0.0%, Tasks=0
+2026/04/09 22:30:17 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:30:17 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:30:17 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:30:17 Heartbeat sent: CPU=8.3%, Memory=65.6%, Storage=0.0%, Tasks=0
+2026/04/09 22:30:22 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:30:22 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:30:22 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:30:22 Heartbeat sent: CPU=9.4%, Memory=65.7%, Storage=0.0%, Tasks=0
+2026/04/09 22:30:27 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:30:27 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:30:27 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:30:27 Heartbeat sent: CPU=6.9%, Memory=65.7%, Storage=0.0%, Tasks=0
+2026/04/09 22:30:32 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:30:32 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:30:32 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:30:32 Heartbeat sent: CPU=10.5%, Memory=65.8%, Storage=0.0%, Tasks=0
+2026/04/09 22:30:37 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:30:37 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:30:37 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:30:37 Heartbeat sent: CPU=6.1%, Memory=65.7%, Storage=0.0%, Tasks=0
+2026/04/09 22:30:42 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:30:42 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:30:42 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:30:42 Heartbeat sent: CPU=27.7%, Memory=66.2%, Storage=0.0%, Tasks=0
+2026/04/09 22:30:47 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:30:47 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:30:47 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:30:47 Heartbeat sent: CPU=7.0%, Memory=65.6%, Storage=0.0%, Tasks=0
+2026/04/09 22:30:52 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:30:52 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:30:52 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:30:52 Heartbeat sent: CPU=14.1%, Memory=65.7%, Storage=0.0%, Tasks=0
+2026/04/09 22:30:57 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:30:57 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:30:57 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:30:57 Heartbeat sent: CPU=15.5%, Memory=68.0%, Storage=0.0%, Tasks=0
+2026/04/09 22:31:02 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:31:02 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:31:02 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:31:02 Heartbeat sent: CPU=12.9%, Memory=67.2%, Storage=0.0%, Tasks=0
+2026/04/09 22:31:07 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:31:07 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:31:07 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:31:07 Heartbeat sent: CPU=19.0%, Memory=68.2%, Storage=0.0%, Tasks=0
+2026/04/09 22:31:12 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:31:12 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:31:12 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:31:12 Heartbeat sent: CPU=14.4%, Memory=66.8%, Storage=0.0%, Tasks=0
+2026/04/09 22:31:17 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:31:17 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:31:17 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:31:17 Heartbeat sent: CPU=10.7%, Memory=66.5%, Storage=0.0%, Tasks=0
+2026/04/09 22:31:22 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:31:22 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:31:22 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:31:22 Heartbeat sent: CPU=8.8%, Memory=66.5%, Storage=0.0%, Tasks=0
+2026/04/09 22:31:27 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:31:27 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:31:27 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:31:27 Heartbeat sent: CPU=14.4%, Memory=68.0%, Storage=0.0%, Tasks=0
+2026/04/09 22:31:32 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:31:32 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:31:32 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:31:32 Heartbeat sent: CPU=9.1%, Memory=66.0%, Storage=0.0%, Tasks=0
+2026/04/09 22:31:37 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:31:37 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:31:37 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:31:37 Heartbeat sent: CPU=46.5%, Memory=70.7%, Storage=0.0%, Tasks=0
+2026/04/09 22:31:42 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:31:42 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:31:42 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:31:42 Heartbeat sent: CPU=16.8%, Memory=68.9%, Storage=0.0%, Tasks=0
+2026/04/09 22:31:47 ✓ Worker CPU override applied: 2.50 cores
+2026/04/09 22:31:47 ✓ Worker memory override applied: 5.00 GB
+2026/04/09 22:31:47 ✓ Worker storage override applied: 35.00 GB
+2026/04/09 22:31:47 Heartbeat sent: CPU=8.3%, Memory=65.8%, Storage=0.0%, Tasks=0
+
+╔═══════════════════════════════════════════════════════
+║  Shutdown signal received - gracefully shutting down...
+╚═══════════════════════════════════════════════════════
+╔═══════════════════════════════════════════════════════
+║  Worker Shutdown - Cleaning up running tasks...
+╚═══════════════════════════════════════════════════════
+  ✓ No running tasks to clean up
+  ✓ Telemetry monitor stopped

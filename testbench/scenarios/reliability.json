@@ -1,16 +1,17 @@
 {
   "suite": "reliability",
-  "description": "Failure-stressed campaign with recovery assertions.",
+  "description": "Overload campaign with reliability assertions.",
   "runner": "campaign",
   "scenarios": [
-    "failure-stressed"
+    "overload"
   ],
   "workloads": [
-    "failure-stressed"
+    "heterogeneous-smoke"
   ],
   "schedulers": [
-    "RR+recovery",
-    "RTS+recovery"
+    "RR",
+    "RTS",
+    "PPO"
   ],
   "assertions": [
     "queue-and-drain",
