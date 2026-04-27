@@ -131,17 +131,36 @@ fi
 
 ok "All pre-flight checks passed"
 
-# ── Auto-teardown any previous run ──────────────────────────────────────────
-separator "Step 0: Cleaning up any previous testbench state"
-# Kill any stale master process
+# ── Step 0: Smart cleanup — reuse workers if healthy ────────────────────────
+separator "Step 0: Preparing testbench environment"
+
+# Always kill stale master — it holds ports and scheduler state
 if pgrep -f "masterNode" >/dev/null 2>&1; then
     info "Stopping stale master process..."
     pkill -f "masterNode" 2>/dev/null || true
     sleep 1
+    ok "Stale master stopped"
 fi
-info "Tearing down any previous Docker stack..."
-docker compose -f "${COMPOSE_FILE}" down --volumes --remove-orphans 2>/dev/null || true
-ok "Previous state cleaned up"
+
+# Check if workers are already running and healthy
+WORKERS_HEALTHY=false
+if docker ps --format "{{.Names}}\t{{.Status}}" 2>/dev/null | grep -q "testbench-worker.*Up"; then
+    # Count how many worker containers are running
+    RUNNING=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -c "testbench-worker-.*-1$" || true)
+    if [[ "${RUNNING}" -ge 3 ]]; then
+        WORKERS_HEALTHY=true
+    fi
+fi
+
+if [[ "${WORKERS_HEALTHY}" == "true" ]]; then
+    info "Workers already running — reusing existing containers (skipping teardown)"
+    info "Only the master will be restarted fresh"
+else
+    # No healthy workers — full teardown and fresh start
+    info "No healthy workers found — doing full teardown and fresh start..."
+    docker compose -f "${COMPOSE_FILE}" down --volumes --remove-orphans 2>/dev/null || true
+    ok "Previous state cleaned up"
+fi
 
 # ── Step 1: Deploy model ────────────────────────────────────────────────────
 separator "Step 1: Promoting trained model (with version archival)"
@@ -179,23 +198,19 @@ echo "    PPO_ONLINE_UPDATES      = ${PPO_ONLINE_UPDATES_ENABLED}"
 # ── Step 4: Start Docker workers + observability ─────────────────────────────
 separator "Step 4: Starting Docker workers (host-master topology)"
 
-# Check if port 27018 (our mapped MongoDB port) is already in use
-MONGO_ALREADY_RUNNING=false
-if docker ps 2>/dev/null | grep -q "27018"; then
-    MONGO_ALREADY_RUNNING=true
-fi
-
-# Reuse existing containers — only rebuild if source code changed.
-# `up -d` is idempotent: starts stopped containers, skips already-running ones.
-if [[ "${MONGO_ALREADY_RUNNING}" == "true" ]]; then
-    info "MongoDB already running on :27018 — starting workers without testbench mongo"
-    docker compose -f "${COMPOSE_FILE}" up -d --scale mongo=0
+if [[ "${WORKERS_HEALTHY}" == "true" ]]; then
+    ok "Reusing existing healthy workers (no restart needed)"
 else
-    info "Starting stack (mongo, workers, prometheus, grafana)..."
-    docker compose -f "${COMPOSE_FILE}" up -d
+    # Check if port 27018 is already in use by something else
+    if docker ps 2>/dev/null | grep -q "27018"; then
+        info "MongoDB already running on :27018 — starting workers without testbench mongo"
+        docker compose -f "${COMPOSE_FILE}" up -d --scale mongo=0
+    else
+        info "Starting stack (mongo, workers, prometheus, grafana)..."
+        docker compose -f "${COMPOSE_FILE}" up -d
+    fi
+    ok "Docker workers started"
 fi
-
-ok "Docker workers started"
 
 # ── Step 5: Start local master node ──────────────────────────────────────────
 separator "Step 5: Starting local master node"
