@@ -1,0 +1,64 @@
+2026/04/09 22:12:35 No .env file found, using environment variables
+2026/04/09 22:12:35 Warning: Cannot create /var/cloudai/files: mkdir /var/cloudai: permission denied
+2026/04/09 22:12:35 ✓ Using fallback file storage directory: /Users/codesmith28/.cloudai/files
+2026/04/09 22:12:35 === System Information ===
+2026/04/09 22:12:35 Hostname: Thea
+2026/04/09 22:12:35 IP Addresses: [10.63.86.229]
+2026/04/09 22:12:35 OS: darwin
+2026/04/09 22:12:35 Architecture: arm64
+2026/04/09 22:12:35 CPU Cores: 12
+2026/04/09 22:12:35 Process ID: 14213
+2026/04/09 22:12:35 User ID: 501
+2026/04/09 22:12:35 Group ID: 20
+2026/04/09 22:12:35 Master Address: 10.63.86.229
+2026/04/09 22:12:35 Master Port: :58051
+2026/04/09 22:12:35 ==========================
+2026/04/09 22:12:35 Warning: MongoDB initialization failed: ping mongo: connection() error occurred during connection handshake: auth error: sasl conversation error: unable to authenticate using mechanism "SCRAM-SHA-1": (AuthenticationFailed) Authentication failed.
+2026/04/09 22:12:35 Continuing without database persistence...
+2026/04/09 22:12:35 ✓ FileStorageService initialized with access control
+2026/04/09 22:12:35 ✓ FileStorageService initialized (base: /Users/codesmith28/.cloudai/files)
+2026/04/09 22:12:35 Telemetry manager started
+2026/04/09 22:12:35 ✓ Telemetry manager started
+2026/04/09 22:12:35 ✓ Tau store initialized with default values:
+2026/04/09 22:12:35   - cpu-heavy: 15.0s
+2026/04/09 22:12:35   - memory-heavy: 20.0s
+2026/04/09 22:12:35   - mixed: 10.0s
+2026/04/09 22:12:35   - cpu-light: 5.0s
+2026/04/09 22:12:35 ✓ SLA multiplier (k): 2.0
+2026/04/09 22:12:35 ✓ Round-Robin scheduler created
+2026/04/09 22:12:35 ✓ Telemetry source adapter created
+2026/04/09 22:12:35 Warning: Failed to initialize RTS params MongoDB store: ping mongodb: connection() error occurred during connection handshake: auth error: sasl conversation error: unable to authenticate using mechanism "SCRAM-SHA-1": (AuthenticationFailed) Authentication failed.
+2026/04/09 22:12:35 RTS will fall back to JSON/default params only
+2026/04/09 22:12:35 ✓ RTS Scheduler initialized with params from /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 22:12:35 ✓ RTS scheduler initialized (params: /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json)
+2026/04/09 22:12:35   - Fallback: Round-Robin
+2026/04/09 22:12:35   - Parameter hot-reload: enabled (every 30s from local cache)
+2026/04/09 22:12:35 ✓ Selected scheduler: RTS
+2026/04/09 22:12:35 Scheduler set: RTS
+2026/04/09 22:12:35 ✓ Master server configured with RTS scheduler
+2026/04/09 22:12:35 Master info set: ID=master-1, Address=127.0.0.1:58051
+2026/04/09 22:12:35 Warning: Failed to create HistoryDB: ping mongodb: connection() error occurred during connection handshake: auth error: sasl conversation error: unable to authenticate using mechanism "SCRAM-SHA-1": (AuthenticationFailed) Authentication failed.
+2026/04/09 22:12:35 AOD/GA training will be disabled
+2026/04/09 22:12:35 ⚠️  AOD training disabled (HistoryDB not available)
+2026/04/09 22:12:35   - RTS will use default parameters from /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 22:12:35 ✓ Task queue processor started (checking every 5s)
+2026/04/09 22:12:35 ✓ Task queue processor started
+2026/04/09 22:12:35 ✓ Worker reconnection monitor started
+2026/04/09 22:12:35 🔄 Worker reconnection monitor started
+2026/04/09 22:12:35 ✓ File API handlers registered
+2026/04/09 22:12:35 ✓ HTTP API server started on port 19180
+2026/04/09 22:12:35   - Telemetry: GET /health, /telemetry, /workers
+2026/04/09 22:12:35   - WebSocket: WS /ws/telemetry, /ws/telemetry/{worker_id}
+2026/04/09 22:12:35   - Tasks: POST/GET/DELETE /api/tasks, GET /api/tasks/{id}
+2026/04/09 22:12:35   - Workers: GET /api/workers, /api/workers/{id}
+2026/04/09 22:12:35   - Files: GET /api/files, /api/files/{task_id}
+2026/04/09 22:12:35            GET /api/files/{task_id}/download/{file_path}
+2026/04/09 22:12:35            DELETE /api/files/{task_id}
+2026/04/09 22:12:35 Starting WebSocket telemetry server on :19180
+2026/04/09 22:12:35 WebSocket endpoints:
+2026/04/09 22:12:35   - ws://localhost:19180/ws/telemetry (all workers)
+2026/04/09 22:12:35   - ws://localhost:19180/ws/telemetry/{worker_id} (specific worker)
+2026/04/09 22:12:36 
+✓ Master node started successfully
+2026/04/09 22:12:36 ✓ Starting gRPC server on 127.0.0.1:58051 (advertise: 127.0.0.1:58051)
+2026/04/09 22:12:36 ✓ Headless mode enabled (CLOUDAI_HEADLESS=true), CLI disabled

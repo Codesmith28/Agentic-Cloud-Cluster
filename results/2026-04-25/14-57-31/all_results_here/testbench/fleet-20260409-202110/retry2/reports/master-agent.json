@@ -1,0 +1,43 @@
+{
+  "todo_id": "fleet-master-agent",
+  "lane": "master-node integration retry2",
+  "run_root": "/Users/codesmith28/personal/Projects/acc/BTEP/results/testbench/fleet-20260409-202110/retry2",
+  "master": {
+    "grpc": 57051,
+    "http": 19080
+  },
+  "timestamps": {
+    "started_at": "2026-04-09T16:35:11.000983+00:00",
+    "finished_at": "2026-04-09T16:35:11.018782+00:00"
+  },
+  "poll": {
+    "health_url": "http://127.0.0.1:19080/health",
+    "attempts": [
+      {
+        "timestamp": "2026-04-09T16:35:11.001105+00:00",
+        "code": 200
+      }
+    ],
+    "final_code": 200,
+    "last_error": null
+  },
+  "checks": {
+    "health_status_healthy": true,
+    "health_json": {
+      "active_clients": 0,
+      "active_workers": 0,
+      "status": "healthy",
+      "time": 1775752511,
+      "workers": 0
+    },
+    "telemetry_json_ok": true,
+    "telemetry_sample": {},
+    "telemetry_error": null,
+    "metrics_contains_cloudai": true,
+    "metrics_error": null
+  },
+  "result": {
+    "status": "success",
+    "blockers": []
+  }
+}

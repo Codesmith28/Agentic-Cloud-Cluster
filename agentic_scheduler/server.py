@@ -148,7 +148,7 @@ def _parse_bool(value: str) -> bool:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="PPO scheduler gRPC service")
-    parser.add_argument("--grpc-addr", default=os.getenv("PPO_GRPC_ADDR", "127.0.0.1:50061"))
+    parser.add_argument("--grpc-addr", default=os.getenv("PPO_GRPC_ADDR", "127.0.0.1:50050"))
     parser.add_argument("--mongo-uri", default=os.getenv("MONGODB_URI", ""))
     parser.add_argument("--mongo-db", default=os.getenv("MONGODB_DATABASE", "cluster_db"))
     parser.add_argument("--model-path", default=os.getenv("PPO_MODEL_PATH", "latest"))

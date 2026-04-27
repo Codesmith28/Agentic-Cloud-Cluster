@@ -1,0 +1,28 @@
+2026-04-26 09:38:09,348 [INFO] Using GPU for offline PPO training: NVIDIA GeForce RTX 4060 Laptop GPU
+2026-04-26 09:38:09,348 [INFO] Loading alibaba trace from agentic_scheduler/data/alibaba_v2018/train (max 200000 tasks)
+2026-04-26 09:38:09,391 [INFO] Loaded 4034 unique machines from agentic_scheduler/data/alibaba_v2018/train/machine_meta.csv
+2026-04-26 09:38:10,099 [INFO] Loaded 199614 Alibaba tasks (capped at 200000)
+2026-04-26 09:38:10,338 [INFO] Trace replay env: Alibaba cluster-trace-v2018 (199614 tasks, 4034 machines) (window=1970-01-01T22:52:51+00:00..1970-01-08T23:59:56+00:00)
+2026-04-26 09:38:18,716 [INFO] update=1 avg_reward=1.6343 steps=16384 epoch=0.08
+2026-04-26 09:39:30,406 [INFO] update=10 avg_reward=1.6392 steps=163840 epoch=0.82
+2026-04-26 09:40:59,114 [INFO] update=20 avg_reward=1.6212 steps=327680 epoch=1.64
+2026-04-26 09:41:40,177 [INFO] Saved periodic local checkpoint to /home/codesmith28/Projects/ACC/BTEP/agentic_scheduler/results/checkpoints/ppo_offline_u000025_s000025.pt
+2026-04-26 09:42:36,734 [INFO] update=30 avg_reward=1.6263 steps=491520 epoch=2.46
+2026-04-26 09:44:07,586 [INFO] update=40 avg_reward=1.6205 steps=655360 epoch=3.28
+2026-04-26 09:45:16,647 [INFO] update=50 avg_reward=1.6104 steps=819200 epoch=4.10
+2026-04-26 09:45:16,682 [INFO] Saved periodic local checkpoint to /home/codesmith28/Projects/ACC/BTEP/agentic_scheduler/results/checkpoints/ppo_offline_u000050_s000050.pt
+2026-04-26 09:46:35,031 [INFO] update=60 avg_reward=1.5921 steps=983040 epoch=4.92
+2026-04-26 09:47:51,694 [INFO] update=70 avg_reward=1.5734 steps=1146880 epoch=5.75
+2026-04-26 09:48:26,701 [INFO] Saved periodic local checkpoint to /home/codesmith28/Projects/ACC/BTEP/agentic_scheduler/results/checkpoints/ppo_offline_u000075_s000075.pt
+2026-04-26 09:49:32,307 [INFO] update=80 avg_reward=1.5632 steps=1310720 epoch=6.57
+2026-04-26 09:51:17,373 [INFO] update=90 avg_reward=1.5791 steps=1474560 epoch=7.39
+2026-04-26 09:52:27,734 [INFO] update=100 avg_reward=1.5713 steps=1638400 epoch=8.21
+2026-04-26 09:52:27,742 [INFO] Saved periodic local checkpoint to /home/codesmith28/Projects/ACC/BTEP/agentic_scheduler/results/checkpoints/ppo_offline_u000100_s000100.pt
+2026-04-26 09:53:38,137 [INFO] update=110 avg_reward=1.5347 steps=1802240 epoch=9.03
+2026-04-26 09:55:02,196 [INFO] update=120 avg_reward=1.5841 steps=1966080 epoch=9.85
+2026-04-26 09:55:37,484 [INFO] Saved periodic local checkpoint to /home/codesmith28/Projects/ACC/BTEP/agentic_scheduler/results/checkpoints/ppo_offline_u000125_s000125.pt
+2026-04-26 09:56:19,960 [INFO] update=130 avg_reward=1.5602 steps=2129920 epoch=10.67
+2026-04-26 09:58:01,053 [INFO] update=140 avg_reward=1.5657 steps=2293760 epoch=11.49
+2026-04-26 09:59:59,083 [INFO] update=150 avg_reward=1.5615 steps=2457600 epoch=12.31
+2026-04-26 09:59:59,096 [INFO] Saved periodic local checkpoint to /home/codesmith28/Projects/ACC/BTEP/agentic_scheduler/results/checkpoints/ppo_offline_u000150_s000150.pt
+2026-04-26 09:59:59,101 [INFO] Saved trained checkpoint to /home/codesmith28/Projects/ACC/BTEP/agentic_scheduler/results/ppo_trained_final.pt

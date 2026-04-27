@@ -576,3 +576,8 @@ func (ts *TelemetryServer) RegisterAuthHandlers(handler *AuthHandler) {
 	// Protected endpoint (requires auth)
 	ts.mux.HandleFunc("/api/auth/me", handler.AuthMiddleware(handler.HandleMe))
 }
+
+// RegisterSchedulerHandler registers the scheduler switch endpoint.
+func (ts *TelemetryServer) RegisterSchedulerHandler(handler *SchedulerSwitchHandler) {
+	ts.mux.HandleFunc("/api/config/scheduler", handler.HandleScheduler)
+}

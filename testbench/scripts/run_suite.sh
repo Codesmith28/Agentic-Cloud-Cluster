@@ -60,7 +60,7 @@ default_worker_specs_for_compose() {
   local lowered
   lowered="$(echo "${COMPOSE_FILE}" | tr '[:upper:]' '[:lower:]')"
   if [[ "${lowered}" == *"host-master"* ]]; then
-    echo "worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054"
+    echo "worker-small=localhost:55052,worker-medium=localhost:55053,worker-large=localhost:55054"
     return 0
   fi
   return 1

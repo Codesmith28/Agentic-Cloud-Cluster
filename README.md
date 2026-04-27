@@ -254,8 +254,8 @@ make campaign-full         # Run full campaign (all workloads + all scenarios)
 ```
 
 The campaign exercises:
-- **Schedulers**: RR, RTS, PPO-pretrained, PPO-adapted, and recovery-enhanced variants (RR+recovery, RTS+recovery, PPO+recovery)
-- **Scenarios**: baseline, burst, overload, failure-stressed (with injected worker failures and DinD disruptions)
+- **Schedulers**: RR (Round-Robin), RTS (Risk-aware Task Scheduling), PPO (offline-trained + online learning)
+- **Scenarios**: baseline, burst, overload
 - **Observability**: Exports Prometheus metrics, task telemetry, and scheduler diagnostics to `results/campaign/`
 
 See [`docs/TESTBENCH_RUNBOOK.md`](docs/TESTBENCH_RUNBOOK.md) for campaign command-line options.
@@ -267,8 +267,6 @@ CloudAI tracks logical tasks separately from physical execution attempts, enabli
 - every worker assignment carries `attempt_id` and `attempt_no`
 - if a worker stops heartbeating, the active attempt is marked lost and the logical task is requeued automatically
 - late results from older attempts are recorded for audit but cannot overwrite the current task outcome
-
-Recovery-aware schedulers (RR+recovery, RTS+recovery, PPO+recovery) are available in the campaign framework. These variants apply task prioritization and failure-injection strategies during recovery scenarios.
 
 Inspection endpoints:
 

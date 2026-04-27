@@ -1,0 +1,22 @@
+{
+  "suite": "final-evaluation",
+  "description": "Heavy final evaluation for academic report. Tests all schedulers against stress-heavy workload across baseline, burst, and overload (3x) scenarios. 50 tasks per scenario × 3 scenarios × 3 schedulers = 450 scheduling decisions.",
+  "runner": "campaign",
+  "scenarios": [
+    "baseline",
+    "burst",
+    "overload"
+  ],
+  "workloads": [
+    "stress-heavy"
+  ],
+  "schedulers": [
+    "RR",
+    "RTS",
+    "PPO"
+  ],
+  "assertions": [
+    "campaign-report-generated",
+    "scheduler-comparison-available"
+  ]
+}

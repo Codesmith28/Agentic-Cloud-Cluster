@@ -63,7 +63,7 @@ User → (CLI / TUI / Web UI / REST API) → Master Node → Scheduler → Worke
 |-----------|----------|---------|---------|
 | **Master** | Go | gRPC `:50051`, HTTP `:8080` | Control plane, scheduling, API |
 | **Worker** | Go | gRPC `:50052`, Metrics `:9101` | Task execution, telemetry |
-| **PPO Scheduler** | Python | gRPC `:50061` | ML-based worker selection |
+| **PPO Scheduler** | Python | gRPC `:50050` | ML-based worker selection |
 | **Web UI** | React/Vite | `:3001` (dev) | Dashboard, task/worker management |
 | **MongoDB** | — | `:27017` | Persistence for tasks, workers, models |
 | **Prometheus** | — | `:9090` | Metrics collection |
@@ -180,7 +180,7 @@ cd ui && npm install && npm run dev
 # 9. (Optional) Start the PPO Scheduler
 cd agentic_scheduler
 pip install -r ../requirements.txt
-python -m agentic_scheduler --port 50061
+python -m agentic_scheduler --port 50050
 ```
 
 ### Using the Makefile
@@ -298,7 +298,7 @@ This generates:
 #### PPO Scheduler
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PPO_GRPC_ADDR` | `127.0.0.1:50061` | PPO service gRPC address |
+| `PPO_GRPC_ADDR` | `127.0.0.1:50050` | PPO service gRPC address |
 | `PPO_REQUEST_TIMEOUT_MS` | `1500` | Request timeout (milliseconds) |
 | `PPO_AUTOSTART` | `true` | Auto-start the Python PPO service |
 | `PPO_MODEL_PATH` | `latest` | Model file path or `latest` for most recent |
@@ -449,14 +449,14 @@ Master:   stores worker in MongoDB, marks active
 
 ```bash
 cd agentic_scheduler
-python -m agentic_scheduler --port 50061
+python -m agentic_scheduler --port 50050
 ```
 
 ### Server CLI Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--port` | `50061` | gRPC listen port |
+| `--port` | `50050` | gRPC listen port |
 | `--host` | `127.0.0.1` | Bind address |
 | `--mongo-uri` | `mongodb://localhost:27017` | MongoDB connection |
 | `--mongo-db` | `cloudai` | Database name |
@@ -1388,7 +1388,7 @@ Error: image pull failed
 ```
 Error: PPO service unavailable
 ```
-- Check PPO server is running: `python -m agentic_scheduler --port 50061`
+- Check PPO server is running: `python -m agentic_scheduler --port 50050`
 - Verify `PPO_GRPC_ADDR` matches the running server
 - Check MongoDB is accessible for model loading
 - The system will fall back to RTS automatically

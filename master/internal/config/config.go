@@ -38,6 +38,12 @@ type Config struct {
 func LoadConfig() *Config {
 	loadDotEnv()
 
+	// Port allocation scheme:
+	//   50050  PPO scheduler gRPC  (colocated with master)
+	//   50051  Master gRPC
+	//   50052+ Worker gRPC         (auto-increment per host)
+	//   8080   Master HTTP API
+	//   9101+  Worker metrics
 	username := getEnv("MONGODB_USERNAME", "")
 	password := getEnv("MONGODB_PASSWORD", "")
 	host := getEnv("MONGODB_HOST", "localhost:27017")
@@ -46,7 +52,7 @@ func LoadConfig() *Config {
 	httpPort := getEnv("HTTP_PORT", ":8080") // Default HTTP port for telemetry API
 	gaParamsPath := getEnv("SCHED_GA_PARAMS_PATH", "config/ga_output.json")
 	schedulerAlgo := getEnv("SCHED_ALGO", "RTS")
-	ppoAddr := getEnv("PPO_GRPC_ADDR", "127.0.0.1:50061")
+	ppoAddr := getEnv("PPO_GRPC_ADDR", "127.0.0.1:50050")
 	ppoRequestTimeout := getEnvInt("PPO_REQUEST_TIMEOUT_MS", 1500)
 	ppoAutostart := getEnvBool("PPO_AUTOSTART", true)
 	ppoModelPath := getEnv("PPO_MODEL_PATH", "latest")

@@ -1,0 +1,71 @@
+2026/04/25 15:39:26 Loaded .env from ../.env
+2026/04/25 15:39:26 Warning: Cannot create /var/cloudai/files: mkdir /var/cloudai: permission denied
+2026/04/25 15:39:26 ✓ Using fallback file storage directory: /home/codesmith28/.cloudai/files
+2026/04/25 15:39:26 === System Information ===
+2026/04/25 15:39:26 Hostname: Tessa
+2026/04/25 15:39:26 IP Addresses: [10.225.184.232 172.17.0.1 172.18.0.1]
+2026/04/25 15:39:26 OS: linux
+2026/04/25 15:39:26 Architecture: amd64
+2026/04/25 15:39:26 CPU Cores: 20
+2026/04/25 15:39:26 Process ID: 40909
+2026/04/25 15:39:26 User ID: 1000
+2026/04/25 15:39:26 Group ID: 1000
+2026/04/25 15:39:26 Master Address: 10.225.184.232
+2026/04/25 15:39:26 Master Port: :50051
+2026/04/25 15:39:26 ==========================
+2026/04/25 15:39:26 Warning: MongoDB initialization failed: missing MongoDB credentials in environment
+2026/04/25 15:39:26 Continuing without database persistence...
+2026/04/25 15:39:26 ✓ FileStorageService initialized with access control
+2026/04/25 15:39:26 ✓ FileStorageService initialized (base: /home/codesmith28/.cloudai/files)
+2026/04/25 15:39:26 Telemetry manager started
+2026/04/25 15:39:26 ✓ Telemetry manager started
+2026/04/25 15:39:26 ✓ Tau store initialized with default values:
+2026/04/25 15:39:26   - memory-heavy: 20.0s
+2026/04/25 15:39:26   - mixed: 10.0s
+2026/04/25 15:39:26   - cpu-light: 5.0s
+2026/04/25 15:39:26   - cpu-heavy: 15.0s
+2026/04/25 15:39:26 ✓ SLA multiplier (k): 2.0
+2026/04/25 15:39:26 ✓ Round-Robin scheduler created
+2026/04/25 15:39:26 ✓ Telemetry source adapter created
+2026/04/25 15:39:26 ✓ RTS params store initialized (MongoDB: RTS_WEIGHTS)
+2026/04/25 15:39:26 ⚠️ RTS: failed to load GA params from MongoDB: find ga params document: (Unauthorized) Command find requires authentication
+2026/04/25 15:39:26 ✓ RTS Scheduler initialized with params from /home/codesmith28/Projects/ACC/BTEP/master/config/ga_output.json
+2026/04/25 15:39:26 ✓ RTS scheduler initialized (params: /home/codesmith28/Projects/ACC/BTEP/master/config/ga_output.json)
+2026/04/25 15:39:26   - Fallback: Round-Robin
+2026/04/25 15:39:26   - Parameter hot-reload: enabled (every 30s from local cache)
+2026/04/25 15:39:26 ✓ Selected scheduler: RTS
+2026/04/25 15:39:26 Scheduler set: RTS
+2026/04/25 15:39:26 ✓ Master server configured with RTS scheduler
+2026/04/25 15:39:26 Master info set: ID=master-1, Address=10.225.184.232:50051
+2026/04/25 15:39:26 ✓ HistoryDB initialized for AOD/GA training
+2026/04/25 15:39:26 ✓ Task queue processor started (checking every 5s)
+2026/04/25 15:39:26 ✓ Task queue processor started
+2026/04/25 15:39:26 ✓ Worker reconnection monitor started
+2026/04/25 15:39:26 🔄 Worker reconnection monitor started
+2026/04/25 15:39:26 ✓ AOD training ticker started (interval: 1m0s)
+2026/04/25 15:39:26   - Training method: Linear regression (Theta) + Direct computation (Affinity/Penalty)
+2026/04/25 15:39:26   - Training data window: 24 hours
+2026/04/25 15:39:26   - Output: /home/codesmith28/Projects/ACC/BTEP/master/config/ga_output.json
+2026/04/25 15:39:26   - Persistent store: MongoDB collection RTS_WEIGHTS
+2026/04/25 15:39:26   - RTS hot-reload: every 30s
+2026/04/25 15:39:26 ✓ File API handlers registered
+2026/04/25 15:39:26 ✓ HTTP API server started on port 8080
+2026/04/25 15:39:26   - Telemetry: GET /health, /telemetry, /workers
+2026/04/25 15:39:26   - WebSocket: WS /ws/telemetry, /ws/telemetry/{worker_id}
+2026/04/25 15:39:26   - Tasks: POST/GET/DELETE /api/tasks, GET /api/tasks/{id}
+2026/04/25 15:39:26   - Workers: GET /api/workers, /api/workers/{id}
+2026/04/25 15:39:26   - Files: GET /api/files, /api/files/{task_id}
+2026/04/25 15:39:26            GET /api/files/{task_id}/download/{file_path}
+2026/04/25 15:39:26            DELETE /api/files/{task_id}
+2026/04/25 15:39:26 Starting WebSocket telemetry server on :8080
+2026/04/25 15:39:26 WebSocket endpoints:
+2026/04/25 15:39:26   - ws://localhost:8080/ws/telemetry (all workers)
+2026/04/25 15:39:26   - ws://localhost:8080/ws/telemetry/{worker_id} (specific worker)
+2026/04/25 15:39:26 
+✓ Master node started successfully
+2026/04/25 15:39:26 ✓ Starting gRPC server on 10.225.184.232:50051 (advertise: 10.225.184.232:50051)
+═══════════════════════════════════════════════════════
+  CloudAI Master Node - Interactive CLI
+═══════════════════════════════════════════════════════
+Type 'help' for available commands
+Unknown command: 2. Type 'help' for available commands.

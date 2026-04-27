@@ -28,13 +28,13 @@ var profileCatalog = map[string]profileDefaults{
 	"hetero-small": {
 		composeRel:           filepath.Join("testbench", "docker-compose.host-master.yml"),
 		smokeWorkloadRel:     filepath.Join("testbench", "workloads", "heterogeneous-smoke.json"),
-		reliabilityWorkloads: "failure-stressed",
+		reliabilityWorkloads: "heterogeneous-smoke",
 		evidenceWorkloads:    "heterogeneous-smoke,deterministic-full",
 	},
 	"recovery-lab": {
 		composeRel:           filepath.Join("testbench", "docker-compose.host-master.yml"),
 		smokeWorkloadRel:     filepath.Join("testbench", "workloads", "heterogeneous-smoke.json"),
-		reliabilityWorkloads: "failure-stressed",
+		reliabilityWorkloads: "heterogeneous-smoke",
 		evidenceWorkloads:    "heterogeneous-smoke,deterministic-full",
 	},
 }

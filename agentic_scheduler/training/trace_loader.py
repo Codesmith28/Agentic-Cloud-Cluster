@@ -100,15 +100,20 @@ def _normalize_alibaba_cpu(plan_cpu: float) -> float:
 
 
 def _normalize_alibaba_memory(plan_mem: float) -> float:
-    """Convert Alibaba plan_mem to approximate GB.
+    """Keep Alibaba plan_mem in the trace's native normalised scale.
 
-    Most rows encode memory as a fraction of a nominal host memory budget.
-    If the value is already >1, treat it as an absolute request.
+    Both ``plan_mem`` (task requests) and ``mem_size`` (machine capacity) in
+    the Alibaba cluster-trace-v2018 are expressed in the **same** normalised
+    units where 100 equals the full capacity of a reference machine.  Typical
+    task values range from 0.01 to ~17; machine values are uniformly 100 in
+    the curated dataset.
+
+    A previous version mistakenly multiplied values ≤ 1.0 by 64, treating
+    them as fractions of 64 GB.  That mixed scales between tasks and machines
+    and caused workers to saturate after only a handful of placements.
     """
     if plan_mem <= 0:
         return 0.1
-    if plan_mem <= 1.0:
-        return max(plan_mem * 64.0, 0.1)
     return max(plan_mem, 0.1)
 
 
@@ -166,15 +171,22 @@ def load_alibaba_trace(
     machine_path = trace_dir / machine_csv
     if machine_path.exists():
         with open(machine_path, newline="", encoding="utf-8") as fh:
-            reader = csv.DictReader(fh)
+            machine_fields = ["machine_id", "time_stamp", "failure_domain_1", "failure_domain_2", "cpu_num", "mem_size", "status"]
+            reader = csv.DictReader(fh, fieldnames=machine_fields)
+            next(reader)  # Skip header row
+            seen_ids: set = set()
             for idx, row in enumerate(reader):
+                mid = row.get("machine_id", f"machine-{idx}")
+                if mid in seen_ids:
+                    continue
+                seen_ids.add(mid)
                 workers.append({
-                    "worker_id": row.get("machine_id", f"machine-{idx}"),
+                    "worker_id": mid,
                     "total_cpu": float(row.get("cpu_num", 64)),
                     "total_memory": float(row.get("mem_size", 128)),
                     "total_storage": float(row.get("disk_size", 1000)),
                 })
-        LOGGER.info("Loaded %d machines from %s", len(workers), machine_path)
+        LOGGER.info("Loaded %d unique machines from %s", len(workers), machine_path)
     else:
         LOGGER.warning("Machine file %s not found; using default cluster", machine_path)
         workers = _default_workers()
@@ -186,7 +198,9 @@ def load_alibaba_trace(
         raise FileNotFoundError(f"Task file not found: {task_path}")
 
     with open(task_path, newline="", encoding="utf-8") as fh:
-        reader = csv.DictReader(fh)
+        task_fields = ["task_name", "instance_num", "job_name", "task_type", "status", "start_time", "end_time", "plan_cpu", "plan_mem"]
+        reader = csv.DictReader(fh, fieldnames=task_fields)
+        next(reader)  # Skip header row
         for row in reader:
             start_time = _safe_float(row.get("start_time", "0"))
             end_time = _safe_float(row.get("end_time", "0"))

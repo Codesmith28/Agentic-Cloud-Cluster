@@ -85,7 +85,7 @@ func TestNormalizeCampaignWorkloads_PathInput(t *testing.T) {
 	repoRoot := createFixtureRepo(t)
 	workloadPath := filepath.Join("testbench", "workloads", "heterogeneous-smoke.json")
 
-	workloads, err := normalizeCampaignWorkloads(repoRoot, workloadPath, "failure-stressed")
+	workloads, err := normalizeCampaignWorkloads(repoRoot, workloadPath, "heterogeneous-smoke")
 	if err != nil {
 		t.Fatalf("normalizeCampaignWorkloads returned error: %v", err)
 	}

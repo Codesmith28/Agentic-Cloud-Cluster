@@ -6,7 +6,7 @@ services:
       - "127.0.0.1:27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-cloudai}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-testbench}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-cloudai-stress-test}
     volumes:
       - mongo-data:/data/db
     networks:
@@ -45,7 +45,7 @@ services:
         condition: service_started
     environment:
       GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:?Set GF_ADMIN_PASSWORD in .env}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:-password}
       GF_USERS_ALLOW_SIGN_UP: "false"
     ports:
       - "3300:3000"
