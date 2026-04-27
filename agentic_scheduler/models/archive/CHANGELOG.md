@@ -1,5 +1,26 @@
 # Model Version History
 
+## v012 — 2026-04-27 22:20:45
+- **Source**: `ppo_trained_final.pt`
+- **SHA-256**: `79c69ca2948a3c83...`
+- **Size**: 234947 bytes
+
+
+
+## v011 — 2026-04-27 21:29:12
+- **Source**: `ppo_trained_final.pt`
+- **SHA-256**: `79c69ca2948a3c83...`
+- **Size**: 234947 bytes
+
+
+
+## v010 — 2026-04-27 18:52:07
+- **Source**: `ppo_trained_final.pt`
+- **SHA-256**: `79c69ca2948a3c83...`
+- **Size**: 234947 bytes
+
+
+
 ## v009 — 2026-04-27 17:31:41
 - **Source**: `ppo_trained_final.pt`
 - **SHA-256**: `79c69ca2948a3c83...`

@@ -833,24 +833,6 @@ def write_task_attempt_timeline(master_url: str, results: List[ScenarioResult], 
 # CLI
 # ---------------------------------------------------------------------------
 
-def reset_ppo_model() -> bool:
-    """Reset PPO model to frozen baseline for isolated workload testing."""
-    import shutil
-    frozen_model = "agentic_scheduler/results/checkpoints/ppo_offline_latest.pt"
-    active_model = "agentic_scheduler/models/ppo_latest.pt"
-    
-    try:
-        if not pathlib.Path(frozen_model).exists():
-            print(f"[model-reset] ERROR: Frozen model not found at {frozen_model}")
-            return False
-        
-        shutil.copy(frozen_model, active_model)
-        print(f"[model-reset] ✓ Model reset to frozen baseline")
-        return True
-    except Exception as e:
-        print(f"[model-reset] ERROR: Failed to reset model: {e}")
-        return False
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run CloudAI evidence benchmark campaign")
     parser.add_argument("--master-url", default="http://localhost:8080", help="Master API URL")
@@ -881,7 +863,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--isolated-workloads",
         action="store_true",
-        help="Run each workload in isolation with model reset between them (for online PPO specialization)",
+        help="Run workload-first ordering (external orchestrator should reset model/master between workloads)",
     )
     return parser.parse_args()
 
@@ -921,38 +903,53 @@ def main() -> int:
     print()
 
     results: List[ScenarioResult] = []
-    
-    # Track which workloads we've seen for isolated mode
-    seen_workloads = set()
 
-    for scenario_name in scenarios:
-        runner = SCENARIO_RUNNERS.get(scenario_name)
-        if runner is None:
-            print(f"Unknown scenario: {scenario_name}, skipping")
-            continue
+    if args.isolated_workloads:
+        # Workload-first ordering prevents cross-workload contamination when an
+        # external runner restarts master/model between workload batches.
+        for workload in workloads:
+            for scenario_name in scenarios:
+                runner = SCENARIO_RUNNERS.get(scenario_name)
+                if runner is None:
+                    print(f"Unknown scenario: {scenario_name}, skipping")
+                    continue
+                for scheduler in schedulers:
+                    label = f"{scenario_name}/{scheduler}/{workload}"
+                    print(f"[campaign] Running {label}...")
+                    result = runner(args.master_url, workload, scheduler, timeout_seconds=args.timeout)
+                    results.append(result)
+                    if result.error:
+                        print(f"[campaign]   ERROR: {result.error}")
+                    else:
+                        print(f"[campaign]   done: {result.tasks_completed}/{result.tasks_submitted} "
+                              f"({result.success_rate}%) in {result.duration_seconds}s "
+                              f"[wait={result.avg_wait_seconds}s turnaround={result.avg_turnaround_seconds}s]")
 
-        for scheduler in schedulers:
-            for workload in workloads:
-                # In isolated mode, reset model before first scenario of each workload
-                if args.isolated_workloads and scenario_name == scenarios[0] and workload not in seen_workloads:
-                    if not reset_ppo_model():
-                        print(f"[campaign] WARNING: Model reset failed for workload {workload}")
-                    seen_workloads.add(workload)
-                
-                label = f"{scenario_name}/{scheduler}/{workload}"
-                print(f"[campaign] Running {label}...")
-                result = runner(args.master_url, workload, scheduler, timeout_seconds=args.timeout)
-                results.append(result)
-                if result.error:
-                    print(f"[campaign]   ERROR: {result.error}")
-                else:
-                    print(f"[campaign]   done: {result.tasks_completed}/{result.tasks_submitted} "
-                          f"({result.success_rate}%) in {result.duration_seconds}s "
-                          f"[wait={result.avg_wait_seconds}s turnaround={result.avg_turnaround_seconds}s]")
+                    print(f"[campaign]   draining cluster before next run...")
+                    drain_cluster(args.master_url, timeout_seconds=120)
+    else:
+        for scenario_name in scenarios:
+            runner = SCENARIO_RUNNERS.get(scenario_name)
+            if runner is None:
+                print(f"Unknown scenario: {scenario_name}, skipping")
+                continue
 
-                # Drain cluster between runs to prevent cross-contamination
-                print(f"[campaign]   draining cluster before next run...")
-                drain_cluster(args.master_url, timeout_seconds=120)
+            for scheduler in schedulers:
+                for workload in workloads:
+                    label = f"{scenario_name}/{scheduler}/{workload}"
+                    print(f"[campaign] Running {label}...")
+                    result = runner(args.master_url, workload, scheduler, timeout_seconds=args.timeout)
+                    results.append(result)
+                    if result.error:
+                        print(f"[campaign]   ERROR: {result.error}")
+                    else:
+                        print(f"[campaign]   done: {result.tasks_completed}/{result.tasks_submitted} "
+                              f"({result.success_rate}%) in {result.duration_seconds}s "
+                              f"[wait={result.avg_wait_seconds}s turnaround={result.avg_turnaround_seconds}s]")
+
+                    # Drain cluster between runs to prevent cross-contamination
+                    print(f"[campaign]   draining cluster before next run...")
+                    drain_cluster(args.master_url, timeout_seconds=120)
 
     report = generate_report(results, started_at)
 
