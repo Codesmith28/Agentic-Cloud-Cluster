@@ -3,7 +3,7 @@ services:
     image: mongo:7.0
     restart: unless-stopped
     ports:
-      - "127.0.0.1:27017:27017"
+      - "127.0.0.1:27018:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-cloudai}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-cloudai-stress-test}
