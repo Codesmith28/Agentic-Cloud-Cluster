@@ -22,9 +22,10 @@ cd "${SCRIPT_DIR}"
 # ── Defaults ─────────────────────────────────────────────────────────────────
 MODEL_SRC="agentic_scheduler/results/ppo_trained_final.pt"
 MODEL_DST="agentic_scheduler/models/ppo_latest.pt"
-CAMPAIGN_MODE="smoke" # "smoke" or "full"
+CAMPAIGN_MODE="smoke" # "smoke", "full", "comprehensive", or "isolated"
 SKIP_BUILD=false
 TEARDOWN_ONLY=false
+ISOLATED_WORKLOADS=false
 MASTER_URL="http://localhost:8080"
 COMPOSE_FILE="testbench/docker-compose.host-master.yml"
 WORKER_SPECS="worker-small=localhost:55052,worker-medium=localhost:55053,worker-large=localhost:55054"
@@ -46,6 +47,11 @@ while [[ $# -gt 0 ]]; do
         CAMPAIGN_MODE="comprehensive"
         shift
         ;;
+    --isolated-workloads)
+        CAMPAIGN_MODE="isolated"
+        ISOLATED_WORKLOADS=true
+        shift
+        ;;
     --model)
         MODEL_SRC="$2"
         shift 2
@@ -64,6 +70,7 @@ while [[ $# -gt 0 ]]; do
         echo "Options:"
         echo "  --full            Run full campaign (all workloads + scenarios)"
         echo "  --comprehensive   Run comprehensive benchmark (multiple workloads, all scenarios)"
+        echo "  --isolated-workloads  Run each workload in isolation with model reset (online PPO specialization)"
         echo "  --model <path>    Path to .pt model checkpoint (default: $MODEL_SRC)"
         echo "  --skip-build      Skip building master/worker binaries"
         echo "  --teardown        Only tear down the Docker worker stack"
@@ -273,6 +280,11 @@ RESULTS_DIR="results/campaign-$(date +%Y%m%d-%H%M%S)"
 if [[ "${CAMPAIGN_MODE}" == "comprehensive" ]]; then
     CAMPAIGN_ARGS+=("--workloads" "heterogeneous-smoke,steady-cpu,bursty,memory-pressure")
     CAMPAIGN_ARGS+=("--timeout" "900")
+elif [[ "${CAMPAIGN_MODE}" == "isolated" ]]; then
+    CAMPAIGN_ARGS+=("--workloads" "heterogeneous-smoke,steady-cpu,bursty,memory-pressure")
+    CAMPAIGN_ARGS+=("--timeout" "900")
+    CAMPAIGN_ARGS+=("--isolated-workloads")
+    info "Isolated workload mode: resetting model between workloads"
 elif [[ "${CAMPAIGN_MODE}" == "full" ]]; then
     CAMPAIGN_ARGS+=("--workloads" "heterogeneous-smoke,steady-cpu,steady-mixed,memory-pressure,bursty,long-tail")
 else
