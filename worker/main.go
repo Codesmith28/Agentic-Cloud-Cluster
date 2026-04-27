@@ -23,6 +23,11 @@ import (
 )
 
 func main() {
+	// Docker HEALTHCHECK: exit 0 immediately when called with --healthcheck
+	if len(os.Args) > 1 && os.Args[1] == "--healthcheck" {
+		os.Exit(0)
+	}
+
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("  CloudAI Worker Node - Starting...")
 	log.Println("═══════════════════════════════════════════════════════")

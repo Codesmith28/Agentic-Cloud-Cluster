@@ -293,12 +293,6 @@ func (h *WorkerAPIHandler) HandleRegisterWorker(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// Check if workerDB is available
-	if h.workerDB == nil {
-		http.Error(w, "Worker registration is not available (database not connected)", http.StatusServiceUnavailable)
-		return
-	}
-
 	// Parse request body
 	var req struct {
 		WorkerID string `json:"worker_id"`

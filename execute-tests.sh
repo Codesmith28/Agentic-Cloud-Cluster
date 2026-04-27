@@ -108,7 +108,7 @@ trap cleanup EXIT
 # ── Teardown mode ────────────────────────────────────────────────────────────
 if [[ "${TEARDOWN_ONLY}" == "true" ]]; then
     separator "Tearing down testbench stack"
-    docker compose -f "${COMPOSE_FILE}" down --remove-orphans
+    docker compose -f "${COMPOSE_FILE}" down --volumes --remove-orphans
     TEARDOWN_DONE=true
     ok "Testbench stack stopped and removed."
     exit 0
