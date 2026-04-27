@@ -208,7 +208,7 @@ def resolve_scheduler_algorithm(scheduler_label: str) -> str:
     normalized = scheduler_label.strip().upper()
     if normalized.startswith("PPO"):
         return "PPO"
-    if normalized.startswith("RR"):
+    if normalized.startswith("RR") or normalized.startswith("ROUND"):
         return "RR"
     if normalized.startswith("RTS"):
         return "RTS"
