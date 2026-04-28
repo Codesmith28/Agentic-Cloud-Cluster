@@ -154,6 +154,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model-path", default=os.getenv("PPO_MODEL_PATH", "latest"))
     parser.add_argument("--learning-rate", type=float, default=float(os.getenv("PPO_LEARNING_RATE", "0.0003")))
     parser.add_argument("--update-batch-size", type=int, default=int(os.getenv("PPO_UPDATE_BATCH_SIZE", "32")))
+    parser.add_argument("--replay-batch", type=int, default=int(os.getenv("PPO_REPLAY_BATCH", "4096")))
     parser.add_argument(
         "--deterministic-bias",
         type=float,
@@ -183,6 +184,7 @@ def serve() -> None:
         model_path=args.model_path,
         learning_rate=args.learning_rate,
         update_batch_size=args.update_batch_size,
+        replay_batch=args.replay_batch,
         deterministic_bias=args.deterministic_bias,
         online_updates_enabled=args.online_updates,
         prefer_gpu=args.prefer_gpu,

@@ -1134,6 +1134,7 @@ func startPPOServiceIfNeeded(cfg *config.Config) (*exec.Cmd, error) {
 		"--mongo-db", cfg.MongoDBDatabase,
 		"--model-path", modelPath,
 		"--online-updates", fmt.Sprintf("%t", cfg.PPOOnlineUpdates),
+		"--replay-batch", fmt.Sprintf("%d", cfg.PPOReplayBatch),
 	)
 	cmd.Dir = projectRoot
 	cmd.Stdout = os.Stdout

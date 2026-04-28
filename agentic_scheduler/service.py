@@ -21,7 +21,6 @@ LOGGER = logging.getLogger(__name__)
 MODEL_PATH_SENTINELS = {"latest", "auto"}
 MODEL_FILE_EXTENSIONS = {".pt"}
 DEFAULT_MODEL_DIR = Path(__file__).resolve().parent / "models"
-_MAX_REPLAY_BUFFER = 4096
 _MAX_PENDING_DECISIONS = 8192
 
 
@@ -46,6 +45,7 @@ class PPOServiceCore:
         model_path: str,
         learning_rate: float = 3e-4,
         update_batch_size: int = 32,
+        replay_batch: int = 4096,
         online_updates_enabled: bool = True,
         prefer_gpu: bool = True,
         deterministic_bias: float = 0.25,
@@ -54,6 +54,7 @@ class PPOServiceCore:
     ):
         self.learning_rate = float(learning_rate)
         self.update_batch_size = max(int(update_batch_size), 4)
+        self.replay_batch = max(int(replay_batch), 1)
         self.online_updates_enabled = bool(online_updates_enabled)
         self.prefer_gpu = bool(prefer_gpu)
         self.deterministic_bias = max(float(deterministic_bias), 0.0)
@@ -321,8 +322,8 @@ class PPOServiceCore:
                 }
             )
 
-            if len(self.replay_buffer) > _MAX_REPLAY_BUFFER:
-                self.replay_buffer = self.replay_buffer[-_MAX_REPLAY_BUFFER:]
+            if len(self.replay_buffer) > self.replay_batch:
+                self.replay_buffer = self.replay_buffer[-self.replay_batch:]
 
             if len(self.replay_buffer) >= self.update_batch_size:
                 self._train_from_replay_locked()

@@ -32,6 +32,7 @@ type Config struct {
 	PPOModelPath        string
 	PPODeploymentMode   string // shadow / active / fallback
 	PPOOnlineUpdates    bool
+	PPOReplayBatch      int
 }
 
 // LoadConfig loads configuration from environment variables and .env file
@@ -58,6 +59,7 @@ func LoadConfig() *Config {
 	ppoModelPath := getEnv("PPO_MODEL_PATH", "latest")
 	ppoDeploymentMode := normalizePPODeploymentMode(getEnv("PPO_DEPLOYMENT_MODE", "active"))
 	ppoOnlineUpdates := getEnvBool("PPO_ONLINE_UPDATES_ENABLED", true)
+	ppoReplayBatch := getEnvInt("PPO_REPLAY_BATCH", 4096)
 	headless := getEnvBool("CLOUDAI_HEADLESS", false)
 	uiMode := strings.ToLower(strings.TrimSpace(getEnv("CLOUDAI_UI_MODE", "cli")))
 	if uiMode != "cli" && uiMode != "tui" {
@@ -105,6 +107,7 @@ func LoadConfig() *Config {
 		PPOModelPath:        ppoModelPath,
 		PPODeploymentMode:   ppoDeploymentMode,
 		PPOOnlineUpdates:    ppoOnlineUpdates,
+		PPOReplayBatch:      ppoReplayBatch,
 	}
 
 	return config

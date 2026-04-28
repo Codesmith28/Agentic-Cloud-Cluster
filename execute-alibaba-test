@@ -321,6 +321,7 @@ if [[ ! -f "${MASTER_BIN}" ]]; then
     exit 1
 fi
 
+export PPO_REPLAY_BATCH="${ONLINE_PPO_REPLAY_BATCH_SIZE}"
 "${MASTER_BIN}" > /tmp/master.log 2>&1 &
 MASTER_PID=$!
 sleep 3
