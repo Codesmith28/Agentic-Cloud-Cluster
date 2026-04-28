@@ -1,0 +1,10 @@
+{
+  "trace_dir": "agentic_scheduler/data/alibaba_v2018/alibaba_test",
+  "tasks_per_workload": 40,
+  "generated_workloads": [
+    "alibaba-test-cpu",
+    "alibaba-test-memory",
+    "alibaba-test-mixed",
+    "alibaba-test-bursty"
+  ]
+}

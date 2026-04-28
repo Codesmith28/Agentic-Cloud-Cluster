@@ -9,3 +9,5 @@ master/masterNode
 worker/workerNode
 agentic_scheduler/data
 *.tar.gz
+__pycache__/
+*.pyc

@@ -1,0 +1,25 @@
+{
+  "suite": "alibaba-test",
+  "description": "Alibaba-derived scheduler campaign generated from a large local test split.",
+  "runner": "campaign",
+  "scenarios": [
+    "baseline",
+    "burst",
+    "overload"
+  ],
+  "workloads": [
+    "alibaba-test-cpu",
+    "alibaba-test-memory",
+    "alibaba-test-mixed",
+    "alibaba-test-bursty"
+  ],
+  "schedulers": [
+    "RR",
+    "RTS",
+    "PPO"
+  ],
+  "assertions": [
+    "campaign-report-generated",
+    "scheduler-comparison-available"
+  ]
+}

@@ -22,13 +22,19 @@ cd "${SCRIPT_DIR}"
 # ── Defaults ─────────────────────────────────────────────────────────────────
 MODEL_SRC="agentic_scheduler/results/ppo_trained_final.pt"
 MODEL_DST="agentic_scheduler/models/ppo_latest.pt"
-CAMPAIGN_MODE="smoke"       # "smoke" or "full"
+CAMPAIGN_MODE="smoke" # "smoke", "full", "comprehensive", "isolated", or "alibaba-test"
 SKIP_BUILD=false
 TEARDOWN_ONLY=false
 MASTER_URL="http://localhost:8080"
 COMPOSE_FILE="testbench/docker-compose.host-master.yml"
 WORKER_SPECS="worker-small=localhost:55052,worker-medium=localhost:55053,worker-large=localhost:55054"
 MASTER_PID=""
+MASTER_BIN="master/masterNode"
+ALIBABA_TEST_SOURCE_DIR="${ALIBABA_TEST_SOURCE_DIR:-agentic_scheduler/data/alibaba_v2018/core}"
+ALIBABA_TEST_TRACE_DIR="${ALIBABA_TEST_TRACE_DIR:-agentic_scheduler/data/alibaba_v2018/alibaba_test}"
+ALIBABA_TEST_TASKS="${ALIBABA_TEST_TASKS:-300000}"
+ALIBABA_TEST_START_ROW="${ALIBABA_TEST_START_ROW:-0}"
+ALIBABA_TEST_TASKS_PER_WORKLOAD="${ALIBABA_TEST_TASKS_PER_WORKLOAD:-40}"
 
 # Ensure GF_ADMIN_PASSWORD is always set (required by docker-compose, even for teardown)
 export GF_ADMIN_PASSWORD="${GF_ADMIN_PASSWORD:-password}"
@@ -38,42 +44,68 @@ export MONGO_USERNAME="${MONGO_USERNAME:-cloudai}"
 # ── Parse arguments ─────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --full)
-            CAMPAIGN_MODE="full"
-            shift
-            ;;
-        --comprehensive)
-            CAMPAIGN_MODE="comprehensive"
-            shift
-            ;;
-        --model)
-            MODEL_SRC="$2"
-            shift 2
-            ;;
-        --skip-build)
-            SKIP_BUILD=true
-            shift
-            ;;
-        --teardown)
-            TEARDOWN_ONLY=true
-            shift
-            ;;
-        --help|-h)
-            echo "Usage: $0 [OPTIONS]"
-            echo ""
-            echo "Options:"
-            echo "  --full            Run full campaign (all workloads + scenarios)"
-            echo "  --comprehensive   Run comprehensive benchmark (multiple workloads, all scenarios)"
-            echo "  --model <path>    Path to .pt model checkpoint (default: $MODEL_SRC)"
-            echo "  --skip-build      Skip building master/worker binaries"
-            echo "  --teardown        Only tear down the Docker worker stack"
-            echo "  -h, --help        Show this help"
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $1" >&2
-            exit 1
-            ;;
+    --full)
+        CAMPAIGN_MODE="full"
+        shift
+        ;;
+    --comprehensive)
+        CAMPAIGN_MODE="comprehensive"
+        shift
+        ;;
+    --isolated-workloads)
+        CAMPAIGN_MODE="isolated"
+        ISOLATED_WORKLOADS=true
+        shift
+        ;;
+    --alibaba-test)
+        CAMPAIGN_MODE="alibaba-test"
+        shift
+        ;;
+    --alibaba-test-tasks)
+        ALIBABA_TEST_TASKS="$2"
+        shift 2
+        ;;
+    --alibaba-test-start-row)
+        ALIBABA_TEST_START_ROW="$2"
+        shift 2
+        ;;
+    --alibaba-test-tasks-per-workload)
+        ALIBABA_TEST_TASKS_PER_WORKLOAD="$2"
+        shift 2
+        ;;
+    --model)
+        MODEL_SRC="$2"
+        shift 2
+        ;;
+    --skip-build)
+        SKIP_BUILD=true
+        shift
+        ;;
+    --teardown)
+        TEARDOWN_ONLY=true
+        shift
+        ;;
+    --help | -h)
+        echo "Usage: $0 [OPTIONS]"
+        echo ""
+        echo "Options:"
+        echo "  --full            Run full campaign (all workloads + scenarios)"
+        echo "  --comprehensive   Run comprehensive benchmark (multiple workloads, all scenarios)"
+        echo "  --isolated-workloads  Run each workload in isolation with model reset (online PPO specialization)"
+        echo "  --alibaba-test    Generate/use large Alibaba test split and run derived campaign"
+        echo "  --alibaba-test-tasks <N>   Number of tasks in Alibaba test split (default: ${ALIBABA_TEST_TASKS})"
+        echo "  --alibaba-test-start-row <N>  1-based start row for contiguous split (default: auto-tail)"
+        echo "  --alibaba-test-tasks-per-workload <N>  Tasks per generated workload (default: ${ALIBABA_TEST_TASKS_PER_WORKLOAD})"
+        echo "  --model <path>    Path to .pt model checkpoint (default: $MODEL_SRC)"
+        echo "  --skip-build      Skip building master/worker binaries"
+        echo "  --teardown        Only tear down the Docker worker stack"
+        echo "  -h, --help        Show this help"
+        exit 0
+        ;;
+    *)
+        echo "Unknown option: $1" >&2
+        exit 1
+        ;;
     esac
 done
 
@@ -242,6 +274,23 @@ RESULTS_DIR="results/campaign-$(date +%Y%m%d-%H%M%S)"
 if [[ "${CAMPAIGN_MODE}" == "comprehensive" ]]; then
     CAMPAIGN_ARGS+=("--workloads" "heterogeneous-smoke,steady-cpu,bursty,memory-pressure")
     CAMPAIGN_ARGS+=("--timeout" "900")
+elif [[ "${CAMPAIGN_MODE}" == "alibaba-test" ]]; then
+    separator "Preparing Alibaba test split and workloads"
+
+    "${VENV_PYTHON}" agentic_scheduler/scripts/create_alibaba_test_split.py \
+        --source-trace-dir "${ALIBABA_TEST_SOURCE_DIR}" \
+        --dest-trace-dir "${ALIBABA_TEST_TRACE_DIR}" \
+        --task-count "${ALIBABA_TEST_TASKS}" \
+        --start-row "${ALIBABA_TEST_START_ROW}" \
+        --force
+
+    "${VENV_PYTHON}" testbench/scripts/generate_alibaba_test_workloads.py \
+        --trace-dir "${ALIBABA_TEST_TRACE_DIR}" \
+        --output-dir testbench/workloads \
+        --tasks-per-workload "${ALIBABA_TEST_TASKS_PER_WORKLOAD}"
+
+    CAMPAIGN_ARGS+=("--workloads" "alibaba-test-cpu,alibaba-test-memory,alibaba-test-mixed,alibaba-test-bursty")
+    CAMPAIGN_ARGS+=("--timeout" "1200")
 elif [[ "${CAMPAIGN_MODE}" == "full" ]]; then
     CAMPAIGN_ARGS+=("--workloads" "heterogeneous-smoke,steady-cpu,steady-mixed,memory-pressure,bursty,long-tail")
 else

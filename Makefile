@@ -33,7 +33,7 @@
 	testbench-suite-evidence testbench-suite-full \
 	testbench-host-suite testbench-host-suite-smoke testbench-host-suite-reliability \
 	testbench-host-suite-ui-smoke testbench-host-suite-evidence testbench-host-suite-full \
-	campaign campaign-full campaign-final campaign-comprehensive \
+	campaign campaign-full campaign-final campaign-comprehensive campaign-alibaba-test \
 	model-promote model-promote-dry model-archive-list \
 	deploy benchmark
 
@@ -106,6 +106,7 @@ help:
 	@echo "  make campaign           Evidence benchmark (smoke workload)"
 	@echo "  make campaign-full      Full benchmark (all workloads + scenarios)"
 	@echo "  make campaign-final     HEAVY final evaluation (50 tasks × 3 × 3 schedulers)"
+	@echo "  make campaign-alibaba-test  Build large Alibaba test split + derived workloads"
 	@echo ""
 	@echo "Model Management:"
 	@echo "  make model-promote      Promote latest trained model (archives old)"
@@ -365,6 +366,10 @@ campaign-comprehensive:
 		--schedulers RR,RTS,PPO \
 		--workloads heterogeneous-smoke,steady-cpu,bursty,memory-pressure \
 		--timeout 900
+
+campaign-alibaba-test:
+	@echo "🧪 Running Alibaba-derived benchmark campaign..."
+	@./execute-tests.sh --alibaba-test
 
 # ===========================================================================
 # Model management

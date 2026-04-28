@@ -1,0 +1,646 @@
+{
+  "name": "alibaba-test-bursty",
+  "description": "Alibaba-derived bursty workload sampled from alibaba_test split.",
+  "tasks": [
+    {
+      "task_name": "alibaba-burst-001",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "7.0",
+        "--label",
+        "alibaba-burst-001"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-002",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "5.2",
+        "--label",
+        "alibaba-burst-002"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-003",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.3",
+        "--label",
+        "alibaba-burst-003"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-004",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "7.0",
+        "--label",
+        "alibaba-burst-004"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-005",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "6.9",
+        "--label",
+        "alibaba-burst-005"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 1.5
+    },
+    {
+      "task_name": "alibaba-burst-006",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.6",
+        "--label",
+        "alibaba-burst-006"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-007",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.1",
+        "--label",
+        "alibaba-burst-007"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-008",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "5.4",
+        "--label",
+        "alibaba-burst-008"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-009",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "5.5",
+        "--label",
+        "alibaba-burst-009"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 5.0
+    },
+    {
+      "task_name": "alibaba-burst-010",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.0",
+        "--label",
+        "alibaba-burst-010"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-011",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "5.6",
+        "--label",
+        "alibaba-burst-011"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-012",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.1",
+        "--label",
+        "alibaba-burst-012"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-013",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "6.2",
+        "--label",
+        "alibaba-burst-013"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 1.5
+    },
+    {
+      "task_name": "alibaba-burst-014",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.1",
+        "--label",
+        "alibaba-burst-014"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-015",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.1",
+        "--label",
+        "alibaba-burst-015"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-016",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "7.2",
+        "--label",
+        "alibaba-burst-016"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-017",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.4",
+        "--label",
+        "alibaba-burst-017"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 5.0
+    },
+    {
+      "task_name": "alibaba-burst-018",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "5.5",
+        "--label",
+        "alibaba-burst-018"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-019",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.3",
+        "--label",
+        "alibaba-burst-019"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-020",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.3",
+        "--label",
+        "alibaba-burst-020"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-021",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "7.9",
+        "--label",
+        "alibaba-burst-021"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 1.5
+    },
+    {
+      "task_name": "alibaba-burst-022",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.0",
+        "--label",
+        "alibaba-burst-022"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-023",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.1",
+        "--label",
+        "alibaba-burst-023"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-024",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "8.0",
+        "--label",
+        "alibaba-burst-024"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-025",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.4",
+        "--label",
+        "alibaba-burst-025"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 5.0
+    },
+    {
+      "task_name": "alibaba-burst-026",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "7.3",
+        "--label",
+        "alibaba-burst-026"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-027",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "5.2",
+        "--label",
+        "alibaba-burst-027"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-028",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "7.9",
+        "--label",
+        "alibaba-burst-028"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-029",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "5.4",
+        "--label",
+        "alibaba-burst-029"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 1.5
+    },
+    {
+      "task_name": "alibaba-burst-030",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "7.6",
+        "--label",
+        "alibaba-burst-030"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-031",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "7.8",
+        "--label",
+        "alibaba-burst-031"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-032",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "4.4",
+        "--label",
+        "alibaba-burst-032"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-033",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "5.2",
+        "--label",
+        "alibaba-burst-033"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 5.0
+    },
+    {
+      "task_name": "alibaba-burst-034",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "7.8",
+        "--label",
+        "alibaba-burst-034"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-035",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "6.4",
+        "--label",
+        "alibaba-burst-035"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-036",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "7.2",
+        "--label",
+        "alibaba-burst-036"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-037",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "7.3",
+        "--label",
+        "alibaba-burst-037"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 1.5
+    },
+    {
+      "task_name": "alibaba-burst-038",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "6.1",
+        "--label",
+        "alibaba-burst-038"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-039",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "7.1",
+        "--label",
+        "alibaba-burst-039"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    },
+    {
+      "task_name": "alibaba-burst-040",
+      "workflow_profile": "cpu-heavy",
+      "workflow_args": [
+        "--seconds",
+        "7.3",
+        "--label",
+        "alibaba-burst-040"
+      ],
+      "cpu_required": 1.2,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0,
+      "arrival_delay_sec": 0.0
+    }
+  ]
+}

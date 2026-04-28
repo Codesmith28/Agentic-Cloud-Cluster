@@ -260,6 +260,29 @@ The campaign exercises:
 
 See [`docs/TESTBENCH_RUNBOOK.md`](docs/TESTBENCH_RUNBOOK.md) for campaign command-line options.
 
+### Alibaba Test Benchmark (RR vs RTS vs PPO)
+
+Run a comprehensive benchmark comparing all 4 schedulers on Alibaba-derived workloads:
+
+```bash
+./execute-alibaba-test                          # Full benchmark (offline + online PPO)
+./execute-alibaba-test --offline                # Only offline PPO
+./execute-alibaba-test --online                 # Only online PPO
+./execute-alibaba-test --skip-training          # Use pre-trained models
+./execute-alibaba-test --tasks 500000           # Use larger test split
+```
+
+This script:
+- Generates a contiguous Alibaba test split from your local trace data
+- Creates 4 workload variants (CPU-heavy, memory-heavy, mixed, bursty)
+- Trains PPO models in both offline and online modes
+- Runs all 4 schedulers (RR, RTS, PPO offline, PPO online) on 3 scenarios each
+- Generates detailed comparison reports with success rates and performance metrics
+
+**Total: 48 benchmark runs** (4 schedulers × 4 workloads × 3 scenarios)
+
+See [`ALIBABA_TEST_BENCHMARK.md`](ALIBABA_TEST_BENCHMARK.md) for full documentation and examples.
+
 ## Recovery Semantics
 
 CloudAI tracks logical tasks separately from physical execution attempts, enabling automatic recovery when workers fail.
@@ -285,6 +308,7 @@ curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
 - **[testbench/README.md](testbench/README.md)** - Docker performance testbench
 - **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)** - Step-by-step testbench runbook
 - **[docs/EXAMPLE.md](docs/EXAMPLE.md)** - Usage examples
+- **[ALIBABA_TEST_BENCHMARK.md](ALIBABA_TEST_BENCHMARK.md)** - Alibaba scheduler benchmark guide
 
 ---
 

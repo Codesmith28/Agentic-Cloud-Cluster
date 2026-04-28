@@ -835,6 +835,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run CloudAI evidence benchmark campaign")
     parser.add_argument("--master-url", default="http://localhost:8080", help="Master API URL")
     parser.add_argument("--prometheus-url", default="http://localhost:9090", help="Prometheus API URL")
+    # Compatibility with run_suite.sh, which always forwards --compose-file.
+    parser.add_argument("--compose-file", default="", help=argparse.SUPPRESS)
     parser.add_argument(
         "--scenarios", default="baseline,burst,overload",
         help="Comma-separated scenarios: baseline,burst,overload,all",
