@@ -232,7 +232,13 @@ func main() {
 	rrScheduler := scheduler.NewRoundRobinScheduler()
 	log.Println("✓ Round-Robin scheduler created")
 
-	telemetrySource := scheduler.NewMasterTelemetrySource(telemetryMgr, workerDB)
+	// Pass a nil interface (not a typed-nil *WorkerDB) when DB is unavailable,
+	// so telemetry_source.go's nil check works correctly.
+	var workerDBIface scheduler.WorkerDBInterface
+	if workerDB != nil {
+		workerDBIface = workerDB
+	}
+	telemetrySource := scheduler.NewMasterTelemetrySource(telemetryMgr, workerDBIface)
 	log.Println("✓ Telemetry source adapter created")
 
 	// Initialize optional MongoDB store for RTS learned parameters.
@@ -274,6 +280,12 @@ func main() {
 			} else {
 				ppoServiceCmd = cmd
 				log.Printf("✓ PPO Python service auto-started (pid=%d)", cmd.Process.Pid)
+				// Wait for the Python process to finish importing and open the gRPC port
+				// before we attempt to dial. Cold Python+torch startup takes ~3-5s.
+				log.Printf("  Waiting for PPO service port to open...")
+				if waitErr := waitForTCPPort(cfg.PPOGRPCAddr, 15*time.Second); waitErr != nil {
+					log.Printf("⚠️  PPO service port did not open in time: %v", waitErr)
+				}
 			}
 		} else if cfg.PPOAutostart && ppoDeploymentMode == scheduler.PPOModeFallback {
 			log.Println("ℹ️  PPO autostart skipped in fallback deployment mode")
@@ -1075,6 +1087,20 @@ func isInteractiveTerminal() bool {
 		return false
 	}
 	return (info.Mode() & os.ModeCharDevice) != 0
+}
+
+// waitForTCPPort polls addr (host:port) until the port accepts connections or timeout.
+func waitForTCPPort(addr string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		conn, err := net.DialTimeout("tcp", addr, 500*time.Millisecond)
+		if err == nil {
+			conn.Close()
+			return nil
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	return fmt.Errorf("port %s not open after %s", addr, timeout)
 }
 
 func waitForPPOHealth(ppoScheduler *scheduler.PPOScheduler, timeout time.Duration) error {

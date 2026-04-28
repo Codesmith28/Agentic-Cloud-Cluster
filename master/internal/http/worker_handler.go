@@ -58,6 +58,46 @@ func (h *WorkerAPIHandler) HandleListWorkers(w http.ResponseWriter, r *http.Requ
 	// Create a map to merge database and telemetry data
 	workerMap := make(map[string]map[string]interface{})
 
+	// When no DB, seed from master server's in-memory worker state
+	if h.workerDB == nil {
+		for workerID, ws := range h.masterServer.GetWorkers() {
+			ip := ""
+			var totalCPU, totalMem, totalStorage float64
+			if ws.Info != nil {
+				ip = ws.Info.WorkerIp
+				totalCPU = ws.Info.TotalCpu
+				totalMem = ws.Info.TotalMemory
+				totalStorage = ws.Info.TotalStorage
+			}
+			workerMap[workerID] = map[string]interface{}{
+				"worker_id": workerID,
+				"address":   ip,
+				"worker_ip": ip,
+				"is_active": ws.IsActive,
+				"total_resources": map[string]interface{}{
+					"cpu":     totalCPU,
+					"memory":  totalMem,
+					"storage": totalStorage,
+				},
+				"allocated_resources": map[string]interface{}{
+					"cpu":     ws.AllocatedCPU,
+					"memory":  ws.AllocatedMemory,
+					"storage": ws.AllocatedStorage,
+				},
+				"available_resources": map[string]interface{}{
+					"cpu":     ws.AvailableCPU,
+					"memory":  ws.AvailableMemory,
+					"storage": ws.AvailableStorage,
+				},
+				"last_heartbeat":      ws.LastHeartbeat,
+				"cpu_usage":           ws.LatestCPU,
+				"memory_usage":        ws.LatestMemory,
+				"storage_usage":       ws.LatestStorage,
+				"running_tasks_count": ws.TaskCount,
+			}
+		}
+	}
+
 	// First, add all workers from database
 	for _, dbWorker := range dbWorkers {
 		// Check if worker is active based on last_heartbeat (active if heartbeat within last 30 seconds)
@@ -290,12 +330,6 @@ func (h *WorkerAPIHandler) HandleGetWorkerMetrics(w http.ResponseWriter, r *http
 func (h *WorkerAPIHandler) HandleRegisterWorker(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Check if workerDB is available
-	if h.workerDB == nil {
-		http.Error(w, "Worker registration is not available (database not connected)", http.StatusServiceUnavailable)
 		return
 	}
 

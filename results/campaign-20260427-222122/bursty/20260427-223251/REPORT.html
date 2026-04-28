@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CloudAI Campaign Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 24px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f5f5f5; }
+  </style>
+</head>
+<body>
+  <h1>CloudAI Evidence Benchmark Campaign Report</h1>
+  <p><strong>Started:</strong> 2026-04-27T16:59:15Z</p>
+  <p><strong>Finished:</strong> 2026-04-27T17:02:51Z</p>
+  <p><strong>Duration:</strong> 216.23s</p>
+  <p><strong>Scenarios executed:</strong> 9</p>
+
+  <h2>Scheduler Comparison</h2>
+  <table>
+    <thead>
+      <tr><th>Scheduler</th><th>Tasks</th><th>Completed</th><th>Failed</th><th>Success Rate</th><th>Avg Duration</th><th>Queue Wait</th><th>Turnaround</th><th>P95 Turnaround</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>RR</td><td>50</td><td>40</td><td>10</td><td>80.0%</td><td>20.92s</td><td>0.0s</td><td>0.0s</td><td>0.0s</td></tr><tr><td>RTS</td><td>50</td><td>40</td><td>10</td><td>80.0%</td><td>20.92s</td><td>0.0s</td><td>0.0s</td><td>0.0s</td></tr><tr><td>PPO</td><td>50</td><td>40</td><td>10</td><td>80.0%</td><td>20.93s</td><td>0.0s</td><td>0.0s</td><td>0.0s</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Scenario Details</h2>
+  <table>
+    <thead>
+      <tr><th>Scenario</th><th>Scheduler Label</th><th>Algorithm</th><th>Workload</th><th>Submitted</th><th>Completed</th><th>Failed</th><th>Success</th><th>Duration</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>baseline</td><td>RR</td><td>RR</td><td>bursty</td><td>10</td><td>8</td><td>2</td><td>80.0%</td><td>17.16s</td></tr><tr><td>baseline</td><td>RTS</td><td>RTS</td><td>bursty</td><td>10</td><td>8</td><td>2</td><td>80.0%</td><td>17.18s</td></tr><tr><td>baseline</td><td>PPO</td><td>PPO</td><td>bursty</td><td>10</td><td>8</td><td>2</td><td>80.0%</td><td>17.21s</td></tr><tr><td>burst</td><td>RR</td><td>RR</td><td>bursty</td><td>10</td><td>8</td><td>2</td><td>80.0%</td><td>12.2s</td></tr><tr><td>burst</td><td>RTS</td><td>RTS</td><td>bursty</td><td>10</td><td>8</td><td>2</td><td>80.0%</td><td>12.22s</td></tr><tr><td>burst</td><td>PPO</td><td>PPO</td><td>bursty</td><td>10</td><td>8</td><td>2</td><td>80.0%</td><td>9.21s</td></tr><tr><td>overload</td><td>RR</td><td>RR</td><td>bursty</td><td>30</td><td>24</td><td>6</td><td>80.0%</td><td>33.41s</td></tr><tr><td>overload</td><td>RTS</td><td>RTS</td><td>bursty</td><td>30</td><td>24</td><td>6</td><td>80.0%</td><td>33.37s</td></tr><tr><td>overload</td><td>PPO</td><td>PPO</td><td>bursty</td><td>30</td><td>24</td><td>6</td><td>80.0%</td><td>36.36s</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

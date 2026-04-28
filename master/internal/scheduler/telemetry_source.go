@@ -47,8 +47,25 @@ func (mts *MasterTelemetrySource) GetWorkerViews(ctx context.Context) ([]WorkerV
 	if mts.telemetryMgr == nil {
 		return nil, fmt.Errorf("telemetry manager is not available")
 	}
+
+	telemetryData := mts.telemetryMgr.GetAllWorkerTelemetry()
+
+	// No DB: build views from telemetry alone (capacity unknown, use load only)
 	if mts.workerDB == nil {
-		return nil, fmt.Errorf("worker database is not available")
+		var views []WorkerView
+		for id, tel := range telemetryData {
+			if !tel.IsActive {
+				continue
+			}
+			views = append(views, WorkerView{
+				ID:           id,
+				CPUAvail:     1.0 - tel.CpuUsage,
+				MemAvail:     1.0 - tel.MemoryUsage,
+				StorageAvail: 1.0 - tel.StorageUsage,
+				Load:         tel.CpuUsage,
+			})
+		}
+		return views, nil
 	}
 
 	// Get all workers from DB (for capacity information)
@@ -57,10 +74,8 @@ func (mts *MasterTelemetrySource) GetWorkerViews(ctx context.Context) ([]WorkerV
 		return nil, fmt.Errorf("failed to get workers from DB: %w", err)
 	}
 
-	// Get all telemetry data (for usage information)
-	telemetryData := mts.telemetryMgr.GetAllWorkerTelemetry()
-
-	// Build WorkerView for each active worker
+	// Build WorkerView for each active worker using DB capacity + live telemetry
+	dbTelemetryData := mts.telemetryMgr.GetAllWorkerTelemetry()
 	var views []WorkerView
 	for _, worker := range workers {
 		// Only include active workers
@@ -85,7 +100,7 @@ func (mts *MasterTelemetrySource) GetWorkerViews(ctx context.Context) ([]WorkerV
 		}
 
 		// Compute normalized load from telemetry data
-		load := mts.computeNormalizedLoad(worker.WorkerID, telemetryData, &worker)
+		load := mts.computeNormalizedLoad(worker.WorkerID, dbTelemetryData, &worker)
 
 		view := WorkerView{
 			ID:           worker.WorkerID,

@@ -172,7 +172,20 @@ func (h *TaskAPIHandler) HandleListTasks(w http.ResponseWriter, r *http.Request)
 	}
 
 	if h.taskDB == nil {
-		http.Error(w, "Database not available", http.StatusServiceUnavailable)
+		// No DB: return tasks from in-memory queue so drain/campaign logic works
+		queued := h.masterServer.GetQueuedTasks()
+		taskList := make([]map[string]interface{}, 0, len(queued))
+		for _, qt := range queued {
+			taskList = append(taskList, map[string]interface{}{
+				"task_id":   qt.Task.TaskId,
+				"task_type": qt.Task.TaskType,
+				"status":    "queued",
+				"queued_at": qt.QueuedAt.Format(time.RFC3339),
+				"attempts":  qt.Retries,
+			})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"tasks": taskList, "total": len(taskList)})
 		return
 	}
 

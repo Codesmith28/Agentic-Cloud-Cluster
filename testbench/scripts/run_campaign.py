@@ -87,10 +87,12 @@ def verify_scheduler(master_url: str, expected: str) -> bool:
     """Verify the active scheduler matches expectations."""
     try:
         resp = request_json("GET", f"{master_url}/api/config/scheduler", timeout=5.0)
-        current = resp.get("current", "").upper()
-        if current == expected.upper():
+        # GET returns {"algorithm": "Round-Robin"} — normalise to short code
+        raw = resp.get("algorithm", resp.get("current", ""))
+        current = resolve_scheduler_algorithm(raw)
+        if current == resolve_scheduler_algorithm(expected):
             return True
-        print(f"[campaign]   WARNING: scheduler mismatch: expected {expected}, got {current}")
+        print(f"[campaign]   WARNING: scheduler mismatch: expected {expected}, got {raw!r} (resolved: {current})")
         return False
     except Exception as e:
         print(f"[campaign]   WARNING: could not verify scheduler: {e}")
@@ -206,7 +208,7 @@ def resolve_scheduler_algorithm(scheduler_label: str) -> str:
     normalized = scheduler_label.strip().upper()
     if normalized.startswith("PPO"):
         return "PPO"
-    if normalized.startswith("RR"):
+    if normalized.startswith("RR") or normalized.startswith("ROUND"):
         return "RR"
     if normalized.startswith("RTS"):
         return "RTS"
@@ -858,6 +860,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip exporting Prometheus/master observability artifacts at campaign end",
     )
+    parser.add_argument(
+        "--isolated-workloads",
+        action="store_true",
+        help="Run workload-first ordering (external orchestrator should reset model/master between workloads)",
+    )
     return parser.parse_args()
 
 
@@ -897,28 +904,52 @@ def main() -> int:
 
     results: List[ScenarioResult] = []
 
-    for scenario_name in scenarios:
-        runner = SCENARIO_RUNNERS.get(scenario_name)
-        if runner is None:
-            print(f"Unknown scenario: {scenario_name}, skipping")
-            continue
+    if args.isolated_workloads:
+        # Workload-first ordering prevents cross-workload contamination when an
+        # external runner restarts master/model between workload batches.
+        for workload in workloads:
+            for scenario_name in scenarios:
+                runner = SCENARIO_RUNNERS.get(scenario_name)
+                if runner is None:
+                    print(f"Unknown scenario: {scenario_name}, skipping")
+                    continue
+                for scheduler in schedulers:
+                    label = f"{scenario_name}/{scheduler}/{workload}"
+                    print(f"[campaign] Running {label}...")
+                    result = runner(args.master_url, workload, scheduler, timeout_seconds=args.timeout)
+                    results.append(result)
+                    if result.error:
+                        print(f"[campaign]   ERROR: {result.error}")
+                    else:
+                        print(f"[campaign]   done: {result.tasks_completed}/{result.tasks_submitted} "
+                              f"({result.success_rate}%) in {result.duration_seconds}s "
+                              f"[wait={result.avg_wait_seconds}s turnaround={result.avg_turnaround_seconds}s]")
 
-        for scheduler in schedulers:
-            for workload in workloads:
-                label = f"{scenario_name}/{scheduler}/{workload}"
-                print(f"[campaign] Running {label}...")
-                result = runner(args.master_url, workload, scheduler, timeout_seconds=args.timeout)
-                results.append(result)
-                if result.error:
-                    print(f"[campaign]   ERROR: {result.error}")
-                else:
-                    print(f"[campaign]   done: {result.tasks_completed}/{result.tasks_submitted} "
-                          f"({result.success_rate}%) in {result.duration_seconds}s "
-                          f"[wait={result.avg_wait_seconds}s turnaround={result.avg_turnaround_seconds}s]")
+                    print(f"[campaign]   draining cluster before next run...")
+                    drain_cluster(args.master_url, timeout_seconds=120)
+    else:
+        for scenario_name in scenarios:
+            runner = SCENARIO_RUNNERS.get(scenario_name)
+            if runner is None:
+                print(f"Unknown scenario: {scenario_name}, skipping")
+                continue
 
-                # Drain cluster between runs to prevent cross-contamination
-                print(f"[campaign]   draining cluster before next run...")
-                drain_cluster(args.master_url, timeout_seconds=120)
+            for scheduler in schedulers:
+                for workload in workloads:
+                    label = f"{scenario_name}/{scheduler}/{workload}"
+                    print(f"[campaign] Running {label}...")
+                    result = runner(args.master_url, workload, scheduler, timeout_seconds=args.timeout)
+                    results.append(result)
+                    if result.error:
+                        print(f"[campaign]   ERROR: {result.error}")
+                    else:
+                        print(f"[campaign]   done: {result.tasks_completed}/{result.tasks_submitted} "
+                              f"({result.success_rate}%) in {result.duration_seconds}s "
+                              f"[wait={result.avg_wait_seconds}s turnaround={result.avg_turnaround_seconds}s]")
+
+                    # Drain cluster between runs to prevent cross-contamination
+                    print(f"[campaign]   draining cluster before next run...")
+                    drain_cluster(args.master_url, timeout_seconds=120)
 
     report = generate_report(results, started_at)
 
