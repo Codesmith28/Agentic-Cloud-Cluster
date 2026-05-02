@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"master/internal/config"
@@ -43,9 +42,7 @@ type WorkerDocument struct {
 func NewWorkerDB(ctx context.Context, cfg *config.Config) (*WorkerDB, error) {
 	loadDotEnv()
 
-	user := os.Getenv("MONGODB_USERNAME")
-	pass := os.Getenv("MONGODB_PASSWORD")
-	if user == "" || pass == "" {
+	if cfg.MongoDBUsername == "" || cfg.MongoDBPassword == "" {
 		return nil, errors.New("missing MongoDB credentials in environment")
 	}
 

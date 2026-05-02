@@ -149,6 +149,37 @@ def check_clean_slate(master_url: str) -> bool:
         return True
 
 
+def check_active_workers(master_url: str, min_active_workers: int = 1) -> bool:
+    """Verify active workers are available before campaign execution."""
+    try:
+        resp = request_json("GET", f"{master_url}/api/workers", timeout=10.0)
+    except Exception as exc:
+        print(f"ERROR: Failed to query workers from {master_url}/api/workers: {exc}")
+        print("  Ensure workers are running and registered before launching a campaign.")
+        print("  Suggested commands:")
+        print("    make testbench-host-up")
+        print("    make testbench-host-register")
+        return False
+
+    workers = resp.get("workers", [])
+    if not isinstance(workers, list):
+        workers = []
+    active_workers = [w for w in workers if isinstance(w, dict) and bool(w.get("is_active", False))]
+
+    if len(active_workers) < min_active_workers:
+        print(
+            "ERROR: Campaign requires active workers but none are available "
+            f"(registered={len(workers)}, active={len(active_workers)})."
+        )
+        print("  Start and register workers before running campaign:")
+        print("    make testbench-host-up")
+        print("    make testbench-host-register")
+        return False
+
+    print(f"[campaign] Preflight workers OK: registered={len(workers)}, active={len(active_workers)}")
+    return True
+
+
 def compute_run_metrics(master_url: str, task_ids: List[str], result: ScenarioResult) -> None:
     """Compute per-run queue wait and turnaround times from task timestamps."""
     wait_times: List[float] = []
@@ -879,6 +910,10 @@ def main() -> int:
         print(f"ERROR: Master API not reachable at {args.master_url}")
         print("  Make sure the master node is running before starting a campaign.")
         print("  Start it with: make run-master-ppo   (or: ./execute-tests.sh)")
+        return 1
+
+    # Pre-flight: verify worker capacity is available
+    if not check_active_workers(args.master_url):
         return 1
 
     # Pre-campaign: verify clean slate

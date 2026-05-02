@@ -34,6 +34,7 @@
 	testbench-host-suite testbench-host-suite-smoke testbench-host-suite-reliability \
 	testbench-host-suite-ui-smoke testbench-host-suite-evidence testbench-host-suite-full \
 	campaign campaign-full campaign-final campaign-comprehensive \
+	campaign-prereqs \
 	model-promote model-promote-dry model-archive-list \
 	deploy benchmark
 
@@ -102,7 +103,7 @@ help:
 	@echo "  make testbench-host-suite SUITE_NAME=smoke  Run suite (host-master)"
 	@echo "  make testbench-integration       Full integration + benchmark"
 	@echo ""
-	@echo "Campaigns (requires running master + workers):"
+	@echo "Campaigns (requires running master; workers auto-start/register in host-master mode):"
 	@echo "  make campaign           Evidence benchmark (smoke workload)"
 	@echo "  make campaign-full      Full benchmark (all workloads + scenarios)"
 	@echo "  make campaign-final     HEAVY final evaluation (50 tasks × 3 × 3 schedulers)"
@@ -345,20 +346,26 @@ testbench-host-suite-full:
 # Campaigns
 # ===========================================================================
 
-campaign:
+campaign-prereqs:
+	@echo "🔧 Ensuring host-master campaign prerequisites (workers + registration + images)..."
+	@$(MAKE) testbench-host-up
+	@$(MAKE) testbench-host-register
+	@$(MAKE) testbench-prepare-images
+
+campaign: campaign-prereqs
 	@$(PYTHON) testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke
 
-campaign-full:
+campaign-full: campaign-prereqs
 	@$(PYTHON) testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke,deterministic-full
 
-campaign-final:
+campaign-final: campaign-prereqs
 	@echo "🏋️ Running HEAVY final evaluation campaign (50 tasks × 3 scenarios × 3 schedulers = 450 decisions)..."
 	@$(PYTHON) testbench/scripts/run_campaign.py \
 		--scenarios baseline,burst,overload \
 		--schedulers RR,RTS,PPO \
 		--workloads stress-heavy
 
-campaign-comprehensive:
+campaign-comprehensive: campaign-prereqs
 	@echo "📊 Running COMPREHENSIVE benchmark (4 workloads × 3 scenarios × 3 schedulers)..."
 	@$(PYTHON) testbench/scripts/run_campaign.py \
 		--scenarios baseline,burst,overload \

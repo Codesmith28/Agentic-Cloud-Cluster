@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -219,13 +222,14 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set cookie
+	secureCookie := shouldUseSecureAuthCookie(r)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    tokenString,
 		Expires:  expirationTime,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   secureCookie,
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -251,13 +255,15 @@ func (h *AuthHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Clear cookie
+	secureCookie := shouldUseSecureAuthCookie(r)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    "",
 		Expires:  time.Unix(0, 0),
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   secureCookie,
+		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
 
@@ -329,4 +335,51 @@ func (h *AuthHandler) VerifyToken(tokenString string) (*Claims, error) {
 	}
 
 	return claims, nil
+}
+
+func shouldUseSecureAuthCookie(r *http.Request) bool {
+	if override := strings.TrimSpace(os.Getenv("AUTH_COOKIE_SECURE")); override != "" {
+		if secure, err := strconv.ParseBool(override); err == nil {
+			return secure
+		}
+		log.Printf("WARNING: invalid AUTH_COOKIE_SECURE value %q, falling back to auto mode", override)
+	}
+
+	if r == nil {
+		return true
+	}
+
+	if r.TLS != nil {
+		return true
+	}
+
+	forwardedProto := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Proto"), ",")[0])
+	if strings.EqualFold(forwardedProto, "https") {
+		return true
+	}
+
+	host := normalizeHost(r.Host)
+	if host == "localhost" {
+		return false
+	}
+
+	ip := net.ParseIP(host)
+	if ip != nil && ip.IsLoopback() {
+		return false
+	}
+
+	return true
+}
+
+func normalizeHost(host string) string {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return ""
+	}
+
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+		return strings.Trim(parsedHost, "[]")
+	}
+
+	return strings.Trim(host, "[]")
 }

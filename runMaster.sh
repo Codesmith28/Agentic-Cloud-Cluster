@@ -98,6 +98,27 @@ fi
 
 # ── Frontend ─────────────────────────────────────────────────────────────────
 echo "Starting UI (npm run dev) in background..."
+
+# Check if port is already in use
+if lsof -Pi :"$UI_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
+    EXISTING_PID=$(lsof -t -i :"$UI_PORT" 2>/dev/null | head -1)
+    echo "⚠️  Port $UI_PORT is already in use (PID: $EXISTING_PID)"
+    read -p "Kill existing process? (y/n): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        kill -9 "$EXISTING_PID" 2>/dev/null || true
+        sleep 1
+        echo "✓ Killed existing process"
+    else
+        echo "Using alternative port..."
+        UI_PORT=$((UI_PORT + 1))
+        while lsof -Pi :"$UI_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; do
+            UI_PORT=$((UI_PORT + 1))
+        done
+        echo "  Will use port $UI_PORT instead"
+    fi
+fi
+
 (
     cd ui || exit
     npm run dev -- --port "$UI_PORT" --strictPort

@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 COMPOSE_FILE="${COMPOSE_FILE:-${REPO_ROOT}/testbench/docker-compose.yml}"
+COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-${REPO_ROOT}/.env}"
 IMAGE_CONTEXT="${IMAGE_CONTEXT:-${REPO_ROOT}/testbench/workflow-image}"
 IMAGE_TAG="${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-30}"
@@ -11,6 +12,14 @@ SLEEP_SECONDS="${SLEEP_SECONDS:-2}"
 SKIP_BUILD="${SKIP_BUILD:-false}"
 
 IFS=',' read -r -a DIND_SERVICES <<< "${DIND_SERVICES:-worker-small-dind,worker-medium-dind,worker-large-dind}"
+
+docker_compose() {
+  local -a args=(-f "${COMPOSE_FILE}")
+  if [[ -f "${COMPOSE_ENV_FILE}" ]]; then
+    args+=(--env-file "${COMPOSE_ENV_FILE}")
+  fi
+  docker compose "${args[@]}" "$@"
+}
 
 wait_for_dind() {
   local container_id="$1"
@@ -32,7 +41,7 @@ ensure_running_container() {
   local service_name="$1"
   local container_id
 
-  container_id="$(docker compose -f "${COMPOSE_FILE}" ps -q "${service_name}")"
+  container_id="$(docker_compose ps -q "${service_name}")"
   if [[ -z "${container_id}" ]]; then
     echo "Service ${service_name} is not running. Start the testbench stack first." >&2
     return 1

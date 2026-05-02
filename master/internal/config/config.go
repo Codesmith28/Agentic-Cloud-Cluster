@@ -44,10 +44,10 @@ func LoadConfig() *Config {
 	//   50052+ Worker gRPC         (auto-increment per host)
 	//   8080   Master HTTP API
 	//   9101+  Worker metrics
-	username := getEnv("MONGODB_USERNAME", "")
-	password := getEnv("MONGODB_PASSWORD", "")
-	host := getEnv("MONGODB_HOST", "localhost:27017")
-	database := getEnv("MONGODB_DATABASE", "cluster_db")
+	username := getEnv("MONGODB_USERNAME", getEnv("MONGO_USER", ""))
+	password := getEnv("MONGODB_PASSWORD", getEnv("MONGO_PASSWORD", ""))
+	host := getEnv("MONGODB_HOST", getEnv("MONGO_HOST", "localhost:27017"))
+	database := getEnv("MONGODB_DATABASE", getEnv("MONGO_DATABASE", "cluster_db"))
 	port := getEnv("GRPC_PORT", ":50051")
 	httpPort := getEnv("HTTP_PORT", ":8080") // Default HTTP port for telemetry API
 	gaParamsPath := getEnv("SCHED_GA_PARAMS_PATH", "config/ga_output.json")

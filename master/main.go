@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -165,6 +166,9 @@ func main() {
 			userDB = nil
 		} else {
 			log.Println("✓ UserDB initialized")
+			if err := bootstrapDefaultWebUIAdmin(userDB); err != nil {
+				log.Printf("Warning: Failed to bootstrap Web UI admin user: %v", err)
+			}
 			defer userDB.Close(context.Background())
 		}
 
@@ -518,65 +522,73 @@ func main() {
 		}
 	}
 
+	shutdownOnce := &sync.Once{}
+	shutdownMaster := func(trigger string) {
+		shutdownOnce.Do(func() {
+			log.Printf("\n\nShutting down master node (%s)...", trigger)
+
+			// Stop queue processor
+			masterServer.StopQueueProcessor()
+
+			// Stop worker reconnection monitor
+			masterServer.StopWorkerReconnectionMonitor()
+
+			// Shutdown HTTP server
+			if httpTelemetryServer != nil {
+				httpTelemetryServer.Shutdown()
+			}
+
+			// Shutdown telemetry manager
+			telemetryMgr.Shutdown()
+
+			// Shutdown RTS scheduler
+			if rtsScheduler != nil {
+				log.Println("⏹️  Shutting down RTS scheduler...")
+				rtsScheduler.Shutdown()
+			}
+			if ppoScheduler != nil {
+				log.Println("⏹️  Shutting down PPO scheduler client...")
+				if err := ppoScheduler.Close(); err != nil {
+					log.Printf("Warning: failed to close PPO scheduler client: %v", err)
+				}
+			}
+			if ppoServiceCmd != nil {
+				stopExternalProcess(ppoServiceCmd, 5*time.Second)
+			}
+
+			// Shutdown gRPC server
+			grpcServer.GracefulStop()
+
+			// Close database
+			if workerDB != nil {
+				workerDB.Close(context.Background())
+			}
+			if taskDB != nil {
+				taskDB.Close(context.Background())
+			}
+			if assignmentDB != nil {
+				assignmentDB.Close(context.Background())
+			}
+			if resultDB != nil {
+				resultDB.Close(context.Background())
+			}
+			if historyDB != nil {
+				historyDB.Close(context.Background())
+			}
+
+			log.Println("✓ Master node shutdown complete")
+		})
+	}
+	defer shutdownMaster("normal exit")
+
 	// Setup graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// Handle shutdown in background
 	go func() {
-		<-sigChan
-		log.Println("\n\nShutting down master node...")
-
-		// Stop queue processor
-		masterServer.StopQueueProcessor()
-
-		// Stop worker reconnection monitor
-		masterServer.StopWorkerReconnectionMonitor()
-
-		// Shutdown HTTP server
-		if httpTelemetryServer != nil {
-			httpTelemetryServer.Shutdown()
-		}
-
-		// Shutdown telemetry manager
-		telemetryMgr.Shutdown()
-
-		// Shutdown RTS scheduler
-		if rtsScheduler != nil {
-			log.Println("⏹️  Shutting down RTS scheduler...")
-			rtsScheduler.Shutdown()
-		}
-		if ppoScheduler != nil {
-			log.Println("⏹️  Shutting down PPO scheduler client...")
-			if err := ppoScheduler.Close(); err != nil {
-				log.Printf("Warning: failed to close PPO scheduler client: %v", err)
-			}
-		}
-		if ppoServiceCmd != nil {
-			stopExternalProcess(ppoServiceCmd, 5*time.Second)
-		}
-
-		// Shutdown gRPC server
-		grpcServer.GracefulStop()
-
-		// Close database
-		if workerDB != nil {
-			workerDB.Close(context.Background())
-		}
-		if taskDB != nil {
-			taskDB.Close(context.Background())
-		}
-		if assignmentDB != nil {
-			assignmentDB.Close(context.Background())
-		}
-		if resultDB != nil {
-			resultDB.Close(context.Background())
-		}
-		if historyDB != nil {
-			historyDB.Close(context.Background())
-		}
-
-		log.Println("✓ Master node shutdown complete")
+		sig := <-sigChan
+		shutdownMaster(fmt.Sprintf("signal: %s", sig))
 		os.Exit(0)
 	}()
 
@@ -1133,6 +1145,11 @@ func waitForPPOHealth(ppoScheduler *scheduler.PPOScheduler, timeout time.Duratio
 }
 
 func startPPOServiceIfNeeded(cfg *config.Config) (*exec.Cmd, error) {
+	if isTCPAddressReachable(cfg.PPOGRPCAddr, 500*time.Millisecond) {
+		log.Printf("ℹ️  PPO service already reachable at %s, reusing existing process", cfg.PPOGRPCAddr)
+		return nil, nil
+	}
+
 	projectRoot := detectProjectRoot()
 	if projectRoot == "" {
 		return nil, fmt.Errorf("unable to locate project root for PPO autostart")
@@ -1182,6 +1199,18 @@ func startPPOServiceIfNeeded(cfg *config.Config) (*exec.Cmd, error) {
 		}
 	}()
 	return cmd, nil
+}
+
+func isTCPAddressReachable(addr string, timeout time.Duration) bool {
+	if strings.TrimSpace(addr) == "" {
+		return false
+	}
+	conn, err := net.DialTimeout("tcp", addr, timeout)
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
 }
 
 func stopExternalProcess(cmd *exec.Cmd, timeout time.Duration) {
