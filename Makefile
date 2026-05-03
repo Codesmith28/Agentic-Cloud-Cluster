@@ -108,6 +108,16 @@ help:
 	@echo "  make campaign-full      Full benchmark (all workloads + scenarios)"
 	@echo "  make campaign-final     HEAVY final evaluation (50 tasks × 3 × 3 schedulers)"
 	@echo ""
+	@echo "Cluster Reset:"
+	@echo "  make reset              Full clean-slate reset (stops all, wipes all volumes)"
+	@echo "  make reset-soft         Stop services only (keep data)"
+	@echo "  make reset-keep-dind    Reset but keep Docker-in-Docker layers (faster restart)"
+	@echo ""
+	@echo "PPO Testing (clean-slate, new model + resource-contention workload):"
+	@echo "  make test-ppo           Full PPO test (all scenarios)"
+	@echo "  make test-ppo-fast      Fast PPO test (baseline only, ~10 min)"
+	@echo "  make test-ppo-full      Comprehensive PPO test (all workloads)"
+	@echo ""
 	@echo "Model Management:"
 	@echo "  make model-promote      Promote latest trained model (archives old)"
 	@echo "  make model-promote-dry  Dry-run promotion preview"
@@ -403,3 +413,27 @@ deploy: build model-promote benchmark
 
 benchmark:
 	@./execute-tests.sh
+
+test-ppo:
+	@echo "🤖 Running clean-slate PPO benchmark (all scenarios, resource-contention workload)..."
+	@./run-ppo-test.sh
+
+test-ppo-fast:
+	@echo "🤖 Running fast PPO baseline benchmark (single scenario)..."
+	@./run-ppo-test.sh --fast
+
+test-ppo-full:
+	@echo "🤖 Running comprehensive PPO benchmark (all workloads)..."
+	@./run-ppo-test.sh --workloads resource-contention-ppo,heterogeneous-smoke,deterministic-full
+
+reset:
+	@echo "🧹 Full clean-slate cluster reset (all volumes wiped)..."
+	@./reset-cluster.sh --yes
+
+reset-soft:
+	@echo "🛑 Soft reset — stopping services, keeping data..."
+	@./reset-cluster.sh --soft --yes
+
+reset-keep-dind:
+	@echo "🧹 Cluster reset keeping Docker-in-Docker layers..."
+	@./reset-cluster.sh --keep-dind --yes

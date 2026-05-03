@@ -1,0 +1,13 @@
+metric,labels,value
+max_queue_depth,"{""instance"": ""host.docker.internal:8080"", ""job"": ""master""}",20
+task_dequeues,"{""outcome"": ""assigned""}",54.26190476190476
+task_terminals,"{""status"": ""completed"", ""task_type"": ""cpu-light""}",55.31707317073171
+worker_container_cpu_seconds,"{""task_type"": ""other""}",0
+worker_container_io_bytes,"{""task_type"": ""other""}",0
+worker_container_memory_peak_p95,"{""task_type"": ""other""}",15938355.2
+p95_scheduling_latency,"{""scheduler"": ""Round-Robin""}",0.02305
+p95_scheduling_latency,"{""scheduler"": ""RTS""}",0.0225625
+p95_scheduling_latency,"{""scheduler"": ""PPO""}",0.023607142857142858
+p95_queue_wait,"{""scheduler"": ""Round-Robin"", ""task_type"": ""cpu-light""}",10
+p95_queue_wait,"{""scheduler"": ""RTS"", ""task_type"": ""cpu-light""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""cpu-light""}",10

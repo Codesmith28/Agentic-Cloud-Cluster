@@ -1,0 +1,24 @@
+{
+  "suite": "ppo-advantage",
+  "description": "Resource-constrained scenario designed to demonstrate PPO's intelligent placement advantage. Tasks have heterogeneous requirements forcing bin-packing decisions where round-robin and risk-aware heuristics underperform.",
+  "runner": "campaign",
+  "scenarios": [
+    "baseline",
+    "burst",
+    "overload"
+  ],
+  "workloads": [
+    "resource-contention-ppo",
+    "heterogeneous-smoke"
+  ],
+  "schedulers": [
+    "RR",
+    "RTS",
+    "PPO"
+  ],
+  "assertions": [
+    "campaign-report-generated",
+    "prometheus-export-generated",
+    "scheduler-comparison-available"
+  ]
+}

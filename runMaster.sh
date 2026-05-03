@@ -96,10 +96,45 @@ if [[ "${ENABLE_PPO}" == "true" ]]; then
     echo ""
 fi
 
-# ── Frontend ─────────────────────────────────────────────────────────────────
-echo "Starting UI (npm run dev) in background..."
+# ── Cleanup trap (registered before any background processes) ─────────────────
+UI_PID=""
+UI_PGID=""
 
-# Check if port is already in use
+cleanup() {
+    echo ""
+    echo "Shutting down..."
+
+    # Kill the entire UI process group (deferred-launcher subshell + npm + vite)
+    if [[ -n "${UI_PGID:-}" && "${UI_PGID}" != "0" ]]; then
+        kill -- "-${UI_PGID}" 2>/dev/null || true
+    fi
+    [[ -n "${UI_PID:-}" ]] && kill "${UI_PID}" 2>/dev/null || true
+    [[ -n "${UI_PID:-}" ]] && wait "${UI_PID}" 2>/dev/null || true
+
+    # Force-kill any surviving vite/npm/node processes
+    SURVIVORS="$(pgrep -f "vite\|npm.*dev\|node.*vite" 2>/dev/null || true)"
+    [[ -n "$SURVIVORS" ]] && echo "$SURVIVORS" | xargs kill -9 2>/dev/null || true
+
+    # Free PPO and UI ports (master and gRPC ports belong to masterNode, which cleans up itself)
+    for _PORT in 50050 "${UI_PORT}"; do
+        _PID="$(lsof -ti :"${_PORT}" -sTCP:LISTEN 2>/dev/null || true)"
+        [[ -n "$_PID" ]] && kill -9 "$_PID" 2>/dev/null || true
+    done
+
+    echo "✓ Shutdown complete"
+}
+
+trap cleanup EXIT INT TERM
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+make master
+
+if [ ! -f "master/masterNode" ]; then
+    echo "Error: masterNode binary not found. Please run 'make master' first."
+    exit 1
+fi
+
+# ── UI port check (interactive — must happen before master takes over stdin) ───
 if lsof -Pi :"$UI_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
     EXISTING_PID=$(lsof -t -i :"$UI_PORT" 2>/dev/null | head -1)
     echo "⚠️  Port $UI_PORT is already in use (PID: $EXISTING_PID)"
@@ -108,7 +143,7 @@ if lsof -Pi :"$UI_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         kill -9 "$EXISTING_PID" 2>/dev/null || true
         sleep 1
-        echo "✓ Killed existing process"
+        echo "✓ Killed existing process on port $UI_PORT"
     else
         echo "Using alternative port..."
         UI_PORT=$((UI_PORT + 1))
@@ -119,45 +154,31 @@ if lsof -Pi :"$UI_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
     fi
 fi
 
+# ── Deferred Vite launcher — polls :8080, starts npm only once master is ready ─
+# This eliminates ECONNREFUSED proxy spam. Runs in background; master stays
+# foreground so it retains stdin for the interactive CLI.
+REPO_ROOT="$(pwd)"
 (
-    cd ui || exit
-    npm run dev -- --port "$UI_PORT" --strictPort
+    _W=0
+    while ! lsof -Pi :8080 -sTCP:LISTEN -t >/dev/null 2>&1; do
+        sleep 0.5
+        _W=$((_W + 1))
+        [[ $_W -ge 120 ]] && break  # 60 s hard timeout
+    done
+    cd "${REPO_ROOT}/ui" || exit 1
+    exec npm run dev -- --port "${UI_PORT}" --strictPort
 ) &
 UI_PID=$!
-echo "Frontend started on port $UI_PORT (PID: $UI_PID)"
-echo "Web UI URL: http://localhost:$UI_PORT"
+UI_PGID=$(ps -o pgid= -p "$UI_PID" 2>/dev/null | tr -d ' ') || UI_PGID=""
 
-# Function to safely cleanup UI
-cleanup() {
-    echo ""
-    echo "Shutting down UI server..."
-
-    # Kill ONLY the npm process we started
-    kill "$UI_PID" 2>/dev/null
-    wait "$UI_PID" 2>/dev/null
-
-    echo "✓ UI server stopped"
-
-    PIDS="$(pgrep -f "ui/.*(node|vite|npm)" 2>/dev/null || true)"
-    if [ -n "$PIDS" ]; then
-        echo "$PIDS" | xargs kill -9 2>/dev/null || true
-    fi
-
-    exit 0
-}
-
-# Trap EXIT, INT, TERM signals
-trap cleanup EXIT INT TERM
-
-# Build master node
-make master
-
+# ── Start master in foreground (owns stdin for interactive CLI) ───────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Starting Master Node..."
 echo "Master gRPC:  :50051"
 echo "Master HTTP:  :8080"
 echo "Scheduler:    ${SCHED_ALGO:-RTS}"
+echo "Web UI:       http://localhost:${UI_PORT} (starts once master is ready)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "To register workers from other machines:"
@@ -166,17 +187,6 @@ echo "    -H 'Content-Type: application/json' \\"
 echo "    -d '{\"worker_id\":\"worker-1\",\"worker_ip\":\"<worker-ip>:50052\"}'"
 echo ""
 
-# Change to master directory
 cd master
-
-# Check if binary exists
-if [ ! -f "masterNode" ]; then
-    echo "Error: masterNode binary not found. Please run 'make master' first."
-    exit 1
-fi
-
-# Start the master node
-echo "Launching master node (mode: $UI_MODE)..."
 ./masterNode --mode "$UI_MODE"
-
-# After master exits, cleanup will be called automatically
+# masterNode exiting (normally or via signal) triggers the EXIT trap → cleanup

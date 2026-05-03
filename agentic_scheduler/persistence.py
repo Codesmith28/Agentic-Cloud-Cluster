@@ -61,15 +61,17 @@ class MongoSchedulerModelStore:
     def _ensure_indexes(self) -> None:
         if self.collection is None:
             return
+        # Index names must match what the Go master creates on the same collection
+        # (master/internal/db/scheduler_models.go) to avoid IndexOptionsConflict.
         self.collection.create_index(
             [("scheduler_type", ASCENDING), ("fingerprint_hash", ASCENDING), ("version", DESCENDING)],
-            name="sched_model_lookup_idx",
+            name="scheduler_lookup_idx",
         )
         self.collection.create_index(
             [("scheduler_type", ASCENDING), ("fingerprint_hash", ASCENDING), ("active", ASCENDING)],
             unique=True,
             partialFilterExpression={"active": True},
-            name="sched_model_one_active_idx",
+            name="scheduler_active_unique_idx",
         )
         self.collection.create_index(
             [("scheduler_type", ASCENDING), ("fingerprint_hash", ASCENDING), ("created_at", DESCENDING)],

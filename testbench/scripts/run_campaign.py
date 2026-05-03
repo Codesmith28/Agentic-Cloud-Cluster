@@ -31,7 +31,7 @@ from shared_polling import poll_task_completion, request_json, TERMINAL_STATUSES
 # ---------------------------------------------------------------------------
 
 SCHEDULERS = ["RR", "RTS", "PPO"]
-WORKLOADS = ["heterogeneous-smoke", "steady-cpu", "steady-mixed", "memory-pressure", "bursty", "long-tail"]
+WORKLOADS = ["heterogeneous-smoke", "steady-cpu", "steady-mixed", "memory-pressure", "bursty", "long-tail", "resource-contention-ppo"]
 DEFAULT_WORKFLOW_IMAGE = "cloudai/workflow-deterministic:v1"
 
 
@@ -191,9 +191,22 @@ def compute_run_metrics(master_url: str, task_ids: List[str], result: ScenarioRe
         except Exception:
             continue
 
-        created = info.get("created_at", "")
-        assigned = info.get("assigned_at", "")
-        completed = info.get("completed_at", "")
+        created = info.get("created_at")
+        # assigned_at is nested inside the "assignment" sub-object
+        assignment_obj = info.get("assignment") or {}
+        assigned = assignment_obj.get("assigned_at")
+        # completed_at is nested inside the "result" sub-object (or falls back to attempts)
+        result_obj = info.get("result") or {}
+        completed = result_obj.get("completed_at")
+        if not completed:
+            # Fallback: use the latest completed_at from attempts
+            attempts = info.get("attempts") or []
+            completed_times = [
+                a.get("completed_at") for a in attempts
+                if isinstance(a, dict) and a.get("completed_at")
+            ]
+            if completed_times:
+                completed = max(completed_times)
 
         try:
             if created and assigned:
@@ -218,11 +231,21 @@ def compute_run_metrics(master_url: str, task_ids: List[str], result: ScenarioRe
         result.p95_turnaround_seconds = round(turnaround_times[min(p95_idx, len(turnaround_times) - 1)], 3)
 
 
-def _parse_ts(ts_str: str) -> float | None:
-    """Parse an ISO-8601 or RFC-3339 timestamp to Unix seconds."""
-    if not ts_str or ts_str == "0001-01-01T00:00:00Z":
+def _parse_ts(ts_val) -> float | None:
+    """Parse a Unix timestamp (int/float) or ISO-8601/RFC-3339 string to Unix seconds."""
+    if ts_val is None:
         return None
-    # Go's time.Time zero value
+    # Handle Unix integer/float timestamps (what the Go master API returns)
+    if isinstance(ts_val, (int, float)):
+        v = float(ts_val)
+        # Reject Go zero-value (0) and very old/invalid timestamps
+        if v <= 0:
+            return None
+        return v
+    ts_str = str(ts_val).strip()
+    if not ts_str or ts_str == "0001-01-01T00:00:00Z" or ts_str == "0":
+        return None
+    # ISO-8601 / RFC-3339 string fallback
     for fmt in ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S%z"):
         try:
             from datetime import datetime, timezone
@@ -334,7 +357,7 @@ def submit_tasks(master_url: str, tasks: List[Dict]) -> List[str]:
             "memory_required": task["memory_required"],
             "storage_required": task.get("storage_required", 1),
             "tag": task.get("tag", ""),
-            "k_value": task.get("k_value", 2.0),
+            "k_value": max(1.5, min(2.5, float(task.get("k_value", 2.0)))),
             "user_id": "campaign",
         }
         resp = request_json("POST", f"{master_url}/api/tasks", payload=payload, timeout=20.0)
