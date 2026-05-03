@@ -1,0 +1,78 @@
+% Give your report a title
+\newcommand\reporttitle{Agentic Cloud Cluster}
+
+% Insert course code, name, quartile number and year (or any other subtitle)
+\newcommand\reportsubtitle{
+BTech Engineering Project
+}
+
+% Date and location (default: current date and Eindhoven)
+\newcommand\placeanddate{
+Ahmedabad, \today
+}
+
+% Define Tue-red (color of the TU/e logo). Can be changed to drastically change the look of the template
+%\definecolor{Tue-red}{RGB}{199, 25, 24}
+
+% All of the following code can be removed to be left with (close to) default LaTeX behaviour. 
+
+% Sets up hyperlinks in the document to be colored
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor = blue
+    }
+\urlstyle{same} % Defines settings for link and reference formatting
+
+
+% Change bullet style for level 1, 2 and 3 respectively for itemize
+\renewcommand{\labelitemi}{\scriptsize\textcolor{black}{$\blacksquare$}}% level 1
+\renewcommand{\labelitemii}{\scriptsize\textcolor{black}{$\square$}}% level 2
+\renewcommand{\labelitemiii}{\textcolor{black}{$\circ$}}% level 3
+
+% \renewcommand{\labelitemi}{\small\textcolor{Tue-red}{\ding{70}}} % level 1
+% \renewcommand{\labelitemii}{\small\textcolor{Tue-red}{\ding{71}}}% level 2
+% \renewcommand{\labelitemiii}{\tiny\textcolor{Tue-red}{\ding{71}}}% level 3
+
+% Change bullet style for level 1, 2 and 3 respectively for enumerate
+\renewcommand{\labelenumi}{\textbf{\textcolor{black}{\arabic*.}}}% level 1
+\renewcommand{\labelenumii}{\textbf{\textcolor{black}{[\alph*]}}}% level 2
+\renewcommand{\labelenumiii}{\textbf{\textcolor{black}{\roman*.}}}% level 3
+
+% Have reference labels be linked to section (section 3 will have fig. 3.1 etc.)
+\counterwithin{equation}{section} % For equations
+\counterwithin{figure}{section} % For figures
+\counterwithin{table}{section} % For tables
+
+% Creates a beautiful header/footer
+\pagestyle{fancy}
+\setlength{\headheight}{25pt}
+\lhead{\includegraphics[height = 20pt]{Figures/General/logo_AU_transparent.png}}
+\rhead{\reporttitle}
+\renewcommand{\footrulewidth}{0.4pt}
+\cfoot{Page \thepage\ of \pageref*{LastPage}}
+%\cfoot{Page \thepage}
+
+% Formats section, subsection and subsubsection titles respectively 
+\titleformat{\section}{\rmfamily\color{black}\Large\bfseries}{\thesection\enskip\color{gray}\textbar\enskip}{0cm}{} % Formats section titles
+
+\titleformat{\subsection}{\rmfamily\color{black}\large\bfseries}{\thesubsection\enskip\color{gray}\textbar\enskip}{0cm}{} % Formats subsection titles
+
+\titleformat{\subsubsection}{\rmfamily\color{black}\bfseries}{\thesubsubsection\enskip\color{gray}\textbar\enskip}{0cm}{} % Formats subsubsection titles
+
+% Formats captions
+\DeclareCaptionFont{black}{\color{black}}
+\captionsetup{labelfont={black, bf}}
+
+ % Changes font to mlmodern
+\usepackage{mlmodern}
+
+% Removes indent when starting a new paragraph
+\setlength\parindent{0pt}
+
+% Limits the ToC to sections and subsections (no subsubsec.)
+\setcounter{tocdepth}{3}
+
+\graphicspath{{./}}
+\setlength{\parskip}{0.55em}

@@ -1,0 +1,17 @@
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1.1}{\ignorespaces Overall architecture of Agentic Cloud Cluster}}{7}{figure.caption.5}%
+\contentsline {figure}{\numberline {3.7.1}{\ignorespaces Task lifecycle in the cluster}}{11}{figure.caption.7}%
+\contentsline {figure}{\numberline {3.8.1}{\ignorespaces Task assignment and execution flow}}{12}{figure.caption.8}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {4.5.1}{\ignorespaces PPO scheduler architecture}}{16}{figure.caption.10}%
+\contentsline {figure}{\numberline {4.12.1}{\ignorespaces PPO scheduling flow inside the Go cluster}}{21}{figure.caption.14}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {5.2.1}{\ignorespaces PPO training reward curve}}{23}{figure.caption.16}%
+\contentsline {figure}{\numberline {5.2.2}{\ignorespaces PPO policy loss and entropy}}{24}{figure.caption.17}%
+\contentsline {figure}{\numberline {5.4.1}{\ignorespaces KPI comparison between schedulers}}{26}{figure.caption.19}%
+\contentsline {figure}{\numberline {5.5.1}{\ignorespaces Multi-run scheduler comparison}}{27}{figure.caption.20}%
+\contentsline {figure}{\numberline {5.6.1}{\ignorespaces Cumulative task completion over time}}{28}{figure.caption.21}%
+\addvspace {10\p@ }
+\contentsfinish 

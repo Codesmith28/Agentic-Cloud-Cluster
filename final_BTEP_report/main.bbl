@@ -1,0 +1,36 @@
+\begin{thebibliography}{1}
+
+\bibitem{sutton2018reinforcement}
+R.~S. Sutton and A.~G. Barto, {\em Reinforcement Learning: An Introduction}.
+\newblock MIT Press, 2~ed., 2018.
+
+\bibitem{dockerdocs}
+{Docker Inc.}, ``Docker documentation.'' \url{https://docs.docker.com/}, 2026.
+\newblock Accessed May 2026.
+
+\bibitem{godocs}
+{The Go Authors}, ``Documentation - the go programming language.'' \url{https://go.dev/doc/}, 2026.
+\newblock Accessed May 2026.
+
+\bibitem{grpcintro}
+{gRPC Authors}, ``Introduction to grpc.'' \url{https://grpc.io/docs/what-is-grpc/introduction/}, 2026.
+\newblock Accessed May 2026.
+
+\bibitem{mongodbdocs}
+{MongoDB}, ``Introduction to mongodb.'' \url{https://www.mongodb.com/docs/manual/introduction/}, 2026.
+\newblock Accessed May 2026.
+
+\bibitem{watkins1992qlearning}
+C.~J. C.~H. Watkins and P.~Dayan, ``Q-learning,'' {\em Machine Learning}, vol.~8, no.~3-4, pp.~279--292, 1992.
+
+\bibitem{mnih2013dqn}
+V.~Mnih, K.~Kavukcuoglu, D.~Silver, A.~Graves, I.~Antonoglou, D.~Wierstra, and M.~Riedmiller, ``Playing atari with deep reinforcement learning,'' {\em arXiv preprint arXiv:1312.5602}, 2013.
+
+\bibitem{schulman2017ppo}
+J.~Schulman, F.~Wolski, P.~Dhariwal, A.~Radford, and O.~Klimov, ``Proximal policy optimization algorithms,'' {\em arXiv preprint arXiv:1707.06347}, 2017.
+
+\bibitem{alibabatrace}
+{Alibaba}, ``Alibaba cluster data.'' \url{https://github.com/alibaba/clusterdata}, 2018.
+\newblock Cluster traces released for cluster management research.
+
+\end{thebibliography}

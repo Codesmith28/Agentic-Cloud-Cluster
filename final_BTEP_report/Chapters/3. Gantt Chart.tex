@@ -1,0 +1,30 @@
+\thispagestyle{plain}
+\begin{center}
+{\fontsize{14}{16}\selectfont \textbf{Gantt Chart}}
+\end{center}
+
+\vspace{0.5cm}
+
+\begin{table}[H]
+\centering
+\caption{Project timeline}
+\label{tab:gantt}
+\renewcommand{\arraystretch}{1.25}
+\newcommand{\done}{\cellcolor{blue!18}\textbf{X}}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{5.2cm}*{5}{>{\centering\arraybackslash}X}}
+\toprule
+\textbf{Activity} & \textbf{Jan} & \textbf{Feb} & \textbf{Mar} & \textbf{Apr} & \textbf{May} \\
+\midrule
+Problem study and literature review & \done & \done & & & \\
+Go master-worker framework & & \done & \done & & \\
+Worker execution, heartbeats, and persistence & & \done & \done & \done & \\
+Baseline schedulers and scheduler interface & & & \done & \done & \\
+PPO training pipeline and trace replay & & & \done & \done & \done \\
+PPO integration with Go control plane & & & & \done & \done \\
+Benchmark campaigns and result analysis & & & & \done & \done \\
+Report writing and final polishing & & & & & \done \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The timeline shows the actual flow of work. The first stage established the distributed cluster and the basic scheduling interface. The second stage focused on making the scheduler intelligent by adding PPO training and deployment. The last stage focused on evaluation, result interpretation, and documentation.

@@ -1,0 +1,56 @@
+\documentclass[12pt, a4paper, table]{report}
+\input{General/Preamble}
+\input{General/Settings}
+
+\begin{document}
+
+\input{Chapters/0. Frontpage}
+\newpage
+
+\pagenumbering{roman}
+\addcontentsline{toc}{section}{Declaration}
+\input{Chapters/1. Declaration}
+\newpage
+
+\addcontentsline{toc}{section}{Certificate}
+\input{Chapters/2. Certificate (Internal Mentor)}
+\newpage
+
+\addcontentsline{toc}{section}{Abstract}
+\input{Chapters/3. Abstract}
+\newpage
+
+\addcontentsline{toc}{section}{Table of Contents}
+{\hypersetup{linkcolor=black}
+\renewcommand*\contentsname{Table of Contents}
+\tableofcontents\thispagestyle{plain}}
+\newpage
+\listoffigures\thispagestyle{plain}
+\newpage
+\listoftables\thispagestyle{plain}
+\newpage
+
+\addcontentsline{toc}{chapter}{Gantt Chart}
+\input{Chapters/3. Gantt Chart}
+\newpage
+
+\pagenumbering{arabic}
+\input{Chapters/4. Introduction}
+\input{Chapters/5. Literature Survey}
+\input{Chapters/6. System Design}
+\input{Chapters/7. Methodology}
+\input{Chapters/8. Results}
+\input{Chapters/9. Conclusion}
+
+\addcontentsline{toc}{chapter}{Bibliography}
+\bibliographystyle{ieeetr}
+\bibliography{General/References.bib}
+\newpage
+
+\addcontentsline{toc}{chapter}{Appendix}
+\chapter*{Appendix}
+\appendix
+\input{Chapters/A. Appendix A}
+\newpage
+
+\end{document}

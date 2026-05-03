@@ -1,0 +1,69 @@
+\contentsline {section}{Declaration}{i}{Doc-Start}%
+\contentsline {section}{Certificate}{ii}{Doc-Start}%
+\contentsline {section}{Abstract}{iii}{Doc-Start}%
+\contentsline {section}{Table of Contents}{iv}{Doc-Start}%
+\contentsline {chapter}{List of Figures}{vii}{chapter*.2}%
+\contentsline {chapter}{List of Tables}{viii}{chapter*.3}%
+\contentsline {chapter}{Gantt Chart}{ix}{chapter*.3}%
+\contentsline {chapter}{\numberline {1}Introduction}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Project Definition}{1}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Motivation}{1}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Project Objectives}{2}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Scope}{2}{section.1.4}%
+\contentsline {section}{\numberline {1.5}Main Contributions}{2}{section.1.5}%
+\contentsline {chapter}{\numberline {2}Literature Survey}{4}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Distributed Task Scheduling}{4}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Go for Cluster Control Plane}{4}{section.2.2}%
+\contentsline {section}{\numberline {2.3}gRPC and Protocol Buffers}{4}{section.2.3}%
+\contentsline {section}{\numberline {2.4}Persistence Layer}{5}{section.2.4}%
+\contentsline {section}{\numberline {2.5}Reinforcement Learning}{5}{section.2.5}%
+\contentsline {section}{\numberline {2.6}Q-Learning and Q-Tables}{5}{section.2.6}%
+\contentsline {section}{\numberline {2.7}Deep Q-Networks}{5}{section.2.7}%
+\contentsline {section}{\numberline {2.8}Proximal Policy Optimization}{6}{section.2.8}%
+\contentsline {section}{\numberline {2.9}Cluster Traces}{6}{section.2.9}%
+\contentsline {chapter}{\numberline {3}System Design}{7}{chapter.3}%
+\contentsline {section}{\numberline {3.1}High-Level Architecture}{7}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Go Distributed Cluster Architecture}{8}{section.3.2}%
+\contentsline {section}{\numberline {3.3}Master Node}{8}{section.3.3}%
+\contentsline {section}{\numberline {3.4}Worker Node}{9}{section.3.4}%
+\contentsline {section}{\numberline {3.5}Control Flow in the Go Cluster}{9}{section.3.5}%
+\contentsline {section}{\numberline {3.6}Resource Accounting}{10}{section.3.6}%
+\contentsline {section}{\numberline {3.7}Task Lifecycle}{11}{section.3.7}%
+\contentsline {section}{\numberline {3.8}Task Execution Flow}{12}{section.3.8}%
+\contentsline {section}{\numberline {3.9}Scheduler Interface}{13}{section.3.9}%
+\contentsline {section}{\numberline {3.10}PPO Deployment Design}{13}{section.3.10}%
+\contentsline {chapter}{\numberline {4}Methodology}{14}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Why Reinforcement Learning for Scheduling}{14}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Starting Point: Q-Tables}{14}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Next Step: Deep Q-Networks}{15}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Final Choice: PPO}{15}{section.4.4}%
+\contentsline {section}{\numberline {4.5}PPO Architecture}{16}{section.4.5}%
+\contentsline {section}{\numberline {4.6}Actor and Critic Network}{16}{section.4.6}%
+\contentsline {section}{\numberline {4.7}State Representation}{17}{section.4.7}%
+\contentsline {section}{\numberline {4.8}Action Space and Masking}{18}{section.4.8}%
+\contentsline {section}{\numberline {4.9}Reward Function}{18}{section.4.9}%
+\contentsline {section}{\numberline {4.10}Training Data}{20}{section.4.10}%
+\contentsline {section}{\numberline {4.11}Training Pipeline}{20}{section.4.11}%
+\contentsline {section}{\numberline {4.12}Implementation in the Cluster}{21}{section.4.12}%
+\contentsline {chapter}{\numberline {5}Results}{22}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Evaluation Setup}{22}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Training Convergence}{23}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Offline PPO Model Results}{24}{section.5.3}%
+\contentsline {section}{\numberline {5.4}End-to-End KPI Comparison}{26}{section.5.4}%
+\contentsline {section}{\numberline {5.5}Multi-Run Comparison}{27}{section.5.5}%
+\contentsline {section}{\numberline {5.6}Cumulative Completion}{28}{section.5.6}%
+\contentsline {section}{\numberline {5.7}Latest Campaign Summary}{28}{section.5.7}%
+\contentsline {section}{\numberline {5.8}Pressure Scenarios}{29}{section.5.8}%
+\contentsline {section}{\numberline {5.9}Important Engineering Decisions and Results}{30}{section.5.9}%
+\contentsline {section}{\numberline {5.10}Project Outcomes}{30}{section.5.10}%
+\contentsline {section}{\numberline {5.11}My Contributions}{31}{section.5.11}%
+\contentsline {section}{\numberline {5.12}Learning Outcomes}{31}{section.5.12}%
+\contentsline {section}{\numberline {5.13}Real-World Applications}{31}{section.5.13}%
+\contentsline {chapter}{\numberline {6}Conclusion}{33}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Future Work}{33}{section.6.1}%
+\contentsline {chapter}{Bibliography}{33}{section.6.1}%
+\contentsline {chapter}{Appendix}{35}{chapter*.25}%
+\contentsline {section}{\numberline {.1}Repository Modules}{35}{section.Alph0.1}%
+\contentsline {section}{\numberline {.2}Representative PPO Configuration}{35}{section.Alph0.2}%
+\contentsline {section}{\numberline {.3}Ports and Service Mapping}{36}{section.Alph0.3}%
+\contentsfinish 
