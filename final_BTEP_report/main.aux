@@ -92,4 +92,146 @@
 \@writefile{lot}{\contentsline {table}{\numberline {3.1.2}{\ignorespaces PPO deployment modes}}{12}{table.caption.7}\protected@file@percent }
 \newlabel{tab:ppo_modes}{{3.1.2}{12}{PPO deployment modes}{table.caption.7}{}}
 \newlabel{tab:ppo_modes@cref}{{[table][2][3,1]3.1.2}{[1][12][]12}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {3.2}Why Reinforcement Learning for Scheduling}{13}{secti
+\@writefile{toc}{\contentsline {section}{\numberline {3.2}Why Reinforcement Learning for Scheduling}{13}{section.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.3}Starting Point: Q-Tables}{13}{section.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.4}Next Step: Deep Q-Networks}{13}{section.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.5}Final Choice: PPO}{14}{section.3.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.6}PPO Architecture}{15}{section.3.6}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.6.1}{\ignorespaces PPO scheduler architecture}}{15}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:ppo_architecture}{{3.6.1}{15}{PPO scheduler architecture}{figure.caption.8}{}}
+\newlabel{fig:ppo_architecture@cref}{{[figure][1][3,6]3.6.1}{[1][14][]15}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.7}Actor and Critic Network}{15}{section.3.7}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.7.1}{\ignorespaces Actor-critic data flow and PPO learning feedback loop}}{16}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:ppo_mermaid_flow}{{3.7.1}{16}{Actor-critic data flow and PPO learning feedback loop}{figure.caption.9}{}}
+\newlabel{fig:ppo_mermaid_flow@cref}{{[figure][1][3,7]3.7.1}{[1][16][]16}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.8}State Representation}{18}{section.3.8}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.8.1}{\ignorespaces Task feature vector}}{18}{table.caption.10}\protected@file@percent }
+\newlabel{tab:task_features}{{3.8.1}{18}{Task feature vector}{table.caption.10}{}}
+\newlabel{tab:task_features@cref}{{[table][1][3,8]3.8.1}{[1][18][]18}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.8.2}{\ignorespaces Worker feature vector}}{18}{table.caption.11}\protected@file@percent }
+\newlabel{tab:worker_features}{{3.8.2}{18}{Worker feature vector}{table.caption.11}{}}
+\newlabel{tab:worker_features@cref}{{[table][2][3,8]3.8.2}{[1][18][]18}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.9}Action Space and Masking}{19}{section.3.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.10}Reward Function}{19}{section.3.10}\protected@file@percent }
+\citation{alibabatrace}
+\@writefile{lot}{\contentsline {table}{\numberline {3.10.1}{\ignorespaces Reward term computation}}{20}{table.caption.12}\protected@file@percent }
+\newlabel{tab:reward_terms}{{3.10.1}{20}{Reward term computation}{table.caption.12}{}}
+\newlabel{tab:reward_terms@cref}{{[table][1][3,10]3.10.1}{[1][19][]20}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.11}Training Data}{20}{section.3.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.12}Training Pipeline}{21}{section.3.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.13}Implementation in the Cluster}{21}{section.3.13}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.13.1}{\ignorespaces PPO scheduling flow inside the Go cluster with failover and requeue}}{22}{figure.caption.13}\protected@file@percent }
+\newlabel{fig:ppo_cluster_flow}{{3.13.1}{22}{PPO scheduling flow inside the Go cluster with failover and requeue}{figure.caption.13}{}}
+\newlabel{fig:ppo_cluster_flow@cref}{{[figure][1][3,13]3.13.1}{[1][21][]22}{}{}{}}
+\@writefile{toc}{\contentsline {chapter}{\numberline {4}Results}{24}{chapter.4}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\newlabel{section:results}{{4}{24}{Results}{chapter.4}{}}
+\newlabel{section:results@cref}{{[chapter][4][]4}{[1][24][]24}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4.1}Project Outcomes}{24}{section.4.1}\protected@file@percent }
+\newlabel{section:proj_outcomes}{{4.1}{24}{Project Outcomes}{section.4.1}{}}
+\newlabel{section:proj_outcomes@cref}{{[section][1][4]4.1}{[1][24][]24}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1.1}Evaluation Setup}{24}{subsection.4.1.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4.1.1}{\ignorespaces Schedulers compared}}{24}{table.caption.14}\protected@file@percent }
+\newlabel{tab:schedulers}{{4.1.1}{24}{Schedulers compared}{table.caption.14}{}}
+\newlabel{tab:schedulers@cref}{{[table][1][4,1]4.1.1}{[1][24][]24}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1.2}Training Convergence}{25}{subsection.4.1.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.1.1}{\ignorespaces PPO training reward curve}}{25}{figure.caption.15}\protected@file@percent }
+\newlabel{fig:training_curve}{{4.1.1}{25}{PPO training reward curve}{figure.caption.15}{}}
+\newlabel{fig:training_curve@cref}{{[figure][1][4,1]4.1.1}{[1][24][]25}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.1.2}{\ignorespaces PPO policy loss and entropy}}{26}{figure.caption.16}\protected@file@percent }
+\newlabel{fig:loss_entropy}{{4.1.2}{26}{PPO policy loss and entropy}{figure.caption.16}{}}
+\newlabel{fig:loss_entropy@cref}{{[figure][2][4,1]4.1.2}{[1][25][]26}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4.2}Results of the Offline PPO Model}{27}{section.4.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4.2.1}{\ignorespaces Comparison of offline schedulers on trace replay}}{27}{table.caption.17}\protected@file@percent }
+\newlabel{tab:offline_results}{{4.2.1}{27}{Comparison of offline schedulers on trace replay}{table.caption.17}{}}
+\newlabel{tab:offline_results@cref}{{[table][1][4,2]4.2.1}{[1][27][]27}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2.1}End-to-End KPI Comparison}{28}{subsection.4.2.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.2.1}{\ignorespaces KPI comparison between schedulers.}}{28}{figure.caption.18}\protected@file@percent }
+\newlabel{fig:kpi_comparison}{{4.2.1}{28}{KPI comparison between schedulers}{figure.caption.18}{}}
+\newlabel{fig:kpi_comparison@cref}{{[figure][1][4,2]4.2.1}{[1][27][]28}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2.2}Multi-Run Comparison}{29}{subsection.4.2.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.2.2}{\ignorespaces Multi-run scheduler comparison}}{29}{figure.caption.19}\protected@file@percent }
+\newlabel{fig:multi_run}{{4.2.2}{29}{Multi-run scheduler comparison}{figure.caption.19}{}}
+\newlabel{fig:multi_run@cref}{{[figure][2][4,2]4.2.2}{[1][28][]29}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2.3}Cumulative Completion}{30}{subsection.4.2.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.2.3}{\ignorespaces Cumulative number of tasks completed over time.}}{30}{figure.caption.20}\protected@file@percent }
+\newlabel{fig:cumulative_completion}{{4.2.3}{30}{Cumulative number of tasks completed over time}{figure.caption.20}{}}
+\newlabel{fig:cumulative_completion@cref}{{[figure][3][4,2]4.2.3}{[1][29][]30}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2.4}WebUI Operational Visuals}{30}{subsection.4.2.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.2.4}{\ignorespaces WebUI dashboard screen whilst running the campaign.}}{31}{figure.caption.21}\protected@file@percent }
+\newlabel{fig:webui_dashboard}{{4.2.4}{31}{WebUI dashboard screen whilst running the campaign}{figure.caption.21}{}}
+\newlabel{fig:webui_dashboard@cref}{{[figure][4][4,2]4.2.4}{[1][30][]31}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.2.5}{\ignorespaces WebUI trend plot of scheduler performance monitoring.}}{32}{figure.caption.22}\protected@file@percent }
+\newlabel{fig:webui_plot}{{4.2.5}{32}{WebUI trend plot of scheduler performance monitoring}{figure.caption.22}{}}
+\newlabel{fig:webui_plot@cref}{{[figure][5][4,2]4.2.5}{[1][31][]32}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2.5}Latest Campaign Summary}{32}{subsection.4.2.5}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4.2.2}{\ignorespaces New-model campaign scheduler summary}}{33}{table.caption.23}\protected@file@percent }
+\newlabel{tab:latest_campaign}{{4.2.2}{33}{New-model campaign scheduler summary}{table.caption.23}{}}
+\newlabel{tab:latest_campaign@cref}{{[table][2][4,2]4.2.2}{[1][32][]33}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4.2.3}{\ignorespaces New PPO improvement over baselines}}{33}{table.caption.24}\protected@file@percent }
+\newlabel{tab:ppo_improvement}{{4.2.3}{33}{New PPO improvement over baselines}{table.caption.24}{}}
+\newlabel{tab:ppo_improvement@cref}{{[table][3][4,2]4.2.3}{[1][33][]33}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2.6}Pressure Scenarios}{33}{subsection.4.2.6}\protected@file@percent }
+\gdef \LT@i {\LT@entry 
+    {1}{125.81102pt}\LT@entry 
+    {1}{162.79968pt}\LT@entry 
+    {1}{162.79968pt}}
+\@writefile{lot}{\contentsline {table}{\numberline {4.2.4}{\ignorespaces Burst scenario interpretation}}{34}{table.caption.25}\protected@file@percent }
+\newlabel{tab:burst_interpretation}{{4.2.4}{34}{Burst scenario interpretation}{table.caption.25}{}}
+\newlabel{tab:burst_interpretation@cref}{{[table][4][4,2]4.2.4}{[1][33][]34}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2.7}Important Engineering Decisions and Results}{34}{subsection.4.2.7}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4.2.5}{\ignorespaces Key project decisions and outcomes}}{34}{table.4.2.5}\protected@file@percent }
+\newlabel{tab:decisions_results}{{4.2.5}{34}{Key project decisions and outcomes}{table.4.2.5}{}}
+\newlabel{tab:decisions_results@cref}{{[table][5][4,2]4.2.5}{[1][34][]34}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2.8}Delivered Components}{34}{subsection.4.2.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.3}My Contributions to the Project}{35}{section.4.3}\protected@file@percent }
+\newlabel{section:my_contribution}{{4.3}{35}{My Contributions to the Project}{section.4.3}{}}
+\newlabel{section:my_contribution@cref}{{[section][3][4]4.3}{[1][35][]35}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4.4}Learning Outcomes}{35}{section.4.4}\protected@file@percent }
+\newlabel{section:learnings}{{4.4}{35}{Learning Outcomes}{section.4.4}{}}
+\newlabel{section:learnings@cref}{{[section][4][4]4.4}{[1][35][]35}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4.5}Real World Applications}{35}{section.4.5}\protected@file@percent }
+\newlabel{section:real_world_app}{{4.5}{35}{Real World Applications}{section.4.5}{}}
+\newlabel{section:real_world_app@cref}{{[section][5][4]4.5}{[1][35][]35}{}{}{}}
+\@writefile{toc}{\contentsline {chapter}{\numberline {5}Conclusion}{37}{chapter.5}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\newlabel{section:conclusions}{{5}{37}{Conclusion}{chapter.5}{}}
+\newlabel{section:conclusions@cref}{{[chapter][5][]5}{[1][37][]37}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.1}Future Work}{37}{section.5.1}\protected@file@percent }
+\bibstyle{ieeetr}
+\bibdata{General/References.bib}
+\@writefile{toc}{\contentsline {chapter}{Bibliography}{38}{section.5.1}\protected@file@percent }
+\bibcite{sutton2018reinforcement}{1}
+\bibcite{watkins1992qlearning}{2}
+\bibcite{mnih2013dqn}{3}
+\bibcite{schulman2017ppo}{4}
+\bibcite{alibabatrace}{5}
+\bibcite{kubernetes2026}{6}
+\bibcite{volcano2025}{7}
+\bibcite{yunikorn2025}{8}
+\bibcite{moritz2018ray}{9}
+\bibcite{haarnoja2018sac}{10}
+\bibcite{dockerdocs}{11}
+\bibcite{Godocs}{12}
+\bibcite{grpcintro}{13}
+\bibcite{mongodbdocs}{14}
+\@writefile{toc}{\contentsline {chapter}{Appendix}{41}{chapter*.26}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {.1}Repository Modules}{41}{section.Alph0.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {.1.1}{\ignorespaces Main repository modules used in the project}}{41}{table.caption.28}\protected@file@percent }
+\newlabel{tab:repo_modules}{{.1.1}{41}{Main repository modules used in the project}{table.caption.28}{}}
+\newlabel{tab:repo_modules@cref}{{[table][1][0,1].1.1}{[1][41][]41}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {.2}Representative PPO Configuration}{41}{section.Alph0.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {.2.1}{\ignorespaces Representative PPO training configuration}}{41}{table.caption.29}\protected@file@percent }
+\newlabel{tab:ppo_config}{{.2.1}{41}{Representative PPO training configuration}{table.caption.29}{}}
+\newlabel{tab:ppo_config@cref}{{[table][1][0,2].2.1}{[1][41][]41}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {.3}Ports and Service Mapping}{42}{section.Alph0.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {.3.1}{\ignorespaces Ports used by the project}}{42}{table.caption.30}\protected@file@percent }
+\newlabel{tab:ports}{{.3.1}{42}{Ports used by the project}{table.caption.30}{}}
+\newlabel{tab:ports@cref}{{[table][1][0,3].3.1}{[1][41][]42}{}{}{}}
+\ttl@finishall
+\newlabel{LastPage}{{.3}{42}{Ports and Service Mapping}{page.42}{}}
+\gdef\lastpage@lastpage{42}
+\gdef\lastpage@lastpageHy{42}
+\gdef \@abspage@last{54}

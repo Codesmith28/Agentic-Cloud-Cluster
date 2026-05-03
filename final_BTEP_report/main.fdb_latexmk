@@ -1,15 +1,16 @@
 # Fdb version 4
-["bibtex main"] 1777830734.97883 "main.aux" "main.bbl" "main" 1777830742.14111 0
+["bibtex main"] 1777830734.97883 "main.aux" "main.bbl" "main" 1777830967.508 0
   "./General/References.bib" 1777812321.65282 4067 cd0f32426e0829e71c62d880bcaa1636 ""
   "/usr/local/texlive/2026/texmf-dist/bibtex/bst/base/ieeetr.bst" 1292289607 18361 1a00e58565e7f19bf2b3e1bfb82254ae ""
-  "main.aux" 1777830741.8817 21693 07fbfc26dfa84334f6472c2e9f66cfff "pdflatex"
+  "main.aux" 1777830967.26939 21693 07fbfc26dfa84334f6472c2e9f66cfff "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1777830735.07324 "main.tex" "main.pdf" "main" 1777830742.14132 0
+["pdflatex"] 1777830960.39486 "/Users/codesmith28/personal/Projects/acc/BTEP/final_BTEP_report/main.tex" "main.pdf" "main" 1777830967.50813 0
   "../diagrams/dashboard.png" 1777776675.95553 136008 ae72020ac6771f3c5f05335408edc92a ""
   "../diagrams/plot.jpg" 1777776714.07759 142886 c79373c88dc866b6014c43270dc809fa ""
+  "/Users/codesmith28/personal/Projects/acc/BTEP/final_BTEP_report/main.tex" 1777812490.60332 1358 c93608646edf79d1473d8866bffb4d11 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathex.enc" 1202520719 3486 c7eadf5dcc57b3b2d11736679f6636ba ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc" 1202520719 2405 5dcf2c1b967ee25cc46c58cd52244aed ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc" 1202520719 2840 216e6e45ad352e2456e1149f28885bee ""
@@ -243,7 +244,7 @@
   "Chapters/6. System Design.tex" 1777830066.88291 10107 18cc6810d77f3fbd53c0b27f09f336f8 ""
   "Chapters/7. Methodology.tex" 1777830270.32426 21453 d5c19351d0c49d94c2732768012b7838 ""
   "Chapters/8. Results.tex" 1777830149.79986 19209 3472f2f02f18fd43bd657bceeab15179 ""
-  "Chapters/9. Conclusion.tex" 1777830731.87319 3528 205b85c959d67fc975258089988892b9 ""
+  "Chapters/9. Conclusion.tex" 1777830960.27664 3528 205b85c959d67fc975258089988892b9 ""
   "Chapters/A. Appendix A.tex" 1777797314.43347 3275 4789de9f26fd40e10fd039f4f77c2f3b ""
   "Figures/Architecture/overall_architecture_colored.png" 1777777151.67097 4772708 c72926f606db08044d86c212289a7bfb ""
   "Figures/General/logo_AU_transparent.png" 1777777151.66592 148109 8f55253c30c8c77bd10d8a3ef217b4d7 ""
@@ -256,13 +257,13 @@
   "Figures/Results/fig8_cumulative_completion.png" 1777777156.99571 84407 483e6cdebde3bb24e0d62a8b8dfcc9be ""
   "General/Preamble.tex" 1777777321.01208 3674 083622f102a4c596b1618b30f90d71c4 ""
   "General/Settings.tex" 1777777527.92473 2995 16e8398f0e1b08c9ec91d268ec60a5d6 ""
-  "main.aux" 1777830741.8817 21693 07fbfc26dfa84334f6472c2e9f66cfff "pdflatex"
+  "main.aux" 1777830967.26939 21693 07fbfc26dfa84334f6472c2e9f66cfff "pdflatex"
   "main.bbl" 1777830735.0525 2537 465f8f943d3d26d30e0cfda3a8f2a8d3 "bibtex main"
-  "main.lof" 1777830741.8833 1496 b381ff783af0a547bbe9b1afcc2bc64d "pdflatex"
-  "main.lot" 1777830741.88332 1763 4a943e0fd12942a720ac7a87d43764f4 "pdflatex"
-  "main.out" 1777830741.88307 12048 3d28a503f197c17104321619252ed535 "pdflatex"
+  "main.lof" 1777830967.27128 1496 b381ff783af0a547bbe9b1afcc2bc64d "pdflatex"
+  "main.lot" 1777830967.27131 1763 4a943e0fd12942a720ac7a87d43764f4 "pdflatex"
+  "main.out" 1777830967.27101 12048 3d28a503f197c17104321619252ed535 "pdflatex"
   "main.tex" 1777812490.60332 1358 c93608646edf79d1473d8866bffb4d11 ""
-  "main.toc" 1777830741.88325 6191 a96971b4a7699f0469e45f216adfd826 "pdflatex"
+  "main.toc" 1777830967.27123 6191 a96971b4a7699f0469e45f216adfd826 "pdflatex"
   (generated)
   "main.aux"
   "main.lof"
