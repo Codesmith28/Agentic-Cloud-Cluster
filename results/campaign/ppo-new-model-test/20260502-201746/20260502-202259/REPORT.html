@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CloudAI Campaign Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 24px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f5f5f5; }
+  </style>
+</head>
+<body>
+  <h1>CloudAI Evidence Benchmark Campaign Report</h1>
+  <p><strong>Started:</strong> 2026-05-02T14:49:20Z</p>
+  <p><strong>Finished:</strong> 2026-05-02T14:52:59Z</p>
+  <p><strong>Duration:</strong> 219.48s</p>
+  <p><strong>Scenarios executed:</strong> 3</p>
+
+  <h2>Scheduler Comparison</h2>
+  <table>
+    <thead>
+      <tr><th>Scheduler</th><th>Tasks</th><th>Completed</th><th>Failed</th><th>Success Rate</th><th>Avg Duration</th><th>Queue Wait</th><th>Turnaround</th><th>P95 Turnaround</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>RR</td><td>20</td><td>20</td><td>0</td><td>100.0%</td><td>70.06s</td><td>0.0s</td><td>33.8s</td><td>69.0s</td></tr><tr><td>RTS</td><td>20</td><td>20</td><td>0</td><td>100.0%</td><td>76.2s</td><td>0.0s</td><td>33.4s</td><td>74.0s</td></tr><tr><td>PPO</td><td>20</td><td>20</td><td>0</td><td>100.0%</td><td>63.95s</td><td>0.0s</td><td>27.75s</td><td>62.0s</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Scenario Details</h2>
+  <table>
+    <thead>
+      <tr><th>Scenario</th><th>Scheduler Label</th><th>Algorithm</th><th>Workload</th><th>Submitted</th><th>Completed</th><th>Failed</th><th>Success</th><th>Duration</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>baseline</td><td>RR</td><td>RR</td><td>resource-contention-ppo</td><td>20</td><td>20</td><td>0</td><td>100.0%</td><td>70.06s</td></tr><tr><td>baseline</td><td>RTS</td><td>RTS</td><td>resource-contention-ppo</td><td>20</td><td>20</td><td>0</td><td>100.0%</td><td>76.2s</td></tr><tr><td>baseline</td><td>PPO</td><td>PPO</td><td>resource-contention-ppo</td><td>20</td><td>20</td><td>0</td><td>100.0%</td><td>63.95s</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

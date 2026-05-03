@@ -79,11 +79,31 @@ class SchedulingEnv(gym.Env):
         selected = self.workers[action]
         feasible = self._is_feasible(self.current_task, selected)
 
-        reward = -1.0
         if feasible:
+            # Snapshot cluster load std BEFORE placement for delta-balance reward
+            loads_before = [self._normalized_load(w) for w in self.workers]
+            loads_before_std = float(np.std(loads_before))
+
             self._apply_task(selected, self.current_task)
-            load_penalty = self._normalized_load(selected)
-            reward = 1.2 - load_penalty
+
+            # Post-placement metrics
+            post_load = self._normalized_load(selected)
+            all_loads_after = [self._normalized_load(w) for w in self.workers]
+            cluster_load = float(np.mean(all_loads_after))
+            loads_after_std = float(np.std(all_loads_after))
+
+            headroom = max(1.0 - post_load, 0.0)
+            # Penalize if selected worker is more loaded than cluster average
+            imbalance = max(post_load - cluster_load, 0.0)
+            # Penalize actions that worsen overall load spread across the cluster
+            delta_imbalance = loads_after_std - loads_before_std
+
+            reward = (
+                0.8
+                + 0.30 * headroom
+                - 0.40 * imbalance
+                - 0.50 * delta_imbalance
+            )
         else:
             reward = -1.4
 
@@ -97,22 +117,30 @@ class SchedulingEnv(gym.Env):
         return self._observation(), float(reward), terminated, truncated, info
 
     def _sample_worker(self) -> WorkerState:
-        return WorkerState(
-            total_cpu=float(self.rng.uniform(4.0, 32.0)),
-            total_memory=float(self.rng.uniform(8.0, 128.0)),
-            total_storage=float(self.rng.uniform(100.0, 1500.0)),
-        )
+        # Realistic worker sizes matching the actual 3-tier test cluster
+        worker_tier = int(self.rng.integers(0, 3))  # 0=small, 1=medium, 2=large
+        if worker_tier == 0:
+            return WorkerState(total_cpu=1.0, total_memory=1.5, total_storage=10.0)
+        elif worker_tier == 1:
+            return WorkerState(total_cpu=2.0, total_memory=3.0, total_storage=20.0)
+        else:
+            return WorkerState(total_cpu=3.0, total_memory=5.0, total_storage=30.0)
 
     def _sample_task(self) -> Dict:
         task_type = TASK_TYPES[int(self.rng.integers(0, len(TASK_TYPES)))]
-        req_cpu = float(self.rng.uniform(0.5, 12.0))
-        req_memory = float(self.rng.uniform(0.5, 32.0))
-        req_storage = float(self.rng.uniform(0.5, 80.0))
-        if task_type == "memory-heavy":
-            req_memory = max(req_memory, float(self.rng.uniform(16.0, 64.0)))
-        if task_type == "cpu-heavy":
-            req_cpu = max(req_cpu, float(self.rng.uniform(6.0, 20.0)))
-
+        if task_type == "cpu-light":
+            req_cpu = float(self.rng.uniform(0.3, 0.7))
+            req_memory = float(self.rng.uniform(0.2, 0.5))
+        elif task_type == "cpu-heavy":
+            req_cpu = float(self.rng.uniform(1.5, 2.8))
+            req_memory = float(self.rng.uniform(0.5, 1.0))
+        elif task_type == "memory-heavy":
+            req_cpu = float(self.rng.uniform(0.5, 1.0))
+            req_memory = float(self.rng.uniform(1.5, 2.5))
+        else:  # mixed
+            req_cpu = float(self.rng.uniform(1.0, 1.8))
+            req_memory = float(self.rng.uniform(0.8, 1.5))
+        req_storage = float(self.rng.uniform(1.0, 5.0))
         return {
             "req_cpu": req_cpu,
             "req_memory": req_memory,

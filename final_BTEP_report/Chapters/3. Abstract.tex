@@ -1,0 +1,13 @@
+\thispagestyle{plain}
+\begin{center}
+{\fontsize{14}{16}\selectfont \textbf{Abstract}}
+
+\vspace{1cm}
+
+\justifying
+Agentic Cloud Cluster is a distributed task execution and scheduling framework built in Go. The system manages a master node, multiple worker nodes, Docker-based task execution, persistent task state, worker heartbeats, task retries, and a scheduler interface that can switch between baseline and learned policies. The main contribution of this project is not only that the cluster runs tasks, but that scheduling is treated as a learning problem. Instead of permanently relying on a fixed rule such as Round-Robin or a manually tuned heuristic, the framework integrates a Proximal Policy Optimization (PPO) scheduler trained on cluster traces and deployed behind a safe Go scheduler boundary.
+
+The report explains the project from the ground up. It first motivates why distributed clusters need scheduling decisions, then explains why reinforcement learning is suitable when the best decision depends on changing resource state. The methodology moves step by step from tabular Q-learning, to Deep Q-Networks, and finally to PPO. The PPO policy observes task requirements and worker resource features, chooses a worker, receives a shaped reward, and improves using clipped policy-gradient updates. The implementation uses Go for the master-worker control plane and Python/PyTorch for the PPO service.
+
+The final system was evaluated through offline trace replay and end-to-end cluster campaigns. The PPO training curve shows convergence through decreasing policy and value losses, while benchmark plots compare PPO against baseline schedulers across resource and workload patterns. The results show that the learned scheduler is most useful when scheduling pressure is high, such as burst and overload scenarios, while simple baselines can remain competitive in light-load cases. This makes the project a practical study of where reinforcement learning helps in systems work and where conservative fallback design is still necessary.
+\end{center}

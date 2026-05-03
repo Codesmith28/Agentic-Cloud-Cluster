@@ -5,6 +5,29 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 MASTER_BIN="${REPO_ROOT}/master/masterNode"
 
+repo_env_value() {
+  local key="$1"
+  local env_file="${REPO_ROOT}/.env"
+  if [[ ! -f "${env_file}" ]]; then
+    return 0
+  fi
+  python3 - "${env_file}" "${key}" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+target = sys.argv[2]
+for raw in path.read_text(encoding="utf-8").splitlines():
+    line = raw.strip()
+    if not line or line.startswith("#") or "=" not in line:
+        continue
+    key, value = line.split("=", 1)
+    if key.strip() == target:
+        print(value.strip().strip('"').strip("'"))
+        break
+PY
+}
+
 RUN_TIMESTAMP="${RUN_TIMESTAMP:-$(date +%Y%m%d-%H%M%S)}"
 RUN_ROOT="${RUN_ROOT:-${REPO_ROOT}/results/testbench/${RUN_TIMESTAMP}-integration}"
 PROFILE="${PROFILE:-hetero-small}"
@@ -18,6 +41,8 @@ CLEANUP_ON_EXIT="${CLEANUP_ON_EXIT:-true}"
 TESTBENCH_COMPOSE_FILE="${TESTBENCH_COMPOSE_FILE:-${REPO_ROOT}/testbench/docker-compose.host-master.yml}"
 DEFAULT_WORKER_SPECS="worker-small=localhost:55052,worker-medium=localhost:55053,worker-large=localhost:55054"
 WORKER_SPECS="${WORKER_SPECS:-${DEFAULT_WORKER_SPECS}}"
+GF_ADMIN_USER="${GF_ADMIN_USER:-$(repo_env_value GF_ADMIN_USER)}"
+GF_ADMIN_PASSWORD="${GF_ADMIN_PASSWORD:-$(repo_env_value GF_ADMIN_PASSWORD)}"
 GF_ADMIN_USER="${GF_ADMIN_USER:-admin}"
 GF_ADMIN_PASSWORD="${GF_ADMIN_PASSWORD:-password}"
 MASTER_BIND_ADDR="${MASTER_BIND_ADDR:-0.0.0.0:50051}"

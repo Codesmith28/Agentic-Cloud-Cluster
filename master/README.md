@@ -141,6 +141,11 @@ If a worker is not pre-registered, `RegisterWorker` is rejected.
 | Variable | Default | Notes |
 | --- | --- | --- |
 | `JWT_SECRET` | random at startup if unset | Set explicitly for stable auth sessions |
+| `AUTH_COOKIE_SECURE` | auto | Optional `true/false` override for auth cookie `Secure`; auto keeps secure cookies except localhost/loopback HTTP |
+| `WEBUI_ADMIN_NAME` | `Web UI Admin` | Name for startup-bootstrapped default Web UI admin user |
+| `WEBUI_ADMIN_EMAIL` | `admin@localhost` | Email for startup-bootstrapped default Web UI admin user |
+| `WEBUI_ADMIN_PASSWORD` | `ChangeMeAdmin123!` | Password used when creating missing default admin user |
+| `WEBUI_ADMIN_RESET_PASSWORD` | `false` | If `true`, reset existing admin password at startup |
 | `ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:3001` | CORS/WebSocket origin allowlist |
 
 ## Operational Notes

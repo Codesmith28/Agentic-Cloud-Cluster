@@ -34,6 +34,7 @@
 	testbench-host-suite testbench-host-suite-smoke testbench-host-suite-reliability \
 	testbench-host-suite-ui-smoke testbench-host-suite-evidence testbench-host-suite-full \
 	campaign campaign-full campaign-final campaign-comprehensive \
+	campaign-prereqs \
 	model-promote model-promote-dry model-archive-list \
 	deploy benchmark
 
@@ -102,10 +103,20 @@ help:
 	@echo "  make testbench-host-suite SUITE_NAME=smoke  Run suite (host-master)"
 	@echo "  make testbench-integration       Full integration + benchmark"
 	@echo ""
-	@echo "Campaigns (requires running master + workers):"
+	@echo "Campaigns (requires running master; workers auto-start/register in host-master mode):"
 	@echo "  make campaign           Evidence benchmark (smoke workload)"
 	@echo "  make campaign-full      Full benchmark (all workloads + scenarios)"
 	@echo "  make campaign-final     HEAVY final evaluation (50 tasks × 3 × 3 schedulers)"
+	@echo ""
+	@echo "Cluster Reset:"
+	@echo "  make reset              Full clean-slate reset (stops all, wipes all volumes)"
+	@echo "  make reset-soft         Stop services only (keep data)"
+	@echo "  make reset-keep-dind    Reset but keep Docker-in-Docker layers (faster restart)"
+	@echo ""
+	@echo "PPO Testing (clean-slate, new model + resource-contention workload):"
+	@echo "  make test-ppo           Full PPO test (all scenarios)"
+	@echo "  make test-ppo-fast      Fast PPO test (baseline only, ~10 min)"
+	@echo "  make test-ppo-full      Comprehensive PPO test (all workloads)"
 	@echo ""
 	@echo "Model Management:"
 	@echo "  make model-promote      Promote latest trained model (archives old)"
@@ -345,20 +356,26 @@ testbench-host-suite-full:
 # Campaigns
 # ===========================================================================
 
-campaign:
+campaign-prereqs:
+	@echo "🔧 Ensuring host-master campaign prerequisites (workers + registration + images)..."
+	@$(MAKE) testbench-host-up
+	@$(MAKE) testbench-host-register
+	@$(MAKE) testbench-prepare-images
+
+campaign: campaign-prereqs
 	@$(PYTHON) testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke
 
-campaign-full:
+campaign-full: campaign-prereqs
 	@$(PYTHON) testbench/scripts/run_campaign.py --scenarios all --workloads heterogeneous-smoke,deterministic-full
 
-campaign-final:
+campaign-final: campaign-prereqs
 	@echo "🏋️ Running HEAVY final evaluation campaign (50 tasks × 3 scenarios × 3 schedulers = 450 decisions)..."
 	@$(PYTHON) testbench/scripts/run_campaign.py \
 		--scenarios baseline,burst,overload \
 		--schedulers RR,RTS,PPO \
 		--workloads stress-heavy
 
-campaign-comprehensive:
+campaign-comprehensive: campaign-prereqs
 	@echo "📊 Running COMPREHENSIVE benchmark (4 workloads × 3 scenarios × 3 schedulers)..."
 	@$(PYTHON) testbench/scripts/run_campaign.py \
 		--scenarios baseline,burst,overload \
@@ -396,3 +413,27 @@ deploy: build model-promote benchmark
 
 benchmark:
 	@./execute-tests.sh
+
+test-ppo:
+	@echo "🤖 Running clean-slate PPO benchmark (all scenarios, resource-contention workload)..."
+	@./run-ppo-test.sh
+
+test-ppo-fast:
+	@echo "🤖 Running fast PPO baseline benchmark (single scenario)..."
+	@./run-ppo-test.sh --fast
+
+test-ppo-full:
+	@echo "🤖 Running comprehensive PPO benchmark (all workloads)..."
+	@./run-ppo-test.sh --workloads resource-contention-ppo,heterogeneous-smoke,deterministic-full
+
+reset:
+	@echo "🧹 Full clean-slate cluster reset (all volumes wiped)..."
+	@./reset-cluster.sh --yes
+
+reset-soft:
+	@echo "🛑 Soft reset — stopping services, keeping data..."
+	@./reset-cluster.sh --soft --yes
+
+reset-keep-dind:
+	@echo "🧹 Cluster reset keeping Docker-in-Docker layers..."
+	@./reset-cluster.sh --keep-dind --yes

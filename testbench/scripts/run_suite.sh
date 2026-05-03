@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 COMPOSE_FILE="${COMPOSE_FILE:-${REPO_ROOT}/testbench/docker-compose.yml}"
+COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-${REPO_ROOT}/.env}"
 
 MASTER_URL="${MASTER_URL:-http://localhost:8080}"
 PROMETHEUS_URL="${PROMETHEUS_URL:-http://localhost:9090}"
@@ -48,10 +49,18 @@ SCENARIO_PREFLIGHT_GO_TEST=""
 SCENARIO_STOP_ON_FAILURE="true"
 CAMPAIGN_REPORT_PATH=""
 
+docker_compose() {
+  local -a args=(-f "${COMPOSE_FILE}")
+  if [[ -f "${COMPOSE_ENV_FILE}" ]]; then
+    args+=(--env-file "${COMPOSE_ENV_FILE}")
+  fi
+  docker compose "${args[@]}" "$@"
+}
+
 cleanup() {
   if [[ "${AUTO_DOWN}" == "true" ]]; then
     echo "Tearing down testbench stack..."
-    docker compose -f "${COMPOSE_FILE}" down --remove-orphans >/dev/null || true
+    docker_compose down --remove-orphans >/dev/null || true
   fi
 }
 trap cleanup EXIT
@@ -159,12 +168,12 @@ PY
 prepare_environment() {
   if [[ "${RUN_COMPOSE_UP}" == "true" ]]; then
     echo "Starting testbench stack..."
-    docker compose -f "${COMPOSE_FILE}" up -d --build
+    docker_compose up -d --build
   fi
 
   if [[ "${PREPARE_WORKFLOW_IMAGES}" == "true" ]]; then
     echo "Preparing deterministic workflow images..."
-    COMPOSE_FILE="${COMPOSE_FILE}" "${SCRIPT_DIR}/prepare_workflow_images.sh"
+    COMPOSE_FILE="${COMPOSE_FILE}" COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE}" "${SCRIPT_DIR}/prepare_workflow_images.sh"
   fi
 
   ensure_worker_specs_for_compose
@@ -383,7 +392,7 @@ PY
 
 capture_compose_logs() {
   echo "Capturing compose logs..."
-  if ! docker compose -f "${COMPOSE_FILE}" logs --no-color > "${LOG_OUTPUT_DIR}/compose.log"; then
+  if ! docker_compose logs --no-color > "${LOG_OUTPUT_DIR}/compose.log"; then
     echo "Unable to capture compose logs for ${COMPOSE_FILE}" > "${LOG_OUTPUT_DIR}/compose.log"
   fi
 }

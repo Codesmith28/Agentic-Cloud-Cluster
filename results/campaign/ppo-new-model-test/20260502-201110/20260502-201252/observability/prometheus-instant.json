@@ -1,0 +1,90 @@
+{
+  "max_queue_depth": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "instance": "host.docker.internal:8080",
+            "job": "master"
+          },
+          "value": [
+            1777732977.584,
+            "0"
+          ]
+        }
+      ]
+    }
+  },
+  "task_requeues": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "task_dequeues": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "stale_results": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "worker_timeouts": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "task_terminals": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "worker_container_cpu_seconds": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "worker_container_io_bytes": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "worker_container_memory_peak_p95": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "p95_scheduling_latency": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "p95_queue_wait": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  }
+}

@@ -1,0 +1,21 @@
+\contentsline {table}{\numberline {0.0.1}{\ignorespaces Project timeline}}{x}{table.caption.4}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1.1}{\ignorespaces Master node modules}}{10}{table.caption.6}%
+\contentsline {table}{\numberline {3.1.2}{\ignorespaces PPO deployment modes}}{12}{table.caption.7}%
+\contentsline {table}{\numberline {3.8.1}{\ignorespaces Task feature vector}}{18}{table.caption.10}%
+\contentsline {table}{\numberline {3.8.2}{\ignorespaces Worker feature vector}}{18}{table.caption.11}%
+\contentsline {table}{\numberline {3.10.1}{\ignorespaces Reward term computation}}{20}{table.caption.12}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {4.1.1}{\ignorespaces Schedulers compared}}{24}{table.caption.14}%
+\contentsline {table}{\numberline {4.1.2}{\ignorespaces Offline scheduler comparison on trace replay}}{27}{table.caption.17}%
+\contentsline {table}{\numberline {4.1.3}{\ignorespaces New-model campaign scheduler summary}}{33}{table.caption.23}%
+\contentsline {table}{\numberline {4.1.4}{\ignorespaces New PPO improvement over baselines}}{33}{table.caption.24}%
+\contentsline {table}{\numberline {4.1.5}{\ignorespaces Burst scenario interpretation}}{34}{table.caption.25}%
+\contentsline {table}{\numberline {4.1.6}{\ignorespaces Key project decisions and outcomes}}{34}{table.4.1.6}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {.1.1}{\ignorespaces Main repository modules used in the project}}{41}{table.caption.28}%
+\contentsline {table}{\numberline {.2.1}{\ignorespaces Representative PPO training configuration}}{41}{table.caption.29}%
+\contentsline {table}{\numberline {.3.1}{\ignorespaces Ports used by the project}}{42}{table.caption.30}%
+\contentsfinish 

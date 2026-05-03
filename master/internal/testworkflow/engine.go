@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type commandRequest struct {
@@ -186,7 +188,7 @@ func (e *Engine) Cleanup(ctx context.Context, opts CleanupOptions) error {
 		Executable: "docker",
 		Args:       []string{"compose", "-f", normalized.composeFile, "down", "--remove-orphans"},
 		WorkingDir: normalized.repoRoot,
-		Env:        composeCommandEnv(normalized.extraEnv),
+		Env:        composeCommandEnv(normalized.extraEnv, normalized.repoRoot),
 		Stdout:     normalized.stdout,
 		Stderr:     normalized.stderr,
 	})
@@ -404,7 +406,7 @@ func (e *Engine) prepareEnvironment(ctx context.Context, opts normalizedRunOptio
 		return err
 	}
 
-	composeEnv := composeCommandEnv(opts.extraEnv)
+	composeEnv := composeCommandEnv(opts.extraEnv, opts.repoRoot)
 	if err := e.runStep(ctx, opts, result, "compose-up", "docker", []string{"compose", "-f", opts.composeFile, "up", "-d", "--build"}, composeEnv); err != nil {
 		return err
 	}
@@ -468,7 +470,7 @@ func (e *Engine) cleanupSuiteEnvironment(opts normalizedRunOptions, result *RunR
 		"cleanup-environment",
 		"docker",
 		[]string{"compose", "-f", opts.composeFile, "down", "--remove-orphans"},
-		composeCommandEnv(opts.extraEnv),
+		composeCommandEnv(opts.extraEnv, opts.repoRoot),
 	)
 }
 
@@ -755,17 +757,38 @@ func defaultWorkerSpecsForComposeFile(composeFile string) string {
 	return ""
 }
 
-func composeCommandEnv(base map[string]string) map[string]string {
+func composeCommandEnv(base map[string]string, repoRoot string) map[string]string {
 	env := cloneStringMap(base)
 	if env == nil {
 		env = map[string]string{}
 	}
 
+	dotenv := loadRepoDotEnv(repoRoot)
+
 	if strings.TrimSpace(env["GF_ADMIN_USER"]) == "" && strings.TrimSpace(os.Getenv("GF_ADMIN_USER")) == "" {
-		env["GF_ADMIN_USER"] = "admin"
+		if value := strings.TrimSpace(dotenv["GF_ADMIN_USER"]); value != "" {
+			env["GF_ADMIN_USER"] = value
+		} else {
+			env["GF_ADMIN_USER"] = "admin"
+		}
 	}
 	if strings.TrimSpace(env["GF_ADMIN_PASSWORD"]) == "" && strings.TrimSpace(os.Getenv("GF_ADMIN_PASSWORD")) == "" {
-		env["GF_ADMIN_PASSWORD"] = "admin"
+		if value := strings.TrimSpace(dotenv["GF_ADMIN_PASSWORD"]); value != "" {
+			env["GF_ADMIN_PASSWORD"] = value
+		} else {
+			env["GF_ADMIN_PASSWORD"] = "password"
+		}
 	}
 	return env
+}
+
+func loadRepoDotEnv(repoRoot string) map[string]string {
+	if strings.TrimSpace(repoRoot) == "" {
+		return nil
+	}
+	values, err := godotenv.Read(filepath.Join(repoRoot, ".env"))
+	if err != nil {
+		return nil
+	}
+	return values
 }

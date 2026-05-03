@@ -100,12 +100,16 @@ class TraceReplayEnv(gym.Env):
 
         # Clamp/pad workers to num_workers
         raw_workers = list(trace.workers)
+        # Use realistic small-cluster worker sizes for padding (matching 3-tier test cluster)
+        _pad_tiers = [(1.0, 1.5, 10.0), (2.0, 3.0, 20.0), (3.0, 5.0, 30.0)]
         while len(raw_workers) < num_workers:
+            idx = len(raw_workers) % len(_pad_tiers)
+            pcpu, pmem, psto = _pad_tiers[idx]
             raw_workers.append({
                 "worker_id": f"pad-{len(raw_workers)}",
-                "total_cpu": 16,
-                "total_memory": 48,
-                "total_storage": 500,
+                "total_cpu": pcpu,
+                "total_memory": pmem,
+                "total_storage": psto,
             })
         self._worker_configs = raw_workers[:num_workers]
 

@@ -1,6 +1,6 @@
 {
   "suite": "evidence",
-  "description": "Scheduler comparison evidence run for RR and RTS.",
+  "description": "Scheduler comparison evidence run for RR, RTS, and PPO.",
   "runner": "campaign",
   "scenarios": [
     "baseline",
@@ -9,11 +9,13 @@
   ],
   "workloads": [
     "heterogeneous-smoke",
-    "deterministic-full"
+    "deterministic-full",
+    "resource-contention-ppo"
   ],
   "schedulers": [
     "RR",
-    "RTS"
+    "RTS",
+    "PPO"
   ],
   "assertions": [
     "campaign-report-generated",

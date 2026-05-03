@@ -240,12 +240,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(cloudai_master_tasks_enqueued_total{task_type=~\"$task_type\"}[5m]))",
+          "expr": "sum(rate(cloudai_master_tasks_enqueued_total[5m]))",
           "legendFormat": "Enqueued/s"
         },
         {
           "refId": "B",
-          "expr": "sum(rate(cloudai_master_tasks_dequeued_total{task_type=~\"$task_type\"}[5m]))",
+          "expr": "sum(rate(cloudai_master_tasks_dequeued_total[5m]))",
           "legendFormat": "Dequeued/s"
         }
       ],
@@ -305,12 +305,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(cloudai_master_tasks_enqueued_total{task_type=~\"$task_type\"}[5m]))",
+          "expr": "sum(rate(cloudai_master_tasks_enqueued_total[5m]))",
           "legendFormat": "Enqueued/s"
         },
         {
           "refId": "B",
-          "expr": "sum(rate(cloudai_master_tasks_dequeued_total{task_type=~\"$task_type\"}[5m]))",
+          "expr": "sum(rate(cloudai_master_tasks_dequeued_total[5m]))",
           "legendFormat": "Dequeued/s"
         },
         {

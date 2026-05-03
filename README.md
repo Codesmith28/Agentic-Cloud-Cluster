@@ -105,6 +105,12 @@ cd database && docker-compose up -d
 ./runWorker.sh
 ```
 
+**⚙️ First time setup? See [WEBUI_SETUP.md](WEBUI_SETUP.md) for:**
+- Default login credentials (admin@localhost / ChangeMeAdmin123!)
+- How to customize admin user via .env
+- Port conflict troubleshooting
+- Running full campaign workflows with live monitoring
+
 ### Your First Task
 
 ```bash

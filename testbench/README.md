@@ -47,6 +47,10 @@ Prometheus in this topology uses:
 `testbench/observability/prometheus/prometheus.host-master.yml`
 (targets `host.docker.internal:8080` and worker metrics on `19101-19103`).
 
+Grafana admin credentials are read from repo-root `.env` (`GF_ADMIN_USER`, `GF_ADMIN_PASSWORD`) with defaults `admin/password`.
+- Host-master topology Grafana: `http://localhost:3300`
+- Full-container topology Grafana: `http://localhost:3000`
+
 ## One-command integration + benchmark automation
 
 Run the full Docker-backed gate (unit-test preflight + smoke + reliability + ui-smoke + evidence matrix):

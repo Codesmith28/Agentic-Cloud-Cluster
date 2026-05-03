@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"master/internal/config"
@@ -13,6 +12,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
+)
+
+var (
+	ErrUserNotFound      = errors.New("user not found")
+	ErrUserAlreadyExists = errors.New("user with this email already exists")
 )
 
 // User represents a user document in MongoDB
@@ -35,9 +39,7 @@ type UserDB struct {
 func NewUserDB(ctx context.Context, cfg *config.Config) (*UserDB, error) {
 	loadDotEnv()
 
-	user := os.Getenv("MONGODB_USERNAME")
-	pass := os.Getenv("MONGODB_PASSWORD")
-	if user == "" || pass == "" {
+	if cfg.MongoDBUsername == "" || cfg.MongoDBPassword == "" {
 		return nil, errors.New("missing MongoDB credentials in environment")
 	}
 
@@ -77,7 +79,7 @@ func (db *UserDB) CreateUser(name, email, password string) error {
 	var existingUser User
 	err := db.collection.FindOne(ctx, bson.M{"email": email}).Decode(&existingUser)
 	if err == nil {
-		return errors.New("user with this email already exists")
+		return ErrUserAlreadyExists
 	}
 	if err != mongo.ErrNoDocuments {
 		return err
@@ -111,7 +113,7 @@ func (db *UserDB) GetUserByEmail(email string) (*User, error) {
 	err := db.collection.FindOne(ctx, bson.M{"email": email}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, errors.New("user not found")
+			return nil, ErrUserNotFound
 		}
 		return nil, err
 	}

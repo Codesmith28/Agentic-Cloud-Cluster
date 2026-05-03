@@ -1,0 +1,16 @@
+\begin{table}[htbp]
+\centering
+\caption{Scheduler Performance on Resource-Contention Workload (20 tasks, 3 heterogeneous workers, $n=5$ runs). Lower is better for all time metrics.}
+\label{tab:scheduler-results}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Scheduler} & \textbf{Makespan (s)} & \textbf{Avg. TAT (s)} & \textbf{P95 TAT (s)} & \textbf{Improv.} \\
+\midrule
+Round-Robin & 74.36 $\pm$ 2.75 & 32.86 $\pm$ 2.05 & 66.83 $\pm$ 3.66 & $\downarrow$8.7\% \\
+RTS (Heuristic) & 74.21 $\pm$ 2.30 & 32.07 $\pm$ 1.39 & 72.87 $\pm$ 5.41 & $\downarrow$16.1\% \\
+\textbf{PPO (Ours)} & 63.08 $\pm$ 1.57 & 28.07 $\pm$ 1.79 & 59.60 $\pm$ 2.18 & --- \\
+\bottomrule
+\end{tabular}
+\vspace{1mm}\\
+\footnotesize{TAT = Turnaround Time. Improvement column shows PPO's reduction vs.\ each baseline.}
+\end{table}

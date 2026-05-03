@@ -1,0 +1,200 @@
+{
+  "max_queue_depth": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "instance": "host.docker.internal:8080",
+            "job": "master"
+          },
+          "value": [
+            1777733585.211,
+            "20"
+          ]
+        }
+      ]
+    }
+  },
+  "task_requeues": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "task_dequeues": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "outcome": "assigned"
+          },
+          "value": [
+            1777733585.211,
+            "54.26190476190476"
+          ]
+        }
+      ]
+    }
+  },
+  "stale_results": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "worker_timeouts": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "task_terminals": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "status": "completed",
+            "task_type": "cpu-light"
+          },
+          "value": [
+            1777733585.211,
+            "55.31707317073171"
+          ]
+        }
+      ]
+    }
+  },
+  "worker_container_cpu_seconds": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "task_type": "other"
+          },
+          "value": [
+            1777733585.211,
+            "0"
+          ]
+        }
+      ]
+    }
+  },
+  "worker_container_io_bytes": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "task_type": "other"
+          },
+          "value": [
+            1777733585.211,
+            "0"
+          ]
+        }
+      ]
+    }
+  },
+  "worker_container_memory_peak_p95": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "task_type": "other"
+          },
+          "value": [
+            1777733585.211,
+            "15938355.2"
+          ]
+        }
+      ]
+    }
+  },
+  "p95_scheduling_latency": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "scheduler": "Round-Robin"
+          },
+          "value": [
+            1777733585.211,
+            "0.02305"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "RTS"
+          },
+          "value": [
+            1777733585.211,
+            "0.0225625"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "PPO"
+          },
+          "value": [
+            1777733585.211,
+            "0.023607142857142858"
+          ]
+        }
+      ]
+    }
+  },
+  "p95_queue_wait": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "scheduler": "Round-Robin",
+            "task_type": "cpu-light"
+          },
+          "value": [
+            1777733585.211,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "RTS",
+            "task_type": "cpu-light"
+          },
+          "value": [
+            1777733585.211,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "PPO",
+            "task_type": "cpu-light"
+          },
+          "value": [
+            1777733585.211,
+            "10"
+          ]
+        }
+      ]
+    }
+  }
+}
