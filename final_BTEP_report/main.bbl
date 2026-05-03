@@ -28,12 +28,6 @@ J.~Schulman, F.~Wolski, P.~Dhariwal, A.~Radford, and O.~Klimov, ``Proximal
   \url{https://kubernetes.io/docs/concepts/overview/}, 2026.
 \newblock Accessed: 2026-05-03.
 
-\bibitem{verma2015large}
-A.~Verma, L.~Pedrosa, M.~Korupolu, J.~Wilkes, R.~Hojjat, and S.~Ekanayake,
-  ``Large-scale cluster management at google with borg,'' in {\em Proceedings
-  of the 10th European Conference on Computer Systems (EuroSys)}, pp.~1--17,
-  2015.
-
 \bibitem{volcano2025}
 K.~Ma, K.~Wang, {\em et~al.}, ``Volcano: A cloud native batch system.''
   \url{https://github.com/volcano-sh/volcano}, 2025.
@@ -48,11 +42,6 @@ P.~Moritz, R.~Nishihara, S.~Wang, A.~Tumanov, R.~Liaw, E.~Liang, M.~Elibol,
   for emerging {AI} applications,'' in {\em 13th USENIX Symposium on Operating
   Systems Design and Implementation (OSDI 18)}, 2018.
 
-\bibitem{rocklin2015dask}
-M.~Rocklin, ``Dask: Parallel computation with blocked algorithms and task
-  scheduling,'' in {\em Proceedings of the 14th Python in Science Conference},
-  pp.~130 -- 136, 2015.
-
 \bibitem{haarnoja2018sac}
 T.~Haarnoja, A.~Zhou, P.~Abbeel, and S.~Levine, ``Soft actor-critic: Off-policy
   maximum entropy deep reinforcement learning with a stochastic actor,'' {\em
@@ -62,7 +51,7 @@ T.~Haarnoja, A.~Zhou, P.~Abbeel, and S.~Levine, ``Soft actor-critic: Off-policy
 {Docker Inc.}, ``Docker documentation.'' \url{https://docs.docker.com/}, 2026.
 \newblock Accessed May 2026.
 
-\bibitem{godocs}
+\bibitem{Godocs}
 {The Go Authors}, ``Documentation - the go programming language.''
   \url{https://go.dev/doc/}, 2026.
 \newblock Accessed May 2026.

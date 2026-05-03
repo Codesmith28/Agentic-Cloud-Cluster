@@ -45,7 +45,9 @@ PPO & Reinforcement learning scheduler trained through trace replay. \\
 
 Average reward means the mean reward received per scheduling decision during a training window. From the DRL point of view, it is the signal that tells whether the actor is choosing actions that the environment considers better than before. A rising average reward means the policy is getting more positive feedback from the reward function. A flat reward means the policy has probably reached a stable behavior for the current trace and hyperparameters.
 
-From the scheduling point of view, average reward is not a raw time measurement. It is a combined score for practical placement quality: feasible placement, enough worker headroom, lower waiting pressure, lower tail-risk pressure, and better cluster balance. So when PPO's average reward improves, it means the scheduler is learning to make placements that preserve resources and avoid risky worker choices, not only placements that finish one task quickly.
+From the scheduling point of view, average reward is not a raw time measurement. 
+
+It is a composite measure of feasible practical placement quality: feasible placement, adequate worker headroom, reduced waiting pressure, reduced tail-risk pressure, and better cluster balance. Then when the average reward that PPO is learning to achieve is better, it does not imply that it is learning to make placements more likely to finish one task quickly, but rather to achieve a better average reward.
 
 \begin{figure}[H]
     \centering
@@ -54,25 +56,25 @@ From the scheduling point of view, average reward is not a raw time measurement.
     \label{fig:loss_entropy}
 \end{figure}
 
-\textbf{Explanation of Figure \ref{fig:loss_entropy}:} This figure shows policy loss and entropy. Policy loss is the PPO actor loss. It measures how much the policy is still changing to make high-advantage actions more likely and low-advantage actions less likely. In simple words, it shows how much correction the actor still needs. A decreasing policy loss means the updates are becoming smaller because the scheduler is learning a more stable placement rule.
+\textbf{Explanation of Figure \ref{fig:loss_entropy}:} Figure illustrates policy loss and entropy. The PPO actor loss is known as policy loss. It is a measure of the extent to which the policy is yet to change in order to increase the likelihood of high-advantage actions and reduce the likelihood of low-advantage actions. In simple terms, it indicates the amount of correction that the actor still requires. A diminishing policy loss implies the updates are becoming smaller since the scheduler is training on a more stable placement rule.
 
-Entropy measures randomness in the policy distribution. From the DRL point of view, high entropy means the agent is exploring many actions; low entropy means it is confident and more deterministic. From the scheduling point of view, high entropy means PPO is still trying different workers for similar tasks. Lower entropy means it has learned stronger preferences, for example preferring a worker with better resource fit and lower tail risk.
+Entropy is used to quantify the randomness in the policy distribution. In the DRL perspective, high entropy implies that the agent is searching a large number of actions; low entropy implies that the agent is very certain and deterministic. The scheduling perspective of high entropy would imply that PPO is still experimenting with various employees to perform similar jobs. A smaller entropy implies that it has acquired more robust preferences, such as a preference towards a worker with greater resource fit and with less tail risk.
 
-Value loss is not drawn in this figure because the chart was kept to two axes for readability, but it is still part of the PPO update. Value loss belongs to the critic network. It measures the error between the critic's predicted state value \(V(s)\) and the actual return observed from the rollout. From the scheduling point of view, value loss tells whether the critic is learning to judge cluster states correctly. If value loss falls, the critic is becoming better at estimating whether the current task-worker situation will lead to good future scheduling rewards.
+The loss of values is not represented in this figure since the chart was retained at two axes to be readable, but it is included in the PPO update. Value loss is part of the critic network. It is a metric of the error between the predicted state value, V(s), and the observed return due to the rollout. Under the point of view of scheduling, value loss informs whether the critic is learning to evaluate cluster states appropriately. When the loss of values decreases, then the critic is becoming more proficient in estimating whether the current task-worker situation will result in good future scheduling rewards.
 
-\subsection{Offline PPO Model Results}
+\section{Results of the Offline PPO Model}
 
-The word trace in this section means a historical workload record. It contains task arrivals, requested resources, runtimes, and machine information. During trace replay, the environment feeds these tasks to the scheduler in chronological order. The scheduler does not simply copy the historical placement; it chooses workers in the simulated cluster, reserves resources for the simulated runtime, releases resources when tasks finish, and receives reward for each decision.
+The word trace in this section means a historical workload record. It holds the task arrivals, requested resources, run times and machine information. In trace replay, the environment submits these tasks to the scheduler in chronological order. The scheduler does not just copy the historical placement; it picks the workers in the simulated cluster, reserves the resources to the simulated runtime, releases the resources when the tasks finish, and is rewarded on each choice.
 
-The best PPO model achieved a mean reward of approximately \(0.8801\) on the evaluation trace, compared with \(0.8688\) for Round-Robin. The feasible action rate also improved from \(94.38\%\) for Round-Robin to \(94.86\%\) for PPO.
+The PPO model that performed best scored a mean reward of about 0.8801 on the evaluation trace, and 0.8688 on the Round-Robin evaluation trace. The action rate of Round-Robin and PPO also improved, with Round-Robin having a better rate of 94.38% and PPO having a better rate of 94.86%.
 
 \begin{table}[H]
 \centering
-\caption{Offline scheduler comparison on trace replay}
+\caption{Comparison of offline schedulers on trace replay}
 \label{tab:offline_results}
 \begin{tabular}{lcc}
 \toprule
-\textbf{Policy} & \textbf{Mean Reward} & \textbf{Feasible Action Rate} \\
+Policy & Mean Reward & Feasible Action Rate \\
 \midrule
 Round-Robin & 0.8688 & 94.38\% \\
 First feasible & 0.8145 & 94.80\% \\
@@ -82,27 +84,26 @@ PPO best model & \textbf{0.8801} & \textbf{94.86\%} \\
 \end{tabular}
 \end{table}
 
-Mean reward is calculated by averaging the reward values over all scheduling decisions in the evaluation trace. It is based on the same reward function described in the methodology: feasibility, headroom, queue pressure, tail pressure, imbalance, change in imbalance, and requeue penalty. Feasible action rate is calculated as:
+The mean reward is obtained by dividing the value of rewards by all the scheduling choices made in the evaluation trace. It relies upon the same reward function as used in the methodology: feasibility, headroom, queue pressure, tail pressure, imbalance, change in imbalance, and requeue penalty. Calculation of feasible action rate is:
 
 \[
 \text{Feasible Action Rate} =
-\frac{\text{number of selected workers that satisfy task resources}}
-{\text{total scheduling decisions}}
+\frac{\text{number of chosen workers that meet the task resources}}{\text{total scheduling decisions}}
 \times 100
 \]
 
-In scheduling terms, feasible action rate measures how often the scheduler chose a worker that could actually run the task without violating CPU, memory, or storage constraints. The improvement is not huge in light-load trace replay, but it is meaningful because PPO reached the level of a strong heuristic while keeping the ability to learn from reward signals.
+In scheduling theory Feasible action rate is a measure of the frequency with which the scheduler selected a worker capable of actually executing the task without breaking the CPU, memory or storage constraints. Light-load trace replay does not make the improvement enormously large, but it is a meaningful improvement since PPO has now reached the level of a strong heuristic without compromise of the ability to learn by reward signals.
 
 \subsection{End-to-End KPI Comparison}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.92\textwidth]{Figures/Results/fig1_kpi_comparison.png}
-    \caption{KPI comparison between schedulers}
+    \caption{KPI comparison between schedulers.}
     \label{fig:kpi_comparison}
 \end{figure}
 
-\textbf{Explanation of Figure \ref{fig:kpi_comparison}:} This plot compares the major scheduler metrics. The important reading is not that PPO wins every metric in every case. The honest result is that PPO becomes most valuable under pressure, while simpler schedulers can remain competitive when the workload is easy. This is a realistic systems result because adding intelligence also adds inference overhead.
+\textbf{Explanation of Figure \ref{fig:kpi_comparison}:} This plot will compare the key scheduler metrics. It is not important that PPO will score higher in every measure in every instance. The truth of the matter is that PPO will shine best when under stress, and more basic schedulers will be able to compete when the workload is not so demanding. This is a real systems outcome since introducing intelligence introduces overhead of inference.
 
 \subsection{Multi-Run Comparison}
 
@@ -113,36 +114,36 @@ In scheduling terms, feasible action rate measures how often the scheduler chose
     \label{fig:multi_run}
 \end{figure}
 
-\textbf{Explanation of Figure \ref{fig:multi_run}:} A single run can be misleading because task timing, container startup, and worker state can vary. The multi-run plot compares schedulers across repeated runs. It shows whether a scheduler is consistently better or only lucky in one campaign. This helped identify that PPO's advantage is clearer in burst and overload conditions than in simple steady cases.
+Figure 1.1: Exploration: In a single run, timing of tasks, container start and worker state may be inaccurate. Multi-run plot is used to compare schedulers in the context of repeated runs. It indicates a consistent superiority of a scheduler or just a lucky event in a single campaign. This assisted in determining that the benefit of PPO is more evident under burst and overload conditions than under simple steady conditions.
 
 \subsection{Cumulative Completion}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.92\textwidth]{Figures/Results/fig8_cumulative_completion.png}
-    \caption{Cumulative task completion over time}
+    \caption{Cumulative number of tasks completed over time.}
     \label{fig:cumulative_completion}
 \end{figure}
 
-\textbf{Explanation of Figure \ref{fig:cumulative_completion}:} This plot shows how quickly each scheduler finishes tasks over time. A steeper curve means tasks are completing faster. This view is useful because average duration alone can hide long-tail behavior. In cluster scheduling, tail behavior matters because a few delayed tasks can block an entire workload.
+Description of Figure 1: This figure displays the rate at which each scheduler completes tasks with time. The steeper the curve, the faster tasks are being completed. The usefulness of this view is that the average duration by itself may conceal long-tail behavior. Tail behavior is important in cluster scheduling since just a handful of delayed tasks can block an entire workload.
 
 \subsection{WebUI Operational Visuals}
 
-During live campaigns, the WebUI was used as an operator-facing view to validate that scheduler decisions matched observed system behavior. It complements the numeric KPI tables by showing cluster state and workload progress in real time.
+In live campaigns the WebUI served as operator-facing view to confirm that scheduler choices were consistent with observed system behavior. It is used to complement the numeric KPI tables displaying a real-time cluster state and workload progress.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{../diagrams/dashboard.png}
-    \caption{WebUI dashboard view during campaign execution}
+    \caption{WebUI dashboard screen whilst running the campaign.}
     \label{fig:webui_dashboard}
 \end{figure}
 
-\textbf{Explanation of Figure \ref{fig:webui_dashboard}:} The dashboard view provides a consolidated status of the active scheduler, worker availability, and task lifecycle progression. This helped verify that PPO placement decisions were not only better in aggregate metrics, but also operationally consistent while the workload was running.
+Description of Figure \ref{fig:webui_dashboard}: The dashboard view gives an integrated status of the running scheduler, worker availability, and task lifecycle status. This served to confirm that the PPO placement decisions were not only better in the aggregate measures, but operationally consistent during the time that the workload was running.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{../diagrams/plot.jpg}
-    \caption{WebUI trend plot for scheduler performance tracking}
+    \caption{WebUI trend plot of scheduler performance monitoring.}
     \label{fig:webui_plot}
 \end{figure}
 
@@ -225,20 +226,19 @@ PPO has overhead & A learned scheduler must justify its cost by improving diffic
 Use Go for master and worker & The control plane needs efficient networking and concurrency. & The cluster can run master-worker task execution with clear service boundaries. \\
 Use Docker for task execution & Tasks need portable execution environments. & Workers can run containerized workloads with resource requirements. \\
 Use action masking in PPO & Invalid workers must not be selected. & PPO decisions respect hard resource constraints. \\
-Use lifecycle resource tracking in trace replay & Decay-based resource release was inaccurate for simultaneous arrivals. & Training state better matches real task occupation. \\
-Add tail-pressure reward & Average completion is not enough; long-tail delays matter. & PPO is guided toward reducing risky placements. \\
-Use fallback scheduler validation & A learned model can fail or be unavailable. & Cluster safety is preserved even when PPO cannot decide. \\
+Use Lifecycle resource tracking during trace replay & Decay-based resource release was incorrect when simultaneous arrivals occurred. & PPO is controlled towards lessening hazardous placements. \\
+Use fallback scheduler validation & A learned model can fail or be unavailable. & Cluster safety is maintained even when PPO cannot make a decision. \\
 \bottomrule
 \end{longtable}
 
 \subsection{Delivered Components}
 
-The completed project delivers:
+The final project is one that provides:
 
 \begin{itemize}
     \item a working distributed task execution cluster,
     \item worker registration and heartbeat tracking,
-    \item task assignment and result reporting,
+    \item task assignment and report of results,
     \item scheduler comparison infrastructure,
     \item PPO trace replay training,
     \item PPO service integration with Go,
@@ -248,22 +248,22 @@ The completed project delivers:
 \section{My Contributions to the Project}
 \label{section:my_contribution}
 
-The main individual contributions were the design and development of the Go cluster framework, the scheduler integration boundary, the PPO scheduling pipeline, the training and evaluation workflow, and the final benchmark interpretation. A major part of the work was also debugging practical system issues: resource accounting, worker visibility, fallback behavior, model loading, and repeatable campaign execution.
+The design and development of the Go cluster framework, the scheduler integration boundary, the PPO scheduling pipeline, the training and evaluation workflow, and the final benchmark interpretation were the main individual contributions. A significant portion of the work, as well, was debugging practical system issues: resource accounting, worker visibility, fallback behavior, and model loading.
 
 \section{Learning Outcomes}
 \label{section:learnings}
 
-The project helped connect two areas that are often studied separately: distributed systems and reinforcement learning. The distributed systems part taught how much correctness depends on state handling, retries, and clean boundaries. The RL part taught that model quality depends on reward design, feature representation, and safe deployment. The most important lesson was that learning-based scheduling should be added as a controlled improvement, not as a replacement for basic system reliability.
+The project served to bridge two topics which are frequently discussed independently: distributed systems and reinforcement learning. Part 6 of the distributed systems course has helped me understand that a lot of correctness is determined by the state handling, retries, and clean boundaries. The RL component taught that the quality of models is susceptible to reward design, feature representation, and safe deployment. The greatest lesson here was that the learning-based scheduling must be introduced as a controlled enhancement and not as a replacement of the basic system reliability.
 
 \section{Real World Applications}
 \label{section:real_world_app}
 
-This project applies to small cloud platforms, internal batch execution systems, university lab clusters, CI workload runners, and edge clusters where machines have different capacities. The PPO scheduler is especially relevant when workloads are mixed and manual scheduling rules become hard to tune.
+This project is applicable to small cloud platforms, internal batch execution systems, university lab cluster, CI workload runners, and clusters of the edge where machines have varying capabilities. The PPO scheduler is particularly applicable when the workloads are mixed and the rules of manual scheduling cannot be easily tuned.
 
-In a university or research lab, the framework can be used to share a few machines among many users running experiments. Some experiments may be CPU-heavy, some may be memory-heavy, and some may be short utility jobs. A learned scheduler can reduce the chance that a small job is blocked behind a badly placed large job.
+The structure can be employed in a university or research laboratory to share a small number of machines with many users who may be running experiments. Experiments might be CPU-intensive, might be memory-intensive, and might be short utility tasks. An educated scheduler can minimize the likelihood that a small job will be blocked behind an improperly placed large job.
 
-In CI and testing systems, the framework can schedule build, test, and benchmark jobs across workers with different capacities. A simple Round-Robin scheduler may send a heavy integration test to a weak machine, while PPO can learn from previous outcomes and prefer better placements.
+The framework can be used in CI and testing systems to schedule build, test, and benchmark jobs on workers with varying capacities. A basic Round-Robin scheduler can allocate a heavy integration test to a slow machine and PPO can learn what it has done and prefer to place it somewhere better.
 
-In edge computing, machines are often heterogeneous and resource-limited. A scheduler must decide where to run tasks without assuming every node has the same capacity. The same master-worker idea can be used to route video processing, data filtering, or inference jobs to suitable edge nodes.
+Machines in edge computing tend to be heterogeneous and resource-constrained. A scheduler should make decisions on the placement of tasks without necessarily having all the nodes with the same capacity. The master-worker concept can be applied to direct the processing of video, filtering of data, or inference tasks to appropriate edge nodes.
 
-In private cloud environments, the project can act as a lightweight batch execution layer. It is not intended to replace large orchestration platforms, but it shows how a focused scheduler can be built, tested, and improved with reinforcement learning while still keeping safe fallback behavior.
+In the case of a private cloud, the project may serve as a lightweight batch execution layer. It is not designed to compete with large orchestration platforms, but demonstrates how a focused scheduler can be constructed, tested, and trained with reinforcement learning and still maintain safe fallback behavior.

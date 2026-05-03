@@ -10,38 +10,38 @@
     \label{fig:overall_architecture}
 \end{figure}
 
-\textbf{Explanation of Figure \ref{fig:overall_architecture}:} The system is arranged around a master-worker model. The master node receives task submissions, stores metadata, tracks workers, and calls the scheduler. Worker nodes run the assigned Docker tasks and report status back to the master. The PPO scheduler is separated as a Python service so that the Go control plane stays stable while the learning model can evolve independently.
+Description of Figure 1, the overall architecture: This system is organized using a master-worker model. Task submissions go to the master node which stores metadata, tracks workers, and calls the scheduler. The worker nodes execute the Docker tasks allocated to them and report back to the master. The PPO scheduler is decoupled as a Python service allowing the Go control plane to remain stable as the learning model is able to evolve independently.
 
 \subsection{Go Distributed Cluster Architecture}
 
-The distributed cluster is implemented as a control plane in Go. The design follows a simple rule: the master makes coordination decisions, and workers execute tasks. This keeps the system easy to reason about. A worker does not need to know about other workers. It only needs to accept assignments from the master, execute the container, and report health and task status.
+The distributed cluster is achieved by a control plane in Go. Its design is based on a simple rule: the master decides to coordinate and the workers perform the work. This maintains the system easy to reason about. It is not necessary that a worker should know about other workers. It simply has to accept assignments of the master, execute the container and report health and task status.
 
 At runtime, the cluster has four main layers:
 
 \begin{enumerate}
-    \item \textbf{Client and API layer}: receives task submission and management commands.
-    \item \textbf{Master control plane}: validates requests, stores task state, tracks workers, and selects a scheduler.
-    \item \textbf{Scheduler layer}: chooses a worker using Round-Robin, RTS, or PPO.
-    \item \textbf{Worker execution layer}: runs Docker containers and reports results.
+    \item \textbf{Client and API layer}: this layer accepts a task submission and management commands.
+    \item \textbf{Master control plane}: validates requests, stores task state, tracks workers, and picks a scheduler.
+    \item \textbf{Scheduler layer}: selects a worker by Round-Robin, RTS or PPO.
+    \item \textbf{Worker execution layer}: executes Docker containers and returns results.
 \end{enumerate}
 
-The master and workers communicate using gRPC. The request and response formats are defined in Protocol Buffer files, which keeps communication strict and typed. The master also uses persistent storage for task records, worker metadata, task attempts, and result metadata. The important design point is that scheduling, execution, and persistence are separate modules. This made the project easier to debug because a scheduler bug did not require rewriting the worker executor, and a worker execution bug did not require changing the PPO model.
+GRPC is used to communicate between master and workers. Request and response formats get declared in Protocol Buffer files, and makes communication rigid and typed. Persistent storage is also used by the master to store records of tasks, worker records, task attempt records and result metadata records. The design consideration here is that scheduling, execution, and persistence are independent modules. This facilitated easier debugging of the project since a scheduler bug would not necessitate the re-writing of the worker executor, and a bug in worker execution would not require the PPO model to be changed.
 
 \subsection{Master Node}
 
-The master node is the coordinator. Its responsibilities are:
+The coordinator is the master node. Its responsibilities are:
 
 \begin{itemize}
     \item Accept task submissions.
-    \item Maintain worker registry and worker health.
-    \item Track available CPU, memory, and storage.
-    \item Call the active scheduler for each task.
-    \item Send task assignments to workers.
-    \item Store task state, attempts, and results.
-    \item Requeue tasks when workers fail or resources are unavailable.
+    \item Keep worker registry and worker health.
+    \item Track available CPU, memory and storage.
+    \item Invoke the active scheduler on each of the tasks.
+    \item Assign workers to do tasks.
+    \item Store task state, attempts and results.
+    \item Requeue tasks in case of failure by workers or when resources are not available.
 \end{itemize}
 
-Internally, the master has a few important modules:
+On the inside, the master has a couple of significant modules:
 
 \begin{table}[H]
 \centering
@@ -51,66 +51,66 @@ Internally, the master has a few important modules:
 \toprule
 \textbf{Module} & \textbf{Role} \\
 \midrule
-Server layer & Exposes gRPC calls used by workers for registration, heartbeat, task status, and result reporting. \\
-Task handling & Creates tasks, tracks state transitions, queues tasks when workers are not available, and records attempts. \\
-Worker registry & Maintains active worker IDs, addresses, resource capacities, and current availability. \\
-Scheduler package & Provides a common interface for Round-Robin, RTS, and PPO scheduling. \\
+Server layer & Exposes gRPC calls being used by workers to register, heartbeat, task status, and report results. \\
+Task handling & Generates tasks, records state transitions, queues tasks when workers are offline, and records attempts. \\
+Registry of workers & Holds up-to-date worker identities, addresses, resource capacities, and current availability. \\
+Scheduler package & Provides a common interface to Round-Robin, RTS, as well as PPO scheduling. \\
 Persistence layer & Stores workers, tasks, assignments, attempts, and results. \\
-Telemetry manager & Maintains recent worker health and resource state for scheduling and operator inspection. \\
+Telemetry manager & Maintains the recent state of health and resources of workers to schedule and inspect the operators. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The scheduler boundary is especially important. The master does not need to know the internal algorithm. It only asks: given this task and these workers, which worker should receive the task? The scheduler returns a worker ID, and the master validates that the worker still exists and still has enough resources before dispatching the task.
+Of particular importance is the scheduler boundary. The master does not even have to be aware of the internal algorithm. It simply poses: given this task and these workers, which worker is to be given the task? The scheduler will reply with a worker ID and the master will verify that the worker has not disappeared yet and has sufficient resources before dispatching the task.
 
 \subsection{Worker Node}
 
-The worker node is responsible for executing tasks. Each worker exposes a gRPC server, accepts assignments from the master, starts a Docker container, tracks execution, streams logs, and reports final status. The worker also sends heartbeat data so the master can maintain a live view of cluster resources.
+The worker node has the role of carrying out tasks. Every worker opens a gRPC server, accepts orders made by the master, launches a Docker container, monitors the execution, streams logs, and reports final status. The worker also transmits heartbeat information allowing the master to have a live view of cluster resources.
 
-The worker has three main responsibilities:
+The worker is responsible of three things:
 
 \begin{itemize}
-    \item \textbf{Registration and heartbeat}: once registered, the worker periodically sends resource and status updates to the master.
-    \item \textbf{Container execution}: the worker pulls or uses the requested Docker image, creates the container with the requested resource limits, runs it, and observes the exit code.
-    \item \textbf{Result reporting}: after the container exits, the worker reports success or failure and uploads output files if the task produced any.
+    \item \textbf{Registration and heartbeat}: after registration, the worker periodically reports resource and status changes to the master.
+    \item \textbf{Container execution}: the worker pulls or uses the requested Docker image, creates the container with the requested resource limits, runs it, and monitors the exit code.
+    \item \textbf{Result reporting}: Once the container has left the worker reports success or failure and posts any output files produced by the task.
 \end{itemize}
 
-This makes the worker mostly stateless from a cluster point of view. If a worker disappears, the master detects the missed heartbeats and can requeue tasks. The worker does not coordinate with other workers, which avoids complex distributed locking.
+This makes the worker mostly stateless from a cluster point of view. When one worker unintentionally vanishes, the master will notice the missed heartbeats, and is also capable of requeuing tasks. The worker does not liaise with other workers, preventing the distributed locking of a complex nature.
 
 \subsection{Control Flow in the Go Cluster}
 
-The normal task flow is:
+Normal task flow is:
 
 \begin{enumerate}
-    \item A task is submitted with image name, command, and resource needs.
-    \item The master stores the task in created or queued state.
-    \item The master builds a live view of feasible workers.
-    \item The active scheduler selects a worker.
-    \item The master sends the task to that worker through gRPC.
-    \item The worker runs the Docker container and streams or records logs.
-    \item The worker reports completion.
-    \item The master stores the result and releases the worker resources.
+    \item A task is posted with image name, command and resource requirements.
+    \item The master puts the task in created or queued state.
+    \item The master develops a live picture of workable workers.
+    \item The active scheduler picks a worker.
+    \item The master articulates the task to such a worker using gRPC.
+    \item The worker executes the Docker container and logs or streams logs.
+    \item The worker gives a report on completion.
+    \item The result is stored in the master which emancipates the worker resources.
 \end{enumerate}
 
-The system also supports recovery behavior. If a worker becomes unavailable, the master marks the current attempt as lost and can requeue the logical task. This separation between a logical task and an execution attempt is important because a task may need more than one attempt before it reaches a final state.
+The system also promotes recovery behavior. In case a worker is lost, the master will record the attempt as lost and reenact the logical task. What is significant about this separation between a logical task and an attempt to execute the task is that a task may require many more than one attempt before it reaches a final state.
 
 \subsection{Resource Accounting}
 
-Scheduling depends on resource accounting. Each worker advertises total CPU, memory, and storage. The master tracks available resources by subtracting the resources reserved for currently assigned tasks. Once a task completes, those resources are released. This accounting is used both by the simple schedulers and by PPO's action mask.
+Resource accounting is concerned with scheduling. Every employee promotes a sum of the CPU, memory, and storage. The master tracks allow available resources to be tracked by the difference between the resources used by the tasks that are currently being assigned. As soon as a piece of work is done, these resources are freed. The simple types of schedulers use this accounting, as well as the action mask of PPO.
 
-The design avoids sending tasks to workers that cannot fit them. Even if PPO predicts a worker, the Go master still validates the choice before assignment. This protects the cluster from stale model output or stale worker state.
+The design does not provide tasks to workers that they cannot fit in. Although PPO may be true about a worker, the Go master will still confirm the decision prior to assignment. This safeguards the cluster against stale model output or stale worker state.
 
 \subsection{Task Lifecycle}
 
-Tasks enter the master queue first and remain queued until at least one worker can satisfy the resource constraints. Once a feasible worker is available, the scheduler selects a target and the master creates an execution attempt. If dispatch fails due to stale state or connectivity problems, that attempt is marked lost and the logical task is returned to the queue for another scheduling cycle.
+Tasks are first in the master queue and stay in the queue until at least one worker is available to meet the resource constraints. When feasible worker is available, the scheduler picks a target and the master picks an execution attempt. In case of dispatch failure because of stale state or connectivity failures, the attempt is marked lost and the logical task is returned to the queue to go through another scheduling cycle.
 
-After execution starts, the worker reports completion status back to the master. Successful runs are stored as completed. Failed runs are classified as recoverable or non-recoverable; recoverable failures are retried through requeueing, while non-recoverable failures close the task as failed.
+Once it has begun to execute, the worker sends back to the master status of completion. Complete runs are recorded as complete. Recoverable and non-recoverable: Failed runs are classified as recoverable or non-recoverable, recoverable failures are retried using requeueing, and non-recoverable failures terminate the task as failed.
 
 \subsection{Task Execution Flow}
 
-The concrete execution path starts at the API, where the task is validated and persisted, then moved into the master queue. The queue processor builds a fresh worker snapshot, invokes the active scheduler, and verifies the selected worker is still feasible before reserving resources and dispatching an \texttt{AssignTask} call.
+The definite path of execution begins at the API where the task is tested and stored and then transferred to the master queue. The queue processor constructs a new worker snapshot, calls the active scheduler, and checks the viability of the selected worker before reserving resources and sending an \texttt{AssignTask} call.
 
-If the worker acknowledges and starts the container, the attempt continues until completion and the master persists the final result while releasing reserved resources. If assignment or execution fails due to transient issues (for example worker loss), the attempt is marked lost and the logical task is requeued for rescheduling. This attempt-level recovery is what enables safe retries without losing task-level traceability.
+When the worker accepts and initiates the container, the effort is continued until the end and the master maintains the end result and releases reserved resources. In case of assignment or execution failure caused by transient failures (such as loss of workers), the attempt is marked lost and the logical task is requeued to reschedule it. It is this attempt-level recovery that allows safe retries without any loss in task-level traceability.
 
 \subsection{Scheduler Interface}
 
@@ -119,18 +119,18 @@ The scheduler receives:
 \begin{itemize}
     \item task CPU requirement,
     \item task memory requirement,
-    \item task storage requirement,
+    \item store requirement,
     \item task type,
     \item worker capacity,
     \item worker availability,
     \item worker activity status.
 \end{itemize}
 
-It returns a worker ID. This simple interface allowed the project to start with baselines and later add PPO. The PPO scheduler calls a Python service over gRPC. If the PPO service is unavailable or returns an unsuitable worker, the Go scheduler falls back to a safer scheduler. This was a deliberate design decision because a learning model should improve scheduling, not make the whole cluster fragile.
+It yields a worker ID. This easy interface enabled the project to begin with baselines and subsequently incorporate PPO. The PPO scheduler connects to a Python service using gRPC. When the PPO service is not available or has an inappropriate worker, the Go scheduler will revert to a safer scheduler. This was an intentional design choice since a learning model is expected to enhance scheduling, and not render the entire cluster vulnerable.
 
 \subsection{PPO Deployment Design}
 
-The PPO deployment supports three modes:
+The PPO deployment is in support of three modes:
 
 \begin{table}[H]
 \centering
@@ -140,11 +140,11 @@ The PPO deployment supports three modes:
 \toprule
 \textbf{Mode} & \textbf{Meaning} \\
 \midrule
-Active & PPO makes the scheduling decision, with fallback on failure. \\
+Active & PPO makes the scheduling decision and falls back on failure. \\
 Shadow & PPO is queried for comparison, but the fallback scheduler is used for the actual placement. \\
-Fallback & PPO is bypassed and the fallback scheduler is used directly. \\
+Fallback & PPO is not used but the fallback scheduler is invoked directly. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-This design was chosen because model deployment in systems work must be conservative. The system can test PPO decisions without immediately trusting them in production paths.
+This design was selected since the deployment of models in systems work should be conservative. The system is able to test the PPO decisions without necessarily believing them in the production paths.
