@@ -11,20 +11,23 @@
 \label{tab:gantt}
 \renewcommand{\arraystretch}{1.25}
 \newcommand{\done}{\cellcolor{blue!18}\textbf{X}}
-\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{5.2cm}*{5}{>{\centering\arraybackslash}X}}
+\scriptsize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{>{\raggedright\arraybackslash}p{4.6cm}*{17}{c}}
 \toprule
-\textbf{Activity} & \textbf{Jan} & \textbf{Feb} & \textbf{Mar} & \textbf{Apr} & \textbf{May} \\
+\textbf{Activity} & \textbf{W1} & \textbf{W2} & \textbf{W3} & \textbf{W4} & \textbf{W5} & \textbf{W6} & \textbf{W7} & \textbf{W8} & \textbf{W9} & \textbf{W10} & \textbf{W11} & \textbf{W12} & \textbf{W13} & \textbf{W14} & \textbf{W15} & \textbf{W16} & \textbf{W17} \\
 \midrule
-Problem study and literature review & \done & \done & & & \\
-Go master-worker framework & & \done & \done & & \\
-Worker execution, heartbeats, and persistence & & \done & \done & \done & \\
-Baseline schedulers and scheduler interface & & & \done & \done & \\
-PPO training pipeline and trace replay & & & \done & \done & \done \\
-PPO integration with Go control plane & & & & \done & \done \\
-Benchmark campaigns and result analysis & & & & \done & \done \\
-Report writing and final polishing & & & & & \done \\
+Problem study and literature review & \done & \done & \done & & & & & & & & & & & & & & \\
+Go master-worker framework & & \done & \done & \done & \done & & & & & & & & & & & & \\
+Worker execution, heartbeats, and persistence & & & & \done & \done & \done & \done & \done & & & & & & & & & \\
+Baseline schedulers and scheduler interface & & & & & & \done & \done & \done & \done & & & & & & & & \\
+PPO training pipeline and trace replay & & & & & & & & \done & \done & \done & \done & \done & & & & & \\
+PPO integration with Go control plane & & & & & & & & & & & \done & \done & \done & & & & \\
+Benchmark campaigns and result analysis & & & & & & & & & & & & & \done & \done & \done & \done & \\
+Report writing and final polishing & & & & & & & & & & & & & & & & & \done \\
 \bottomrule
-\end{tabularx}
+\end{tabular}%
+}
 \end{table}
 
-The timeline shows the actual flow of work. The first stage established the distributed cluster and the basic scheduling interface. The second stage focused on making the scheduler intelligent by adding PPO training and deployment. The last stage focused on evaluation, result interpretation, and documentation.
+The timeline now spans 17 weeks. The early weeks established the distributed cluster baseline, the middle weeks focused on PPO training and integration, and week 17 was reserved exclusively for documentation and polishing.

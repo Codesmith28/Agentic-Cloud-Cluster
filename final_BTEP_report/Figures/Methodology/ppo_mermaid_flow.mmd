@@ -1,0 +1,34 @@
+flowchart TD
+%% Define Styles and Classes for Color Coding
+classDef input fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000;
+classDef nn_core fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000;
+classDef actor fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,color:#000;
+classDef critic fill:#ffebee,stroke:#b71c1c,stroke-width:2px,color:#000;
+classDef environment fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000;
+classDef optimization fill:#fffde7,stroke:#fbc02d,stroke-width:2px,color:#000;
+
+%% Nodes
+A[State Vector: 14 features]:::input
+B[Shared Layers: 128x128]:::nn_core
+C[Actor Head: Action Probabilities]:::actor
+E[Select Worker / Action]:::actor
+D[Critic Head: State Value V]:::critic
+F[Execute Task]:::environment
+G[Get Reward + Next State]:::environment
+H[Compute Advantage: A = Reward - V]:::optimization
+
+%% Edges (Data Flow)
+A --> B
+B --> C
+B --> D
+C --> E
+E --> F
+F --> G
+D --> H
+G --> H
+
+%% Feedback for Learning (Parentheses removed for parser safety)
+H -.->|Compute Losses and Update Weights| C
+H -.->|Compute Losses and Update Weights| D
+H -.->|Update Shared Weights via chain rule| B
+G -.->|Loop to Next State| A

@@ -2,7 +2,7 @@ PWD /Users/codesmith28/personal/Projects/acc/BTEP/final_BTEP_report
 INPUT /usr/local/texlive/2026/texmf.cnf
 INPUT /usr/local/texlive/2026/texmf-dist/web2c/texmf.cnf
 INPUT /usr/local/texlive/2026/texmf-var/web2c/pdftex/pdflatex.fmt
-INPUT /Users/codesmith28/personal/Projects/acc/BTEP/final_BTEP_report/main.tex
+INPUT main.tex
 OUTPUT main.log
 INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/base/report.cls
 INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/base/report.cls
@@ -342,6 +342,20 @@ INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmr10.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmbx10.tfm
 INPUT /usr/local/texlive/2026/texmf-var/fonts/map/pdftex/updmap/pdftex.map
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-rm.enc
+INPUT ./Chapters/0.5 Copyright.tex
+INPUT ./Chapters/0.5 Copyright.tex
+INPUT Chapters/0.5 Copyright.tex
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmr12.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/mlmodern/ts1mlmr.fd
+INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/mlmodern/ts1mlmr.fd
+INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/mlmodern/ts1mlmr.fd
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/ts1-mlmr12.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/mlmodern/ot1mlmtt.fd
+INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/mlmodern/ot1mlmtt.fd
+INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/mlmodern/ot1mlmtt.fd
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmtt12.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-ts1.enc
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-rmtt.enc
 INPUT ./Chapters/1. Declaration.tex
 INPUT ./Chapters/1. Declaration.tex
 INPUT Chapters/1. Declaration.tex
@@ -352,6 +366,9 @@ INPUT Chapters/2. Certificate (Internal Mentor).tex
 INPUT ./Chapters/3. Abstract.tex
 INPUT ./Chapters/3. Abstract.tex
 INPUT Chapters/3. Abstract.tex
+INPUT ./Chapters/3.5 Acknowledgements.tex
+INPUT ./Chapters/3.5 Acknowledgements.tex
+INPUT Chapters/3.5 Acknowledgements.tex
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmr17.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmbx12.tfm
 INPUT ./main.toc
@@ -409,6 +426,12 @@ OUTPUT main.lot
 INPUT ./Chapters/3. Gantt Chart.tex
 INPUT ./Chapters/3. Gantt Chart.tex
 INPUT Chapters/3. Gantt Chart.tex
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmr5.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/mlmmi5.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/mlmsy5.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam5.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm5.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmbx8.tfm
 INPUT ./Chapters/4. Introduction.tex
 INPUT ./Chapters/4. Introduction.tex
 INPUT Chapters/4. Introduction.tex
@@ -419,11 +442,6 @@ INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/mlmodern/omsmlmr.fd
 INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/mlmodern/omsmlmr.fd
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/mlmbsy10.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmr5.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/mlmmi5.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/mlmsy5.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam5.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm5.tfm
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
@@ -435,41 +453,9 @@ INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmbx12.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/mlmbsy10.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc
-INPUT ./Chapters/6. System Design.tex
-INPUT ./Chapters/6. System Design.tex
-INPUT Chapters/6. System Design.tex
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/Architecture/overall_architecture_colored.png
-INPUT ./Figures/Architecture/overall_architecture_colored.png
-INPUT ./Figures/Architecture/overall_architecture_colored.png
-INPUT ./Figures/Architecture/overall_architecture_colored.png
-INPUT ./Figures/Architecture/overall_architecture_colored.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmr10.tfm
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/Architecture/task_execution.png
-INPUT ./Figures/Architecture/task_execution.png
-INPUT ./Figures/Architecture/task_execution.png
-INPUT ./Figures/Architecture/task_execution.png
-INPUT ./Figures/Architecture/task_execution.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
@@ -485,16 +471,54 @@ INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Chapters/6. System Design.tex
+INPUT ./Chapters/6. System Design.tex
+INPUT Chapters/6. System Design.tex
+INPUT ./Figures/Architecture/overall_architecture_colored.png
+INPUT ./Figures/Architecture/overall_architecture_colored.png
+INPUT ./Figures/Architecture/overall_architecture_colored.png
+INPUT ./Figures/Architecture/overall_architecture_colored.png
+INPUT ./Figures/Architecture/overall_architecture_colored.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmtt12.tfm
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/Methodology/ppo_architecture_colored.png
+INPUT ./Figures/Methodology/ppo_architecture_colored.png
+INPUT ./Figures/Methodology/ppo_architecture_colored.png
+INPUT ./Figures/Methodology/ppo_architecture_colored.png
+INPUT ./Figures/Methodology/ppo_architecture_colored.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathex.enc
-INPUT ./Figures/Methodology/ppo_architecture_colored.png
-INPUT ./Figures/Methodology/ppo_architecture_colored.png
-INPUT ./Figures/Methodology/ppo_architecture_colored.png
-INPUT ./Figures/Methodology/ppo_architecture_colored.png
-INPUT ./Figures/Methodology/ppo_architecture_colored.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/Methodology/ppo_mermaid_flow.png
+INPUT ./Figures/Methodology/ppo_mermaid_flow.png
+INPUT ./Figures/Methodology/ppo_mermaid_flow.png
+INPUT ./Figures/Methodology/ppo_mermaid_flow.png
+INPUT ./Figures/Methodology/ppo_mermaid_flow.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
@@ -507,6 +531,15 @@ INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmr10.tfm
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
@@ -567,15 +600,24 @@ INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
-INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/mlmodern/ot1mlmtt.fd
-INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/mlmodern/ot1mlmtt.fd
-INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/mlmodern/ot1mlmtt.fd
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmtt12.tfm
+INPUT ../diagrams/dashboard.png
+INPUT ../diagrams/dashboard.png
+INPUT ../diagrams/dashboard.png
+INPUT ../diagrams/dashboard.png
+INPUT ../diagrams/dashboard.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-rmtt.enc
+INPUT ../diagrams/plot.jpg
+INPUT ../diagrams/plot.jpg
+INPUT ../diagrams/plot.jpg
+INPUT ../diagrams/plot.jpg
+INPUT ../diagrams/plot.jpg
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
@@ -595,9 +637,21 @@ INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./main.bbl
 INPUT ./main.bbl
 INPUT main.bbl
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
@@ -615,8 +669,10 @@ INPUT ./main.out
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmbsy10.pfb
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmbx10.pfb
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmbx12.pfb
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmbx8.pfb
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmex10.pfb
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmmi12.pfb
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmmi6.pfb
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmmi8.pfb
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmr10.pfb
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmr12.pfb

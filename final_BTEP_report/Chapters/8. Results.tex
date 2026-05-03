@@ -1,7 +1,12 @@
 \chapter{Results}
 \label{section:results}
 
-\section{Evaluation Setup}
+\section{Project Outcomes}
+\label{section:proj_outcomes}
+
+This chapter reports the measurable outcomes of the project and ties those outcomes to practical system behavior in the deployed cluster.
+
+\subsection{Evaluation Setup}
 
 The system was evaluated in two ways:
 
@@ -27,7 +32,7 @@ PPO & Reinforcement learning scheduler trained through trace replay. \\
 \end{tabularx}
 \end{table}
 
-\section{Training Convergence}
+\subsection{Training Convergence}
 
 \begin{figure}[H]
     \centering
@@ -55,7 +60,7 @@ Entropy measures randomness in the policy distribution. From the DRL point of vi
 
 Value loss is not drawn in this figure because the chart was kept to two axes for readability, but it is still part of the PPO update. Value loss belongs to the critic network. It measures the error between the critic's predicted state value \(V(s)\) and the actual return observed from the rollout. From the scheduling point of view, value loss tells whether the critic is learning to judge cluster states correctly. If value loss falls, the critic is becoming better at estimating whether the current task-worker situation will lead to good future scheduling rewards.
 
-\section{Offline PPO Model Results}
+\subsection{Offline PPO Model Results}
 
 The word trace in this section means a historical workload record. It contains task arrivals, requested resources, runtimes, and machine information. During trace replay, the environment feeds these tasks to the scheduler in chronological order. The scheduler does not simply copy the historical placement; it chooses workers in the simulated cluster, reserves resources for the simulated runtime, releases resources when tasks finish, and receives reward for each decision.
 
@@ -86,9 +91,9 @@ Mean reward is calculated by averaging the reward values over all scheduling dec
 \times 100
 \]
 
-In scheduling terms, feasible action rate asks a very direct question: how often did the scheduler choose a worker that could actually run the task without violating CPU, memory, or storage constraints? The improvement is not huge in light-load trace replay, but it is meaningful because PPO reached the level of a strong heuristic while keeping the ability to learn from reward signals.
+In scheduling terms, feasible action rate measures how often the scheduler chose a worker that could actually run the task without violating CPU, memory, or storage constraints. The improvement is not huge in light-load trace replay, but it is meaningful because PPO reached the level of a strong heuristic while keeping the ability to learn from reward signals.
 
-\section{End-to-End KPI Comparison}
+\subsection{End-to-End KPI Comparison}
 
 \begin{figure}[H]
     \centering
@@ -99,7 +104,7 @@ In scheduling terms, feasible action rate asks a very direct question: how often
 
 \textbf{Explanation of Figure \ref{fig:kpi_comparison}:} This plot compares the major scheduler metrics. The important reading is not that PPO wins every metric in every case. The honest result is that PPO becomes most valuable under pressure, while simpler schedulers can remain competitive when the workload is easy. This is a realistic systems result because adding intelligence also adds inference overhead.
 
-\section{Multi-Run Comparison}
+\subsection{Multi-Run Comparison}
 
 \begin{figure}[H]
     \centering
@@ -110,7 +115,7 @@ In scheduling terms, feasible action rate asks a very direct question: how often
 
 \textbf{Explanation of Figure \ref{fig:multi_run}:} A single run can be misleading because task timing, container startup, and worker state can vary. The multi-run plot compares schedulers across repeated runs. It shows whether a scheduler is consistently better or only lucky in one campaign. This helped identify that PPO's advantage is clearer in burst and overload conditions than in simple steady cases.
 
-\section{Cumulative Completion}
+\subsection{Cumulative Completion}
 
 \begin{figure}[H]
     \centering
@@ -121,7 +126,29 @@ In scheduling terms, feasible action rate asks a very direct question: how often
 
 \textbf{Explanation of Figure \ref{fig:cumulative_completion}:} This plot shows how quickly each scheduler finishes tasks over time. A steeper curve means tasks are completing faster. This view is useful because average duration alone can hide long-tail behavior. In cluster scheduling, tail behavior matters because a few delayed tasks can block an entire workload.
 
-\section{Latest Campaign Summary}
+\subsection{WebUI Operational Visuals}
+
+During live campaigns, the WebUI was used as an operator-facing view to validate that scheduler decisions matched observed system behavior. It complements the numeric KPI tables by showing cluster state and workload progress in real time.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{../diagrams/dashboard.png}
+    \caption{WebUI dashboard view during campaign execution}
+    \label{fig:webui_dashboard}
+\end{figure}
+
+\textbf{Explanation of Figure \ref{fig:webui_dashboard}:} The dashboard view provides a consolidated status of the active scheduler, worker availability, and task lifecycle progression. This helped verify that PPO placement decisions were not only better in aggregate metrics, but also operationally consistent while the workload was running.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{../diagrams/plot.jpg}
+    \caption{WebUI trend plot for scheduler performance tracking}
+    \label{fig:webui_plot}
+\end{figure}
+
+\textbf{Explanation of Figure \ref{fig:webui_plot}:} The trend plot visualizes runtime behavior across the campaign window, making it easier to inspect response under pressure and detect tail effects that may be hidden in simple averages. This visual evidence aligns with the measured improvements in turnaround and P95 completion for PPO in contention-heavy scenarios.
+
+\subsection{Latest Campaign Summary}
 
 The campaign testbench is the end-to-end evaluation harness for the project. It runs against the live Go master over HTTP, switches the active scheduler, submits a fixed workload, polls task status until tasks become terminal or the timeout is reached, and then records duration, success rate, queue wait, average turnaround, and P95 turnaround. This is different from offline trace replay because the tasks are real Docker containers running on registered workers.
 
@@ -158,7 +185,7 @@ PPO vs RTS & 16.1\% faster & 16.9\% lower \\
 
 The difference came from execution placement: PPO selected workers in a way that reduced total campaign duration and reduced the tail turnaround. Turnaround time means the time from task creation to task completion. Tail turnaround focuses on the slowest part of the workload, usually measured using a high percentile such as P95. In this campaign, P95 turnaround means that almost all tasks completed within that many seconds, except the slowest few tasks. PPO reducing P95 from \(69.00\) seconds for Round-Robin and \(74.00\) seconds for RTS to \(62.00\) seconds means the slowest tasks were less delayed. This is important because a cluster can look acceptable on average while still having a few tasks that finish very late.
 
-\section{Pressure Scenarios}
+\subsection{Pressure Scenarios}
 
 The pressure tests were designed to make scheduling non-trivial. The testbench can run baseline, burst, and overload modes. In baseline mode, one copy of the workload is submitted and the runner waits up to 600 seconds for completion. In burst mode, the same workload is submitted without spacing between tasks, again with a 600 second per-scenario timeout. In overload mode, the workload is repeated three times to saturate the cluster, and the timeout is increased to 1200 seconds.
 
@@ -182,7 +209,7 @@ PPO has overhead & A learned scheduler must justify its cost by improving diffic
 \end{tabularx}
 \end{table}
 
-\section{Important Engineering Decisions and Results}
+\subsection{Important Engineering Decisions and Results}
 
 \begin{longtable}{p{4cm}p{5.3cm}p{5.3cm}}
 \caption{Key project decisions and outcomes}
@@ -204,8 +231,7 @@ Use fallback scheduler validation & A learned model can fail or be unavailable. 
 \bottomrule
 \end{longtable}
 
-\section{Project Outcomes}
-\label{section:proj_outcomes}
+\subsection{Delivered Components}
 
 The completed project delivers:
 
@@ -219,7 +245,7 @@ The completed project delivers:
     \item offline and end-to-end evaluation artifacts.
 \end{itemize}
 
-\section{My Contributions}
+\section{My Contributions to the Project}
 \label{section:my_contribution}
 
 The main individual contributions were the design and development of the Go cluster framework, the scheduler integration boundary, the PPO scheduling pipeline, the training and evaluation workflow, and the final benchmark interpretation. A major part of the work was also debugging practical system issues: resource accounting, worker visibility, fallback behavior, model loading, and repeatable campaign execution.
@@ -229,7 +255,7 @@ The main individual contributions were the design and development of the Go clus
 
 The project helped connect two areas that are often studied separately: distributed systems and reinforcement learning. The distributed systems part taught how much correctness depends on state handling, retries, and clean boundaries. The RL part taught that model quality depends on reward design, feature representation, and safe deployment. The most important lesson was that learning-based scheduling should be added as a controlled improvement, not as a replacement for basic system reliability.
 
-\section{Real-World Applications}
+\section{Real World Applications}
 \label{section:real_world_app}
 
 This project applies to small cloud platforms, internal batch execution systems, university lab clusters, CI workload runners, and edge clusters where machines have different capacities. The PPO scheduler is especially relevant when workloads are mixed and manual scheduling rules become hard to tune.
