@@ -1,0 +1,107 @@
+@startuml
+
+' ══════════════════════════════════════════════════════════════════════════════
+'  CloudAI Task Lifecycle — Presentation Sequence Diagram
+'  Designed for 16:9 slides · Clean · Large fonts · Minimal clutter
+' ══════════════════════════════════════════════════════════════════════════════
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam dpi 150
+skinparam defaultFontName Arial
+skinparam defaultFontSize 20
+skinparam roundCorner 8
+
+skinparam sequence {
+    ArrowColor #1E293B
+    ArrowFontSize 20
+    ArrowFontColor #1E293B
+    LifeLineBorderColor #1E293B
+    LifeLineBackgroundColor #94A3B8
+    LifeLineBorderThickness 3
+    ParticipantBorderThickness 2
+    ParticipantBorderColor #1E3A5F
+    ParticipantFontSize 28
+    ParticipantFontColor #0F172A
+    ParticipantPadding 40
+    DividerBorderColor #64748B
+    DividerBorderThickness 2
+    DividerFontColor #0F172A
+    DividerFontSize 24
+    GroupBorderColor #64748B
+    GroupHeaderFontSize 20
+    GroupFontColor #334155
+}
+
+skinparam note {
+    BorderColor #94A3B8
+    BackgroundColor #F1F5F9
+    FontSize 18
+    FontColor #1E293B
+}
+
+title <size:36><b>CloudAI — Task Lifecycle</b></size>\n<size:18><color:#475569>Master Node  ·  PPO Scheduler  ·  Worker Node</color></size>\n
+
+actor "      User      " as U
+participant "    Master Node    " as M #B6D4F7
+participant "    PPO Service    " as P #D4C8F5
+participant "   Worker Node   " as W #A7EDCA
+
+|||
+
+== <b>  Registration & Heartbeat  </b> ==
+
+W -> M : **RegisterWorker**(capacity, specs)
+note right of M #D1FAE5 : Worker persisted to MongoDB\nHeartbeats begin (every 5 s)
+
+|||
+
+== <b>  Task Submission  </b> ==
+
+U -> M : **SubmitTask**(image, cmd, resources, SLA)
+note right of M #FDEAAB : DB: TASK created · status = queued
+
+|||
+
+== <b>  Scheduling & Assignment  </b> ==
+
+activate M #B6D4F7
+M -> P : **SelectWorker**(task, candidates)
+P --> M : worker_id
+note right of P #D4C8F5 : PPO neural network inference\nFallback → RTS / Round-Robin
+M -> W : **AssignTask**(task, attempt_id)
+W --> M : Ack ✓
+deactivate M
+
+|||
+
+== <b>  Docker Execution  </b> ==
+
+activate W #A7EDCA
+W -> W : Pull → Create → Run container
+W -> W : Wait for exit · Collect outputs
+deactivate W
+
+|||
+
+== <b>  Result & Feedback  </b> ==
+
+W -> M : **ReportCompletion**(status, logs, files)
+note right of M #FDEAAB : DB: Finalize ATTEMPT + RESULT\nRelease resources
+M --> U : Result + logs + output files
+M -> P : **ReportOutcome**(reward, SLA_met)
+P -> P : PPO gradient update
+note right of P #D4C8F5 : Checkpoint persisted\nto MongoDB GridFS
+
+|||
+
+== <b>  Recovery  </b> ==
+
+note over M, W #E2E8F0
+  **Timeout** (>30 s no heartbeat) → mark worker inactive → requeue task
+  **Cancel** → CancelTask RPC → stop container → update status
+end note
+
+|||
+
+@enduml

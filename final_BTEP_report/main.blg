@@ -6,33 +6,33 @@ Database file #1: General/References.bib
 You've used 14 entries,
             1876 wiz_defined-function locations,
             546 strings with 5576 characters,
-and the built_in function-call counts, 2489 in all, are:
+and the built_in function-call counts, 2486 in all, are:
 = -- 209
 > -- 144
 < -- 0
 + -- 55
 - -- 41
-* -- 157
+* -- 159
 := -- 400
 add.period$ -- 21
 call.type$ -- 14
 change.case$ -- 14
 chr.to.int$ -- 0
 cite$ -- 14
-duplicate$ -- 98
-empty$ -- 270
+duplicate$ -- 97
+empty$ -- 268
 format.name$ -- 41
-if$ -- 592
+if$ -- 590
 int.to.chr$ -- 0
 int.to.str$ -- 14
 missing$ -- 7
 newline$ -- 52
 num.names$ -- 14
-pop$ -- 74
+pop$ -- 73
 preamble$ -- 1
 purify$ -- 0
 quote$ -- 0
-skip$ -- 47
+skip$ -- 48
 stack$ -- 0
 substring$ -- 32
 swap$ -- 14
