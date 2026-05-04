@@ -1,9 +1,9 @@
 \chapter{Introduction}
 \label{section:introduction}
 
-Modern computing workloads are rarely executed on a single machine. A useful system must accept many tasks, understand what resources each task needs, select a suitable worker, run the task safely, and store the result. This becomes harder when workers are heterogeneous. One worker may have more CPU, another may have more memory, and the best choice can change every few seconds as tasks start and finish.
+In modern computing workloads, it is seldom the case that a single machine is used to execute the workload. An effective system should be able to take in numerous tasks, comprehend what resources each task requires, pick an appropriate worker, execute the task reliably, and store the outcome. This is even more difficult when there is heterogeneity among workers. A single worker can have a larger CPU, another worker can have a larger memory, and the most optimal choice can change every few seconds as work is started and finished.
 
-The project developed in this work is called \textbf{Agentic Cloud Cluster}. It is a Go-based distributed cluster managing framework that schedules Docker-based tasks across worker nodes. The focus of the project is the cluster framework and the PPO-based scheduler. Other surrounding utilities are treated only as supporting parts of the system.
+The project designed in this work is named as \textbf{Agentic Cloud Cluster}. It is a distributed cluster of Go-based management that schedules Docker-based jobs on worker nodes. The cluster framework and the PPO-based scheduler are the center of attention in the project. The other utilities around are considered as mere auxiliary aspects of the system.
 
 \section{Project Definition}
 \label{section:proj_def}
@@ -11,46 +11,46 @@ The project developed in this work is called \textbf{Agentic Cloud Cluster}. It 
 The project can be defined as follows:
 
 \begin{quote}
-To build a distributed task execution framework in Go and improve task placement decisions using a reinforcement learning scheduler based on Proximal Policy Optimization.
+To create a distributed task execution system in Go, and enhance task placement decisions with reinforcement learning schedule based on Proximal Policy Optimization.
 \end{quote}
 
-The system has a master node and multiple worker nodes. The master accepts tasks, tracks workers, stores task state, and asks a scheduler to select a worker. The worker executes the task using Docker containers and reports status back to the master. The scheduling algorithm can be changed without changing the worker execution logic.
+The system consists of a master node and a number of worker nodes. The master accepts tasks, monitors workers, stores task state, and requests a scheduler to pick a worker. The worker performs the job with the help of Docker containers and informs the status back to the master. This is because the scheduling algorithm can be modified without altering the logic of executing workers.
 
 \section{Motivation}
 
-The first scheduling solution most systems use is a simple rule. Round-Robin is easy to understand: send one task to worker 1, the next to worker 2, and so on. This is useful as a baseline, but it ignores whether the worker has enough resources, whether it is already busy, and whether the task is likely to miss its deadline.
+The simplest rule is the first scheduling solution most systems employ. Round-Robin is simple to conceptualize: dispatch one job to worker 1, the next to worker 2, etc. This comes in handy as a benchmark but does not take into consideration whether the worker has sufficient resources, whether it is already busy, and whether the work is bound to miss its deadline.
 
-Heuristic schedulers improve this by adding rules. For example, a scheduler can prefer the worker with the most available CPU or the lowest estimated risk. However, fixed rules are difficult to tune because the right trade-off changes with workload type. A CPU-heavy task, a memory-heavy task, and a burst of short tasks do not need the same decision rule.
+This can be enhanced by heuristic schedulers that include rules. An illustrative example is that a scheduler can give preference to the worker with the most available CPU or the least estimated risk. Nonetheless, it is hard to tune the fixed rules as the correct trade-off depends on the type of workload. A memory-heavy task, a burst of short tasks, and a CPU-intensive task, do not require the same decision rule.
 
-This is why reinforcement learning was explored. In reinforcement learning, an agent learns by taking actions and receiving rewards \cite{sutton2018reinforcement}. For cluster scheduling, the state is the current cluster condition, the action is the selected worker, and the reward measures whether the placement was useful. This matches the nature of scheduling: every placement changes the next state of the cluster.
+This is the reason why reinforcement learning was investigated. In reinforcement learning, an agent learns through actions and rewards it receives in response to its actions \cite{sutton2018reinforcement}. In the case of cluster scheduling, the state is the current cluster state, the action is the chosen worker and the reward is whether the placement was helpful. This is consistent with the nature of scheduling: each placement alters the state of the cluster.
 
 \section{Project Objectives}
 \label{section:proj_obj}
 
-The objectives of the project were:
+The project had the following objectives:
 
 \begin{itemize}
-    \item Build a working Go master-worker cluster that can run Docker-based tasks.
-    \item Maintain worker registration, heartbeat, resource tracking, task lifecycle, and result storage.
-    \item Provide a clean scheduling boundary so different scheduling algorithms can be compared.
-    \item Implement baseline scheduling and PPO-based scheduling.
-    \item Train PPO using realistic cluster traces and a reward function aligned with feasibility, queue pressure, tail pressure, and load balance.
-    \item Evaluate the system with repeatable campaigns and explain the results honestly.
+    \item Create a working Go master-worker cluster that is capable of executing Docker-based tasks.
+    \item Worker registration, heartbeat, resource tracking, task lifecycle, and result storage.
+    \item Have a clean scheduling boundary, such that the various scheduling algorithms can be compared.
+    \item Introduce baseline scheduling and PPO-based scheduling.
+    \item Train PPO with realistic cluster traces and a reward function consistent with feasibility, queue pressure, tail pressure, and load balance.
+    \item Test the system using repeatable campaigns and communicate the findings in a candid manner.
 \end{itemize}
 
 \section{Scope}
 
-The core scope is the distributed cluster and PPO scheduler. The report intentionally does not focus on auxiliary interfaces or monitoring tools. They may exist as supporting utilities in the repository, but the technical contribution is the Go control plane, worker execution layer, and reinforcement learning scheduler.
+The distributed cluster and PPO scheduler is the core scope. The report deliberately avoids one-sided attention to the auxiliary interfaces or monitoring tools. They can be present in the form of supporting utilities in the repository, but the technical contribution is the Go control plane, worker execution layer, and reinforcement learning scheduler.
 
 \section{Main Contributions}
 
 The main contributions are:
 
 \begin{enumerate}
-    \item A Go-based distributed task execution framework with master and worker nodes.
-    \item A scheduler interface that supports simple baselines and PPO scheduling.
-    \item A PPO service that receives scheduling requests over gRPC and returns a worker decision.
-    \item A trace replay training environment with lifecycle-based resource accounting.
-    \item A reward design that penalizes infeasible placement, queue pressure, tail pressure, and imbalance.
-    \item A benchmark setup for comparing scheduling behavior across load patterns.
+    \item A Go-based distributed task execution system with master nodes and worker nodes.
+    \item A scheduler interface, which allows simple baselines and PPO scheduling.
+    \item A PPO service that accepts scheduling requests via gRPC and gives a worker decision.
+    \item A trace replay training environment using lifecycle based resource accounting.
+    \item Reward design penalizing infeasible placement, queue pressure, tail pressure, and imbalance.
+    \item A benchmark environment to compare scheduling behavior to load patterns.
 \end{enumerate}

@@ -4,18 +4,18 @@
 \section{Project Outcomes}
 \label{section:proj_outcomes}
 
-This chapter reports the measurable outcomes of the project and ties those outcomes to practical system behavior in the deployed cluster.
+This chapter documents the quantifiable results of the project and relates the results to the actual system behavior in the deployed cluster.
 
 \subsection{Evaluation Setup}
 
-The system was evaluated in two ways:
+The system was tested in two aspects:
 
 \begin{enumerate}
-    \item \textbf{Offline PPO evaluation}: the trained model was tested on trace replay data to measure reward and feasibility.
-    \item \textbf{End-to-end cluster campaigns}: the Go master and workers executed real Docker tasks under different workload patterns and scheduler choices.
+    \item \textbf{Offline PPO testing}: the trained model was also tested on data formed by trace replay to gauge reward and feasibility.
+    \item \textbf{End-to-end cluster campaigns}: Go master and workers ran actual Docker tasks at various workload patterns and scheduler options.
 \end{enumerate}
 
-The main schedulers compared were:
+The key schedulers compared were:
 
 \begin{table}[H]
 \centering
@@ -147,14 +147,11 @@ Description of Figure \ref{fig:webui_dashboard}: The dashboard view gives an int
     \label{fig:webui_plot}
 \end{figure}
 
-\textbf{Explanation of Figure \ref{fig:webui_plot}:} The trend plot visualizes runtime behavior across the campaign window, making it easier to inspect response under pressure and detect tail effects that may be hidden in simple averages. This visual evidence aligns with the measured improvements in turnaround and P95 completion for PPO in contention-heavy scenarios.
+\textbf{Explanation of Figure \ref{fig:webui_plot}:} This trend plot visualizes the behavior of the runtime across the campaign window, which is easier to inspect response under pressure and detect tail effects that could be hidden in simple averages. This visual manifestation coincides with the quantitative aid in turnaround and P95 completion of PPO under contention-intensive situations.
 
 \subsection{Latest Campaign Summary}
 
-The campaign testbench is the end-to-end evaluation harness for the project. It runs against the live Go master over HTTP, switches the active scheduler, submits a fixed workload, polls task status until tasks become terminal or the timeout is reached, and then records duration, success rate, queue wait, average turnaround, and P95 turnaround. This is different from offline trace replay because the tasks are real Docker containers running on registered workers.
-
-This campaign ran the \texttt{resource-contention-ppo} workload with 20 tasks per scheduler. All schedulers achieved \(100\%\) success, but PPO had the best overall runtime behavior. PPO finished the campaign in \(63.95\) seconds, compared with \(70.06\) seconds for Round-Robin and \(76.20\) seconds for RTS. PPO also had the lowest average turnaround and lowest P95 turnaround.
-
+The end-to-end evaluation harness of the project is the campaign testbench. It runs against the live Go master over HTTP, switches the active scheduler, submits a fixed workload, polls task status until tasks become terminal or the limit is reached, and then records the duration, success rate, queue wait, average turnaround, and P95 turnaround.
 \begin{table}[H]
 \centering
 \caption{New-model campaign scheduler summary}
@@ -188,11 +185,11 @@ The difference came from execution placement: PPO selected workers in a way that
 
 \subsection{Pressure Scenarios}
 
-The pressure tests were designed to make scheduling non-trivial. The testbench can run baseline, burst, and overload modes. In baseline mode, one copy of the workload is submitted and the runner waits up to 600 seconds for completion. In burst mode, the same workload is submitted without spacing between tasks, again with a 600 second per-scenario timeout. In overload mode, the workload is repeated three times to saturate the cluster, and the timeout is increased to 1200 seconds.
+The pressure tests were developed in such a manner that scheduling was not going to be easy. The testbench is capable of running a baseline, burst and overload mode. When in the baseline mode, a single copy of the workload is sent and the runner waits up to 600 seconds to complete the workload. In burst mode (same workload) is submitted without a time delay between tasks again with a 600 second per-scenario time-out. When in an overload mode, the workload is tripled to overload the cluster and the timeout is extended to 1200 seconds.
 
-The \texttt{resource-contention-ppo} workload used in the final campaign contains 20 deterministic Docker tasks. The task set is mixed on purpose: five large CPU-heavy tasks, five memory-heavy tasks, five medium mixed CPU-memory tasks, and five small CPU-light tasks. The resource requests are also different. Large tasks request \(2.5\) CPU and \(0.8\) GB memory, memory-heavy tasks request \(0.8\) CPU and \(2.0\) GB memory, medium tasks request \(1.5\) CPU and \(0.8\) GB memory, and small tasks request \(0.5\) CPU and \(0.4\) GB memory. This creates a bin-packing problem because not every task is equally suitable for every worker.
+The 20 deterministic Docker tasks in the resource-contention-ppo workload used in the final campaign. The set of tasks is intentionally mixed: five large CPU-heavy tasks, five memory-heavy tasks, five medium mixed CPU-memory tasks, and five small CPU-light tasks. The resource requests also vary. Large tasks request \(2.5\) CPU and \(0.8\) GB memory, memory-heavy tasks request \(0.8\) CPU and \(2.0\) GB memory, medium tasks request \(1.5\) CPU and \(0.8\) GB memory, and small tasks request \(0.5\) CPU and \(0.4\) GB memory. This gives a bin-packing problem since not all tasks are equally appropriate to all workers.
 
-Earlier comprehensive campaigns showed the clearest PPO advantage under burst load. In one campaign, Round-Robin and RTS timed out on multiple burst workloads, while PPO completed a large percentage of burst tasks. This supports the original motivation: learned scheduling matters most when the placement decision is non-obvious.
+Previous extensive campaigns demonstrated the most evident PPO advantage in burst load. In one campaign, Round-Robin and RTS timed out on multiple burst workloads, while PPO completed a large percentage of burst tasks. This supports the original motivation: learned scheduling matters most when the placement decision is non-obvious.
 
 \begin{table}[H]
 \centering
@@ -245,15 +242,17 @@ The final project is one that provides:
     \item offline and end-to-end evaluation artifacts.
 \end{itemize}
 
-\section{My Contributions to the Project}
+\section{My Contribution to the Project}
 \label{section:my_contribution}
 
-The design and development of the Go cluster framework, the scheduler integration boundary, the PPO scheduling pipeline, the training and evaluation workflow, and the final benchmark interpretation were the main individual contributions. A significant portion of the work, as well, was debugging practical system issues: resource accounting, worker visibility, fallback behavior, and model loading.
+The key individual contributions were the design and development of the Go cluster framework, the scheduler integration boundary, the PPO scheduling pipeline, the training and evaluation workflow and the final benchmark interpretation. Much of the work, too, consisted of debugging practice system bugs: resource accounting, worker visibility, fallback behavior, and model loading.
 
 \section{Learning Outcomes}
 \label{section:learnings}
 
-The project served to bridge two topics which are frequently discussed independently: distributed systems and reinforcement learning. Part 6 of the distributed systems course has helped me understand that a lot of correctness is determined by the state handling, retries, and clean boundaries. The RL component taught that the quality of models is susceptible to reward design, feature representation, and safe deployment. The greatest lesson here was that the learning-based scheduling must be introduced as a controlled enhancement and not as a replacement of the basic system reliability.
+The project served to bridge two topics which are frequently discussed independently: distributed systems and reinforcement learning.
+
+ The distributed systems aspect has helped me understand that a lot of correctness is determined by the state handling, retries, and clean boundaries. The RL component taught that the quality of models is susceptible to reward design, feature representation, and safe deployment. The greatest lesson here was that the learning-based scheduling must be introduced as a controlled enhancement and not as a replacement of the basic system reliability.
 
 \section{Real World Applications}
 \label{section:real_world_app}

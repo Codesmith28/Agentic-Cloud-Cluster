@@ -53,7 +53,7 @@ The scheduler can be rendered unrealistic by training him only on random synthet
 
 \subsection{Modern Industry Standards and AI-Driven Trends}
 
-Within the present-day technological context, Kubernetes (K8s) has become the industry standard in terms of container orchestration \cite{kubernetes2026}. Google had a heavily influential role in Kubernetes; internal cluster manager Borg was the inspiration, and the default scheduler strongly relies on heuristics: initially, it filters to find viable nodes; then it scores them based on resource availability and affinity rules. Although highly robust, these heuristics tend to have issues with long-term optimization and complex and non-linear resource relationships, which RL-based methods seek to address.
+Within the present-day technological context, Kubernetes (K8s) has become the industry standard in terms of container orchestration \cite{kubernetes2026}.Google had a massively strong influence on Kubernetes; Borg, the default cluster manager at Google, was the inspiration, and the default scheduler heavily relies on heuristics: first, it filters to find viable nodes; second, it scores the nodes based on the availability of resources and affinity rules.
 
 Besides general-purpose orchestration, there are specialized projects such as \textbf{Volcano} \cite{volcano2025} and \textbf{Apache Yunikorn} \cite{yunikorn2025} that have been created to support high-performance batch workloads and AI/ML training jobs on Kubernetes. These systems bring in advanced queuing and gang scheduling which are essential in the distributed training.
 

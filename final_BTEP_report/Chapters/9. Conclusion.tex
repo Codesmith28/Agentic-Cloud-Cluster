@@ -5,27 +5,27 @@ The Agentic Cloud Cluster is a successful attempt to illustrate the distributed 
 
 The methodology demonstrated the reason why reinforcement learning is a viable choice to solve cluster scheduling. Q-tables describe the fundamental concept, but do not work due to the large size of the state space. DQN enhances generalization, and is less natural to dynamic sets of workers and masking of actions. PPO was selected due to its ability to directly learn a worker-selection policy, support stable clipped updates and continuous resource capabilities.
 
-The outcomes demonstrate a balanced image. It is not always the case that PPO is better. Simple schedulers are quick and efficient when the load is light. PPO proves more handy under burst and overload pressure since it is capable of using acquired relationships between task demand, worker state and risk. This is the overall conclusion of the project: learning-based scheduling is useful when the decision space is complicated, but it needs to be implemented with validation and fallback.
+The outcomes demonstrate a balanced image. It is not always the case that PPO is better. Simple schedulers are quick and efficient when the load is light. PPO is more useful when there is burst and overload pressure as far as it can use acquired relationships between task demand, worker state and risk. The general conclusion of the project is: learning-based scheduling can help when the decision space is complex, but must be implemented with checking and recovery.
 
 \section{Future Work}
 
-Future work can improve the project in the following ways:
+The project can be enhanced in the future in the following ways:
 
 \begin{itemize}
-    \item Train on larger and more diverse traces.
-    \item Add multi-objective reward tuning for cost, energy, and fairness.
-    \item Improve online adaptation after longer stable cluster runs.
-    \item Evaluate with more physical or cloud machines.
-    \item Add stronger failure injection tests for worker loss and network delay.
-    \item \textbf{Container Checkpoint/Restore with CRIU}: Integrate CRIU (Checkpoint/Restore In Userspace) to enable faster container recovery and task migration. CRIU provides kernel-level support for freezing process state, dumping it to disk, and restoring it on demand. This capability would support several improvements:
+    \item Train on bigger and more varied traces.
+    \item Introduce cost, energy, and fairness multi-objective reward tuning.
+    \item Online adaptation by longer stable cluster runs.
+    \item Test using more physical or cloud machines.
+    \item Add more aggressive tests on failure injection of the workers loss and network delay.
+    \item \textbf{Container Checkpoint/Restore In Userspace}: Incorporate CRIU (Checkpoint/Restore In Userspace) to add functionality to enable faster container recovery and task migration. CRIU offers kernel-level support of freezing process state, dumping it to disk, and restoring it on demand. This would allow making a number of improvements:
     \begin{itemize}
-        \item \textbf{Faster Recovery from Failures}: When a worker fails, instead of re-running tasks from scratch, containers can be restored from saved checkpoints, significantly reducing recovery time.
+        \item \textbf{Quick Recovery of Failures}: When a worker fails, it is possible to recover the worker in a much shorter time than to re-run tasks fresh to recover the worker.
         \item \textbf{Task Preemption}: High-priority tasks could preempt lower-priority ones by checkpoint-saving the latter and restoring them when resources become available.
-        \item \textbf{Container Migration}: Checkpoints enable live migration of containers between workers without loss of state, supporting better load balancing and maintenance operations.
-        \item \textbf{Warm Starts}: Container images with pre-initialized state can be checkpointed and restored, reducing initialization overhead for stateful workloads.
-        \item \textbf{Predictive Scheduling}: The scheduler could use CRIU-backed snapshots as part of risk modeling, allowing it to trade off immediate completion against future resource availability.
+        \item \textbf{Container Migration}: Checkpoints allow live migration of containers between workers without loss of state, better load balancing and maintenance operations.
+        \item \textbf{Warm Starts}: Container images with pre-established state can be checkpointed and restored, eliminating the need to reestablish state when stateful workloads are executed.
+        \item \textbf{Predictive Scheduling}: Risk modeling could involve the scheduler using CRIU-backed snapshots, which would enable the scheduler to trade-off immediate completion against future availability of resources.
     \end{itemize}
-    Implementation challenges include kernel compatibility, coordination between checkpoint timestamps and task state metadata in MongoDB, and handling network connections across migration boundaries.
+    The difficulties of implementation are compatibility with the kernel, coordination between checkpoint timestamps and task state metadata in MongoDB, and dealing with network connections across migration boundaries.
 \end{itemize}
 
-Overall, the project proves that a distributed systems framework and a reinforcement learning scheduler can be combined in a practical and safe way.
+On the whole, the project demonstrates that a distributed systems architecture and a reinforcement learning scheduler can be integrated in a practical and safe manner.

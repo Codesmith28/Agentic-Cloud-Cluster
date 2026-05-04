@@ -63,7 +63,7 @@
 \contentsline {subsection}{\numberline {4.2.6}Pressure Scenarios}{33}{subsection.4.2.6}%
 \contentsline {subsection}{\numberline {4.2.7}Important Engineering Decisions and Results}{34}{subsection.4.2.7}%
 \contentsline {subsection}{\numberline {4.2.8}Delivered Components}{34}{subsection.4.2.8}%
-\contentsline {section}{\numberline {4.3}My Contributions to the Project}{35}{section.4.3}%
+\contentsline {section}{\numberline {4.3}My Contribution to the Project}{35}{section.4.3}%
 \contentsline {section}{\numberline {4.4}Learning Outcomes}{35}{section.4.4}%
 \contentsline {section}{\numberline {4.5}Real World Applications}{35}{section.4.5}%
 \contentsline {chapter}{\numberline {5}Conclusion}{37}{chapter.5}%

@@ -41,21 +41,22 @@ Q(s,a;\theta) \approx \text{expected future reward}
 
 This is better because the network can generalize. If it has seen a worker at 60 percent memory usage, it can still make a reasonable prediction for 62 percent memory usage.
 
-However, DQN has limitations for this project:
+
+Nonetheless, DQN has drawbacks to this project:
 
 \begin{itemize}
-    \item The action set depends on the number of workers.
-    \item Some workers are invalid for a task because they do not have enough resources.
-    \item The scheduler needs a clean way to mask invalid actions.
-    \item We wanted a direct policy over workers, not only a value estimate.
-    \item Stable DQN training usually requires replay buffers and target networks, which adds complexity when outcomes are delayed.
+    \item This action set relies on the number of workers.
+    \item There are workers who cannot do a task due to lack of sufficient resources.
+    \item The scheduler must have a clean method to conceal the invalid actions.
+    \item We desired a direct policy regarding workers, not merely a value estimate.
+    \item Stable DQN training typically involves replay buffers and target networks, complicating the case when results are delayed.
 \end{itemize}
 
-\textbf{Decision:} DQN was a logical next idea after Q-tables, but PPO was selected because policy-gradient learning matches the worker-selection action more naturally.
+\textbf{Decision:} DQN was the next logical idea that comes after Q-tables, but PPO was chosen because policy-gradient learning is more natural as a worker-selection action.
 
-\section{Final Choice: PPO}
+\section{Final Choice: PPO} 
 
-PPO directly learns a policy \(\pi_\theta(a|s)\), which means the probability of choosing worker \(a\) in state \(s\). It also learns a value function \(V_\theta(s)\), which estimates how good the current state is.
+PPO learns directly a policy, denoted by the probability of selecting worker, a, in state, s, denoted as PPO, which is the probability of making the choice. It also approximates a value function \(V_\theta(s) \), which approximates the goodness of the current state.
 
 The main PPO objective used is the clipped surrogate objective:
 
@@ -276,14 +277,14 @@ The PPO model was trained using trace replay. The Alibaba cluster trace was used
 
 \section{Training Pipeline}
 
-The training pipeline follows these steps:
+The training pipeline is based on the following steps:
 
 \begin{enumerate}
     \item Load trace tasks and worker information.
     \item Normalize task and worker features.
-    \item Create the replay environment.
-    \item Run PPO rollouts and collect actions, rewards, log probabilities, and values.
-    \item Compute returns and advantages.
+    \item Prepare the replay environment.
+    \item Run PPO rollouts and receive actions, rewards, log probabilities, and values.
+    \item Calculate returns and benefits.
     \item Update the policy using PPO clipping, value loss, entropy regularization, and gradient clipping.
     \item Save model checkpoints.
     \item Promote the best checkpoint for cluster use.
@@ -359,9 +360,9 @@ The implementation also includes fallback behavior:
 
 \begin{itemize}
     \item If the PPO service is down, use the fallback scheduler.
-    \item If PPO returns an empty result, use fallback.
-    \item If PPO returns a worker that no longer exists or cannot fit the task, use fallback.
-    \item If shadow mode is enabled, log PPO's decision but execute fallback's decision.
+    \item In the event that PPO gives an empty response, then resort to fallback.
+    \item When PPO provides a worker that no longer exists or cannot fit the task, use fallback.
+    \item When the shadow mode is turned on, record the decision made by PPO but implement the decision made by fallback.
 \end{itemize}
 
-\textbf{Decision:} The learning model is never allowed to be the only safety mechanism. The Go scheduler validates PPO's output before assigning a task.
+\textbf{Decision:} The learning model shall not be permitted to be the sole safety measure. The Go scheduler checks the output of PPO and only after checking the output, the Go scheduler assigns a task.
