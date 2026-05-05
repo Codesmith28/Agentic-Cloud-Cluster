@@ -94,17 +94,6 @@ The mean reward is obtained by dividing the value of rewards by all the scheduli
 
 In scheduling theory Feasible action rate is a measure of the frequency with which the scheduler selected a worker capable of actually executing the task without breaking the CPU, memory or storage constraints. Light-load trace replay does not make the improvement enormously large, but it is a meaningful improvement since PPO has now reached the level of a strong heuristic without compromise of the ability to learn by reward signals.
 
-\subsection{End-to-End KPI Comparison}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.92\textwidth]{Figures/Results/fig1_kpi_comparison.png}
-    \caption{KPI comparison between schedulers.}
-    \label{fig:kpi_comparison}
-\end{figure}
-
-\textbf{Explanation of Figure \ref{fig:kpi_comparison}:} This plot will compare the key scheduler metrics. It is not important that PPO will score higher in every measure in every instance. The truth of the matter is that PPO will shine best when under stress, and more basic schedulers will be able to compete when the workload is not so demanding. This is a real systems outcome since introducing intelligence introduces overhead of inference.
-
 \subsection{Multi-Run Comparison}
 
 \begin{figure}[H]

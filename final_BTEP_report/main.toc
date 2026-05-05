@@ -55,22 +55,21 @@
 \contentsline {subsection}{\numberline {4.1.1}Evaluation Setup}{24}{subsection.4.1.1}%
 \contentsline {subsection}{\numberline {4.1.2}Training Convergence}{25}{subsection.4.1.2}%
 \contentsline {section}{\numberline {4.2}Results of the Offline PPO Model}{27}{section.4.2}%
-\contentsline {subsection}{\numberline {4.2.1}End-to-End KPI Comparison}{28}{subsection.4.2.1}%
-\contentsline {subsection}{\numberline {4.2.2}Multi-Run Comparison}{29}{subsection.4.2.2}%
-\contentsline {subsection}{\numberline {4.2.3}Cumulative Completion}{30}{subsection.4.2.3}%
-\contentsline {subsection}{\numberline {4.2.4}WebUI Operational Visuals}{30}{subsection.4.2.4}%
-\contentsline {subsection}{\numberline {4.2.5}Latest Campaign Summary}{32}{subsection.4.2.5}%
-\contentsline {subsection}{\numberline {4.2.6}Pressure Scenarios}{33}{subsection.4.2.6}%
-\contentsline {subsection}{\numberline {4.2.7}Important Engineering Decisions and Results}{34}{subsection.4.2.7}%
-\contentsline {subsection}{\numberline {4.2.8}Delivered Components}{34}{subsection.4.2.8}%
-\contentsline {section}{\numberline {4.3}My Contribution to the Project}{35}{section.4.3}%
-\contentsline {section}{\numberline {4.4}Learning Outcomes}{35}{section.4.4}%
-\contentsline {section}{\numberline {4.5}Real World Applications}{35}{section.4.5}%
-\contentsline {chapter}{\numberline {5}Conclusion}{37}{chapter.5}%
-\contentsline {section}{\numberline {5.1}Future Work}{37}{section.5.1}%
-\contentsline {chapter}{Bibliography}{38}{section.5.1}%
-\contentsline {chapter}{Appendix}{41}{chapter*.26}%
-\contentsline {section}{\numberline {.1}Repository Modules}{41}{section.Alph0.1}%
-\contentsline {section}{\numberline {.2}Representative PPO Configuration}{41}{section.Alph0.2}%
-\contentsline {section}{\numberline {.3}Ports and Service Mapping}{42}{section.Alph0.3}%
+\contentsline {subsection}{\numberline {4.2.1}Multi-Run Comparison}{28}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {4.2.2}Cumulative Completion}{29}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.2.3}WebUI Operational Visuals}{29}{subsection.4.2.3}%
+\contentsline {subsection}{\numberline {4.2.4}Latest Campaign Summary}{31}{subsection.4.2.4}%
+\contentsline {subsection}{\numberline {4.2.5}Pressure Scenarios}{32}{subsection.4.2.5}%
+\contentsline {subsection}{\numberline {4.2.6}Important Engineering Decisions and Results}{33}{subsection.4.2.6}%
+\contentsline {subsection}{\numberline {4.2.7}Delivered Components}{33}{subsection.4.2.7}%
+\contentsline {section}{\numberline {4.3}My Contribution to the Project}{34}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Learning Outcomes}{34}{section.4.4}%
+\contentsline {section}{\numberline {4.5}Real World Applications}{34}{section.4.5}%
+\contentsline {chapter}{\numberline {5}Conclusion}{36}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Future Work}{36}{section.5.1}%
+\contentsline {chapter}{Bibliography}{37}{section.5.1}%
+\contentsline {chapter}{Appendix}{40}{chapter*.25}%
+\contentsline {section}{\numberline {.1}Repository Modules}{40}{section.Alph0.1}%
+\contentsline {section}{\numberline {.2}Representative PPO Configuration}{40}{section.Alph0.2}%
+\contentsline {section}{\numberline {.3}Ports and Service Mapping}{41}{section.Alph0.3}%
 \contentsfinish 

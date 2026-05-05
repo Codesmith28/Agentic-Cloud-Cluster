@@ -10,12 +10,12 @@
 \addvspace {10\p@ }
 \contentsline {table}{\numberline {4.1.1}{\ignorespaces Schedulers compared}}{24}{table.caption.14}%
 \contentsline {table}{\numberline {4.2.1}{\ignorespaces Comparison of offline schedulers on trace replay}}{27}{table.caption.17}%
-\contentsline {table}{\numberline {4.2.2}{\ignorespaces New-model campaign scheduler summary}}{32}{table.caption.23}%
-\contentsline {table}{\numberline {4.2.3}{\ignorespaces New PPO improvement over baselines}}{33}{table.caption.24}%
-\contentsline {table}{\numberline {4.2.4}{\ignorespaces Burst scenario interpretation}}{34}{table.caption.25}%
-\contentsline {table}{\numberline {4.2.5}{\ignorespaces Key project decisions and outcomes}}{34}{table.4.2.5}%
+\contentsline {table}{\numberline {4.2.2}{\ignorespaces New-model campaign scheduler summary}}{31}{table.caption.22}%
+\contentsline {table}{\numberline {4.2.3}{\ignorespaces New PPO improvement over baselines}}{32}{table.caption.23}%
+\contentsline {table}{\numberline {4.2.4}{\ignorespaces Burst scenario interpretation}}{33}{table.caption.24}%
+\contentsline {table}{\numberline {4.2.5}{\ignorespaces Key project decisions and outcomes}}{33}{table.4.2.5}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {.1.1}{\ignorespaces Main repository modules used in the project}}{41}{table.caption.28}%
-\contentsline {table}{\numberline {.2.1}{\ignorespaces Representative PPO training configuration}}{41}{table.caption.29}%
-\contentsline {table}{\numberline {.3.1}{\ignorespaces Ports used by the project}}{42}{table.caption.30}%
+\contentsline {table}{\numberline {.1.1}{\ignorespaces Main repository modules used in the project}}{40}{table.caption.27}%
+\contentsline {table}{\numberline {.2.1}{\ignorespaces Representative PPO training configuration}}{40}{table.caption.28}%
+\contentsline {table}{\numberline {.3.1}{\ignorespaces Ports used by the project}}{41}{table.caption.29}%
 \contentsfinish 

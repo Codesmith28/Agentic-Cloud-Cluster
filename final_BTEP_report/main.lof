@@ -8,10 +8,9 @@
 \addvspace {10\p@ }
 \contentsline {figure}{\numberline {4.1.1}{\ignorespaces PPO training reward curve}}{25}{figure.caption.15}%
 \contentsline {figure}{\numberline {4.1.2}{\ignorespaces PPO policy loss and entropy}}{26}{figure.caption.16}%
-\contentsline {figure}{\numberline {4.2.1}{\ignorespaces KPI comparison between schedulers.}}{28}{figure.caption.18}%
-\contentsline {figure}{\numberline {4.2.2}{\ignorespaces Multi-run scheduler comparison}}{29}{figure.caption.19}%
-\contentsline {figure}{\numberline {4.2.3}{\ignorespaces Cumulative number of tasks completed over time.}}{30}{figure.caption.20}%
-\contentsline {figure}{\numberline {4.2.4}{\ignorespaces WebUI dashboard screen whilst running the campaign.}}{31}{figure.caption.21}%
-\contentsline {figure}{\numberline {4.2.5}{\ignorespaces WebUI trend plot of scheduler performance monitoring.}}{32}{figure.caption.22}%
+\contentsline {figure}{\numberline {4.2.1}{\ignorespaces Multi-run scheduler comparison}}{28}{figure.caption.18}%
+\contentsline {figure}{\numberline {4.2.2}{\ignorespaces Cumulative number of tasks completed over time.}}{29}{figure.caption.19}%
+\contentsline {figure}{\numberline {4.2.3}{\ignorespaces WebUI dashboard screen whilst running the campaign.}}{30}{figure.caption.20}%
+\contentsline {figure}{\numberline {4.2.4}{\ignorespaces WebUI trend plot of scheduler performance monitoring.}}{31}{figure.caption.21}%
 \addvspace {10\p@ }
 \contentsfinish 
