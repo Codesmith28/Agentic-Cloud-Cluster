@@ -37,7 +37,7 @@ DQN is a natural next step after Q-tables, but it is still not ideal for this pr
 
 Proximal Policy Optimization (PPO) is a policy-gradient algorithm proposed by Schulman et al. \cite{schulman2017ppo}. Instead of only learning a Q-value, PPO directly learns a policy that maps states to action probabilities. It also learns a value function to estimate future return. The key idea in PPO is to avoid changing the policy too aggressively by using a clipped objective.
 
-PPO was selected because it fits the scheduling problem better than a Q-table or plain DQN:
+A recent algorithm-level survey for cloud job scheduling and resource management identifies PPO as a strong and practical DRL choice for this domain \cite{gu2025deeprl}. In line with that evidence, PPO was selected because it fits the scheduling problem better than a Q-table or plain DQN:
 
 \begin{itemize}
     \item It directly learns a worker-selection policy.

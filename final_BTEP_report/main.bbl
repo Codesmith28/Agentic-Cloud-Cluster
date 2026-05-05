@@ -18,6 +18,12 @@ J.~Schulman, F.~Wolski, P.~Dhariwal, A.~Radford, and O.~Klimov, ``Proximal
   policy optimization algorithms,'' {\em arXiv preprint arXiv:1707.06347}, July
   2017.
 
+\bibitem{gu2025deeprl}
+Y.~Gu, Z.~Liu, S.~Dai, C.~Liu, Y.~Wang, S.~Wang, G.~Theodoropoulos, and
+  L.~Cheng, ``Deep reinforcement learning for job scheduling and resource
+  management in cloud computing: An algorithm-level review,'' {\em arXiv.org},
+  jan 2025.
+
 \bibitem{alibabatrace}
 {Alibaba}, ``Alibaba cluster data.''
   \url{https://github.com/alibaba/clusterdata}, 2018.
