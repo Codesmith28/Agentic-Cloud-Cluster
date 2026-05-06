@@ -19,7 +19,7 @@ In reinforcement learning terms:
 
 \section{Starting Point: Q-Tables}
 
-The simplest RL idea is a Q-table. It stores a value for every state-action pair:
+The simplest RL idea is a Q-table \cite{watkins1992qlearning}. It stores a value for every state-action pair:
 
 \[
 Q(s,a) \leftarrow Q(s,a) + \alpha [r + \gamma \max_{a'} Q(s',a') - Q(s,a)]
@@ -58,7 +58,7 @@ Nonetheless, DQN has drawbacks to this project:
 
 PPO learns directly a policy, denoted by the probability of selecting worker, a, in state, s, denoted as PPO, which is the probability of making the choice. It also approximates a value function \(V_\theta(s) \), which approximates the goodness of the current state.
 
-The main PPO objective used is the clipped surrogate objective:
+The main PPO objective used is the clipped surrogate objective \cite{schulman2017ppo}:
 
 \[
 L^{CLIP}(\theta) =
@@ -114,7 +114,7 @@ After the shared encoder, the network splits into two heads:
 
 \begin{itemize}
     \item \textbf{Actor / policy head}: produces one logit per worker. After masking infeasible workers, these logits define the probability distribution \(\pi_\theta(a|s)\).
-    \item \textbf{Critic / value head}: produces a single value estimate \(V_\theta(s)\), which predicts the expected future reward from the current cluster state.
+    \item \textbf{Critic / value head}: produces a single value estimate \(V_\theta(s)\), which predicts the expected future reward from the current cluster state \cite{schulman2017ppo}.
 \end{itemize}
 
 The critic is not choosing the worker. Its job is to judge the state. During training, it answers the question: ``From this task and current worker set, how much reward should the scheduler expect on average?'' PPO then compares the actual reward to this expectation. If the selected action performs better than the critic expected, the advantage is positive and PPO increases the probability of similar choices. If it performs worse, the advantage is negative and PPO reduces that probability.
@@ -139,7 +139,7 @@ L^{VF} = \max\left((V_\theta - V_{target})^2,\ (V_{clipped} - V_{target})^2\righ
 
 In which case, V clipped is a limit to the extent to which the value estimate can vary across one update. This is a reflection of the conservative policy update by PPO. It does not allow the critic to suddenly shift its estimate too far which would render advantage estimates unstable.
 
-The target value is borrowed out of the rollout return, it is not obtained by a fixed constant. Using standard PPO with GAE, we first compute
+The target value is borrowed out of the rollout return, it is not obtained by a fixed constant. Using standard PPO with GAE \cite{schulman2015gae}, we first compute
 \[
 \delta_t = r_t + \gamma V_{\theta old}(s_{t+1}) - V_{\theta old}(s_t), \qquad
 \hat{A}_t = \sum_{l=0}^{T-1}(\gamma\lambda)^l \delta_{t+l}.

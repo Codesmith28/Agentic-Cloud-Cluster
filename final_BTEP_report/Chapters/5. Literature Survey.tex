@@ -10,7 +10,7 @@ Distributed systems divide work among several machines. The scheduler in a clust
 
 \subsection{Reinforcement Learning to Scheduling}
 
-Reinforcement learning is the study of how an agent may learn to make decisions by acting on an environment and receiving feedback signals of reinforcement of its actions onto an environment. A typical RL configuration has:
+Reinforcement learning is the study of how an agent may learn to make decisions by acting on an environment and receiving feedback signals of reinforcement of its actions onto an environment \cite{sutton2018reinforcement}. A typical RL configuration has:
 
 \begin{itemize}
     \item \textbf{State}: what the agent can see.
@@ -23,19 +23,19 @@ In this project, the mapping is straightforward. The task and workers that are p
 
 \subsection{Q-Learning and Q-Tables}
 
-Q-learning is an example of a classic reinforcement learning algorithm proposed by Watkins and Dayan \cite{watkins1992qlearning}. It learns a value, referred to as the \(Q(s,a)\) value meaning the expected long-term reward of taking action a in state s. These values can be stored in a table in a small environment.
+Q-learning is an example of a classic reinforcement learning algorithm proposed by Watkins and Dayan \cite{watkins1992qlearning}. It learns a value, referred to as the \(Q(s,a)\) value meaning the expected long-term reward of taking action a in state s \cite{watkins1992qlearning}. These values can be stored in a table in a small environment.
 
 The appeal of a Q-table lies in the simplicity of the Q-table. When there are few states and actions, all the state-action pairs can be stored in the table. However, cluster scheduling does not have a small state space. The combination of CPU, memory, storage, task type, queue depth, workers availability and workers load can create a large number of possible states. This would either make a table enormous or necessitate violent discretization, which would be losing valuable information.
 
 \subsection{Deep Q-Networks}
 
-Deep Q-Networks (DQN) are the replacement of Q-table with a neural network. Mnih et al. demonstrated that deep neural networks can approximate action-value functions when the inputs are of high dimension size \cite{mnih2013dqn}. This addresses the storage issue of Q-tables since the model generalizes the similar states.
+Deep Q-Networks (DQN) are the replacement of Q-table with a neural network \cite{mnih2013dqn}. Mnih et al. demonstrated that deep neural networks can approximate action-value functions when the inputs are of high dimension size \cite{mnih2013dqn}. This addresses the storage issue of Q-tables since the model generalizes the similar states.
 
 DQN is a natural next step after Q-tables, but it is still not ideal for this project. DQN estimates a value for each discrete action. In cluster scheduling, the number of candidate workers can change, workers can become infeasible, and invalid actions must be masked. DQN can be adapted, but the implementation becomes less natural when the action set is dynamic and the objective is to improve a stochastic placement policy.
 
 \subsection{Proximal Policy Optimization}
 
-Proximal Policy Optimization (PPO) is a policy-gradient algorithm proposed by Schulman et al. \cite{schulman2017ppo}. Instead of only learning a Q-value, PPO directly learns a policy that maps states to action probabilities. It also learns a value function to estimate future return. The key idea in PPO is to avoid changing the policy too aggressively by using a clipped objective.
+Proximal Policy Optimization (PPO) is a policy-gradient algorithm proposed by Schulman et al. \cite{schulman2017ppo}. Instead of only learning a Q-value, PPO directly learns a policy that maps states to action probabilities. It also learns a value function to estimate future return. The key idea in PPO is to avoid changing the policy too aggressively by using a clipped objective \cite{schulman2017ppo}.
 
 A recent algorithm-level survey for cloud job scheduling and resource management identifies PPO as a strong and practical DRL choice for this domain \cite{gu2025deeprl}. In line with that evidence, PPO was selected because it fits the scheduling problem better than a Q-table or plain DQN:
 
@@ -70,7 +70,7 @@ Container-based execution is a viable approach to portability of tasks. Docker t
 
 \subsection{Go for Cluster Control Plane}
 
-Go was chosen as the master-worker model as it is highly compatible with networked systems. It has built-in goroutines and channels are supported with concurrency, a large standard library, and performance compiled executables. According to the official documentation of Go, the language is an open-source project aimed at making a programmer more productive \cite{Godocs}. Go is used in the master server, worker server, task handling, scheduler interface and worker communication logic in this project.
+Go was chosen as the master-worker model as it is highly compatible with networked systems. It has built-in goroutines and channels are supported with concurrency, a large standard library, and performance compiled executables. According to the official documentation of Go, the language is an open-source project aimed at making a programmer more productive \cite{godocs}. Go is used in the master server, worker server, task handling, scheduler interface and worker communication logic in this project.
 
 \subsection{gRPC and Protocol Buffers}
 
