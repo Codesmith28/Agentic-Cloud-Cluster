@@ -56,7 +56,7 @@ It is a composite measure of feasible practical placement quality: feasible plac
     \label{fig:loss_entropy}
 \end{figure}
 
-\textbf{Explanation of Figure \ref{fig:loss_entropy}:} Figure illustrates policy loss and entropy. The PPO actor loss is known as policy loss. It is a measure of the extent to which the policy is yet to change in order to increase the likelihood of high-advantage actions and reduce the likelihood of low-advantage actions. In simple terms, it indicates the amount of correction that the actor still requires. A diminishing policy loss implies the updates are becoming smaller since the scheduler is training on a more stable placement rule.
+\textbf{Explanation of Figure \ref{fig:loss_entropy}:} This figure shows how the policy loss and entropy change over training. Policy loss is another name for the PPO actor loss. It captures how much the policy still needs to adjust so that it can favour actions with high advantage and avoid actions with low advantage. Put simply, it shows how much correction the actor still has left to do. When the policy loss shrinks, it means the updates are getting smaller because the scheduler is settling into a more stable placement rule.
 
 Entropy is used to quantify the randomness in the policy distribution. In the DRL perspective, high entropy implies that the agent is searching a large number of actions; low entropy implies that the agent is very certain and deterministic. The scheduling perspective of high entropy would imply that PPO is still experimenting with various employees to perform similar jobs. A smaller entropy implies that it has acquired more robust preferences, such as a preference towards a worker with greater resource fit and with less tail risk.
 

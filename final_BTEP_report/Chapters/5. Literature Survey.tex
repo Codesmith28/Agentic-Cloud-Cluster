@@ -25,7 +25,7 @@ In this project, the mapping is straightforward. The task and workers that are p
 
 Q-learning is an example of a classic reinforcement learning algorithm proposed by Watkins and Dayan \cite{watkins1992qlearning}. It learns a value, referred to as the \(Q(s,a)\) value meaning the expected long-term reward of taking action a in state s \cite{watkins1992qlearning}. These values can be stored in a table in a small environment.
 
-The appeal of a Q-table lies in the simplicity of the Q-table. When there are few states and actions, all the state-action pairs can be stored in the table. However, cluster scheduling does not have a small state space. The combination of CPU, memory, storage, task type, queue depth, workers availability and workers load can create a large number of possible states. This would either make a table enormous or necessitate violent discretization, which would be losing valuable information.
+The main strength of a Q-table is its simplicity. When the number of states and actions is small, every state-action pair can fit neatly into a single table. However, cluster scheduling does not have a small state space. Factors such as CPU, memory, storage, task type, queue depth, how many workers are free, and how busy each worker is can combine to produce a very large number of distinct states. Storing all of them would make the table impractically huge, and rounding the values into coarse bins would throw away details that matter for good scheduling.
 
 \subsection{Deep Q-Networks}
 

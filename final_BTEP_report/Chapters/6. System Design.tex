@@ -10,7 +10,7 @@
     \label{fig:overall_architecture}
 \end{figure}
 
-Description of Figure 1, the overall architecture: This system is organized using a master-worker model. Task submissions go to the master node which stores metadata, tracks workers, and calls the scheduler. The worker nodes execute the Docker tasks allocated to them and report back to the master. The PPO scheduler is decoupled as a Python service allowing the Go control plane to remain stable as the learning model is able to evolve independently.
+Description of Figure 1, the overall architecture: The system follows a master-worker layout. When a task comes in, the master node saves its details, keeps track of which workers are available, and asks the scheduler to choose one. The worker nodes then run the Docker containers they are given and send the results back to the master. Because the PPO scheduler runs as a separate Python service, the main Go control plane can stay stable on its own while the learning model is updated or retrained without affecting the rest of the system.
 
 \subsection{Go Distributed Cluster Architecture}
 

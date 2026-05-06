@@ -14,7 +14,7 @@ The project can be defined as follows:
 To create a distributed task execution system in Go, and enhance task placement decisions with reinforcement learning schedule based on Proximal Policy Optimization.
 \end{quote}
 
-The system consists of a master node and a number of worker nodes. The master accepts tasks, monitors workers, stores task state, and requests a scheduler to pick a worker. The worker performs the job with the help of Docker containers and informs the status back to the master. This is because the scheduling algorithm can be modified without altering the logic of executing workers.
+At its core, the system has one master node and several worker nodes. The master is responsible for receiving tasks, keeping an eye on the workers, saving the progress of each task, and asking the scheduler which worker should handle the next job. Each worker runs its assigned task inside a Docker container and then reports back to the master with the outcome. Because the scheduler sits behind a clean interface, it can be swapped or upgraded without touching the worker execution code.
 
 \section{Motivation}
 
@@ -22,7 +22,7 @@ The simplest rule is the first scheduling solution most systems employ. Round-Ro
 
 This can be enhanced by heuristic schedulers that include rules. An illustrative example is that a scheduler can give preference to the worker with the most available CPU or the least estimated risk. Nonetheless, it is hard to tune the fixed rules as the correct trade-off depends on the type of workload. A memory-heavy task, a burst of short tasks, and a CPU-intensive task, do not require the same decision rule.
 
-This is the reason why reinforcement learning was investigated. In reinforcement learning, an agent learns through actions and rewards it receives in response to its actions \cite{sutton2018reinforcement}. In the case of cluster scheduling, the state is the current cluster state, the action is the chosen worker and the reward is whether the placement was helpful. This is consistent with the nature of scheduling: each placement alters the state of the cluster.
+This is what led us to explore reinforcement learning. In reinforcement learning, an agent tries different actions and learns from the feedback it gets back \cite{sutton2018reinforcement}. When this idea is applied to cluster scheduling, the state is the current snapshot of the cluster, the action is the worker that gets picked, and the reward reflects how good that placement turned out to be. This fits scheduling naturally, because every time a task is placed on a worker, the cluster state changes as a result.
 
 \section{Project Objectives}
 \label{section:proj_obj}

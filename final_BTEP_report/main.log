@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.4.27)  6 MAY 2026 11:04
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.4.27)  6 MAY 2026 12:45
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1150,7 +1150,7 @@ Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
 \openout5 = `main.toc'.
 
  [7] (./main.lof
-Overfull \hbox (3.00328pt too wide) detected at line 7
+Overfull \hbox (3.00328pt too wide) detected at line 8
 \OT1/mlmr/m/n/12 3.13.1 
  []
 
@@ -1161,7 +1161,7 @@ Overfull \hbox (3.00328pt too wide) detected at line 7
  [8
 
 ] (./main.lot
-Overfull \hbox (3.00328pt too wide) detected at line 9
+Overfull \hbox (3.00328pt too wide) detected at line 8
 \OT1/mlmr/m/n/12 3.10.1 
  []
 
@@ -1172,9 +1172,14 @@ Overfull \hbox (3.00328pt too wide) detected at line 9
  [9
 
 ] (./Chapters/3. Gantt Chart.tex
-LaTeX Font Info:    External font `mlmex10' loaded for size
-(Font)              <5> on input line 30.
-) [10] (./Chapters/4. Introduction.tex
+<Figures/General/gantt_chart.png, id=477, 2738.23pt x 891.33pt>
+File: Figures/General/gantt_chart.png Graphic file (type png)
+<use Figures/General/gantt_chart.png>
+Package pdftex.def Info: Figures/General/gantt_chart.png  used on input line 9.
+
+(pdftex.def)             Requested size: 569.05513pt x 185.22633pt.
+) [10 <./Figures/General/gantt_chart.png>]
+(./Chapters/4. Introduction.tex
 Chapter 1.
 LaTeX Font Info:    Trying to load font information for OMS+mlmr on input line 
 8.
@@ -1192,10 +1197,12 @@ l.22
       [1
 
 {/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc}]
+LaTeX Font Info:    External font `mlmex10' loaded for size
+(Font)              <5> on input line 33.
 File: Figures/General/logo_AU_transparent.png Graphic file (type png)
 <use Figures/General/logo_AU_transparent.png>
 Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
- line 51.
+ line 50.
 (pdftex.def)             Requested size: 20.21724pt x 20.0pt.
 
 [2]) (./Chapters/5. Literature Survey.tex
@@ -1252,7 +1259,7 @@ Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
 File: Figures/General/logo_AU_transparent.png Graphic file (type png)
 <use Figures/General/logo_AU_transparent.png>
 Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
- line 86.
+ line 85.
 (pdftex.def)             Requested size: 20.21724pt x 20.0pt.
  [10]
 File: Figures/General/logo_AU_transparent.png Graphic file (type png)
@@ -1270,10 +1277,10 @@ Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
 File: Figures/General/logo_AU_transparent.png Graphic file (type png)
 <use Figures/General/logo_AU_transparent.png>
 Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
- line 40.
+ line 38.
 (pdftex.def)             Requested size: 20.21724pt x 20.0pt.
- [13]
-<Figures/Methodology/ppo_architecture_colored.png, id=604, 1220.56pt x 880.2887
+ [13{/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathex.enc}]
+<Figures/Methodology/ppo_architecture_colored.png, id=606, 1220.56pt x 880.2887
 6pt>
 File: Figures/Methodology/ppo_architecture_colored.png Graphic file (type png)
 <use Figures/Methodology/ppo_architecture_colored.png>
@@ -1285,14 +1292,14 @@ File: Figures/General/logo_AU_transparent.png Graphic file (type png)
 Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
  line 91.
 (pdftex.def)             Requested size: 20.21724pt x 20.0pt.
- [14{/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathex.enc}]
+ [14]
 File: Figures/General/logo_AU_transparent.png Graphic file (type png)
 <use Figures/General/logo_AU_transparent.png>
 Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
  line 105.
 (pdftex.def)             Requested size: 20.21724pt x 20.0pt.
  [15 <./Figures/Methodology/ppo_architecture_colored.png>]
-<Figures/Methodology/ppo_mermaid_flow.png, id=618, 1543.7675pt x 1385.175pt>
+<Figures/Methodology/ppo_mermaid_flow.png, id=619, 1543.7675pt x 1385.175pt>
 File: Figures/Methodology/ppo_mermaid_flow.png Graphic file (type png)
 <use Figures/Methodology/ppo_mermaid_flow.png>
 Package pdftex.def Info: Figures/Methodology/ppo_mermaid_flow.png  used on inpu
@@ -1301,7 +1308,7 @@ t line 108.
 File: Figures/General/logo_AU_transparent.png Graphic file (type png)
 <use Figures/General/logo_AU_transparent.png>
 Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
- line 126.
+ line 124.
 (pdftex.def)             Requested size: 20.21724pt x 20.0pt.
  [16 <./Figures/Methodology/ppo_mermaid_flow.png>]
 File: Figures/General/logo_AU_transparent.png Graphic file (type png)
@@ -1313,7 +1320,7 @@ Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
 File: Figures/General/logo_AU_transparent.png Graphic file (type png)
 <use Figures/General/logo_AU_transparent.png>
 Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
- line 216.
+ line 212.
 (pdftex.def)             Requested size: 20.21724pt x 20.0pt.
  [18]
 File: Figures/General/logo_AU_transparent.png Graphic file (type png)
@@ -1350,7 +1357,7 @@ Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
 
 ]
 Chapter 4.
-<Figures/Results/fig3_training_curve.png, id=668, 292.6935pt x 227.1687pt>
+<Figures/Results/fig3_training_curve.png, id=670, 292.6935pt x 227.1687pt>
 File: Figures/Results/fig3_training_curve.png Graphic file (type png)
 <use Figures/Results/fig3_training_curve.png>
 Package pdftex.def Info: Figures/Results/fig3_training_curve.png  used on input
@@ -1359,7 +1366,7 @@ Package pdftex.def Info: Figures/Results/fig3_training_curve.png  used on input
 [24
 
 ]
-<Figures/Results/fig7_training_loss_entropy.png, id=676, 321.6015pt x 214.6419p
+<Figures/Results/fig7_training_loss_entropy.png, id=678, 321.6015pt x 214.6419p
 t>
 File: Figures/Results/fig7_training_loss_entropy.png Graphic file (type png)
 <use Figures/Results/fig7_training_loss_entropy.png>
@@ -1378,7 +1385,7 @@ Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
  line 68.
 (pdftex.def)             Requested size: 20.21724pt x 20.0pt.
  [26 <./Figures/Results/fig7_training_loss_entropy.png>]
-<Figures/Results/fig5_multi_run.png, id=690, 496.0131pt x 200.6697pt>
+<Figures/Results/fig5_multi_run.png, id=692, 496.0131pt x 200.6697pt>
 File: Figures/Results/fig5_multi_run.png Graphic file (type png)
 <use Figures/Results/fig5_multi_run.png>
 Package pdftex.def Info: Figures/Results/fig5_multi_run.png  used on input line
@@ -1390,7 +1397,7 @@ Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
  line 105.
 (pdftex.def)             Requested size: 20.21724pt x 20.0pt.
  [27]
-<Figures/Results/fig8_cumulative_completion.png, id=695, 285.9483pt x 214.6419p
+<Figures/Results/fig8_cumulative_completion.png, id=697, 285.9483pt x 214.6419p
 t>
 File: Figures/Results/fig8_cumulative_completion.png Graphic file (type png)
 <use Figures/Results/fig8_cumulative_completion.png>
@@ -1403,7 +1410,7 @@ Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
  line 116.
 (pdftex.def)             Requested size: 20.21724pt x 20.0pt.
  [28 <./Figures/Results/fig5_multi_run.png>]
-<../diagrams/dashboard.png, id=701, 642.4pt x 417.05812pt>
+<../diagrams/dashboard.png, id=703, 642.4pt x 417.05812pt>
 File: ../diagrams/dashboard.png Graphic file (type png)
 <use ../diagrams/dashboard.png>
 Package pdftex.def Info: ../diagrams/dashboard.png  used on input line 125.
@@ -1414,7 +1421,7 @@ Package pdftex.def Info: Figures/General/logo_AU_transparent.png  used on input
  line 129.
 (pdftex.def)             Requested size: 20.21724pt x 20.0pt.
 [29 <./Figures/Results/fig8_cumulative_completion.png>]
-<../diagrams/plot.jpg, id=709, 642.4pt x 417.05812pt>
+<../diagrams/plot.jpg, id=711, 642.4pt x 417.05812pt>
 File: ../diagrams/plot.jpg Graphic file (type jpg)
 <use ../diagrams/plot.jpg>
 Package pdftex.def Info: ../diagrams/plot.jpg  used on input line 134.
@@ -1519,35 +1526,34 @@ Package rerunfilecheck Info: File `main.out' has not changed.
 (rerunfilecheck)             Checksum: 4D37B6858BFDF03EE323F8444611A32D;11850.
  ) 
 Here is how much of TeX's memory you used:
- 30288 strings out of 467525
- 564301 string characters out of 5418982
- 1076526 words of memory out of 5000000
- 58208 multiletter control sequences out of 15000+600000
- 720203 words of font info for 195 fonts, out of 8000000 for 9000
+ 30284 strings out of 467525
+ 564429 string characters out of 5418982
+ 1066098 words of memory out of 5000000
+ 58211 multiletter control sequences out of 15000+600000
+ 716994 words of font info for 191 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 93i,16n,97p,1001b,842s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 93i,17n,97p,1001b,842s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmbsy10.pfb>
 </usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmbx10.pfb></u
 sr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmbx12.pfb></usr/
-local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmbx8.pfb></usr/loca
-l/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmex10.pfb></usr/local/t
-exlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmmi12.pfb></usr/local/texl
-ive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmmi6.pfb></usr/local/texlive/
-2026/texmf-dist/fonts/type1/public/mlmodern/mlmmi8.pfb></usr/local/texlive/2026
-/texmf-dist/fonts/type1/public/mlmodern/mlmr10.pfb></usr/local/texlive/2026/tex
-mf-dist/fonts/type1/public/mlmodern/mlmr12.pfb></usr/local/texlive/2026/texmf-d
-ist/fonts/type1/public/mlmodern/mlmr8.pfb></usr/local/texlive/2026/texmf-dist/f
-onts/type1/public/mlmodern/mlmri12.pfb></usr/local/texlive/2026/texmf-dist/font
-s/type1/public/mlmodern/mlmsy10.pfb></usr/local/texlive/2026/texmf-dist/fonts/t
-ype1/public/mlmodern/mlmsy6.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1
-/public/mlmodern/mlmsy8.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/pub
-lic/mlmodern/mlmtt12.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public
-/amsfonts/symbols/msam10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/pu
-blic/amsfonts/symbols/msbm10.pfb>
-Output written on main.pdf (53 pages, 5144277 bytes).
+local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmex10.pfb></usr/loc
+al/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmmi12.pfb></usr/local/
+texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmmi6.pfb></usr/local/texl
+ive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmmi8.pfb></usr/local/texlive/
+2026/texmf-dist/fonts/type1/public/mlmodern/mlmr10.pfb></usr/local/texlive/2026
+/texmf-dist/fonts/type1/public/mlmodern/mlmr12.pfb></usr/local/texlive/2026/tex
+mf-dist/fonts/type1/public/mlmodern/mlmr8.pfb></usr/local/texlive/2026/texmf-di
+st/fonts/type1/public/mlmodern/mlmri12.pfb></usr/local/texlive/2026/texmf-dist/
+fonts/type1/public/mlmodern/mlmsy10.pfb></usr/local/texlive/2026/texmf-dist/fon
+ts/type1/public/mlmodern/mlmsy6.pfb></usr/local/texlive/2026/texmf-dist/fonts/t
+ype1/public/mlmodern/mlmsy8.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1
+/public/mlmodern/mlmtt12.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/pu
+blic/amsfonts/symbols/msam10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type
+1/public/amsfonts/symbols/msbm10.pfb>
+Output written on main.pdf (53 pages, 5231725 bytes).
 PDF statistics:
- 918 PDF objects out of 1000 (max. 8388607)
- 800 compressed objects within 8 object streams
+ 916 PDF objects out of 1000 (max. 8388607)
+ 798 compressed objects within 8 object streams
  190 named destinations out of 1000 (max. 500000)
- 54927 words of extra memory for PDF output out of 61914 (max. 10000000)
+ 52884 words of extra memory for PDF output out of 61914 (max. 10000000)
 

@@ -426,12 +426,11 @@ OUTPUT main.lot
 INPUT ./Chapters/3. Gantt Chart.tex
 INPUT ./Chapters/3. Gantt Chart.tex
 INPUT Chapters/3. Gantt Chart.tex
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmr5.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/mlmmi5.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/mlmsy5.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam5.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm5.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmbx8.tfm
+INPUT ./Figures/General/gantt_chart.png
+INPUT ./Figures/General/gantt_chart.png
+INPUT ./Figures/General/gantt_chart.png
+INPUT ./Figures/General/gantt_chart.png
+INPUT ./Figures/General/gantt_chart.png
 INPUT ./Chapters/4. Introduction.tex
 INPUT ./Chapters/4. Introduction.tex
 INPUT Chapters/4. Introduction.tex
@@ -442,6 +441,11 @@ INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/mlmodern/omsmlmr.fd
 INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/mlmodern/omsmlmr.fd
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/mlmbsy10.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/rm-mlmr5.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/mlmmi5.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/mlmodern/mlmsy5.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam5.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm5.tfm
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
@@ -500,16 +504,16 @@ INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/Methodology/ppo_architecture_colored.png
-INPUT ./Figures/Methodology/ppo_architecture_colored.png
-INPUT ./Figures/Methodology/ppo_architecture_colored.png
-INPUT ./Figures/Methodology/ppo_architecture_colored.png
-INPUT ./Figures/Methodology/ppo_architecture_colored.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
-INPUT ./Figures/General/logo_AU_transparent.png
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathex.enc
+INPUT ./Figures/Methodology/ppo_architecture_colored.png
+INPUT ./Figures/Methodology/ppo_architecture_colored.png
+INPUT ./Figures/Methodology/ppo_architecture_colored.png
+INPUT ./Figures/Methodology/ppo_architecture_colored.png
+INPUT ./Figures/Methodology/ppo_architecture_colored.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
+INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
 INPUT ./Figures/General/logo_AU_transparent.png
@@ -660,7 +664,6 @@ INPUT ./main.out
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmbsy10.pfb
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmbx10.pfb
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmbx12.pfb
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmbx8.pfb
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmex10.pfb
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmmi12.pfb
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/type1/public/mlmodern/mlmmi6.pfb

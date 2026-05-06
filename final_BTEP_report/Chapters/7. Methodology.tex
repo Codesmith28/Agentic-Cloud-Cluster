@@ -19,13 +19,13 @@ In reinforcement learning terms:
 
 \section{Starting Point: Q-Tables}
 
-The simplest RL idea is a Q-table \cite{watkins1992qlearning}. It stores a value for every state-action pair:
+The simplest RL idea is a Q-table. It keeps a score for every combination of state and action. According to Watkins and Dayan \cite{watkins1992qlearning}, the update rule is:
 
 \[
-Q(s,a) \leftarrow Q(s,a) + \alpha [r + \gamma \max_{a'} Q(s',a') - Q(s,a)]
+Q(s,a) \leftarrow Q(s,a) + \alpha \bigl[r + \gamma \max_{a'} Q(s',a') - Q(s,a)\bigr]
 \]
 
-Here, \(s\) is the current state, \(a\) is the selected action, \(r\) is the reward, \(s'\) is the next state, \(\alpha\) is the learning rate, and \(\gamma\) discounts future reward.
+In the equation above, \(s\) stands for the current state, \(a\) is the action that was taken, \(r\) is the immediate reward, \(s'\) is the state that follows, \(\alpha\) controls how fast the table values are updated, and \(\gamma\) decides how much weight is given to future rewards \cite{watkins1992qlearning}.
 
 For a small example, this works nicely. Suppose there are only two workers and three task types. A table can store the value of placing each task type on each worker. But the real cluster state is much larger. A worker is not just ``free'' or ``busy''. It has CPU, memory, storage, current load, and active status. A task also has CPU, memory, storage, task type, and SLA multiplier. If each feature is discretized into even a few buckets, the number of table rows grows very quickly.
 
@@ -78,7 +78,7 @@ where:
 r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta old}(a_t|s_t)}
 \]
 
-\(\hat{A}_t\) is the advantage estimate. It tells whether an action was better or worse than expected. The clipping term prevents the new policy from moving too far away from the old policy in one update. In this project, this stability was important because bad scheduler updates can directly affect task placement.
+\(\hat{A}_t\) is the advantage estimate. In simple terms, it shows how much better or worse an action turned out compared to what was expected. The clipping part keeps the updated policy from drifting too far from the previous one in a single step. For this project, that kind of stability matters a lot, because a poorly updated scheduler could immediately start making bad placement decisions.
 
 \section{PPO Architecture}
 
@@ -93,7 +93,7 @@ r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta old}(a_t|s_t)}
 
 \section{Actor and Critic Network}
 
-The PPO model is an actor-critic network. Both the actor and critic share the same pairwise encoder. For each scheduling request, the task vector is repeated once for every candidate worker and concatenated with that worker's feature vector. This creates one task-worker row per possible action.
+The PPO model follows an actor-critic design, where both the actor and the critic use the same shared encoder. Whenever a scheduling request arrives, the task feature vector is copied once for each candidate worker and joined with that worker's own feature vector. This produces one combined task-worker row for every possible placement choice.
 
 The shared encoder has two fully connected layers with ReLU activation:
 
@@ -117,7 +117,7 @@ After the shared encoder, the network splits into two heads:
     \item \textbf{Critic / value head}: produces a single value estimate \(V_\theta(s)\), which predicts the expected future reward from the current cluster state \cite{schulman2017ppo}.
 \end{itemize}
 
-The critic is not choosing the worker. Its job is to judge the state. During training, it answers the question: ``From this task and current worker set, how much reward should the scheduler expect on average?'' PPO then compares the actual reward to this expectation. If the selected action performs better than the critic expected, the advantage is positive and PPO increases the probability of similar choices. If it performs worse, the advantage is negative and PPO reduces that probability.
+The critic does not pick a worker itself. Its role is to evaluate how good the current situation looks. During training, it essentially answers: ``Given this task and the available workers, how much reward should the scheduler expect on average?'' PPO then checks the actual reward against that prediction. When the chosen action does better than the critic predicted, the advantage turns positive, and PPO makes similar choices more likely in the future. When the action does worse, the advantage turns negative, and PPO makes that choice less likely.
 
 Formally, the critic estimates discounted return:
 
@@ -150,7 +150,7 @@ V_{target,t} = \hat{A}_t + V_{\theta old}(s_t),
 \]
 that is the bootstrapped return of the state at the parameter of that state, namely, 6.3. When a trajectory segment terminates in a terminal state, the bootstrap term in terms of which it appears, vold(s t + 1): is dropped (set to zero).
 
-The total PPO loss is the policy loss, plus the value loss, and an entropy term:
+The overall PPO loss is made up of three parts: the policy loss, the value loss, and an entropy bonus:
 
 \[
 L = L^{CLIP} + c_1 L^{VF} - c_2 H[\pi_\theta]
@@ -201,9 +201,9 @@ Available storage ratio & Available storage divided by total storage. \\
 Total CPU & Absolute CPU capacity. \\
 Total memory & Absolute memory capacity. \\
 Total storage & Absolute storage capacity. \\
-Used CPU ratio & Used CPU/total CPU. \\
-Used memory ratio & Used memory divided by total memory. \\
-Used storage ratio & Used storage/total storage. \\
+Used CPU ratio & $\dfrac{\text{Used CPU}}{\text{Total CPU}}$. \\
+Used memory ratio & $\dfrac{\text{Used Memory}}{\text{Total Memory}}$. \\
+Used storage ratio & $\dfrac{\text{Used Storage}}{\text{Total Storage}}$. \\
 \bottomrule
 \end{tabularx}
 \end{table}
