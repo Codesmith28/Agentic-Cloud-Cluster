@@ -1,0 +1,118 @@
+@startuml
+
+' ══════════════════════════════════════════════════════════════════════════════
+'  CloudAI — Worker Failure & Task Requeue Sequence
+'  Designed for 16:9 slides · Same visual language as main lifecycle diagram
+' ══════════════════════════════════════════════════════════════════════════════
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam dpi 150
+skinparam defaultFontName Arial
+skinparam defaultFontSize 20
+skinparam roundCorner 8
+
+skinparam sequence {
+    ArrowColor #1E293B
+    ArrowFontSize 20
+    ArrowFontColor #1E293B
+    LifeLineBorderColor #1E293B
+    LifeLineBackgroundColor #94A3B8
+    LifeLineBorderThickness 3
+    ParticipantBorderThickness 2
+    ParticipantBorderColor #1E3A5F
+    ParticipantFontSize 28
+    ParticipantFontColor #0F172A
+    ParticipantPadding 40
+    DividerBorderColor #64748B
+    DividerBorderThickness 2
+    DividerFontColor #0F172A
+    DividerFontSize 24
+    GroupBorderColor #64748B
+    GroupHeaderFontSize 20
+    GroupFontColor #334155
+}
+
+skinparam note {
+    BorderColor #94A3B8
+    BackgroundColor #F1F5F9
+    FontSize 18
+    FontColor #1E293B
+}
+
+title <size:36><b>CloudAI — Worker Failure & Task Requeue</b></size>\n<size:18><color:#475569>Heartbeat timeout  ·  Recovery  ·  Re-scheduling  ·  Late results</color></size>\n
+
+participant "    Master Node    " as M #B6D4F7
+participant "    PPO Service    " as P #D4C8F5
+participant "   Worker A   \n<size:14><color:#991B1B>fails mid-task</color></size>" as WA #F6B8B8
+participant "   Worker B   \n<size:14><color:#166534>takes over</color></size>" as WB #A7EDCA
+
+|||
+
+== <b>  Task Running on Worker A  </b> ==
+
+activate WA #F6B8B8
+M -> WA : **AssignTask**(task, attempt_1)
+WA --> M : Ack ✓
+WA -> WA : Pull → Create → Run container
+
+loop <size:16>Heartbeats — every 5 s</size>
+    WA -> M : SendHeartbeat(running_tasks)
+end
+
+WA ->x] : ❌  **Worker A crashes / loses network**
+note right of WA #FECACA : Container orphaned\nHeartbeats stop
+
+deactivate WA
+
+|||
+
+== <b>  Failure Detection  </b> ==
+
+activate M #B6D4F7
+M -> M : checkAndMarkInactiveWorkers()\n**> 30 s** since last heartbeat
+note right of M #FDEAAB : DB: Worker A → **inactive**
+
+|||
+
+== <b>  Task Recovery  </b> ==
+
+M -> M : recoverWorkerTasksLocked()
+note right of M #FDEAAB : DB: ATTEMPT_1 → **lost**\nRelease CPU / mem / storage\nDelete ASSIGNMENT\nTASK → **queued** (recovery +1)
+M -> M : enqueueRecoveredTask()
+note right of M #D1FAE5 : Task re-enters\nscheduling queue
+
+|||
+
+== <b>  Re-scheduling to Worker B  </b> ==
+
+M -> P : **SelectWorker**(task, candidates)
+P --> M : Worker B selected
+note right of P #D4C8F5 : Worker A excluded\n(marked inactive)
+M -> WB : **AssignTask**(task, attempt_2)
+WB --> M : Ack ✓
+note right of M #FDEAAB : DB: new ATTEMPT_2 created\nTASK → **running**
+deactivate M
+
+|||
+
+== <b>  Successful Execution on Worker B  </b> ==
+
+activate WB #A7EDCA
+WB -> WB : Pull → Create → Run container
+WB -> WB : Container exits → Collect outputs
+deactivate WB
+
+WB -> M : **ReportCompletion**(success, logs, files)
+note right of M #FDEAAB : DB: ATTEMPT_2 → **completed**\nStore RESULT · Release resources
+
+|||
+
+== <b>  Late Result from Worker A  </b> ==
+
+WA -->> M : **ReportCompletion**(attempt_1, …)
+note right of M #FECACA : attempt_1 ≠ current attempt_2\nATTEMPT_1 → **stale**\nResult stored for audit\n**Ignored** — not terminal
+
+|||
+
+@enduml

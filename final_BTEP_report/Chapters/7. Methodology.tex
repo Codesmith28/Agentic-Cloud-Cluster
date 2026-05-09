@@ -19,13 +19,13 @@ In reinforcement learning terms:
 
 \section{Starting Point: Q-Tables}
 
-The simplest RL idea is a Q-table. It stores a value for every state-action pair:
+The simplest RL idea is a Q-table. It keeps a score for every combination of state and action. According to Watkins and Dayan \cite{watkins1992qlearning}, the update rule is:
 
 \[
-Q(s,a) \leftarrow Q(s,a) + \alpha [r + \gamma \max_{a'} Q(s',a') - Q(s,a)]
+Q(s,a) \leftarrow Q(s,a) + \alpha \bigl[r + \gamma \max_{a'} Q(s',a') - Q(s,a)\bigr]
 \]
 
-Here, \(s\) is the current state, \(a\) is the selected action, \(r\) is the reward, \(s'\) is the next state, \(\alpha\) is the learning rate, and \(\gamma\) discounts future reward.
+In the equation above, \(s\) stands for the current state, \(a\) is the action that was taken, \(r\) is the immediate reward, \(s'\) is the state that follows, \(\alpha\) controls how fast the table values are updated, and \(\gamma\) decides how much weight is given to future rewards \cite{watkins1992qlearning}.
 
 For a small example, this works nicely. Suppose there are only two workers and three task types. A table can store the value of placing each task type on each worker. But the real cluster state is much larger. A worker is not just ``free'' or ``busy''. It has CPU, memory, storage, current load, and active status. A task also has CPU, memory, storage, task type, and SLA multiplier. If each feature is discretized into even a few buckets, the number of table rows grows very quickly.
 
@@ -41,23 +41,24 @@ Q(s,a;\theta) \approx \text{expected future reward}
 
 This is better because the network can generalize. If it has seen a worker at 60 percent memory usage, it can still make a reasonable prediction for 62 percent memory usage.
 
-However, DQN has limitations for this project:
+
+Nonetheless, DQN has drawbacks to this project:
 
 \begin{itemize}
-    \item The action set depends on the number of workers.
-    \item Some workers are invalid for a task because they do not have enough resources.
-    \item The scheduler needs a clean way to mask invalid actions.
-    \item We wanted a direct policy over workers, not only a value estimate.
-    \item Stable DQN training usually requires replay buffers and target networks, which adds complexity when outcomes are delayed.
+    \item This action set relies on the number of workers.
+    \item There are workers who cannot do a task due to lack of sufficient resources.
+    \item The scheduler must have a clean method to conceal the invalid actions.
+    \item We desired a direct policy regarding workers, not merely a value estimate.
+    \item Stable DQN training typically involves replay buffers and target networks, complicating the case when results are delayed.
 \end{itemize}
 
-\textbf{Decision:} DQN was a logical next idea after Q-tables, but PPO was selected because policy-gradient learning matches the worker-selection action more naturally.
+\textbf{Decision:} DQN was the next logical idea that comes after Q-tables, but PPO was chosen because policy-gradient learning is more natural as a worker-selection action \cite{gu2025deeprl}.
 
-\section{Final Choice: PPO}
+\section{Final Choice: PPO} 
 
-PPO directly learns a policy \(\pi_\theta(a|s)\), which means the probability of choosing worker \(a\) in state \(s\). It also learns a value function \(V_\theta(s)\), which estimates how good the current state is.
+PPO learns directly a policy, denoted by the probability of selecting worker, a, in state, s, denoted as PPO, which is the probability of making the choice. It also approximates a value function \(V_\theta(s) \), which approximates the goodness of the current state.
 
-The main PPO objective used is the clipped surrogate objective:
+The main PPO objective used is the clipped surrogate objective \cite{schulman2017ppo}:
 
 \[
 L^{CLIP}(\theta) =
@@ -77,7 +78,7 @@ where:
 r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta old}(a_t|s_t)}
 \]
 
-\(\hat{A}_t\) is the advantage estimate. It tells whether an action was better or worse than expected. The clipping term prevents the new policy from moving too far away from the old policy in one update. In this project, this stability was important because bad scheduler updates can directly affect task placement.
+\(\hat{A}_t\) is the advantage estimate. In simple terms, it shows how much better or worse an action turned out compared to what was expected. The clipping part keeps the updated policy from drifting too far from the previous one in a single step. For this project, that kind of stability matters a lot, because a poorly updated scheduler could immediately start making bad placement decisions.
 
 \section{PPO Architecture}
 
@@ -92,7 +93,7 @@ r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta old}(a_t|s_t)}
 
 \section{Actor and Critic Network}
 
-The PPO model is an actor-critic network. Both the actor and critic share the same pairwise encoder. For each scheduling request, the task vector is repeated once for every candidate worker and concatenated with that worker's feature vector. This creates one task-worker row per possible action.
+The PPO model follows an actor-critic design, where both the actor and the critic use the same shared encoder. Whenever a scheduling request arrives, the task feature vector is copied once for each candidate worker and joined with that worker's own feature vector. This produces one combined task-worker row for every possible placement choice.
 
 The shared encoder has two fully connected layers with ReLU activation:
 
@@ -113,10 +114,10 @@ After the shared encoder, the network splits into two heads:
 
 \begin{itemize}
     \item \textbf{Actor / policy head}: produces one logit per worker. After masking infeasible workers, these logits define the probability distribution \(\pi_\theta(a|s)\).
-    \item \textbf{Critic / value head}: produces a single value estimate \(V_\theta(s)\), which predicts the expected future reward from the current cluster state.
+    \item \textbf{Critic / value head}: produces a single value estimate \(V_\theta(s)\), which predicts the expected future reward from the current cluster state \cite{schulman2017ppo}.
 \end{itemize}
 
-The critic is not choosing the worker. Its job is to judge the state. During training, it answers the question: ``From this task and current worker set, how much reward should the scheduler expect on average?'' PPO then compares the actual reward to this expectation. If the selected action performs better than the critic expected, the advantage is positive and PPO increases the probability of similar choices. If it performs worse, the advantage is negative and PPO reduces that probability.
+The critic does not pick a worker itself. Its role is to evaluate how good the current situation looks. During training, it essentially answers: ``Given this task and the available workers, how much reward should the scheduler expect on average?'' PPO then checks the actual reward against that prediction. When the chosen action does better than the critic predicted, the advantage turns positive, and PPO makes similar choices more likely in the future. When the action does worse, the advantage turns negative, and PPO makes that choice less likely.
 
 Formally, the critic estimates discounted return:
 
@@ -124,46 +125,48 @@ Formally, the critic estimates discounted return:
 V_\theta(s_t)=\mathbb{E}_{\pi_\theta}\left[\sum_{k=0}^{\infty}\gamma^k r_{t+k}\,\middle|\,s_t\right].
 \]
 
-In this scheduler, \(V_\theta(s)\) is not a probability and does not have a fixed \([0,1]\) range. Its scale follows the reward design and discount horizon. Single-step rewards are usually around a bounded practical band (for example, infeasible placements receive \(-1.8\), while feasible low-pressure placements can stay positive because of the \(1.4 + 0.25H\) terms), but queue and tail-pressure penalties can drive rewards lower during congestion. Therefore \(V_\theta(s)\) is typically positive in healthy, balanced states and can become negative under sustained pressure, repeated requeues, or poor placements. Magnitude increases with effective horizon (\(\approx 1/(1-\gamma)\)) because it represents cumulative discounted reward.
+In this scheduler, \(V_\theta(s)\) is not a probability and does not have a fixed \([0,1]\) range. 
 
-In implementation, the value head is applied after pooling the encoded worker representations. This means the critic sees the whole candidate set, not only the selected worker. That matters because a scheduling state is defined by all available workers together. A worker with 3 GB free memory is good or bad depending on what the other workers look like.
+Its size is based on the reward design and discount horizon. Single-step rewards are typically around a limited practical band (such as infeasible placements receive a reward of -1.8), with feasible low-pressure placements being allowed to remain positive because of the terms of 1.4 + 0.25H), but queue and tail-pressure penalties can push rewards down during congestion. Thus, in healthy and balanced conditions, under normal conditions, it is assumed that the equation V 0 -s (s) is positive, and under the conditions of stress, frequent requeues, or improper placement, the equation V 0 -s (s) can have a negative value. Effective horizon (which is approximately equal to 1 divided by 1- gamma)) increases magnitude since it is cumulative discounted reward.
 
-The critic is trained using a clipped value loss:
+In implementation, the value head is used following a pooling of the encoded worker representations. This implies that the critic will be viewing the entire set of candidates and not just the worker who has been chosen. This is important since a scheduling state is determined by the combination of all the available workers. A worker has 3 GB of free memory; it is good or bad depending on what the other workers look like.
+
+The critic is trained in the form of a clipped loss of values:
 
 \[
 L^{VF} = \max\left((V_\theta - V_{target})^2,\ (V_{clipped} - V_{target})^2\right)
 \]
 
-where \(V_{clipped}\) limits how far the value estimate can move in one update. This mirrors PPO's conservative policy update. It prevents the critic from suddenly changing its estimate too much, which would make advantage estimates unstable.
+In which case, V clipped is a limit to the extent to which the value estimate can vary across one update. This is a reflection of the conservative policy update by PPO. It does not allow the critic to suddenly shift its estimate too far which would render advantage estimates unstable.
 
-The value target is taken from the rollout return, not from a fixed constant. Using standard PPO with GAE, we first compute
+The target value is borrowed out of the rollout return, it is not obtained by a fixed constant. Using standard PPO with GAE \cite{schulman2015gae}, we first compute
 \[
 \delta_t = r_t + \gamma V_{\theta old}(s_{t+1}) - V_{\theta old}(s_t), \qquad
 \hat{A}_t = \sum_{l=0}^{T-1}(\gamma\lambda)^l \delta_{t+l}.
 \]
-Then the critic target is
+Then the target of the critic is.
 \[
 V_{target,t} = \hat{A}_t + V_{\theta old}(s_t),
 \]
-which is the bootstrapped \(\lambda\)-return for that state. If a trajectory segment ends at a terminal state, the bootstrap term from \(V_{\theta old}(s_{t+1})\) is dropped (set to zero).
+that is the bootstrapped return of the state at the parameter of that state, namely, 6.3. When a trajectory segment terminates in a terminal state, the bootstrap term in terms of which it appears, vold(s t + 1): is dropped (set to zero).
 
-The total PPO loss combines the policy loss, the value loss, and an entropy term:
+The overall PPO loss is made up of three parts: the policy loss, the value loss, and an entropy bonus:
 
 \[
 L = L^{CLIP} + c_1 L^{VF} - c_2 H[\pi_\theta]
 \]
 
-For a categorical policy over workers, entropy is:
+As an example of a categorical policy over a set of workers, entropy is:
 
 \[
 H[\pi_\theta(\cdot|s)] = -\sum_{a=1}^{N_w}\pi_\theta(a|s)\log\pi_\theta(a|s),
 \]
 
-where \(N_w\) is the number of feasible worker actions after masking and \(\pi_\theta(a|s)\) comes from the masked softmax probabilities. High entropy means probabilities are spread across workers (exploration), while low entropy means the policy is concentrated on a small set of workers (near-deterministic behavior). In this project, the value coefficient \(c_1\) weights critic learning, and the entropy coefficient \(c_2\) prevents premature determinism where the scheduler repeatedly selects one apparently strong worker too early. As training progresses and the model becomes better calibrated, entropy naturally decreases.
+whereby \(N_w\) is the number of practicable worker actions following mask and that \(\pi_\theta(a|s)\) is derived off the masked softmax probabilities. High entropy implies that the policy is distributed among a large number of workers (exploration), and low entropy implies that the policy is concentrated on a small number of workers (near-deterministic behavior). In this project, critic learning is weighted by the value coefficient \(c_1\) and the entropy coefficient \(c_2\) prevents premature determinism where the scheduler is repeatedly tempted to select one apparently strong worker too early. With more training and a more calibrated model, the entropy naturally decreases.
 
 \section{State Representation}
 
-The PPO state is built from task and worker features. The task vector has five values:
+The PPO state is constructed based on the features of task and worker. There are five values in the task vector:
 
 \begin{table}[H]
 \centering
@@ -176,8 +179,8 @@ The PPO state is built from task and worker features. The task vector has five v
 Required CPU & CPU requested by the task. \\
 Required memory & Memory requested by the task. \\
 Required storage & Storage requested by the task. \\
-SLA multiplier & How much delay is acceptable relative to task runtime. \\
-Task type & Encoded task category such as CPU-heavy, memory-heavy, or mixed. \\
+SLA multiplier & How much delay is acceptable compared to task runtime. \\
+Task type & Encoded task category, like CPU-intensive, memory-intensive or mixed. \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -192,28 +195,28 @@ Each worker is represented using nine values:
 \toprule
 \textbf{Feature} & \textbf{Meaning} \\
 \midrule
-Available CPU ratio & Available CPU divided by total CPU. \\
+available cpu ratio & available CPU divided by total CPU. \\
 Available memory ratio & Available memory divided by total memory. \\
 Available storage ratio & Available storage divided by total storage. \\
 Total CPU & Absolute CPU capacity. \\
 Total memory & Absolute memory capacity. \\
 Total storage & Absolute storage capacity. \\
-Used CPU ratio & Used CPU divided by total CPU. \\
-Used memory ratio & Used memory divided by total memory. \\
-Used storage ratio & Used storage divided by total storage. \\
+Used CPU ratio & $\dfrac{\text{Used CPU}}{\text{Total CPU}}$. \\
+Used memory ratio & $\dfrac{\text{Used Memory}}{\text{Total Memory}}$. \\
+Used storage ratio & $\dfrac{\text{Used Storage}}{\text{Total Storage}}$. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The model uses pairwise task-worker features. This is important because the question is not only ``what is the task?'' or ``what is the worker?'' but ``how suitable is this worker for this task?''
+The model uses pairwise task-worker features. This is significant since it is not only what is the task? or what is the worker? but how suitable is this worker to this task?
 
 \section{Action Space and Masking}
 
-The action is the selected worker index. Before PPO chooses, the system builds an action mask. A worker is marked feasible only if it is active and has enough CPU, memory, and storage for the task. Infeasible workers are masked so the model cannot choose them during normal operation.
+The action is the index of the worker that is selected. The system develops an action mask before PPO makes a choice. Marking a worker feasible is only possible when it is active and has sufficient CPU, memory, and storage to carry out the task. The infeasible workers are disguised in such a way that the model does not have the option of picking the infeasible workers during normal operation.
 
 \section{Reward Function}
 
-The reward was designed to make PPO learn practical scheduling behavior:
+The reward was to teach PPO how to behave in practice, that is, to schedule:
 
 \[
 R = 1.4 + 0.25H - 0.35Q_p - 0.55T_p - 0.20I_p - 0.40\Delta I - R_q
@@ -222,27 +225,27 @@ R = 1.4 + 0.25H - 0.35Q_p - 0.55T_p - 0.20I_p - 0.40\Delta I - R_q
 where:
 
 \begin{itemize}
-    \item \(H\) is headroom bonus. It rewards choosing workers with space left.
-    \item \(Q_p\) is queue pressure. It penalizes expected waiting.
+    \item \(H\) is headroom bonus. It is rewarded by the selection of workers who have space vacant.
+    \item \(Q_p\) is queue pressure. It punishes anticipated waiting.
     \item \(T_p\) is tail pressure. It penalizes likely SLA or tail-latency risk.
-    \item \(I_p\) is imbalance penalty. It discourages putting more work on already busy workers.
-    \item \(\Delta I\) is change in imbalance. It penalizes actions that make cluster balance worse.
-    \item \(R_q\) is requeue penalty. It discourages repeatedly risky placements.
+    \item \(I_p\) is imbalance penalty. It does not encourage overworking of already overworked workers.
+    \item \(\Delta I\) is change in imbalance. It punishes those behaviors that worsen cluster balance.
+    \item \(R_q\) is requeue penalty. It discourages constantly dangerous placements.
 \end{itemize}
 
-The values are computed from the projected state after placing the task on the selected worker. First, the system estimates worker load as the average of CPU, memory, and storage usage:
+The values are calculated with regard to the projected state upon the task being placed on the chosen worker. To begin with the system estimates the worker load as an average of the CPU, memory, and storage usage:
 
 \[
-L_w = \frac{usedCPU_w/totalCPU_w + usedMem_w/totalMem_w + usedStorage_w/totalStorage_w}{3}
+L_w = \frac{1}{3}\left(\frac{\text{usedCPU}_w}{\text{totalCPU}_w} + \frac{\text{usedMem}_w}{\text{totalMem}_w} + \frac{\text{usedStorage}_w}{\text{totalStorage}_w}\right).
 \]
 
-After adding the new task's requested resources to the selected worker, this becomes the projected load \(L_{selected}\). The cluster average load is:
+Once the requested resources of the new task are added to the available worker, it then becomes the projected load \(L_{selected}\). The average load in the cluster is:
 
 \[
 L_{cluster} = \frac{1}{N}\sum_{w=1}^{N} L_w
 \]
 
-Using these values, the reward terms are:
+Based on these values, the terms of the rewards are:
 
 \begin{table}[H]
 \centering
@@ -274,14 +277,14 @@ The PPO model was trained using trace replay. The Alibaba cluster trace was used
 
 \section{Training Pipeline}
 
-The training pipeline follows these steps:
+The training pipeline is based on the following steps:
 
 \begin{enumerate}
     \item Load trace tasks and worker information.
     \item Normalize task and worker features.
-    \item Create the replay environment.
-    \item Run PPO rollouts and collect actions, rewards, log probabilities, and values.
-    \item Compute returns and advantages.
+    \item Prepare the replay environment.
+    \item Run PPO rollouts and receive actions, rewards, log probabilities, and values.
+    \item Calculate returns and benefits.
     \item Update the policy using PPO clipping, value loss, entropy regularization, and gradient clipping.
     \item Save model checkpoints.
     \item Promote the best checkpoint for cluster use.
@@ -332,7 +335,6 @@ The Go master has a PPO scheduler wrapper. For each task, it builds a candidate 
         \draw[arrow] (dispatch) -- (assignok);
         \draw[arrow] (assignok) -- node[right, font=\scriptsize]{yes} (run);
         
-        % Fixed: Routes down the gap to the east anchor of requeue
         \draw[arrow] (assignok.west) -- ++(-0.8,0) |- node[pos=0.25, right, font=\scriptsize]{no} (requeue.east);
 
         \draw[arrow] (run) -- (execok);
@@ -358,9 +360,9 @@ The implementation also includes fallback behavior:
 
 \begin{itemize}
     \item If the PPO service is down, use the fallback scheduler.
-    \item If PPO returns an empty result, use fallback.
-    \item If PPO returns a worker that no longer exists or cannot fit the task, use fallback.
-    \item If shadow mode is enabled, log PPO's decision but execute fallback's decision.
+    \item In the event that PPO gives an empty response, then resort to fallback.
+    \item When PPO provides a worker that no longer exists or cannot fit the task, use fallback.
+    \item When the shadow mode is turned on, record the decision made by PPO but implement the decision made by fallback.
 \end{itemize}
 
-\textbf{Decision:} The learning model is never allowed to be the only safety mechanism. The Go scheduler validates PPO's output before assigning a task.
+\textbf{Decision:} The learning model shall not be permitted to be the sole safety measure. The Go scheduler checks the output of PPO and only after checking the output, the Go scheduler assigns a task.

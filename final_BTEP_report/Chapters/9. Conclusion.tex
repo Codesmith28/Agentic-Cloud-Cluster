@@ -1,23 +1,31 @@
 \chapter{Conclusion}
 \label{section:conclusions}
 
-Agentic Cloud Cluster successfully demonstrates a Go-based distributed task execution framework with PPO-based scheduling. The project began with the practical need to assign containerized tasks across heterogeneous workers and developed into a complete scheduling study. The final design separates the cluster control plane from the learning service, which keeps the system maintainable and safe.
+The Agentic Cloud Cluster is a successful attempt to illustrate the distributed task execution framework based on Go with PPO-based scheduling. The practical necessity to distribute containerized jobs among heterogeneous workers grew into a full-fledged scheduling study. The last design isolates the cluster control plane and the learning service which ensures that the system is maintainable and safe.
 
-The methodology showed why reinforcement learning is a reasonable fit for cluster scheduling. Q-tables explain the basic idea but fail because the state space is too large. DQN improves generalization but is less natural for dynamic worker sets and action masking. PPO was chosen because it directly learns a worker-selection policy, supports stable clipped updates, and works well with continuous resource features.
+The methodology demonstrated the reason why reinforcement learning is a viable choice to solve cluster scheduling \cite{sutton2018reinforcement}. Q-tables describe the fundamental concept, but do not work due to the large size of the state space \cite{watkins1992qlearning}. DQN enhances generalization, and is less natural to dynamic sets of workers and masking of actions \cite{mnih2013dqn}. PPO was selected due to its ability to directly learn a worker-selection policy, support stable clipped updates and continuous resource capabilities \cite{gu2025deeprl}.
 
-The results show a balanced picture. PPO is not automatically better in every scenario. When load is light, simple schedulers are fast and effective. Under burst and overload pressure, PPO becomes more useful because it can use learned relationships between task demand, worker state, and risk. This is the main conclusion of the project: learning-based scheduling is valuable when the decision space is complex, but it must be deployed with validation and fallback.
+The outcomes demonstrate a balanced image. It is not always the case that PPO is better. Simple schedulers are quick and efficient when the load is light. PPO is more useful when there is burst and overload pressure as far as it can use acquired relationships between task demand, worker state and risk. The general conclusion of the project is: learning-based scheduling can help when the decision space is complex, but must be implemented with checking and recovery.
 
 \section{Future Work}
 
-Future work can improve the project in the following ways:
+The project can be enhanced in the future in the following ways:
 
 \begin{itemize}
-    \item Train on larger and more diverse traces.
-    \item Add multi-objective reward tuning for cost, energy, and fairness.
-    \item Improve online adaptation after longer stable cluster runs.
-    \item Evaluate with more physical or cloud machines.
-    \item Add stronger failure injection tests for worker loss and network delay.
-    \item Explore CRIU-based container checkpoint/restore to support faster recovery and future preemption or migration workflows.
+    \item Train on bigger and more varied traces.
+    \item Introduce cost, energy, and fairness multi-objective reward tuning.
+    \item Online adaptation by longer stable cluster runs.
+    \item Test using more physical or cloud machines.
+    \item Add more aggressive tests on failure injection of the workers loss and network delay.
+    \item \textbf{Container Checkpoint/Restore In Userspace}: Incorporate CRIU (Checkpoint/Restore In Userspace) to add functionality to enable faster container recovery and task migration. CRIU offers kernel-level support of freezing process state, dumping it to disk, and restoring it on demand. This would allow making a number of improvements:
+    \begin{itemize}
+        \item \textbf{Quick Recovery of Failures}: When a worker fails, it is possible to recover the worker in a much shorter time than to re-run tasks fresh to recover the worker.
+        \item \textbf{Task Preemption}: High-priority tasks could preempt lower-priority ones by checkpoint-saving the latter and restoring them when resources become available.
+        \item \textbf{Container Migration}: Checkpoints allow live migration of containers between workers without loss of state, better load balancing and maintenance operations.
+        \item \textbf{Warm Starts}: Container images with pre-established state can be checkpointed and restored, eliminating the need to reestablish state when stateful workloads are executed.
+        \item \textbf{Predictive Scheduling}: Risk modeling could involve the scheduler using CRIU-backed snapshots, which would enable the scheduler to trade-off immediate completion against future availability of resources.
+    \end{itemize}
+    The difficulties of implementation are compatibility with the kernel, coordination between checkpoint timestamps and task state metadata in MongoDB, and dealing with network connections across migration boundaries.
 \end{itemize}
 
-Overall, the project proves that a distributed systems framework and a reinforcement learning scheduler can be combined in a practical and safe way.
+On the whole, the project demonstrates that a distributed systems architecture and a reinforcement learning scheduler can be integrated in a practical and safe manner.

@@ -1,3 +1,4 @@
+\contentsline {figure}{\numberline {0.0.1}{\ignorespaces Project timeline}}{x}{figure.caption.4}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
@@ -8,10 +9,9 @@
 \addvspace {10\p@ }
 \contentsline {figure}{\numberline {4.1.1}{\ignorespaces PPO training reward curve}}{25}{figure.caption.15}%
 \contentsline {figure}{\numberline {4.1.2}{\ignorespaces PPO policy loss and entropy}}{26}{figure.caption.16}%
-\contentsline {figure}{\numberline {4.1.3}{\ignorespaces KPI comparison between schedulers}}{28}{figure.caption.18}%
-\contentsline {figure}{\numberline {4.1.4}{\ignorespaces Multi-run scheduler comparison}}{29}{figure.caption.19}%
-\contentsline {figure}{\numberline {4.1.5}{\ignorespaces Cumulative task completion over time}}{30}{figure.caption.20}%
-\contentsline {figure}{\numberline {4.1.6}{\ignorespaces WebUI dashboard view during campaign execution}}{31}{figure.caption.21}%
-\contentsline {figure}{\numberline {4.1.7}{\ignorespaces WebUI trend plot for scheduler performance tracking}}{32}{figure.caption.22}%
+\contentsline {figure}{\numberline {4.2.1}{\ignorespaces Multi-run scheduler comparison}}{28}{figure.caption.18}%
+\contentsline {figure}{\numberline {4.2.2}{\ignorespaces Cumulative number of tasks completed over time.}}{29}{figure.caption.19}%
+\contentsline {figure}{\numberline {4.2.3}{\ignorespaces WebUI dashboard screen whilst running the campaign.}}{30}{figure.caption.20}%
+\contentsline {figure}{\numberline {4.2.4}{\ignorespaces WebUI trend plot of scheduler performance monitoring.}}{31}{figure.caption.21}%
 \addvspace {10\p@ }
 \contentsfinish 
