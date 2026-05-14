@@ -12,7 +12,7 @@
 
 CloudAI is a distributed computing platform for executing Docker-based workloads across a cluster of worker nodes. Built with **Go** for high performance.
 
-**[Complete Documentation](docs/DOCUMENTATION.md)** | **[Getting Started Guide](docs/GETTING_STARTED.md)** 
+**[Complete Documentation](docs/DOCUMENTATION.md)** | **[Getting Started Guide](docs/GETTING_STARTED.md)** | **[Project Structure](docs/PROJECT_STRUCTURE.md)** | **[Project Appendix](docs/PROJECT_APPENDIX.md)** 
 
 ---
 
@@ -280,10 +280,12 @@ curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
 ## Documentation
 
 - **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** - 5-minute setup guide
-- **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)** - Complete reference
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture
-- **[testbench/README.md](testbench/README.md)** - Docker performance testbench
-- **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)** - Step-by-step testbench runbook
+- **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)** - Complete API reference
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture & design
+- **[docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)** - Codebase organization guide
+- **[docs/PROJECT_APPENDIX.md](docs/PROJECT_APPENDIX.md)** - Scripts, files, and utility reference
+- **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)** - Testing & benchmarking procedures
+- **[testbench/README.md](testbench/README.md)** - Docker testbench documentation
 - **[docs/EXAMPLE.md](docs/EXAMPLE.md)** - Usage examples
 
 ---

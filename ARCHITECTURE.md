@@ -1,8 +1,12 @@
 # CloudAI System Architecture
 
-**Last Updated:** November 26, 2025
+**Last Updated:** May 13, 2026
 
-> **Note:** Architecture diagrams are available as PlantUML files in `docs/Diagrams/`. You can render them using any PlantUML viewer or IDE plugin. Pre-rendered PNG images are also available.
+> **See Also:** 
+> - [Project Structure Guide](docs/PROJECT_STRUCTURE.md) — Detailed codebase organization
+> - [Project Appendix](docs/PROJECT_APPENDIX.md) — Scripts, utilities, and file locations
+> - [Documentation Index](docs/DOCUMENTATION.md) — Complete API reference
+> - [Getting Started](docs/GETTING_STARTED.md) — Quick setup guide
 
 ## High-Level Architecture
 

@@ -2,6 +2,8 @@
 
 Distributed task executor with Docker-backed task runtime and gRPC integration.
 
+**See Also:** [Project Structure Guide](../docs/PROJECT_STRUCTURE.md#worker-node-worker) | [Project Appendix](../docs/PROJECT_APPENDIX.md) | [ARCHITECTURE](../ARCHITECTURE.md)
+
 ## Features
 
 - Receives tasks from master and executes them in containers

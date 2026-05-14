@@ -2,6 +2,8 @@
 
 Central coordinator for CloudAI distributed execution.
 
+**See Also:** [Project Structure Guide](../docs/PROJECT_STRUCTURE.md#master-node-master) | [Project Appendix](../docs/PROJECT_APPENDIX.md) | [ARCHITECTURE](../ARCHITECTURE.md)
+
 ## Features
 
 - Interactive CLI for worker/task operations

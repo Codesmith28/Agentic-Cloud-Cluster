@@ -1,8 +1,0 @@
-=== ppo service log ===
-2026-04-09 23:06:56,552 [INFO] __main__: PPO scheduler service started on 127.0.0.1:50061
-2026-04-09 23:08:38,304 [ERROR] grpc._server: Exception calling application: operands could not be broadcast together with shapes (15,) (14,) 
-ValueError: operands could not be broadcast together with shapes (15,) (14,) 
-2026-04-09 23:08:38,319 [ERROR] grpc._server: Exception calling application: operands could not be broadcast together with shapes (15,) (14,) 
-ValueError: operands could not be broadcast together with shapes (15,) (14,) 
-2026-04-09 23:08:38,323 [ERROR] grpc._server: Exception calling application: operands could not be broadcast together with shapes (15,) (14,) 
-ValueError: operands could not be broadcast together with shapes (15,) (14,) 
