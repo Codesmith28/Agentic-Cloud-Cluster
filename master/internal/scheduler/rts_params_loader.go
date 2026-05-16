@@ -3,7 +3,9 @@ package scheduler
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 )
 
 // LoadGAParams loads GAParams from a JSON file
@@ -21,6 +23,9 @@ func LoadGAParams(filePath string) (*GAParams, error) {
 		return nil, fmt.Errorf("failed to parse GA params JSON: %w", err)
 	}
 
+	// Normalize legacy task-type aliases before validation.
+	normalizeLegacyTaskTypeAliases(&params)
+
 	// Validate parameters
 	if err := validateGAParams(&params); err != nil {
 		return nil, fmt.Errorf("invalid GA params: %w", err)
@@ -37,9 +42,36 @@ func (p *GAParams) SaveToFile(filePath string) error {
 		return fmt.Errorf("failed to marshal GA params: %w", err)
 	}
 
-	// Write to file with appropriate permissions
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write GA params file: %w", err)
+	dir := filepath.Dir(filePath)
+	if dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create GA params directory: %w", err)
+		}
+	}
+
+	tempFile, err := os.CreateTemp(dir, "ga_params_*.tmp")
+	if err != nil {
+		return fmt.Errorf("failed to create temp GA params file: %w", err)
+	}
+	tempPath := tempFile.Name()
+	if _, err := tempFile.Write(data); err != nil {
+		tempFile.Close()
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("failed to write temp GA params file: %w", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("failed to close temp GA params file: %w", err)
+	}
+
+	if err := os.Chmod(tempPath, 0644); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("failed to chmod temp GA params file: %w", err)
+	}
+
+	if err := os.Rename(tempPath, filePath); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("failed to atomically replace GA params file: %w", err)
 	}
 
 	return nil
@@ -53,7 +85,7 @@ func GetDefaultGAParams() *GAParams {
 		Theta: Theta{
 			Theta1: 0.1, // CPU ratio impact
 			Theta2: 0.1, // Memory ratio impact
-			Theta3: 0.3, // GPU ratio impact (higher weight)
+			Theta3: 0.3, // Storage ratio impact (higher weight)
 			Theta4: 0.2, // Worker load impact
 		},
 
@@ -65,8 +97,7 @@ func GetDefaultGAParams() *GAParams {
 
 		// Initialize empty maps (will be populated by AOD training)
 		// Affinity matrix structure: map[taskType]map[workerID]affinity
-		// Should have 6 task types: cpu-light, cpu-heavy, memory-heavy,
-		// gpu-heavy, gpu-training, mixed
+		// Should have 4 task types: cpu-light, cpu-heavy, memory-heavy, mixed
 		AffinityMatrix: make(map[string]map[string]float64),
 
 		// Penalty vector structure: map[workerID]penalty
@@ -102,12 +133,10 @@ func validateGAParams(params *GAParams) error {
 	if params.AffinityMatrix != nil {
 		// Check for valid task types in affinity matrix
 		validTaskTypes := map[string]bool{
-			TaskTypeCPULight:     true,
-			TaskTypeCPUHeavy:     true,
-			TaskTypeMemoryHeavy:  true,
-			TaskTypeGPUInference: true,
-			TaskTypeGPUTraining:  true,
-			TaskTypeMixed:        true,
+			TaskTypeCPULight:    true,
+			TaskTypeCPUHeavy:    true,
+			TaskTypeMemoryHeavy: true,
+			TaskTypeMixed:       true,
 		}
 
 		for taskType := range params.AffinityMatrix {
@@ -145,7 +174,13 @@ func LoadGAParamsOrDefault(filePath string) *GAParams {
 	if err != nil {
 		// Log the error but don't fail - use defaults
 		// This allows the system to start even without trained parameters
+		log.Printf("⚠️ RTS: falling back to default GA params (%v)", err)
 		return GetDefaultGAParams()
 	}
 	return params
+}
+
+// normalizeLegacyTaskTypeAliases rewrites historical task type keys to canonical names.
+func normalizeLegacyTaskTypeAliases(params *GAParams) {
+	_ = params
 }

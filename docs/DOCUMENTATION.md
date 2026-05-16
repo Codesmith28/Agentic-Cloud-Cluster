@@ -36,7 +36,7 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 - **Risk-aware Scheduling**: RTS algorithm optimizes task placement to meet SLAs using historical data
 - **Adaptive Optimization**: Background AOD training continuously improves scheduling parameters
 - **Real-time Monitoring**: WebSocket-based telemetry streaming for cluster health and task status
-- **Resource Management**: Track and optimize CPU, memory, storage, and GPU allocation
+- **Resource Management**: Track and optimize CPU, memory, and storage allocation
 - **Interactive Management**: Command-line interface for cluster administration
 - **Web Dashboard**: React-based UI for monitoring and management
 - **Persistent Storage**: MongoDB-backed data persistence for tasks, workers, and results
@@ -45,7 +45,7 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 
 ### 1.3 Use Cases
 
-- **Machine Learning Pipelines**: Distribute training tasks across GPU-enabled workers
+- **Machine Learning Pipelines**: Distribute training and batch workloads across heterogeneous workers
 - **Data Processing**: Batch processing of large datasets
 - **CI/CD Workflows**: Parallel test execution and build processes
 - **Microservices Testing**: Deploy and test services in isolated containers
@@ -242,10 +242,11 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 
 ### 3.2 Worker Management
 
-**Auto-Registration:**
-- Workers automatically register on startup
-- Resource capacity reporting (CPU, memory, GPU, storage)
-- Unique worker identification
+**Registration Handshake:**
+- Workers start and expose a reachable gRPC address
+- Operator registers worker ID/address from the master CLI
+- Worker then self-reports resource capacity (CPU, memory, storage)
+- Unique worker identification with persistent IDs
 
 **Health Monitoring:**
 - Periodic heartbeats (5-second interval)
@@ -254,9 +255,9 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 - Running task inventory
 
 **Manual Registration:**
-- Admin can pre-register workers in database
-- Workers auto-populate specs on first connection
-- Persistent worker registry
+- Admin registers or refreshes worker addresses in the master CLI
+- Registration persists in MongoDB for restart recovery
+- Master can re-notify workers after reconnects
 
 ### 3.3 Real-Time Telemetry
 
@@ -269,7 +270,7 @@ CloudAI is a distributed computing platform designed for orchestrating Docker-ba
 **Metrics Tracked:**
 - CPU usage percentage
 - Memory usage (GB)
-- GPU utilization
+- Storage utilization
 - Storage usage
 - Running task count and details
 - Last update timestamp
@@ -538,12 +539,17 @@ Create `.env` file in the root directory (optional - system works with defaults)
 
 ```bash
 # Database (optional - defaults shown)
-MONGO_URI=mongodb://localhost:27017
-DB_NAME=cluster_db
+MONGODB_HOST=localhost:27017
+MONGODB_DATABASE=cluster_db
+MONGODB_USERNAME=
+MONGODB_PASSWORD=
 
 # Server ports (optional - defaults shown)
 GRPC_PORT=:50051
 HTTP_PORT=:8080
+
+# Auth (optional but recommended in persistent environments)
+JWT_SECRET=replace-with-a-strong-secret
 
 # Logging (optional)
 LOG_LEVEL=info  # debug|info|warn|error
@@ -556,13 +562,13 @@ LOG_LEVEL=info  # debug|info|warn|error
 
 **Worker Node Configuration:**
 
-Environment variables or command-line flags:
+Environment variables:
 
 ```bash
-export MASTER_ADDR=localhost:50051
 export WORKER_ID=worker-1
-export WORKER_IP=192.168.1.100
 export WORKER_PORT=:50052
+export WORKER_BIND_IP=0.0.0.0
+export WORKER_METRICS_PORT=9101
 ```
 
 ---
@@ -611,14 +617,19 @@ cd worker
 # ./runWorker.sh
 ```
 
+Register the worker in the master CLI using the worker ID and reachable address printed by the worker process:
+
+```bash
+master> register <worker_id> <worker_ip:port>
+```
+
 Expected output:
 ```
 Worker ID:      hostname-123
-Worker Address: 192.168.1.100:50052
+Reachable Addr: 192.168.1.100:50052
 
 ✓ Worker gRPC server started on :50052
-✓ Registered with master at localhost:50051
-✓ Telemetry monitor started (5s interval)
+✓ Ready to receive master registration...
 
 Waiting for tasks...
 ```
@@ -686,14 +697,14 @@ Output:
 ║ worker-1
 ║   Status: 🟢 Active
 ║   IP: 192.168.1.100:50052
-║   Resources: CPU=8.0, Memory=16.0GB, Storage=500.0GB, GPU=1.0
+║   Resources: CPU=8.0, Memory=16.0GB, Storage=500.0GB
 ║   Running Tasks: 2
 ║   Last Heartbeat: 2s ago
 ║
 ║ worker-2
 ║   Status: 🟢 Active
 ║   IP: 192.168.1.101:50052
-║   Resources: CPU=4.0, Memory=8.0GB, Storage=250.0GB, GPU=0.0
+║   Resources: CPU=4.0, Memory=8.0GB, Storage=250.0GB
 ║   Running Tasks: 1
 ║   Last Heartbeat: 1s ago
 ╚═══════════════════════
@@ -713,14 +724,13 @@ Manually register a worker in the database before it connects.
 #### Task Command (Scheduler Selects Worker)
 
 ```bash
-master> task <docker_image> [-name <task_name>] [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]
+master> task <docker_image> [-name <task_name>] [-cpu_cores <num>] [-mem <gb>] [-storage <gb>]
 
 # Options:
 #   -name <task_name>    Custom task name (default: auto-generated from image name)
 #   -cpu_cores <float>   CPU cores (default: 1.0)
 #   -mem <float>         Memory in GB (default: 0.5)
 #   -storage <float>     Storage in GB (default: 1.0)
-#   -gpu_cores <float>   GPU count (default: 0.0)
 
 # Note: The scheduler will automatically select the best worker.
 #       Files generated in /output will be automatically collected and stored.
@@ -736,14 +746,14 @@ master> task docker.io/user/sample-task:latest -name my-experiment
 # Task with resources
 master> task docker.io/library/python:3.9-slim -cpu_cores 2.0 -mem 4.0
 
-# GPU task
-master> task docker.io/tensorflow/tensorflow:latest-gpu -cpu_cores 4.0 -mem 8.0 -gpu_cores 1.0
+# Storage-heavy task
+master> task docker.io/library/python:3.9-slim -cpu_cores 4.0 -mem 8.0 -storage 20.0
 ```
 
 #### Dispatch Command (Direct Worker Assignment)
 
 ```bash
-master> dispatch <worker_id> <docker_image> [-name <task_name>] [-cpu_cores <num>] [-mem <gb>] [-storage <gb>] [-gpu_cores <num>]
+master> dispatch <worker_id> <docker_image> [-name <task_name>] [-cpu_cores <num>] [-mem <gb>] [-storage <gb>]
 
 # Note: This bypasses the scheduler and directly assigns to the specified worker.
 
@@ -901,8 +911,7 @@ message WorkerInfo {
     double total_cpu = 3;
     double total_memory = 4;
     double total_storage = 5;
-    double total_gpu = 6;
-}
+    }
 
 message Task {
     string task_id = 1;
@@ -911,15 +920,14 @@ message Task {
     double cpu_cores = 4;
     double memory_gb = 5;
     double storage_gb = 6;
-    double gpu_cores = 7;
-    int64 created_at = 8;
+    int64 created_at = 7;
 }
 
 message Heartbeat {
     string worker_id = 1;
     double cpu_usage = 2;
     double memory_usage = 3;
-    double gpu_usage = 4;
+    double storage_usage = 4;
     repeated TaskInfo running_tasks = 5;
     int64 timestamp = 6;
 }
@@ -1027,13 +1035,12 @@ Get telemetry for all workers.
     "worker_id": "worker-1",
     "cpu_usage": 45.2,
     "memory_usage": 62.1,
-    "gpu_usage": 78.3,
+    "storage_usage": 78.3,
     "running_tasks": [
       {
         "task_id": "task-123",
         "cpu_allocated": 2.0,
         "memory_allocated": 4096.0,
-        "gpu_allocated": 1.0,
         "status": "running"
       }
     ],
@@ -1080,7 +1087,6 @@ Submit a new task for execution.
   "command": "echo 'Hello World'",
   "cpu_required": 1.0,
   "memory_required": 512.0,
-  "gpu_required": 0.0,
   "storage_required": 1024.0,
   "user_id": "user123"
 }
@@ -1127,7 +1133,6 @@ List all tasks with optional status filtering.
     "user_id": "user123",
     "cpu_required": 1.0,
     "memory_required": 512.0,
-    "gpu_required": 0.0,
     "storage_required": 1024.0,
     "created_at": 1731677400
   }
@@ -1159,7 +1164,6 @@ Get detailed information about a specific task.
   "user_id": "user123",
   "cpu_required": 1.0,
   "memory_required": 512.0,
-  "gpu_required": 0.0,
   "storage_required": 1024.0,
   "created_at": 1731677400,
   "assignment": {
@@ -1234,7 +1238,7 @@ List all workers with current telemetry.
     "is_active": true,
     "cpu_usage": 45.2,
     "memory_usage": 62.1,
-    "gpu_usage": 15.3,
+    "storage_usage": 15.3,
     "running_tasks_count": 2,
     "last_update": 1731677400
   }
@@ -1259,13 +1263,12 @@ Get detailed information about a specific worker.
   "is_active": true,
   "cpu_usage": 45.2,
   "memory_usage": 62.1,
-  "gpu_usage": 15.3,
+  "storage_usage": 15.3,
   "running_tasks": [
     {
       "task_id": "task-123",
       "cpu_allocated": 1.0,
       "memory_allocated": 512.0,
-      "gpu_allocated": 0.0,
       "status": "running"
     }
   ],
@@ -1276,7 +1279,6 @@ Get detailed information about a specific worker.
     "total_cpu": 8.0,
     "total_memory": 16384.0,
     "total_storage": 512000.0,
-    "total_gpu": 1.0,
     "registered_at": 1731600000,
     "last_heartbeat": 1731677400
   }
@@ -1300,7 +1302,7 @@ Get current resource metrics for a specific worker.
   "worker_id": "worker-1",
   "cpu_usage": 45.2,
   "memory_usage": 62.1,
-  "gpu_usage": 15.3,
+  "storage_usage": 15.3,
   "is_active": true,
   "last_update": 1731677400,
   "timestamp": 1731677400
@@ -1428,7 +1430,7 @@ Stream telemetry for a specific worker.
   "worker_id": "worker-1",
   "cpu_usage": 45.2,
   "memory_usage": 62.1,
-  "gpu_usage": 78.3,
+  "storage_usage": 78.3,
   "running_tasks": [...],
   "last_update": 1731677400,
   "is_active": true
@@ -1446,7 +1448,7 @@ Messages are sent only when the specified worker sends a heartbeat.
 **Worker Side:**
 - Dedicated goroutine collects metrics every 5 seconds
 - Sends heartbeat to master via gRPC
-- Includes: CPU, memory, GPU usage, running tasks
+- Includes: CPU, memory, storage usage, running tasks
 
 **Master Side:**
 - TelemetryManager with per-worker threads
@@ -1460,7 +1462,7 @@ Messages are sent only when the specified worker sends a heartbeat.
 **System Metrics:**
 - CPU usage (%)
 - Memory usage (GB and %)
-- GPU utilization (%)
+- Storage utilization (%)
 - Storage usage (GB)
 
 **Task Metrics:**
@@ -1562,7 +1564,6 @@ Stores all task submissions and their status.
   cpu_required: 2.0,                // CPU allocation
   memory_required: 4.0,             // Memory allocation (GB)
   storage_required: 10.0,           // Storage allocation (GB)
-  gpu_required: 0.0,                // GPU allocation
   status: "running",                // pending|queued|running|completed|failed|cancelled
   tag: "cpu-heavy",                 // Task classification tag
   k_value: 2.0,                     // Scheduling priority multiplier
@@ -1601,15 +1602,12 @@ Stores registered workers and their specifications.
   total_cpu: 8.0,                   // Total CPU cores
   total_memory: 16.0,               // Total memory (GB)
   total_storage: 500.0,             // Total storage (GB)
-  total_gpu: 1.0,                   // Total GPU count
   allocated_cpu: 2.0,               // Currently allocated CPU
   allocated_memory: 4.0,            // Currently allocated memory
   allocated_storage: 10.0,          // Currently allocated storage
-  allocated_gpu: 0.0,               // Currently allocated GPU
   available_cpu: 6.0,               // Available CPU
   available_memory: 12.0,           // Available memory
   available_storage: 490.0,         // Available storage
-  available_gpu: 1.0,               // Available GPU
   last_heartbeat: 1731677400,       // Unix timestamp
   registered_at: ISODate("..."),    // Registration time
 }
@@ -1868,7 +1866,7 @@ cd worker && go test ./... -v
 
 # Run test tasks
 # In master CLI:
-master> task worker-1 hello-world:latest
+master> task hello-world:latest
 ```
 
 ### 10.4 Debugging
@@ -1921,10 +1919,10 @@ db.TASKS.find().sort({created_at: -1}).limit(5)
    telnet master-ip 50051
    ```
 
-2. Verify master address:
+2. Verify worker registration:
    ```bash
-   # Worker should use correct master IP
-   export MASTER_ADDR=master-ip:50051
+   # Register worker with the address printed by runWorker.sh
+   master> register <worker_id> <worker_ip:port>
    ```
 
 3. Check firewall rules:
@@ -1960,7 +1958,7 @@ db.TASKS.find().sort({created_at: -1}).limit(5)
 3. Verify resource availability:
    ```bash
    master> workers
-   # Check if worker has enough CPU/memory/GPU
+   # Check if worker has enough CPU/memory/storage
    ```
 
 4. Test image locally:
@@ -1985,7 +1983,8 @@ db.TASKS.find().sort({created_at: -1}).limit(5)
 2. Check connection string:
    ```bash
    # In .env file
-   MONGO_URI=mongodb://localhost:27017
+   MONGODB_HOST=localhost:27017
+   MONGODB_DATABASE=cluster_db
    ```
 
 3. Test connection:
@@ -2009,7 +2008,7 @@ db.TASKS.find().sort({created_at: -1}).limit(5)
 
 1. Limit container resources:
    ```bash
-   master> task worker-1 image:latest -mem 2.0
+   master> task image:latest -mem 2.0
    ```
 
 2. Clean up old containers:
@@ -2114,7 +2113,7 @@ const heartbeatInterval = 5 * time.Second  // Default: 5s
 ```bash
 # Pre-pull common images on workers
 docker pull python:3.9
-docker pull tensorflow/tensorflow:latest-gpu
+docker pull python:3.9-slim
 docker pull node:18
 ```
 
@@ -2135,7 +2134,7 @@ The system uses a sophisticated RTS algorithm that:
 **Adaptive Online Decision (AOD):**
 
 - **Continuous Learning**: A background process runs every 60 seconds.
-- **Linear Regression**: Trains `Theta` parameters to understand how CPU/Memory/GPU usage affects performance.
+- **Linear Regression**: Trains `Theta` parameters to understand how CPU/Memory/Storage usage affects performance.
 - **Affinity & Penalty**: Builds worker profiles based on past successes and failures.
 - **Hot-Reload**: The scheduler automatically reloads optimized parameters (`config/ga_output.json`) every 30 seconds.
 
@@ -2240,12 +2239,12 @@ CloudAI includes JWT-based authentication:
 # Register a new user
 curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"name":"John","email":"john@example.com","password":"secret123"}'
+  -d '{"name":"John","email":"john@example.com","password":"securepassword123"}'
 
 # Login
 curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"john@example.com","password":"secret123"}'
+  -d '{"email":"john@example.com","password":"securepassword123"}'
 ```
 
 **File Access Control:**
@@ -2305,7 +2304,10 @@ services:
 **Connection string with auth:**
 
 ```bash
-MONGO_URI=mongodb://admin:secure_password@localhost:27017/cluster_db?authSource=admin
+MONGODB_HOST=localhost:27017
+MONGODB_DATABASE=cluster_db
+MONGODB_USERNAME=admin
+MONGODB_PASSWORD=secure_password
 ```
 
 **Network isolation:**
@@ -2349,14 +2351,15 @@ func validateTask(task *Task) error {
 
 | Variable | Default | Description | Status |
 |----------|---------|-------------|--------|
-| `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection string | Implemented |
+| `MONGODB_HOST` | `localhost:27017` | MongoDB host:port | Implemented |
 | `MONGODB_USERNAME` | - | MongoDB username | Implemented |
 | `MONGODB_PASSWORD` | - | MongoDB password | Implemented |
-| `MONGODB_DATABASE` | `cloudai` | Database name | Implemented |
+| `MONGODB_DATABASE` | `cluster_db` | Database name | Implemented |
 | `GRPC_PORT` | `:50051` | gRPC server port | Implemented |
 | `HTTP_PORT` | `:8080` | HTTP/WebSocket server port | Implemented |
-| `JWT_SECRET` | `vishvboda` | Secret for JWT signing | Implemented |
+| `JWT_SECRET` | auto-generated at startup | Secret for JWT signing | Implemented |
 | `LOG_LEVEL` | `info` | Logging level (debug/info/warn/error) | Implemented |
+| `CLOUDAI_HEADLESS` | `false` | Run master without interactive CLI | Implemented |
 | `TLS_ENABLED` | - | Enable TLS for gRPC | Planned |
 | `TLS_CERT_FILE` | - | TLS certificate file path | Planned |
 | `TLS_KEY_FILE` | - | TLS private key file path | Planned |
@@ -2366,11 +2369,13 @@ func validateTask(task *Task) error {
 | Variable | Default | Description | Status |
 |----------|---------|-------------|--------|
 | `WORKER_ID` | hostname | Worker unique identifier | Implemented |
-| `WORKER_IP` | auto-detected | Worker IP address | Implemented |
 | `WORKER_PORT` | `:50052` | Worker gRPC server port | Implemented |
-| `MASTER_ADDR` | `localhost:50051` | Master server address | Implemented |
-| `HEARTBEAT_INTERVAL` | `5s` | Heartbeat send interval | Implemented |
-| `LOG_LEVEL` | `info` | Logging level | Implemented |
+| `WORKER_BIND_IP` | detected worker IP | Worker bind IP override | Implemented |
+| `WORKER_METRICS_PORT` | `9101` | Worker Prometheus metrics port | Implemented |
+| `WORKER_TOTAL_CPU` | detected CPU cores | Override reported CPU cores | Implemented |
+| `WORKER_TOTAL_MEMORY_GB` | detected memory | Override reported memory (GB) | Implemented |
+| `WORKER_TOTAL_STORAGE_GB` | detected storage | Override reported storage (GB) | Implemented |
+| `WORKER_CONTAINER_NETWORK_MODE` | `bridge` | Docker network mode (bridge/host/none) | Implemented |
 | `CLOUDAI_OUTPUT_DIR` | `/var/cloudai/outputs` | Task output directory | Implemented |
 
 ---
@@ -2410,7 +2415,7 @@ See `proto/master_worker.proto` for full definitions.
 A: Yes, workers authenticate using the host's Docker credentials. Run `docker login` on worker machines.
 
 **Q: How do I scale to more workers?**  
-A: Simply start more worker nodes with unique IDs. The master automatically handles them.
+A: Start more worker nodes, then register each from the master CLI using `register <worker_id> <worker_ip:port>`.
 
 **Q: Can tasks communicate with each other?**  
 A: Not directly. For inter-task communication, use external services (Redis, RabbitMQ, etc.).

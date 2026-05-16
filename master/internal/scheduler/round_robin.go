@@ -15,7 +15,11 @@ type WorkerInfo struct {
 	AvailableCPU     float64
 	AvailableMemory  float64
 	AvailableStorage float64
-	AvailableGPU     float64
+	TotalCPU         float64
+	TotalMemory      float64
+	TotalStorage     float64
+	CurrentCPUUsage  float64
+	CurrentMemUsage  float64
 }
 
 // RoundRobinScheduler implements a simple round-robin scheduling algorithm
@@ -94,9 +98,6 @@ func (s *RoundRobinScheduler) isWorkerSuitable(worker *WorkerInfo, task *pb.Task
 		return false
 	}
 	if worker.AvailableStorage < task.ReqStorage {
-		return false
-	}
-	if worker.AvailableGPU < task.ReqGpu {
 		return false
 	}
 

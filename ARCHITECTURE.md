@@ -27,7 +27,7 @@ The CloudAI system follows a master-worker distributed architecture:
 | CLI Interface | `internal/cli/` | Interactive readline-based command prompt for task submission, worker management, monitoring, and file operations |
 | HTTP/WebSocket Server | `internal/http/` | REST API endpoints for tasks, workers, files, auth; WebSocket for real-time telemetry |
 | gRPC Server | `internal/server/` | Worker ↔ Master communication: registration, heartbeats, task assignment, file uploads |
-| Scheduler | `internal/scheduler/` | Risk-aware Task Scheduler (RTS) with Round-Robin fallback. Optimizes for SLA compliance. |
+| Scheduler | `internal/scheduler/` | Risk-aware Task Scheduler (RTS) with Round-Robin fallback. Optimizes for SLA compliance. Also supports PPO-based scheduling with shadow/active/fallback deployment modes. |
 | Telemetry Manager | `internal/telemetry/` | Per-worker telemetry data, WebSocket broadcasting, real-time monitoring |
 | AOD Trainer | `internal/aod/` | Adaptive Online Decision module. Trains scheduling parameters (Theta, Affinity) using historical data (Linear Regression). |
 | File Storage | `internal/storage/` | Secure file storage with per-user/per-task isolation and access control |
@@ -42,7 +42,7 @@ The CloudAI system follows a master-worker distributed architecture:
 | gRPC Server | `internal/server/` | Handles task assignments, cancellations, log streaming from master |
 | Task Executor | `internal/executor/` | Docker client management, image pulling, container lifecycle, resource limits |
 | Log Stream Manager | `internal/logstream/` | Real-time log broadcasting, buffer management, multi-subscriber support |
-| Telemetry Monitor | `internal/telemetry/` | System metrics (CPU, Memory, GPU), heartbeats (5s interval), result reporting |
+| Telemetry Monitor | `internal/telemetry/` | System metrics (CPU, Memory, Storage), heartbeats (5s interval), result reporting |
 
 ### Web UI Components
 
@@ -54,22 +54,66 @@ The CloudAI system follows a master-worker distributed architecture:
 | Page Components | `src/pages/` | Dashboard, TasksPage, WorkersPage, SubmitTaskPage |
 | API Integration | `src/api/`, `src/hooks/` | Axios HTTP client, WebSocket client, custom hooks |
 
+## Scheduler Architecture
+
+### Scheduling Algorithms
+
+| Algorithm | Mode | Description |
+|-----------|------|-------------|
+| Round-Robin (RR) | Always available | Simple baseline: distribute tasks cyclically across workers |
+| Risk-aware Task Scheduler (RTS) | `SCHED_ALGO=RTS` | Optimizes for SLA compliance using historical performance data (trained via AOD) |
+| PPO | `SCHED_ALGO=PPO` | Reinforcement learning-based scheduler trained on real traces (see `docs/PPO_TRACE_REPLAY.md`) |
+
+### PPO Deployment Modes
+
+When `SCHED_ALGO=PPO`, PPO supports multiple deployment strategies via `PPO_DEPLOYMENT_MODE`:
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| `shadow` | PPO is queried, but fallback scheduler decides tasks | Offline evaluation, convergence tracking |
+| `active` | PPO makes decisions, fallback scheduler handles PPO failures | Production scheduling with learned policy |
+| `fallback` | PPO RPC is bypassed; fallback scheduler always decides | Safety mode without PPO dependency |
+
+**Configuration:**
+```bash
+export SCHED_ALGO=PPO
+export PPO_DEPLOYMENT_MODE=active
+export PPO_ONLINE_UPDATES_ENABLED=true    # Enable adaptive learning
+export PPO_REQUEST_TIMEOUT_MS=1500        # PPO decision timeout
+./runMaster.sh
+```
+
+### Recovery Semantics
+
+When a worker becomes unavailable:
+
+1. Master detects missing heartbeats (5s interval)
+2. Active task attempt is marked `lost`
+3. Logical task is requeued automatically to another worker
+4. Late results from old attempts are recorded but cannot overwrite current outcome
+
+**Inspection:**
+```bash
+curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
+```
+
 ## Communication Flow
 
 ### 1. Worker Registration
 
 ![Worker Registration](docs/Diagrams/worker-registration.png)
 
-1. Worker sends `RegisterWorker()` with WorkerInfo (worker_id, worker_ip, total_cpu, total_memory, total_storage, total_gpu)
-2. Master stores worker info in database and memory
-3. Master responds with `RegisterAck(success: true)`
-4. Master sends `MasterRegister()` to worker with master_id and master_address
+1. Worker starts and waits for master registration on its gRPC endpoint
+2. Operator registers worker endpoint in master (`register <worker_id> <worker_ip:port>`)
+3. Master sends `MasterRegister()` to worker with `master_id` and `master_address`
+4. Worker sends `RegisterWorker()` with capacity details (cpu/memory/storage)
+5. Master stores worker info in database and memory, then accepts heartbeats
 
 ### 2. Heartbeat Monitoring
 
 ![Heartbeat](docs/Diagrams/heartbeat.png)
 
-1. Worker sends `SendHeartbeat()` every 5 seconds with telemetry data (worker_id, cpu_usage, memory_usage, gpu_usage, running_tasks[])
+1. Worker sends `SendHeartbeat()` every 5 seconds with telemetry data (worker_id, cpu_usage, memory_usage, storage_usage, running_tasks[])
 2. Master updates TelemetryManager with worker data
 3. Master responds with `HeartbeatAck`
 4. TelemetryManager pushes updates to WebSocket clients
@@ -81,7 +125,7 @@ The CloudAI system follows a master-worker distributed architecture:
 **Task Submission Phase:**
 1. User submits task via CLI/REST/Web UI
 2. Master's Scheduler selects appropriate worker based on resources
-3. Master sends `AssignTask()` to selected worker with Task details (task_id, docker_image, command, req_cpu, req_memory, req_gpu, user_id, task_name)
+3. Master sends `AssignTask()` to selected worker with Task details (task_id, docker_image, command, req_cpu, req_memory, req_storage, user_id, task_name)
 4. Worker acknowledges with `TaskAck`
 5. Master confirms submission to user
 
@@ -165,11 +209,29 @@ When no worker is available:
 | `/api/auth/register` | User registration |
 | `/api/auth/login` | User authentication |
 | `/api/tasks` | Task CRUD operations |
+| `/api/tasks/{id}/attempts` | Task attempt history with recovery details |
 | `/api/workers` | Worker list, details, metrics |
 | `/api/files` | File list, download with access control |
-| `/telemetry`, `/health` | System telemetry and health checks |
-| `/ws/telemetry` | Real-time telemetry streaming |
-| `/ws/telemetry/{id}` | Per-worker telemetry streaming |
+| `/telemetry`, `/workers` | System telemetry and worker status |
+| `/health` | Health check endpoint |
+| `/metrics` | Prometheus metrics (scheduler, PPO, recovery stats) |
+| `/ws/telemetry` | Real-time all-workers telemetry streaming |
+| `/ws/telemetry/{id}` | Per-worker real-time telemetry streaming |
+
+### Observability Exports
+
+The campaign framework exports observability artifacts:
+
+```bash
+# Prometheus range queries (time-series metrics)
+results/campaign/observability/prometheus-range.json
+
+# Prometheus instant queries (final snapshots)
+results/campaign/observability/prometheus-instant.json
+
+# Master diagnostics (scheduler, recovery, PPO stats)
+results/campaign/observability/master-diagnostics.json
+```
 
 ### Protocol Stack
 

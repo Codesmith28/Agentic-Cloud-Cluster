@@ -1,0 +1,554 @@
+2026/04/09 23:14:55 No .env file found, using environment variables
+2026/04/09 23:14:55 Warning: Cannot create /var/cloudai/files: mkdir /var/cloudai: permission denied
+2026/04/09 23:14:55 ✓ Using fallback file storage directory: /Users/codesmith28/.cloudai/files
+2026/04/09 23:14:55 === System Information ===
+2026/04/09 23:14:55 Hostname: Thea
+2026/04/09 23:14:55 IP Addresses: [10.63.86.229]
+2026/04/09 23:14:55 OS: darwin
+2026/04/09 23:14:55 Architecture: arm64
+2026/04/09 23:14:55 CPU Cores: 12
+2026/04/09 23:14:55 Process ID: 37609
+2026/04/09 23:14:55 User ID: 501
+2026/04/09 23:14:55 Group ID: 20
+2026/04/09 23:14:55 Master Address: 10.63.86.229
+2026/04/09 23:14:55 Master Port: :61051
+2026/04/09 23:14:55 ==========================
+2026/04/09 23:14:55 ✓ MongoDB collections ensured
+2026/04/09 23:14:55 ✓ WorkerDB initialized
+2026/04/09 23:14:55 ✓ TaskDB initialized
+2026/04/09 23:14:55 ✓ AssignmentDB initialized
+2026/04/09 23:14:55 ✓ AttemptDB initialized
+2026/04/09 23:14:55 ✓ ResultDB initialized
+2026/04/09 23:14:55 ✓ UserDB initialized
+2026/04/09 23:14:55 ✓ FileMetadataDB initialized
+2026/04/09 23:14:55 Warning: Failed to create SchedulerModelDB: create scheduler model indexes: (IndexOptionsConflict) Index already exists with a different name: sched_model_lookup_idx
+2026/04/09 23:14:55 ✓ FileStorageService initialized with access control
+2026/04/09 23:14:55 ✓ FileStorageService initialized (base: /Users/codesmith28/.cloudai/files)
+2026/04/09 23:14:55 Telemetry manager started
+2026/04/09 23:14:55 ✓ Telemetry manager started
+2026/04/09 23:14:55 ✓ Tau store initialized with default values:
+2026/04/09 23:14:55   - cpu-heavy: 15.0s
+2026/04/09 23:14:55   - memory-heavy: 20.0s
+2026/04/09 23:14:55   - mixed: 10.0s
+2026/04/09 23:14:55   - cpu-light: 5.0s
+2026/04/09 23:14:55 ✓ SLA multiplier (k): 2.0
+2026/04/09 23:14:55 ✓ Round-Robin scheduler created
+2026/04/09 23:14:55 ✓ Telemetry source adapter created
+2026/04/09 23:14:55 ✓ RTS params store initialized (MongoDB: RTS_WEIGHTS)
+2026/04/09 23:14:55 ✓ RTS Scheduler initialized with params from /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:14:55 ✓ RTS scheduler initialized (params: /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json)
+2026/04/09 23:14:55   - Fallback: Round-Robin
+2026/04/09 23:14:55   - Parameter hot-reload: enabled (every 30s from local cache)
+2026/04/09 23:14:55 ✓ PPO deployment mode: active (online updates: true)
+2026/04/09 23:14:56 ✓ PPO service healthy (model=v0, fingerprint=)
+2026/04/09 23:14:56 ✓ Selected scheduler: PPO (mode=active fallback=RTS)
+2026/04/09 23:14:56 Scheduler set: PPO
+2026/04/09 23:14:56 ✓ Master server configured with PPO scheduler
+2026/04/09 23:14:56 Master info set: ID=master-1, Address=10.63.86.229:61051
+2026/04/09 23:14:56 ✓ HistoryDB initialized for AOD/GA training
+2026/04/09 23:14:56 ✓ AOD training ticker started (interval: 1m0s)
+2026/04/09 23:14:56   - Training method: Linear regression (Theta) + Direct computation (Affinity/Penalty)
+2026/04/09 23:14:56   - Training data window: 24 hours
+2026/04/09 23:14:56   - Output: /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:14:56   - Persistent store: MongoDB collection RTS_WEIGHTS
+2026/04/09 23:14:56   - RTS hot-reload: every 30s
+2026/04/09 23:14:56 🔄 Starting resource reconciliation...
+2026/04/09 23:14:56 ✓ Resource reconciliation complete: all workers correct
+2026/04/09 23:14:56 Loaded 0 workers from database
+2026/04/09 23:14:56 ✓ Task queue processor started (checking every 5s)
+2026/04/09 23:14:56 ✓ Task queue processor started
+2026/04/09 23:14:56 ✓ Worker reconnection monitor started
+2026/04/09 23:14:56 🔄 Worker reconnection monitor started
+2026/04/09 23:14:56 ✓ File API handlers registered
+2026/04/09 23:14:56 WARNING: JWT_SECRET not set, generated a random secret. Sessions will not survive restarts.
+2026/04/09 23:14:56 ✓ Auth API handlers registered
+2026/04/09 23:14:56 ✓ HTTP API server started on port 21080
+2026/04/09 23:14:56   - Telemetry: GET /health, /telemetry, /workers
+2026/04/09 23:14:56   - WebSocket: WS /ws/telemetry, /ws/telemetry/{worker_id}
+2026/04/09 23:14:56   - Tasks: POST/GET/DELETE /api/tasks, GET /api/tasks/{id}
+2026/04/09 23:14:56   - Workers: GET /api/workers, /api/workers/{id}
+2026/04/09 23:14:56   - Files: GET /api/files, /api/files/{task_id}
+2026/04/09 23:14:56            GET /api/files/{task_id}/download/{file_path}
+2026/04/09 23:14:56            DELETE /api/files/{task_id}
+2026/04/09 23:14:56 Starting WebSocket telemetry server on :21080
+2026/04/09 23:14:56 WebSocket endpoints:
+2026/04/09 23:14:56   - ws://localhost:21080/ws/telemetry (all workers)
+2026/04/09 23:14:56   - ws://localhost:21080/ws/telemetry/{worker_id} (specific worker)
+2026/04/09 23:14:56 
+✓ Master node started successfully
+2026/04/09 23:14:56 ✓ Starting gRPC server on 10.63.86.229:61051 (advertise: 10.63.86.229:61051)
+2026/04/09 23:14:56 ✓ Headless mode enabled (CLOUDAI_HEADLESS=true), CLI disabled
+2026/04/09 23:15:25 ✓ RTS: Reloaded GA parameters from /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:15:55 ✓ RTS: Reloaded GA parameters from /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:15:56 🧬 Starting AOD training cycle...
+2026/04/09 23:15:56 🧬 Starting AOD training cycle...
+2026/04/09 23:15:56 📊 Fetching task history from 2026-04-08T23:15:56+05:30 to 2026-04-09T23:15:56+05:30
+2026/04/09 23:15:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:15:56+05:30 and 2026-04-09T23:15:56+05:30
+2026/04/09 23:15:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:15:56 📊 Fetching worker stats from 2026-04-08T23:15:56+05:30 to 2026-04-09T23:15:56+05:30
+2026/04/09 23:15:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:15:56+05:30 and 2026-04-09T23:15:56+05:30
+2026/04/09 23:15:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:15:56 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/09 23:15:56 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/09 23:15:56 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:15:56 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/09 23:15:56 ✅ AOD training cycle completed successfully
+2026/04/09 23:16:16 Manually registered worker: ppo-worker-1 (Address: 127.0.0.1:61152)
+2026/04/09 23:16:16 🔄 Worker ppo-worker-1 connected with new specs, reconciling resources...
+2026/04/09 23:16:16   🔍 Reconciliation: Found 0 tasks with 'running' status in database
+2026/04/09 23:16:16   ✓ Reconciled ppo-worker-1: CPU=0.0, Memory=0.0, Storage=0.0, Tasks=0
+2026/04/09 23:16:25 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:16:55 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:16:56 🧬 Starting AOD training cycle...
+2026/04/09 23:16:56 🧬 Starting AOD training cycle...
+2026/04/09 23:16:56 📊 Fetching task history from 2026-04-08T23:16:56+05:30 to 2026-04-09T23:16:56+05:30
+2026/04/09 23:16:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:16:56+05:30 and 2026-04-09T23:16:56+05:30
+2026/04/09 23:16:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:16:56 📊 Fetching worker stats from 2026-04-08T23:16:56+05:30 to 2026-04-09T23:16:56+05:30
+2026/04/09 23:16:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:16:56+05:30 and 2026-04-09T23:16:56+05:30
+2026/04/09 23:16:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:16:56 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/09 23:16:56 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/09 23:16:56 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:16:56 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/09 23:16:56 ✅ AOD training cycle completed successfully
+2026/04/09 23:17:25 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:17:55 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:17:56 🧬 Starting AOD training cycle...
+2026/04/09 23:17:56 🧬 Starting AOD training cycle...
+2026/04/09 23:17:56 📊 Fetching task history from 2026-04-08T23:17:56+05:30 to 2026-04-09T23:17:56+05:30
+2026/04/09 23:17:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:17:56+05:30 and 2026-04-09T23:17:56+05:30
+2026/04/09 23:17:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:17:56 📊 Fetching worker stats from 2026-04-08T23:17:56+05:30 to 2026-04-09T23:17:56+05:30
+2026/04/09 23:17:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:17:56+05:30 and 2026-04-09T23:17:56+05:30
+2026/04/09 23:17:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:17:56 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/09 23:17:56 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/09 23:17:56 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:17:56 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/09 23:17:56 ✅ AOD training cycle completed successfully
+2026/04/09 23:18:25 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:18:55 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:18:56 🧬 Starting AOD training cycle...
+2026/04/09 23:18:56 🧬 Starting AOD training cycle...
+2026/04/09 23:18:56 📊 Fetching task history from 2026-04-08T23:18:56+05:30 to 2026-04-09T23:18:56+05:30
+2026/04/09 23:18:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:18:56+05:30 and 2026-04-09T23:18:56+05:30
+2026/04/09 23:18:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:18:56 📊 Fetching worker stats from 2026-04-08T23:18:56+05:30 to 2026-04-09T23:18:56+05:30
+2026/04/09 23:18:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:18:56+05:30 and 2026-04-09T23:18:56+05:30
+2026/04/09 23:18:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:18:56 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/09 23:18:56 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/09 23:18:56 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:18:56 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/09 23:18:56 ✅ AOD training cycle completed successfully
+2026/04/09 23:19:25 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:19:55 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:19:56 🧬 Starting AOD training cycle...
+2026/04/09 23:19:56 🧬 Starting AOD training cycle...
+2026/04/09 23:19:56 📊 Fetching task history from 2026-04-08T23:19:56+05:30 to 2026-04-09T23:19:56+05:30
+2026/04/09 23:19:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:19:56+05:30 and 2026-04-09T23:19:56+05:30
+2026/04/09 23:19:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:19:56 📊 Fetching worker stats from 2026-04-08T23:19:56+05:30 to 2026-04-09T23:19:56+05:30
+2026/04/09 23:19:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:19:56+05:30 and 2026-04-09T23:19:56+05:30
+2026/04/09 23:19:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:19:56 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/09 23:19:56 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/09 23:19:56 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:19:56 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/09 23:19:56 ✅ AOD training cycle completed successfully
+2026/04/09 23:20:25 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:20:55 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:20:56 🧬 Starting AOD training cycle...
+2026/04/09 23:20:56 🧬 Starting AOD training cycle...
+2026/04/09 23:20:56 📊 Fetching task history from 2026-04-08T23:20:56+05:30 to 2026-04-09T23:20:56+05:30
+2026/04/09 23:20:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:20:56+05:30 and 2026-04-09T23:20:56+05:30
+2026/04/09 23:20:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:20:56 📊 Fetching worker stats from 2026-04-08T23:20:56+05:30 to 2026-04-09T23:20:56+05:30
+2026/04/09 23:20:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:20:56+05:30 and 2026-04-09T23:20:56+05:30
+2026/04/09 23:20:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:20:56 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/09 23:20:56 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/09 23:20:56 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:20:56 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/09 23:20:56 ✅ AOD training cycle completed successfully
+2026/04/09 23:21:25 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:21:55 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:21:56 🧬 Starting AOD training cycle...
+2026/04/09 23:21:56 🧬 Starting AOD training cycle...
+2026/04/09 23:21:56 📊 Fetching task history from 2026-04-08T23:21:56+05:30 to 2026-04-09T23:21:56+05:30
+2026/04/09 23:21:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:21:56+05:30 and 2026-04-09T23:21:56+05:30
+2026/04/09 23:21:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:21:56 📊 Fetching worker stats from 2026-04-08T23:21:56+05:30 to 2026-04-09T23:21:56+05:30
+2026/04/09 23:21:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:21:56+05:30 and 2026-04-09T23:21:56+05:30
+2026/04/09 23:21:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:21:56 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/09 23:21:56 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/09 23:21:56 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:21:56 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/09 23:21:56 ✅ AOD training cycle completed successfully
+2026/04/09 23:22:25 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:22:55 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:22:56 🧬 Starting AOD training cycle...
+2026/04/09 23:22:56 🧬 Starting AOD training cycle...
+2026/04/09 23:22:56 📊 Fetching task history from 2026-04-08T23:22:56+05:30 to 2026-04-09T23:22:56+05:30
+2026/04/09 23:22:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:22:56+05:30 and 2026-04-09T23:22:56+05:30
+2026/04/09 23:22:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:22:56 📊 Fetching worker stats from 2026-04-08T23:22:56+05:30 to 2026-04-09T23:22:56+05:30
+2026/04/09 23:22:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:22:56+05:30 and 2026-04-09T23:22:56+05:30
+2026/04/09 23:22:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:22:56 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/09 23:22:56 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/09 23:22:56 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:22:56 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/09 23:22:56 ✅ AOD training cycle completed successfully
+2026/04/09 23:23:25 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:23:55 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:23:56 🧬 Starting AOD training cycle...
+2026/04/09 23:23:56 🧬 Starting AOD training cycle...
+2026/04/09 23:23:56 📊 Fetching task history from 2026-04-08T23:23:56+05:30 to 2026-04-09T23:23:56+05:30
+2026/04/09 23:23:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:23:56+05:30 and 2026-04-09T23:23:56+05:30
+2026/04/09 23:23:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:23:56 📊 Fetching worker stats from 2026-04-08T23:23:56+05:30 to 2026-04-09T23:23:56+05:30
+2026/04/09 23:23:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:23:56+05:30 and 2026-04-09T23:23:56+05:30
+2026/04/09 23:23:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:23:56 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/09 23:23:56 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/09 23:23:56 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:23:56 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/09 23:23:56 ✅ AOD training cycle completed successfully
+2026/04/09 23:24:25 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:24:55 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:24:56 🧬 Starting AOD training cycle...
+2026/04/09 23:24:56 🧬 Starting AOD training cycle...
+2026/04/09 23:24:56 📊 Fetching task history from 2026-04-08T23:24:56+05:30 to 2026-04-09T23:24:56+05:30
+2026/04/09 23:24:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:24:56+05:30 and 2026-04-09T23:24:56+05:30
+2026/04/09 23:24:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:24:56 📊 Fetching worker stats from 2026-04-08T23:24:56+05:30 to 2026-04-09T23:24:56+05:30
+2026/04/09 23:24:56 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:24:56+05:30 and 2026-04-09T23:24:56+05:30
+2026/04/09 23:24:56 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:24:56 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/09 23:24:56 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/09 23:24:56 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:24:56 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/09 23:24:56 ✅ AOD training cycle completed successfully
+2026/04/10 00:06:44 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 00:07:14 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 00:07:16 🧬 Starting AOD training cycle...
+2026/04/10 00:07:16 🧬 Starting AOD training cycle...
+2026/04/10 00:07:16 📊 Fetching task history from 2026-04-09T00:07:16+05:30 to 2026-04-10T00:07:16+05:30
+2026/04/10 00:07:16 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T00:07:16+05:30 and 2026-04-10T00:07:16+05:30
+2026/04/10 00:07:16 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 00:07:16 📊 Fetching worker stats from 2026-04-09T00:07:16+05:30 to 2026-04-10T00:07:16+05:30
+2026/04/10 00:07:16 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T00:07:16+05:30 and 2026-04-10T00:07:16+05:30
+2026/04/10 00:07:16 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 00:07:16 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/10 00:07:16 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/10 00:07:16 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/10 00:07:16 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/10 00:07:16 ✅ AOD training cycle completed successfully
+2026/04/10 00:07:50 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 00:08:27 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 00:08:28 🧬 Starting AOD training cycle...
+2026/04/10 00:08:28 🧬 Starting AOD training cycle...
+2026/04/10 00:08:28 📊 Fetching task history from 2026-04-09T00:08:28+05:30 to 2026-04-10T00:08:28+05:30
+2026/04/10 00:08:28 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T00:08:28+05:30 and 2026-04-10T00:08:28+05:30
+2026/04/10 00:08:28 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 00:08:28 📊 Fetching worker stats from 2026-04-09T00:08:28+05:30 to 2026-04-10T00:08:28+05:30
+2026/04/10 00:08:28 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T00:08:28+05:30 and 2026-04-10T00:08:28+05:30
+2026/04/10 00:08:28 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 00:08:28 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/10 00:08:28 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/10 00:08:28 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/10 00:08:28 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/10 00:08:28 ✅ AOD training cycle completed successfully
+2026/04/10 00:23:50 Worker ppo-worker-1 marked as inactive (no heartbeat for 30s)
+2026/04/10 00:40:17 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 00:40:47 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 00:40:48 🧬 Starting AOD training cycle...
+2026/04/10 00:40:48 🧬 Starting AOD training cycle...
+2026/04/10 00:40:48 📊 Fetching task history from 2026-04-09T00:40:48+05:30 to 2026-04-10T00:40:48+05:30
+2026/04/10 00:40:48 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T00:40:48+05:30 and 2026-04-10T00:40:48+05:30
+2026/04/10 00:40:48 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 00:40:48 📊 Fetching worker stats from 2026-04-09T00:40:48+05:30 to 2026-04-10T00:40:48+05:30
+2026/04/10 00:40:48 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T00:40:48+05:30 and 2026-04-10T00:40:48+05:30
+2026/04/10 00:40:48 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 00:40:48 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/10 00:40:48 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/10 00:40:48 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/10 00:40:48 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/10 00:40:48 ✅ AOD training cycle completed successfully
+2026/04/10 01:25:50 ⚠️ Worker ppo-worker-1 marked as inactive (no heartbeat for 734 seconds)
+2026/04/10 01:25:50 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 01:25:50 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 01:25:50 Worker ppo-worker-1 already registered for telemetry
+2026/04/10 01:41:33 Worker ppo-worker-1 marked as inactive (no heartbeat for 30s)
+2026/04/10 01:41:33 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 02:26:50 Worker ppo-worker-1 marked as inactive (no heartbeat for 30s)
+2026/04/10 02:27:05 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 02:27:06 🧬 Starting AOD training cycle...
+2026/04/10 02:27:06 🧬 Starting AOD training cycle...
+2026/04/10 02:27:06 📊 Fetching task history from 2026-04-09T02:27:06+05:30 to 2026-04-10T02:27:06+05:30
+2026/04/10 02:27:06 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T02:27:06+05:30 and 2026-04-10T02:27:06+05:30
+2026/04/10 02:27:06 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 02:27:06 📊 Fetching worker stats from 2026-04-09T02:27:06+05:30 to 2026-04-10T02:27:06+05:30
+2026/04/10 02:27:06 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T02:27:06+05:30 and 2026-04-10T02:27:06+05:30
+2026/04/10 02:27:06 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 02:27:06 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/10 02:27:06 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/10 02:27:06 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/10 02:27:06 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/10 02:27:06 ✅ AOD training cycle completed successfully
+2026/04/10 03:00:05 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 03:00:38 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 03:00:39 🧬 Starting AOD training cycle...
+2026/04/10 03:00:39 🧬 Starting AOD training cycle...
+2026/04/10 03:00:39 📊 Fetching task history from 2026-04-09T03:00:39+05:30 to 2026-04-10T03:00:39+05:30
+2026/04/10 03:00:39 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T03:00:39+05:30 and 2026-04-10T03:00:39+05:30
+2026/04/10 03:00:39 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 03:00:39 📊 Fetching worker stats from 2026-04-09T03:00:39+05:30 to 2026-04-10T03:00:39+05:30
+2026/04/10 03:00:39 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T03:00:39+05:30 and 2026-04-10T03:00:39+05:30
+2026/04/10 03:00:39 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 03:00:39 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/10 03:00:39 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/10 03:00:39 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/10 03:00:39 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/10 03:00:39 ✅ AOD training cycle completed successfully
+2026/04/10 03:16:18 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 03:28:18 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 03:28:19 🧬 Starting AOD training cycle...
+2026/04/10 03:28:19 🧬 Starting AOD training cycle...
+2026/04/10 03:28:19 📊 Fetching task history from 2026-04-09T03:28:19+05:30 to 2026-04-10T03:28:19+05:30
+2026/04/10 03:28:19 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T03:28:19+05:30 and 2026-04-10T03:28:19+05:30
+2026/04/10 03:28:19 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 03:28:19 📊 Fetching worker stats from 2026-04-09T03:28:19+05:30 to 2026-04-10T03:28:19+05:30
+2026/04/10 03:28:19 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T03:28:19+05:30 and 2026-04-10T03:28:19+05:30
+2026/04/10 03:28:19 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 03:28:19 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/10 03:28:19 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/10 03:28:19 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/10 03:28:19 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/10 03:28:19 ✅ AOD training cycle completed successfully
+2026/04/10 03:43:56 Worker ppo-worker-1 marked as inactive (no heartbeat for 30s)
+2026/04/10 03:43:56 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 04:19:33 Worker ppo-worker-1 marked as inactive (no heartbeat for 30s)
+2026/04/10 04:19:33 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 04:19:34 🧬 Starting AOD training cycle...
+2026/04/10 04:19:34 🧬 Starting AOD training cycle...
+2026/04/10 04:19:34 📊 Fetching task history from 2026-04-09T04:19:34+05:30 to 2026-04-10T04:19:34+05:30
+2026/04/10 04:19:34 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T04:19:34+05:30 and 2026-04-10T04:19:34+05:30
+2026/04/10 04:19:34 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 04:19:34 📊 Fetching worker stats from 2026-04-09T04:19:34+05:30 to 2026-04-10T04:19:34+05:30
+2026/04/10 04:19:34 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T04:19:34+05:30 and 2026-04-10T04:19:34+05:30
+2026/04/10 04:19:34 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 04:19:34 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/10 04:19:34 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/10 04:19:34 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/10 04:19:34 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/10 04:19:34 ✅ AOD training cycle completed successfully
+2026/04/10 04:28:57 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 04:44:49 ⚠️ Worker ppo-worker-1 marked as inactive (no heartbeat for 951 seconds)
+2026/04/10 04:44:49 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 04:44:49 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 04:44:49 🔄 Worker ppo-worker-1 connected with new specs, reconciling resources...
+2026/04/10 04:44:49   🔍 Reconciliation: Found 0 tasks with 'running' status in database
+2026/04/10 04:44:49   ✓ Reconciled ppo-worker-1: CPU=0.0, Memory=0.0, Storage=0.0, Tasks=0
+2026/04/10 04:44:49 Worker ppo-worker-1 already registered for telemetry
+2026/04/10 05:09:14 Worker ppo-worker-1 marked as inactive (no heartbeat for 30s)
+2026/04/10 05:09:14 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 05:09:15 🧬 Starting AOD training cycle...
+2026/04/10 05:09:15 🧬 Starting AOD training cycle...
+2026/04/10 05:09:15 📊 Fetching task history from 2026-04-09T05:09:15+05:30 to 2026-04-10T05:09:15+05:30
+2026/04/10 05:09:15 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T05:09:15+05:30 and 2026-04-10T05:09:15+05:30
+2026/04/10 05:09:15 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 05:09:15 📊 Fetching worker stats from 2026-04-09T05:09:15+05:30 to 2026-04-10T05:09:15+05:30
+2026/04/10 05:09:15 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T05:09:15+05:30 and 2026-04-10T05:09:15+05:30
+2026/04/10 05:09:15 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 05:09:15 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/10 05:09:15 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/10 05:09:15 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/10 05:09:15 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/10 05:09:15 ✅ AOD training cycle completed successfully
+2026/04/10 05:21:35 ⚠️ Worker ppo-worker-1 marked as inactive (no heartbeat for 740 seconds)
+2026/04/10 05:21:35 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 05:21:35 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 05:21:40 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 05:21:40 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 05:29:53 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 05:29:53 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 05:29:57 Worker ppo-worker-1 marked as inactive (no heartbeat for 30s)
+2026/04/10 05:29:57 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 05:29:58 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 05:29:58 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 05:47:57 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 05:47:57 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:04:43 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:04:43 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:14:25 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:14:25 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:14:30 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:14:30 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:14:35 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:14:35 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:14:38 📋 Task task-1775781878049059000 queued: Task submitted to queue for scheduling
+2026/04/10 06:14:38 📋 Task task-1775781878049059000 submitted and queued (position: 1)
+2026/04/10 06:14:38 📋 Task task-1775781878108836000 queued: Task submitted to queue for scheduling
+2026/04/10 06:14:38 📋 Task task-1775781878108836000 submitted and queued (position: 2)
+2026/04/10 06:14:38 http: panic serving 127.0.0.1:55688: runtime error: invalid memory address or nil pointer dereference
+goroutine 5379 [running]:
+net/http.(*conn).serve.func1()
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:1907 +0xac
+panic({0x1034fc7c0?, 0x1036ccf80?})
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/runtime/panic.go:860 +0x12c
+master/internal/http.(*TaskAPIHandler).HandleGetTask(0x2dc64d008e40, {0x10363bd60, 0x2dc64cd5c0f0}, 0x2dc64cc86f00)
+	/Users/codesmith28/personal/Projects/acc/BTEP/master/internal/http/task_handler.go:314 +0xafc
+master/internal/http.(*TelemetryServer).RegisterTaskHandlers.func2({0x10363bd60, 0x2dc64cd5c0f0}, 0x2dc64cc86f00)
+	/Users/codesmith28/personal/Projects/acc/BTEP/master/internal/http/telemetry_server.go:493 +0x88
+net/http.HandlerFunc.ServeHTTP(0x2dc64cc28180?, {0x10363bd60?, 0x2dc64cd5c0f0?}, 0x102c68bc0?)
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:2286 +0x38
+net/http.(*ServeMux).ServeHTTP(0x2dc64cd7f830?, {0x10363bd60, 0x2dc64cd5c0f0}, 0x2dc64cc86f00)
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:2828 +0x190
+master/internal/http.corsMiddleware.func1({0x10363bd60, 0x2dc64cd5c0f0}, 0x2dc64cc86f00)
+	/Users/codesmith28/personal/Projects/acc/BTEP/master/internal/http/telemetry_server.go:122 +0x36c
+net/http.HandlerFunc.ServeHTTP(0x0?, {0x10363bd60?, 0x2dc64cd5c0f0?}, 0x2dc64cbd6b50?)
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:2286 +0x38
+net/http.serverHandler.ServeHTTP({0x2dc64cb3e840?}, {0x10363bd60?, 0x2dc64cd5c0f0?}, 0x1?)
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:3311 +0xb0
+net/http.(*conn).serve(0x2dc64cb26bd0, {0x10363d158, 0x2dc64ce0ed50})
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:2073 +0x51c
+created by net/http.(*Server).Serve in goroutine 306
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:3464 +0x37c
+2026/04/10 06:14:39 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 06:14:40 🧬 Starting AOD training cycle...
+2026/04/10 06:14:40 🧬 Starting AOD training cycle...
+2026/04/10 06:14:40 📊 Fetching task history from 2026-04-09T06:14:40+05:30 to 2026-04-10T06:14:40+05:30
+2026/04/10 06:14:40 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T06:14:40+05:30 and 2026-04-10T06:14:40+05:30
+2026/04/10 06:14:40 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 06:14:40 📊 Fetching worker stats from 2026-04-09T06:14:40+05:30 to 2026-04-10T06:14:40+05:30
+2026/04/10 06:14:40 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T06:14:40+05:30 and 2026-04-10T06:14:40+05:30
+2026/04/10 06:14:40 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:14:40 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:14:40 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 06:14:40 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/10 06:14:40 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/10 06:14:40 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/10 06:14:40 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/10 06:14:40 ✅ AOD training cycle completed successfully
+2026/04/10 06:14:40 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:14:40 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:14:40 📋 Queue: Task task-1775781878049059000 still waiting (attempt 1): No suitable worker available with sufficient resources
+2026/04/10 06:14:40 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:14:40 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:14:40 📋 Queue: Task task-1775781878108836000 still waiting (attempt 1): No suitable worker available with sufficient resources
+2026/04/10 06:14:45 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:14:45 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:14:45 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:14:45 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:14:45 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:14:45 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:14:50 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:14:50 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:14:50 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:14:50 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:14:50 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:14:50 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:14:55 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:14:55 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:14:55 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:14:55 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:14:55 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:14:55 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:15:00 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:15:00 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:15:00 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:00 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:15:00 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:00 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:15:05 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:15:05 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:15:05 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:05 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:15:05 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:05 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:15:09 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 06:15:10 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:15:10 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:15:10 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:10 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:15:10 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:10 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:15:15 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:15:15 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:15:15 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:15 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:15:15 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:15 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:15:20 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:15:20 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:15:20 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:20 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:15:20 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:20 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:15:25 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:15:25 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:15:25 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:25 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:15:25 📋 Queue: Task task-1775781878049059000 still waiting (attempt 10): No suitable worker available with sufficient resources
+2026/04/10 06:15:25 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:25 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:15:25 📋 Queue: Task task-1775781878108836000 still waiting (attempt 10): No suitable worker available with sufficient resources
+2026/04/10 06:15:30 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:15:30 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:15:30 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:30 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:15:30 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:30 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:15:35 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:15:35 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:15:35 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:35 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:15:35 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:35 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:15:39 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/10 06:15:40 🧬 Starting AOD training cycle...
+2026/04/10 06:15:40 🧬 Starting AOD training cycle...
+2026/04/10 06:15:40 📊 Fetching task history from 2026-04-09T06:15:40+05:30 to 2026-04-10T06:15:40+05:30
+2026/04/10 06:15:40 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T06:15:40+05:30 and 2026-04-10T06:15:40+05:30
+2026/04/10 06:15:40 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 06:15:40 📊 Fetching worker stats from 2026-04-09T06:15:40+05:30 to 2026-04-10T06:15:40+05:30
+2026/04/10 06:15:40 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-09T06:15:40+05:30 and 2026-04-10T06:15:40+05:30
+2026/04/10 06:15:40 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:15:40 🔍 DEBUG: Query returned 0 task history records
+2026/04/10 06:15:40 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/10 06:15:40 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/10 06:15:40 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:15:40 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:40 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:15:40 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/10 06:15:40 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/10 06:15:40 ✅ AOD training cycle completed successfully
+2026/04/10 06:15:40 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:40 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:15:45 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:15:45 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:15:45 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:45 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:15:45 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:45 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:15:50 🔄 Attempting to reconnect to 1 inactive worker(s)...
+2026/04/10 06:15:50 ✓ Successfully reconnected to worker ppo-worker-1 (127.0.0.1:61152)
+2026/04/10 06:15:50 ⚠️ RTS: No feasible workers for task task-1775781878049059000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:50 ⚠️ Scheduler: No suitable worker found for task task-1775781878049059000 (checked 1 workers)
+2026/04/10 06:15:50 ⚠️ RTS: No feasible workers for task task-1775781878108836000 (type=cpu-light), falling back to Round-Robin
+2026/04/10 06:15:50 ⚠️ Scheduler: No suitable worker found for task task-1775781878108836000 (checked 1 workers)
+2026/04/10 06:15:51 
+
+Shutting down master node...
+2026/04/10 06:15:51 ✓ Task queue processor stopped
+2026/04/10 06:15:51 Shutting down WebSocket telemetry server...
+2026/04/10 06:15:51 🛑 Worker reconnection monitor stopped
+2026/04/10 06:15:51 Shutting down telemetry manager...
+2026/04/10 06:15:51 Telemetry manager shutdown complete
+2026/04/10 06:15:51 ⏹️  Shutting down RTS scheduler...
+2026/04/10 06:15:51 ⏹️  Shutting down PPO scheduler client...
+2026/04/10 06:15:51 ✓ Master node shutdown complete

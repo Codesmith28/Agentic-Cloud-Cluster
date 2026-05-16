@@ -1,0 +1,41 @@
+FROM golang:1.24.9 AS builder
+
+WORKDIR /src
+
+# Prime module cache first.
+COPY worker/go.mod worker/go.sum ./worker/
+RUN cd /src/worker && go mod download
+
+COPY proto ./proto
+COPY worker ./worker
+
+# Ensure proto import path is available inside the worker module.
+RUN rm -f /src/worker/proto && ln -s ../proto/pb /src/worker/proto
+
+RUN cd /src/worker && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/workerNode .
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /out/workerNode /app/workerNode
+
+ENV WORKER_PORT=50052
+ENV WORKER_BIND_IP=0.0.0.0
+ENV CLOUDAI_WORKER_STATE_DIR=/var/lib/cloudai/worker
+ENV CLOUDAI_OUTPUT_DIR=/var/cloudai/outputs
+
+RUN adduser --disabled-password --gecos "" cloudai && \
+    mkdir -p /var/lib/cloudai/worker /var/cloudai/outputs && \
+    chown -R cloudai:cloudai /app /var/lib/cloudai/worker /var/cloudai/outputs
+
+USER cloudai
+
+EXPOSE 50052
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+  CMD ["/app/workerNode", "--healthcheck"] || exit 1
+
+ENTRYPOINT ["/app/workerNode"]

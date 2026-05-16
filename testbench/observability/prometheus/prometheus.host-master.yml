@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: master
+    static_configs:
+      - targets:
+          - host.docker.internal:8080
+
+  - job_name: workers
+    static_configs:
+      - targets:
+          - host.docker.internal:19101
+          - host.docker.internal:19102
+          - host.docker.internal:19103

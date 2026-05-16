@@ -1,0 +1,4 @@
+scheduler,total_tasks,total_completed,total_failed,avg_success_rate,avg_duration_seconds,avg_queue_wait_seconds,avg_turnaround_seconds,p95_turnaround_seconds,scenarios_run
+RR,40,40,0,100.0,19.55,0.0,0.0,0.0,3
+RTS,40,40,0,100.0,21.57,0.0,0.0,0.0,3
+PPO,40,40,0,100.0,20.87,0.0,0.0,0.0,3

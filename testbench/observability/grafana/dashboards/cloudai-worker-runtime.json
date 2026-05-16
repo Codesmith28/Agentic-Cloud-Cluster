@@ -1,0 +1,337 @@
+{
+  "uid": "cloudai-worker-runtime",
+  "title": "CloudAI Worker Runtime",
+  "description": "Worker execution performance, resource consumption, and health monitoring",
+  "schemaVersion": 41,
+  "editable": false,
+  "graphTooltip": 1,
+  "refresh": "5s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "templating": {
+    "list": [
+      {
+        "name": "task_type",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "cloudai-prometheus" },
+        "definition": "label_values(cloudai_worker_task_runtime_seconds_bucket, task_type)",
+        "query": "label_values(cloudai_worker_task_runtime_seconds_bucket, task_type)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Stats",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Total Task Starts",
+      "datasource": { "type": "prometheus", "uid": "cloudai-prometheus" },
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(cloudai_worker_task_starts_total{task_type=~\"$task_type\"}[$__range]))",
+          "legendFormat": "Task Starts"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 1000 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Avg Task Runtime",
+      "datasource": { "type": "prometheus", "uid": "cloudai-prometheus" },
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5, sum(rate(cloudai_worker_task_runtime_seconds_bucket{task_type=~\"$task_type\"}[5m])) by (le))",
+          "legendFormat": "P50 Runtime"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 30 },
+              { "color": "red", "value": 120 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Docker Error Rate",
+      "datasource": { "type": "prometheus", "uid": "cloudai-prometheus" },
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(cloudai_worker_docker_errors_total{task_type=~\"$task_type\"}[5m]))",
+          "legendFormat": "Errors/s"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "row",
+      "title": "Task Execution",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Task Runtime Breakdown (P95)",
+      "datasource": { "type": "prometheus", "uid": "cloudai-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum(rate(cloudai_worker_task_image_pull_seconds_bucket{task_type=~\"$task_type\"}[5m])) by (le))",
+          "legendFormat": "Image Pull P95"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum(rate(cloudai_worker_task_container_create_seconds_bucket{task_type=~\"$task_type\"}[5m])) by (le))",
+          "legendFormat": "Container Create P95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.95, sum(rate(cloudai_worker_task_runtime_seconds_bucket{task_type=~\"$task_type\"}[5m])) by (le))",
+          "legendFormat": "Task Runtime P95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Docker Errors by Stage",
+      "datasource": { "type": "prometheus", "uid": "cloudai-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (stage) (rate(cloudai_worker_docker_errors_total{task_type=~\"$task_type\"}[5m]))",
+          "legendFormat": "{{stage}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "Resource Consumption",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Container CPU Consumption",
+      "datasource": { "type": "prometheus", "uid": "cloudai-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (task_type) (rate(cloudai_worker_container_cpu_seconds_total{task_type=~\"$task_type\"}[5m]))",
+          "legendFormat": "{{task_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 15,
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Container Memory Peak (P95)",
+      "datasource": { "type": "prometheus", "uid": "cloudai-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum(rate(cloudai_worker_container_memory_peak_bytes_bucket{task_type=~\"$task_type\"}[5m])) by (le))",
+          "legendFormat": "P95 Peak Memory"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 15,
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "type": "row",
+      "title": "IO & Health",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Container IO",
+      "datasource": { "type": "prometheus", "uid": "cloudai-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 25 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (task_type) (rate(cloudai_worker_container_io_bytes_total{task_type=~\"$task_type\"}[5m]))",
+          "legendFormat": "{{task_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 15,
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Worker Heartbeat Freshness",
+      "description": "Seconds since last heartbeat per worker. High values indicate unhealthy or disconnected workers.",
+      "datasource": { "type": "prometheus", "uid": "cloudai-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - cloudai_worker_last_heartbeat_unix",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "thresholdsStyle": { "mode": "area" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "transparent", "value": null },
+              { "color": "yellow", "value": 30 },
+              { "color": "red", "value": 60 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ]
+}

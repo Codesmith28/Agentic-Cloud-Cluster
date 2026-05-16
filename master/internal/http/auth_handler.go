@@ -1,14 +1,28 @@
 package http
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"os"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
-	"master/internal/db"
 	"github.com/golang-jwt/jwt/v5"
+	"master/internal/db"
 )
+
+// maxAuthBodySize limits the request body size for auth endpoints (1MB)
+const maxAuthBodySize = 1 << 20
+
+// emailRegex validates basic email format
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
 // AuthHandler handles authentication endpoints
 type AuthHandler struct {
@@ -20,7 +34,16 @@ type AuthHandler struct {
 func NewAuthHandler(userDB *db.UserDB) *AuthHandler {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		secret = "vishvboda"
+		// Generate a random 32-byte secret if none is configured
+		randomBytes := make([]byte, 32)
+		if _, err := rand.Read(randomBytes); err != nil {
+			log.Fatalf("FATAL: failed to generate JWT secret: %v", err)
+		}
+		secret = hex.EncodeToString(randomBytes)
+		log.Println("WARNING: JWT_SECRET not set, generated a random secret. Sessions will not survive restarts.")
+	}
+	if len(secret) < 32 {
+		log.Println("WARNING: JWT_SECRET is shorter than 32 characters; consider using a stronger secret.")
 	}
 
 	return &AuthHandler{
@@ -73,6 +96,7 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req RegisterRequest
+	r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		json.NewEncoder(w).Encode(AuthResponse{
 			Success: false,
@@ -90,10 +114,18 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(req.Password) < 6 {
+	if !emailRegex.MatchString(req.Email) {
 		json.NewEncoder(w).Encode(AuthResponse{
 			Success: false,
-			Message: "Password must be at least 6 characters",
+			Message: "Invalid email format",
+		})
+		return
+	}
+
+	if len(req.Password) < 12 {
+		json.NewEncoder(w).Encode(AuthResponse{
+			Success: false,
+			Message: "Password must be at least 12 characters",
 		})
 		return
 	}
@@ -101,9 +133,10 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	// Create user
 	err := h.userDB.CreateUser(req.Name, req.Email, req.Password)
 	if err != nil {
+		log.Printf("Failed to create user %s: %v", req.Email, err)
 		json.NewEncoder(w).Encode(AuthResponse{
 			Success: false,
-			Message: err.Error(),
+			Message: "Failed to create user",
 		})
 		return
 	}
@@ -139,6 +172,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req LoginRequest
+	r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		json.NewEncoder(w).Encode(AuthResponse{
 			Success: false,
@@ -188,12 +222,14 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set cookie
+	secureCookie := shouldUseSecureAuthCookie(r)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    tokenString,
 		Expires:  expirationTime,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   secureCookie,
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -219,12 +255,15 @@ func (h *AuthHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Clear cookie
+	secureCookie := shouldUseSecureAuthCookie(r)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    "",
 		Expires:  time.Unix(0, 0),
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   secureCookie,
+		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
 
@@ -243,7 +282,7 @@ func (h *AuthHandler) HandleMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get email from context (set by middleware)
-	email, ok := r.Context().Value("user_email").(string)
+	email, ok := r.Context().Value(ctxKeyUserEmail).(string)
 	if !ok {
 		json.NewEncoder(w).Encode(AuthResponse{
 			Success: false,
@@ -280,6 +319,10 @@ func (h *AuthHandler) VerifyToken(tokenString string) (*Claims, error) {
 	claims := &Claims{}
 
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		// Verify the signing method to prevent algorithm confusion attacks
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
 		return h.jwtSecret, nil
 	})
 
@@ -292,4 +335,51 @@ func (h *AuthHandler) VerifyToken(tokenString string) (*Claims, error) {
 	}
 
 	return claims, nil
+}
+
+func shouldUseSecureAuthCookie(r *http.Request) bool {
+	if override := strings.TrimSpace(os.Getenv("AUTH_COOKIE_SECURE")); override != "" {
+		if secure, err := strconv.ParseBool(override); err == nil {
+			return secure
+		}
+		log.Printf("WARNING: invalid AUTH_COOKIE_SECURE value %q, falling back to auto mode", override)
+	}
+
+	if r == nil {
+		return true
+	}
+
+	if r.TLS != nil {
+		return true
+	}
+
+	forwardedProto := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Proto"), ",")[0])
+	if strings.EqualFold(forwardedProto, "https") {
+		return true
+	}
+
+	host := normalizeHost(r.Host)
+	if host == "localhost" {
+		return false
+	}
+
+	ip := net.ParseIP(host)
+	if ip != nil && ip.IsLoopback() {
+		return false
+	}
+
+	return true
+}
+
+func normalizeHost(host string) string {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return ""
+	}
+
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+		return strings.Trim(parsedHost, "[]")
+	}
+
+	return strings.Trim(host, "[]")
 }

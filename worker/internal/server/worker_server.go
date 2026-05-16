@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -103,7 +104,6 @@ func (s *WorkerServer) registerWithMaster() {
 			TotalCPU:     4.0,
 			TotalMemory:  8.0,
 			TotalStorage: 100.0,
-			TotalGPU:     0.0,
 		}
 	}
 
@@ -112,7 +112,6 @@ func (s *WorkerServer) registerWithMaster() {
 	log.Printf("  CPU:     %.2f cores", resources.TotalCPU)
 	log.Printf("  Memory:  %.2f GB", resources.TotalMemory)
 	log.Printf("  Storage: %.2f GB", resources.TotalStorage)
-	log.Printf("  GPU:     %.2f cores", resources.TotalGPU)
 
 	workerInfo := &pb.WorkerInfo{
 		WorkerId:     s.workerID,
@@ -120,7 +119,6 @@ func (s *WorkerServer) registerWithMaster() {
 		TotalCpu:     resources.TotalCPU,
 		TotalMemory:  resources.TotalMemory,
 		TotalStorage: resources.TotalStorage,
-		TotalGpu:     resources.TotalGPU,
 	}
 
 	ack, err := client.RegisterWorker(ctx, workerInfo)
@@ -149,28 +147,51 @@ func (s *WorkerServer) AssignTask(ctx context.Context, task *pb.Task) (*pb.TaskA
 		}, nil
 	}
 
+	// Validate task inputs before accepting
+	if err := executor.ValidateTaskID(task.TaskId); err != nil {
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Invalid task ID: %v", err),
+		}, nil
+	}
+	if err := executor.ValidateDockerImage(task.DockerImage); err != nil {
+		return &pb.TaskAck{
+			Success: false,
+			Message: fmt.Sprintf("Invalid docker image: %v", err),
+		}, nil
+	}
+	if task.ReqCpu < 0 || task.ReqMemory < 0 || task.ReqStorage < 0 {
+		return &pb.TaskAck{
+			Success: false,
+			Message: "Resource requests must not be negative",
+		}, nil
+	}
+
+	// Sanitize log output to prevent log injection
+	sanitizedImage := sanitizeLogField(task.DockerImage)
+	sanitizedCommand := sanitizeLogField(task.Command)
+
 	// Print comprehensive task details with all system requirements
 	log.Println(" ")
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("  📥 TASK RECEIVED FROM MASTER")
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Printf("  Task ID:           %s", task.TaskId)
-	log.Printf("  Docker Image:      %s", task.DockerImage)
-	log.Printf("  Command:           %s", task.Command)
-	log.Printf("  Target Worker:     %s", task.TargetWorkerId)
+	log.Printf("  Docker Image:      %s", sanitizedImage)
+	log.Printf("  Command:           %s", sanitizedCommand)
+	log.Printf("  Target Worker:     %s", sanitizeLogField(task.TargetWorkerId))
 	log.Println("───────────────────────────────────────────────────────")
 	log.Println("  System Requirements:")
 	log.Printf("    • CPU Cores:     %.2f cores", task.ReqCpu)
 	log.Printf("    • Memory:        %.2f GB", task.ReqMemory)
 	log.Printf("    • Storage:       %.2f GB", task.ReqStorage)
-	log.Printf("    • GPU Cores:     %.2f cores", task.ReqGpu)
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Printf("  ✓ Task accepted - Starting execution...")
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("")
 
 	// Add task to monitoring
-	s.monitor.AddTask(task.TaskId, task.ReqCpu, task.ReqMemory, task.ReqGpu)
+	s.monitor.AddTask(task.TaskId, task.AttemptId, task.AttemptNo, task.ReqCpu, task.ReqMemory)
 
 	// Execute task in background with a fresh context (not tied to RPC timeout)
 	go s.executeTask(task)
@@ -188,7 +209,7 @@ func (s *WorkerServer) executeTask(task *pb.Task) {
 
 	// Execute the task with resource constraints
 	result := s.executor.ExecuteTask(ctx, task.TaskId, task.DockerImage, task.Command,
-		task.ReqCpu, task.ReqMemory, task.ReqGpu)
+		task.ReqCpu, task.ReqMemory, task.TaskType)
 
 	// Remove from monitoring
 	s.monitor.RemoveTask(task.TaskId)
@@ -214,6 +235,8 @@ func (s *WorkerServer) executeTask(task *pb.Task) {
 		Logs:           result.Logs,
 		ResultLocation: result.ResultLocation,
 		OutputFiles:    result.OutputFiles,
+		AttemptId:      task.AttemptId,
+		AttemptNo:      task.AttemptNo,
 	}
 
 	s.mu.RLock()
@@ -389,8 +412,8 @@ func (s *WorkerServer) Shutdown() {
 	fmt.Println("║  Worker Shutdown - Cleaning up running tasks...")
 	fmt.Println("╚═══════════════════════════════════════════════════════")
 
-	// Get all running tasks
-	runningTasks := s.executor.GetRunningTasks()
+	// Get all running task attempts from the telemetry monitor.
+	runningTasks := s.monitor.GetRunningTasks()
 
 	if len(runningTasks) == 0 {
 		fmt.Println("  ✓ No running tasks to clean up")
@@ -412,21 +435,26 @@ func (s *WorkerServer) Shutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	for _, taskID := range runningTasks {
-		log.Printf("  📤 Reporting task %s as failed due to worker shutdown...", taskID)
+	for _, runningTask := range runningTasks {
+		if runningTask == nil {
+			continue
+		}
+		log.Printf("  📤 Reporting task %s attempt %s as failed due to worker shutdown...", runningTask.TaskId, runningTask.AttemptId)
 
 		taskResult := &pb.TaskResult{
-			TaskId:         taskID,
+			TaskId:         runningTask.TaskId,
 			WorkerId:       s.workerID,
 			Status:         "failed",
 			Logs:           "Task failed: Worker was terminated while task was running",
 			ResultLocation: "",
+			AttemptId:      runningTask.AttemptId,
+			AttemptNo:      runningTask.AttemptNo,
 		}
 
 		if err := telemetry.ReportTaskResult(ctx, masterAddr, taskResult); err != nil {
-			log.Printf("  ⚠ Failed to report task %s: %v", taskID, err)
+			log.Printf("  ⚠ Failed to report task %s: %v", runningTask.TaskId, err)
 		} else {
-			log.Printf("  ✓ Successfully reported task %s as failed", taskID)
+			log.Printf("  ✓ Successfully reported task %s as failed", runningTask.TaskId)
 		}
 	}
 
@@ -446,7 +474,11 @@ func (s *WorkerServer) uploadOutputFiles(task *pb.Task, result *executor.TaskRes
 	}
 
 	// Connect to master
-	conn, err := grpc.Dial(masterAddr, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
+	ctx, dialCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer dialCancel()
+	conn, err := grpc.DialContext(ctx, masterAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock())
 	if err != nil {
 		return fmt.Errorf("failed to connect to master: %w", err)
 	}
@@ -521,4 +553,20 @@ func (s *WorkerServer) SendHeartbeat(ctx context.Context, hb *pb.Heartbeat) (*pb
 
 func (s *WorkerServer) ReportTaskCompletion(ctx context.Context, result *pb.TaskResult) (*pb.Ack, error) {
 	return &pb.Ack{Success: false, Message: "Not applicable"}, nil
+}
+
+// sanitizeLogField strips control characters and newlines to prevent log injection.
+func sanitizeLogField(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if r == '\n' || r == '\r' {
+			b.WriteRune(' ')
+		} else if r < 0x20 && r != '\t' {
+			continue // drop non-printable control chars
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

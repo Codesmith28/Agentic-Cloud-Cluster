@@ -1,0 +1,26 @@
+metric,labels,value
+max_queue_depth,"{""instance"": ""host.docker.internal:8080"", ""job"": ""master""}",30
+task_dequeues,"{""outcome"": ""assigned""}",504.4249291784702
+task_terminals,"{""status"": ""completed"", ""task_type"": ""cpu-heavy""}",149.42329545454544
+task_terminals,"{""status"": ""completed"", ""task_type"": ""cpu-light""}",132.37499999999997
+task_terminals,"{""status"": ""completed"", ""task_type"": ""memory-heavy""}",28.07954545454545
+task_terminals,"{""status"": ""completed"", ""task_type"": ""mixed""}",104.29545454545453
+task_terminals,"{""status"": ""failed"", ""task_type"": ""memory-heavy""}",89.26646706586828
+worker_container_cpu_seconds,"{""task_type"": ""other""}",0
+worker_container_io_bytes,"{""task_type"": ""other""}",0
+worker_container_memory_peak_p95,"{""task_type"": ""other""}",15938355.2
+p95_scheduling_latency,"{""scheduler"": ""Round-Robin""}",0.02260294117647059
+p95_scheduling_latency,"{""scheduler"": ""RTS""}",0.023824626865671647
+p95_scheduling_latency,"{""scheduler"": ""PPO""}",0.024637640449438204
+p95_queue_wait,"{""scheduler"": ""Round-Robin"", ""task_type"": ""cpu-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""Round-Robin"", ""task_type"": ""cpu-light""}",10
+p95_queue_wait,"{""scheduler"": ""RTS"", ""task_type"": ""cpu-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""RTS"", ""task_type"": ""cpu-light""}",10
+p95_queue_wait,"{""scheduler"": ""RTS"", ""task_type"": ""memory-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""cpu-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""cpu-light""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""memory-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""Round-Robin"", ""task_type"": ""memory-heavy""}",10
+p95_queue_wait,"{""scheduler"": ""Round-Robin"", ""task_type"": ""mixed""}",10
+p95_queue_wait,"{""scheduler"": ""RTS"", ""task_type"": ""mixed""}",10
+p95_queue_wait,"{""scheduler"": ""PPO"", ""task_type"": ""mixed""}",10

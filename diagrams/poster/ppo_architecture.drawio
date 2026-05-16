@@ -1,0 +1,166 @@
+<mxGraphModel dx="1415" dy="1094" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+    <mxCell id="5y5xr8SfTcviNNtoCHJP-2" parent="1" style="swimlane;whiteSpace=wrap;html=1;" value="OFFLINE TRAINING PIPELINE" vertex="1">
+      <mxGeometry height="280" width="220" x="90" y="150" as="geometry" />
+    </mxCell>
+    <mxCell id="5y5xr8SfTcviNNtoCHJP-6" edge="1" parent="5y5xr8SfTcviNNtoCHJP-2" source="5y5xr8SfTcviNNtoCHJP-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="5y5xr8SfTcviNNtoCHJP-5">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="5y5xr8SfTcviNNtoCHJP-7" connectable="0" parent="5y5xr8SfTcviNNtoCHJP-6" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;div&gt;Load&lt;/div&gt;&lt;div&gt;Traces&lt;/div&gt;" vertex="1">
+      <mxGeometry relative="1" x="-0.0833" as="geometry">
+        <mxPoint x="22" as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="5y5xr8SfTcviNNtoCHJP-4" parent="5y5xr8SfTcviNNtoCHJP-2" style="rounded=0;whiteSpace=wrap;html=1;align=center;" value="&lt;div align=&quot;center&quot;&gt;&lt;u&gt;&lt;b&gt;Trace Loader&lt;/b&gt;&lt;/u&gt;&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;Alibaba_Cluster&lt;br&gt;Assignment Replay&lt;/div&gt;" vertex="1">
+      <mxGeometry height="60" width="140" x="40" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="5y5xr8SfTcviNNtoCHJP-5" parent="5y5xr8SfTcviNNtoCHJP-2" style="rounded=0;whiteSpace=wrap;html=1;align=center;" value="&lt;div align=&quot;center&quot;&gt;&lt;u&gt;&lt;b&gt;Trace Replay Env&lt;/b&gt;&lt;/u&gt;&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;Simulate State&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;Execute Placements&amp;nbsp;&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;Generate Rewards&lt;/div&gt;" vertex="1">
+      <mxGeometry height="80" width="140" x="40" y="180" as="geometry" />
+    </mxCell>
+    <mxCell id="N4sS8Pujqh8jNTsmCD4e-6" parent="1" style="swimlane;whiteSpace=wrap;html=1;" value="PPO TRAINING ENGINE" vertex="1">
+      <mxGeometry height="440" width="580" x="399" y="70" as="geometry" />
+    </mxCell>
+    <mxCell id="N4sS8Pujqh8jNTsmCD4e-7" parent="N4sS8Pujqh8jNTsmCD4e-6" style="swimlane;whiteSpace=wrap;html=1;" value="&lt;div&gt;NEURAL NETWORKS&lt;/div&gt;" vertex="1">
+      <mxGeometry height="380" width="280" x="280" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-1" parent="N4sS8Pujqh8jNTsmCD4e-7" style="rounded=0;whiteSpace=wrap;html=1;align=center;" value="&lt;div align=&quot;center&quot;&gt;&lt;u&gt;&lt;b&gt;Actor Network&lt;/b&gt;&lt;/u&gt;&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;&lt;u&gt;Input&lt;/u&gt; = state&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;&lt;u&gt;Output&lt;/u&gt; = probability distribution of actions&lt;/div&gt;" vertex="1">
+      <mxGeometry height="80" width="230" x="25" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-2" parent="N4sS8Pujqh8jNTsmCD4e-7" style="rounded=0;whiteSpace=wrap;html=1;align=center;" value="&lt;div align=&quot;center&quot;&gt;&lt;u&gt;&lt;b&gt;Critic Network&lt;/b&gt;&lt;/u&gt;&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;&lt;u&gt;Input&lt;/u&gt; = state&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;&lt;u&gt;Output&lt;/u&gt; = value estimate&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;&lt;u&gt;Compute&amp;nbsp;&lt;br&gt;advantage&lt;/u&gt; = return - value&lt;/div&gt;" vertex="1">
+      <mxGeometry height="100" width="160" x="90" y="250" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-10" edge="1" parent="N4sS8Pujqh8jNTsmCD4e-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="PTUCMHmxdHIfH1t31VNy-1">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="110" y="250" />
+          <mxPoint x="110" y="200" />
+          <mxPoint x="140" y="200" />
+        </Array>
+        <mxPoint x="110" y="250" as="sourcePoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-12" connectable="0" parent="PTUCMHmxdHIfH1t31VNy-10" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;div&gt;advantage&lt;/div&gt;&lt;div&gt;signal&lt;/div&gt;&lt;div&gt;for policy&lt;/div&gt;" vertex="1">
+      <mxGeometry relative="1" x="0.0081" as="geometry">
+        <mxPoint x="-20" y="-9" as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-13" edge="1" parent="N4sS8Pujqh8jNTsmCD4e-7" source="PTUCMHmxdHIfH1t31VNy-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.75;entryY=0;entryDx=0;entryDy=0;exitX=0.75;exitY=1;exitDx=0;exitDy=0;" target="PTUCMHmxdHIfH1t31VNy-2">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="198" y="200" />
+          <mxPoint x="210" y="200" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-14" connectable="0" parent="PTUCMHmxdHIfH1t31VNy-13" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;div&gt;send result&lt;/div&gt;&lt;div&gt;of estimation&lt;/div&gt;" vertex="1">
+      <mxGeometry relative="1" x="-0.2096" y="1" as="geometry">
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-9" parent="N4sS8Pujqh8jNTsmCD4e-6" style="rounded=0;whiteSpace=wrap;html=1;align=center;" value="&lt;div align=&quot;center&quot;&gt;&lt;u&gt;&lt;b&gt;PPO Trainer&lt;/b&gt;&lt;/u&gt;&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;&lt;br&gt;&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;compute advantages&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;policy loss&lt;/div&gt;" vertex="1">
+      <mxGeometry height="110" width="140" x="40" y="80" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-15" parent="N4sS8Pujqh8jNTsmCD4e-6" style="rounded=0;whiteSpace=wrap;html=1;align=center;" value="&lt;div align=&quot;center&quot;&gt;&lt;u&gt;&lt;b&gt;Replay Buffer&lt;/b&gt;&lt;/u&gt;&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;store trajectories&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;batch sampling&lt;/div&gt;" vertex="1">
+      <mxGeometry height="70" width="140" x="40" y="340" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-16" edge="1" parent="N4sS8Pujqh8jNTsmCD4e-6" source="PTUCMHmxdHIfH1t31VNy-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.25;entryY=0;entryDx=0;entryDy=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;" target="PTUCMHmxdHIfH1t31VNy-15" value="&lt;div&gt;send&amp;nbsp;&lt;/div&gt;&lt;div&gt;trajectories&lt;/div&gt;">
+      <mxGeometry relative="1" x="-0.215" as="geometry">
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-20" edge="1" parent="N4sS8Pujqh8jNTsmCD4e-6" source="PTUCMHmxdHIfH1t31VNy-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.75;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="PTUCMHmxdHIfH1t31VNy-9" value="&lt;div&gt;sample&lt;/div&gt;&lt;div&gt;batch&lt;/div&gt;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-51" edge="1" parent="N4sS8Pujqh8jNTsmCD4e-6" source="PTUCMHmxdHIfH1t31VNy-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.25;exitDx=0;exitDy=0;" target="PTUCMHmxdHIfH1t31VNy-1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-53" connectable="0" parent="PTUCMHmxdHIfH1t31VNy-51" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;div&gt;Train based on&lt;/div&gt;&lt;div&gt;dataset and&lt;/div&gt;&lt;div&gt;past outcomes&lt;/div&gt;" vertex="1">
+      <mxGeometry relative="1" x="0.0041" y="-1" as="geometry">
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-56" edge="1" parent="N4sS8Pujqh8jNTsmCD4e-6" source="PTUCMHmxdHIfH1t31VNy-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.75;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" target="PTUCMHmxdHIfH1t31VNy-9">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="370" y="350" />
+          <mxPoint x="300" y="350" />
+          <mxPoint x="300" y="210" />
+          <mxPoint x="231" y="210" />
+          <mxPoint x="231" y="163" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="esM86_XPRizalyLld6IX-2" connectable="0" parent="PTUCMHmxdHIfH1t31VNy-56" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;div&gt;send&lt;/div&gt;&lt;div&gt;value&lt;/div&gt;&lt;div&gt;estimate&lt;/div&gt;&lt;div&gt;for adv.&lt;/div&gt;&lt;div&gt;computation&lt;/div&gt;" vertex="1">
+      <mxGeometry relative="1" x="-0.1353" as="geometry">
+        <mxPoint x="21" y="82" as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-46" edge="1" parent="N4sS8Pujqh8jNTsmCD4e-6" source="PTUCMHmxdHIfH1t31VNy-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="PTUCMHmxdHIfH1t31VNy-15">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="320" y="250" />
+          <mxPoint x="240" y="250" />
+          <mxPoint x="240" y="375" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-48" connectable="0" parent="PTUCMHmxdHIfH1t31VNy-46" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;div&gt;Store&amp;nbsp;&lt;/div&gt;&lt;div&gt;previous&lt;/div&gt;&lt;div&gt;assignments&lt;/div&gt;" vertex="1">
+      <mxGeometry relative="1" x="0.4" y="1" as="geometry">
+        <mxPoint y="-28" as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-23" edge="1" parent="1" source="5y5xr8SfTcviNNtoCHJP-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="PTUCMHmxdHIfH1t31VNy-9">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-37" parent="1" style="swimlane;whiteSpace=wrap;html=1;startSize=23;" value="GRPC - communications" vertex="1">
+      <mxGeometry height="130" width="280" x="139" y="550" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-38" parent="PTUCMHmxdHIfH1t31VNy-37" style="rounded=0;whiteSpace=wrap;html=1;align=center;" value="&lt;div align=&quot;center&quot;&gt;&lt;b&gt;Incoming Tasks&lt;/b&gt;&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;Task Config&amp;nbsp;&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;Workers State&lt;/div&gt;&lt;div align=&quot;center&quot;&gt;Prev Scheduling&lt;/div&gt;" vertex="1">
+      <mxGeometry height="80" width="120" x="15" y="34" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-42" parent="PTUCMHmxdHIfH1t31VNy-37" style="rounded=0;whiteSpace=wrap;html=1;align=center;" value="&lt;div align=&quot;center&quot;&gt;&lt;b&gt;Report Assignment&lt;/b&gt;&lt;/div&gt;Task to worker assignment" vertex="1">
+      <mxGeometry height="80" width="120" x="145" y="34" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-43" edge="1" parent="1" source="PTUCMHmxdHIfH1t31VNy-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="1080" y="170" />
+          <mxPoint x="1080" y="560" />
+          <mxPoint x="489" y="560" />
+          <mxPoint x="489" y="630" />
+        </Array>
+        <mxPoint x="404" y="630" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-45" connectable="0" parent="PTUCMHmxdHIfH1t31VNy-43" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;div&gt;Send Result&lt;/div&gt;&lt;div&gt;of Task&lt;/div&gt;&lt;div&gt;Assignment&lt;/div&gt;" vertex="1">
+      <mxGeometry relative="1" x="0.1056" y="-1" as="geometry">
+        <mxPoint x="-285" y="11" as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-36" parent="1" style="swimlane;whiteSpace=wrap;html=1;startSize=23;" value="ONLINE ADAPTIVE PIPELINE" vertex="1">
+      <mxGeometry height="200" width="220" x="679" y="590" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-54" parent="PTUCMHmxdHIfH1t31VNy-36" style="whiteSpace=wrap;html=1;" value="&lt;div&gt;&lt;b&gt;STAGING&lt;/b&gt;&lt;/div&gt;&lt;div&gt;Prepare incoming tasks to be sent to Actor Network for evaluation&lt;/div&gt;" vertex="1">
+      <mxGeometry height="120" width="160" x="30" y="50" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-55" edge="1" parent="1" source="PTUCMHmxdHIfH1t31VNy-38" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="PTUCMHmxdHIfH1t31VNy-54">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-57" connectable="0" parent="PTUCMHmxdHIfH1t31VNy-55" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;div&gt;Send incoming&lt;/div&gt;&lt;div&gt;tasks for staging&lt;/div&gt;" vertex="1">
+      <mxGeometry relative="1" x="0.1555" as="geometry">
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="PTUCMHmxdHIfH1t31VNy-58" edge="1" parent="1" source="PTUCMHmxdHIfH1t31VNy-54" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="PTUCMHmxdHIfH1t31VNy-1">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="1020" y="700" />
+          <mxPoint x="1020" y="190" />
+        </Array>
+        <mxPoint x="749" y="660" as="sourcePoint" />
+      </mxGeometry>
+    </mxCell>
+  </root>
+</mxGraphModel>

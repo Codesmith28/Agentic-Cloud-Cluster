@@ -1,0 +1,13 @@
+\thispagestyle{plain}
+\begin{center}
+{\fontsize{14}{16}\selectfont \textbf{Abstract}}
+
+\vspace{1cm}
+
+\justifying
+Agentic Cloud Cluster is a Go-based distributed task execution and scheduling framework. The system operates a master node, multiple worker nodes, execution of tasks based on Docker, persistent task state, worker heartbeats, task retries, and a scheduler interface, capable of switching between baseline and learned policies. What is most valuable about this project is that the cluster is not only running tasks but the scheduling is a learning problem. The framework combines a Proximal Policy Optimization (PPO) scheduler that is trained on cluster traces and deployed on top of a safe Go scheduler boundary.
+
+The report elaborates on the project as it is on the ground. It initially drives the need to schedule distributed clusters and then justifies why reinforcement learning is appropriate in situations where it is optimal to modify resource state based on factors like scheduling. The methodology follows a sequence of steps beginning with tabular Q-learning, and then to Deep Q-Networks and finally to PPO. The PPO policy monitors task requirements and features of worker resources, selects a worker, obtains a shaped reward, and improves using clipped policy-gradient updates. Its implementation is based on Go in the master-worker control plane, and Python/PyTorch in the PPO service.
+
+The last system was tested by using offline trace replay and end-to-end cluster campaigns. The convergence point of the PPO training curve is through the reduction in the policy and value losses, whereas the benchmark plots compare PPO to the baseline schedulers in terms of resource and workload patterns. The findings indicate that the acquired scheduler is most effective when it is necessary to schedule pressure (such as burst and overload situations) and simple baselines can still be competitive in cases of low load. This renders the project a viable exploration of the areas in which reinforcement learning assists in systems work and where conservative fallback design is still required.
+\end{center}

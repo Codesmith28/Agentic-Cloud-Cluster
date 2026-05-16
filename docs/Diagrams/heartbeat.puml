@@ -15,7 +15,7 @@ loop Every 5 seconds
         - worker_id
         - cpu_usage
         - memory_usage
-        - gpu_usage
+        - storage_usage
         - running_tasks[]
     end note
     

@@ -77,9 +77,7 @@ export const getTaskTagColor = (tag) => {
   const colors = {
     'cpu-light': '#4caf50',      // green
     'cpu-heavy': '#ff9800',      // orange
-    'memory-light': '#2196f3',   // blue
     'memory-heavy': '#f44336',   // red
-    'gpu-training': '#9c27b0',   // purple
     'mixed': '#607d8b',          // blue-grey
   };
   return colors[tag] || '#9e9e9e';

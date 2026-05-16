@@ -1,182 +1,104 @@
 # CloudAI Worker Node
 
-Distributed task executor with Docker integration and gRPC communication.
+Distributed task executor with Docker-backed task runtime and gRPC integration.
 
 ## Features
 
-- **Task Execution**: Runs Docker containers for assigned tasks
-- **Telemetry**: Sends periodic heartbeat with resource stats
-- **Auto-Registration**: Registers with master on startup
-- **Log Streaming**: Real-time log streaming to master via gRPC
-- **File Upload**: Upload task output files to master
-- **Async Execution**: Non-blocking task processing
-- **Task Cancellation**: Cancel running tasks on request
+- Receives tasks from master and executes them in containers
+- Supports cancellation and live log streaming
+- Reports completion/results and uploads `/output` artifacts
+- Sends heartbeat telemetry every 5s once master is known
+- Supports runtime capacity overrides for heterogeneous fleets
+- Configurable task container network mode (`bridge`/`host`/`none`)
 
 ## Architecture
 
-```
+```text
 Worker Node
-├── gRPC Server (receives tasks from master)
+├── gRPC Server
+│   ├── MasterRegister
 │   ├── AssignTask
-│   └── CancelTask
-├── Telemetry Monitor (sends heartbeats)
-├── Task Executor (runs Docker containers)
-├── Log Manager (streams logs to master)
-├── File Uploader (uploads task files)
-└── Result Reporter (sends completion status)
+│   ├── CancelTask
+│   └── StreamTaskLogs
+├── Telemetry Monitor
+│   └── SendHeartbeat (every 5s, after master registration)
+├── Task Executor (Docker)
+│   ├── Pull / Create / Start / Wait / Cleanup
+│   └── Bind-mount host output dir to container /output
+└── Result/File Reporter
+    ├── ReportTaskCompletion
+    └── UploadTaskFiles
 ```
 
-## Usage
+## Runtime Usage
 
-### Basic
+### Start worker
 
 ```bash
-./worker-node
+./workerNode
 ```
 
-### With Configuration
+On startup, worker resolves:
+
+- Stable worker ID (`WORKER_ID` or persisted state)
+- gRPC port (`WORKER_PORT` or first free port from 50052)
+- Bind IP (`WORKER_BIND_IP` or detected non-loopback IP)
+- Metrics port (`WORKER_METRICS_PORT`, default 9101)
+
+It then waits for master registration (`MasterRegister`) before sending heartbeats and registering back.
+
+## Registration behavior (current flow)
+
+1. Worker starts and listens for RPCs
+2. Admin/operator registers worker endpoint on master (`register <id> <ip:port>`)
+3. Master calls worker `MasterRegister`
+4. Worker stores master address and sends `RegisterWorker` back with capacity
+5. Worker sends periodic heartbeats to master
+
+## Runtime Configuration
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `WORKER_ID` | persisted hostname/ID | Stable identity override |
+| `CLOUDAI_WORKER_STATE_DIR` | `~/.cloudai/worker` | Stores persisted worker ID |
+| `WORKER_PORT` | first free from `50052` | Worker gRPC port |
+| `WORKER_BIND_IP` | detected worker IP | gRPC bind address |
+| `WORKER_METRICS_PORT` | `9101` | Prometheus endpoint port (`/metrics`) |
+| `WORKER_TOTAL_CPU` | detected | Advertised CPU cores override |
+| `WORKER_TOTAL_MEMORY_GB` | detected | Advertised memory override |
+| `WORKER_TOTAL_STORAGE_GB` | detected | Advertised storage override |
+| `WORKER_CONTAINER_NETWORK_MODE` | `bridge` | `bridge`, `host`, or `none` |
+
+## Container runtime behavior
+
+- Each task runs in a dedicated container with CPU/memory limits from task request.
+- Host output directory is mounted to container `/output` and collected after completion.
+- Task container network mode is selected via `WORKER_CONTAINER_NETWORK_MODE`.
+- Worker output base directory is initialized to `/var/cloudai/outputs` (fallback `~/.cloudai/outputs`).
+
+## Monitoring
+
+Worker logs include:
+
+- master registration status
+- heartbeat delivery status
+- task assignment/execution lifecycle
+- cancellation handling
+- task result + file upload outcomes
+
+Heartbeat logs are emitted as percentages (CPU/memory/storage), not absolute memory sizes.
+
+## Build
 
 ```bash
-./worker-node \
-  -id worker-1 \
-  -ip 192.168.1.100 \
-  -master master.example.com:50051 \
-  -port :50052
-```
-
-### Flags
-
-| Flag      | Description           | Default           |
-| --------- | --------------------- | ----------------- |
-| `-id`     | Worker identifier     | `worker-1`        |
-| `-ip`     | Worker IP address     | `localhost`       |
-| `-master` | Master server address | `localhost:50051` |
-| `-port`   | gRPC server port      | `:50052`          |
-
-## Building
-
-```bash
-# Install dependencies
 go mod tidy
-
-# Build
-go build -o worker-node .
-
-# Run
-./worker-node
-```
-
-## Components
-
-### 1. Task Executor (`internal/executor/`)
-
-Handles Docker container lifecycle:
-
-- Pull images from registry
-- Create and start containers
-- Stream logs in real-time
-- Monitor completion
-- Upload output files
-- Cleanup resources
-
-### 2. Log Manager (`internal/logstream/`)
-
-Manages log streaming:
-
-- **log_manager.go**: Coordinates log collection
-- **log_broadcaster.go**: Broadcasts logs to master via gRPC
-
-### 3. Telemetry Monitor (`internal/telemetry/`)
-
-Manages communication with master:
-
-- Send periodic heartbeat (every 5s)
-- Report CPU/memory usage
-- Track running tasks
-- Register on startup
-
-### 4. Worker Server (`internal/server/`)
-
-gRPC server handling:
-
-- `AssignTask` - Receive task assignments
-- `CancelTask` - Handle cancellation requests
-
-## Task Flow
-
-```
-1. Master assigns task via gRPC
-   ↓
-2. Worker accepts and acknowledges
-   ↓
-3. Executor pulls Docker image
-   ↓
-4. Container starts and runs
-   ↓
-5. Logs are streamed to master in real-time
-   ↓
-6. Output files are uploaded to master
-   ↓
-7. Result is reported to master
-   ↓
-8. Container is cleaned up
+go build -o workerNode .
+./workerNode
 ```
 
 ## Requirements
 
 - Docker daemon running
 - Go 1.22+
-- Network access to master node
-- Access to Docker registry for images
-
-## Monitoring
-
-Worker logs show:
-
-- Registration status
-- Heartbeat transmissions
-- Task assignments
-- Execution progress
-- Completion results
-
-Example output:
-
-```
-Starting Worker Node: worker-1
-Master Address: localhost:50051
-✓ Worker registered: Worker registered successfully
-Starting telemetry monitor (interval: 5s)
-✓ Worker worker-1 started successfully
-✓ gRPC server listening on :50052
-✓ Ready to receive tasks...
-Heartbeat sent: CPU=30.0%, Memory=45.2MB, Tasks=0
-Received task assignment: task-123 (Image: docker.io/...)
-[Task task-123] Starting execution...
-[Task task-123] ✓ Completed successfully
-✓ Task result reported: Task result received
-```
-
-## Error Handling
-
-- Docker connection failures → Logged, task fails
-- Image pull failures → Reported to master
-- Container crashes → Exit code captured
-- Master unreachable → Heartbeat retries
-
-## Resource Management
-
-The worker automatically:
-
-- Stops containers after completion
-- Removes containers to free disk space
-- Reports resource usage to master
-- Tracks allocated vs. available resources
-
-## Future Enhancements
-
-- [ ] Parallel task execution
-- [ ] GPU support
-- [ ] Resource limits per container
-- [ ] Container networking configuration
-- [ ] Volume mounting for shared storage
-- [ ] Enhanced resource monitoring
+- Network reachability between master and worker
+- Registry access (unless image is already available locally)

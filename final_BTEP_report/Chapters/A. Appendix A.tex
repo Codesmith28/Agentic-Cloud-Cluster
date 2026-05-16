@@ -1,0 +1,67 @@
+\section{Repository Modules}
+
+\begin{table}[H]
+\centering
+\caption{Main repository modules used in the project}
+\label{tab:repo_modules}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Path} & \textbf{Purpose} \\
+\midrule
+\texttt{master/} & Go master node, scheduler interface, task handling, worker handling, persistence hooks. \\
+\texttt{worker/} & Go worker node, Docker task execution, heartbeat reporting, log streaming. \\
+\texttt{proto/} & Protocol Buffer definitions for master-worker and PPO scheduler communication. \\
+\texttt{agentic\_scheduler/} & Python PPO model, service, training code, trace replay environment, checkpoints. \\
+\texttt{testbench/} & Workload and campaign automation for end-to-end evaluation. \\
+\texttt{results/} & Benchmark reports, campaign outputs, plots, and extracted result summaries. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Representative PPO Configuration}
+
+\begin{table}[H]
+\centering
+\caption{Representative PPO training configuration}
+\label{tab:ppo_config}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Parameter} & \textbf{Value / Meaning} \\
+\midrule
+Model & Actor-critic neural network with two hidden layers. \\
+Hidden size & 128. \\
+Task feature dimension & 5. \\
+Worker feature dimension & 9. \\
+Clip ratio & 0.2. \\
+Value coefficient & 0.5. \\
+Entropy coefficient & Tuned during experiments, commonly around 0.01--0.02. \\
+Training source & Alibaba trace replay and project campaign traces. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Ports and Service Mapping}
+
+\begin{table}[H]
+\centering
+\caption{Ports used by the project}
+\label{tab:ports}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Component} & \textbf{Port / Address} & \textbf{Purpose} \\
+\midrule
+Master gRPC server & \texttt{0.0.0.0:50051} & Main worker-to-master communication endpoint for registration, task assignment coordination, heartbeats, and result reporting. \\
+Master HTTP API & \texttt{0.0.0.0:8080} & HTTP API used for task, worker, file, auth, health, and metric endpoints. \\
+PPO scheduler service & \texttt{127.0.0.1:50050} & Python gRPC service used by the Go PPO scheduler for \texttt{Ping}, model loading, worker selection, and outcome reporting. \\
+Worker 1 gRPC & \texttt{0.0.0.0:50052} & Worker task execution endpoint. \\
+Worker 2 gRPC & \texttt{0.0.0.0:50053} & Worker task execution endpoint. \\
+Worker 3 gRPC & \texttt{0.0.0.0:50054} & Worker task execution endpoint. \\
+Additional workers & \texttt{0.0.0.0:5005N} & Extra worker nodes can use the same pattern with unique ports. \\
+MongoDB & \texttt{localhost:27017} & Persistent storage for tasks, workers, assignments, attempts, results, users, and scheduler model metadata. \\
+Worker metrics & \texttt{0.0.0.0:9101+} & Per-worker metrics endpoint. Each worker can use a unique metrics port when multiple workers run on the same host. \\
+Docker daemon & Host socket / Docker API & Container execution backend used by worker nodes. Exact access path depends on local Docker setup. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+These mappings are the default local development mappings used by the project. In a multi-machine deployment, the same logical services remain, but the hostnames change from \texttt{localhost} to routable machine addresses.

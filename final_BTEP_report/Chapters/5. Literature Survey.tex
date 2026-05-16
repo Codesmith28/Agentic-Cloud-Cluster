@@ -1,0 +1,81 @@
+\chapter{Literature Survey}
+\label{section:lit_survey}
+
+\section{Related Work}
+\label{section:related_work}
+
+\subsection{Distributed Task Scheduling}
+
+Distributed systems divide work among several machines. The scheduler in a cluster chooses the location where every task is to be executed. The implications of this decision are on completion time, resource utilization, fairness, and recovery after failure. A scheduler also has to respond to the imperfect information, since the state of the workers is changing as the tasks are being submitted.
+
+\subsection{Reinforcement Learning to Scheduling}
+
+Reinforcement learning is the study of how an agent may learn to make decisions by acting on an environment and receiving feedback signals of reinforcement of its actions onto an environment \cite{sutton2018reinforcement}. A typical RL configuration has:
+
+\begin{itemize}
+    \item \textbf{State}: what the agent can see.
+    \item \textbf{Action}: what the agent has a choice of.
+    \item \textbf{Reward}: feedback post action.
+    \item \textbf{Policy}: the rule or model upon which actions are chosen.
+\end{itemize}
+
+In this project, the mapping is straightforward. The task and workers that are present are the state. The action is the selected worker. The reward is a quality of placement. Scheduler is the policy.
+
+\subsection{Q-Learning and Q-Tables}
+
+Q-learning is an example of a classic reinforcement learning algorithm proposed by Watkins and Dayan \cite{watkins1992qlearning}. It learns a value, referred to as the \(Q(s,a)\) value meaning the expected long-term reward of taking action a in state s \cite{watkins1992qlearning}. These values can be stored in a table in a small environment.
+
+The main strength of a Q-table is its simplicity. When the number of states and actions is small, every state-action pair can fit neatly into a single table. However, cluster scheduling does not have a small state space. Factors such as CPU, memory, storage, task type, queue depth, how many workers are free, and how busy each worker is can combine to produce a very large number of distinct states. Storing all of them would make the table impractically huge, and rounding the values into coarse bins would throw away details that matter for good scheduling.
+
+\subsection{Deep Q-Networks}
+
+Deep Q-Networks (DQN) are the replacement of Q-table with a neural network \cite{mnih2013dqn}. Mnih et al. demonstrated that deep neural networks can approximate action-value functions when the inputs are of high dimension size \cite{mnih2013dqn}. This addresses the storage issue of Q-tables since the model generalizes the similar states.
+
+DQN is a natural next step after Q-tables, but it is still not ideal for this project. DQN estimates a value for each discrete action. In cluster scheduling, the number of candidate workers can change, workers can become infeasible, and invalid actions must be masked. DQN can be adapted, but the implementation becomes less natural when the action set is dynamic and the objective is to improve a stochastic placement policy.
+
+\subsection{Proximal Policy Optimization}
+
+Proximal Policy Optimization (PPO) is a policy-gradient algorithm proposed by Schulman et al. \cite{schulman2017ppo}. Instead of only learning a Q-value, PPO directly learns a policy that maps states to action probabilities. It also learns a value function to estimate future return. The key idea in PPO is to avoid changing the policy too aggressively by using a clipped objective \cite{schulman2017ppo}.
+
+A recent algorithm-level survey for cloud job scheduling and resource management identifies PPO as a strong and practical DRL choice for this domain \cite{gu2025deeprl}. In line with that evidence, PPO was selected because it fits the scheduling problem better than a Q-table or plain DQN:
+
+\begin{itemize}
+    \item It directly learns a worker-selection policy.
+    \item It has the ability to make use of action masks in order to shun infeasible workers.
+    \item It allows stable updates, using clipping.
+    \item It is designed to co-exist with continuous states attributes like resource ratios.
+    \item It enables offline training and optional online adaptation.
+\end{itemize}
+
+\subsection{Cluster Trace-Driven Evaluation}
+
+The scheduler can be rendered unrealistic by training him only on random synthetic tasks. The Alibaba cluster trace trace is a production cluster workload data that has been published to cluster management research \cite{alibabatrace}. In this project, Alibaba trace replay was used to subject the PPO scheduler to realistic patterns of task resource utilization and arrival characteristics.
+
+\subsection{Modern Industry Standards and AI-Driven Trends}
+
+Within the present-day technological context, Kubernetes (K8s) has become the industry standard in terms of container orchestration \cite{kubernetes2026}.Google had a massively strong influence on Kubernetes; Borg, the default cluster manager at Google, was the inspiration, and the default scheduler heavily relies on heuristics: first, it filters to find viable nodes; second, it scores the nodes based on the availability of resources and affinity rules.
+
+Besides general-purpose orchestration, there are specialized projects such as \textbf{Volcano} \cite{volcano2025} and \textbf{Apache Yunikorn} \cite{yunikorn2025} that have been created to support high-performance batch workloads and AI/ML training jobs on Kubernetes. These systems bring in advanced queuing and gang scheduling which are essential in the distributed training.
+
+The emergence of both \textbf{Ray} \cite{moritz2018ray} and \textbf{Dask} has also shifted the focus onto task-parallel computing, in this case, to Python-centric AI workloads. These frameworks offer top-down application-level scheduling, in contrast to Kubernetes which is often viewed as a bottom-up infrastructure manager.
+
+Most recent developments in the field of \textbf{AIOps} and autonomous infrastructure are focused on the shift towards systems that are Agentic and autonomous in nature. In such systems, autonomous agents utilize machine learning-often based on variants of Reinforcement Learning such as PPO \cite{schulman2017ppo} or Soft Actor-Critic (SAC) \cite{haarnoja2018sac}-to perform proactive failure recovery, dynamic auto-scaling and predictive load balancing. This project will be in line with these trends by having a custom Go-based framework that will incorporate a PPO agent straight into the scheduling loop, rather than having a centralized set of heuristics.
+
+\section{Tools and Technologies}
+\label{section:tools_technologies}
+
+\subsection{Docker-based Execution}
+
+Container-based execution is a viable approach to portability of tasks. Docker takes an application and its dependencies and packages them into a container image, which can then be run by the worker node in an environment that is repeatable \cite{dockerdocs}. In this project, the worker node involves Docker as the boundary of execution and the master node stays in charge of making decisions regarding placement.
+
+\subsection{Go for Cluster Control Plane}
+
+Go was chosen as the master-worker model as it is highly compatible with networked systems. It has built-in goroutines and channels are supported with concurrency, a large standard library, and performance compiled executables. According to the official documentation of Go, the language is an open-source project aimed at making a programmer more productive \cite{godocs}. Go is used in the master server, worker server, task handling, scheduler interface and worker communication logic in this project.
+
+\subsection{gRPC and Protocol Buffers}
+
+gRPC is used by the master and a worker. gRPC is a high-performance Remote Procedure Call framework which uses Protocol Buffers as service definitions and structured messages \cite{grpcintro}. This renders it viable to the project since the master requires strictly defined calls like registering workers, assigning them tasks, heartbeat reporting, log streaming, and PPO worker selection.
+
+\subsection{Persistence Layer}
+
+The implementation of task execution systems must be persistent since a task has a lifecycle: created, queued, assigned, running, completed, failed, or retried. The state of tasks, worker metadata, results, and scheduler model records were stored using MongoDB. MongoDB is document-based (records) that are represented by field-value pairs \cite{mongodbdocs}, which is useful in the case of task and worker objects, which may change during development.

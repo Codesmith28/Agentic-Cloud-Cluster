@@ -41,9 +41,9 @@ func (ac *AccessControl) CanAccessFiles(requestingUserID, targetUserID string) e
 
 // ValidateFilePath checks if a file path is safe (prevents directory traversal)
 func (ac *AccessControl) ValidateFilePath(filePath string) error {
-	// Reject paths with ".."
-	if strings.Contains(filePath, "..") {
-		return fmt.Errorf("invalid file path: contains '..'")
+	// Reject empty paths
+	if filePath == "" {
+		return fmt.Errorf("invalid file path: empty path")
 	}
 
 	// Reject absolute paths
@@ -51,10 +51,17 @@ func (ac *AccessControl) ValidateFilePath(filePath string) error {
 		return fmt.Errorf("invalid file path: must be relative")
 	}
 
-	// Clean and validate
+	// Clean and validate - reject paths with traversal components
 	cleaned := filepath.Clean(filePath)
-	if cleaned != filePath {
-		return fmt.Errorf("invalid file path: contains suspicious characters")
+
+	// After cleaning, reject if path escapes the base (starts with "..")
+	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("invalid file path: path traversal detected")
+	}
+
+	// Reject null bytes which can truncate paths in C-based filesystem calls
+	if strings.ContainsRune(filePath, 0) {
+		return fmt.Errorf("invalid file path: contains null byte")
 	}
 
 	return nil
@@ -112,9 +119,21 @@ func (ac *AccessControl) ReadFile(requestingUserID, targetUserID, filePath strin
 		return nil, err
 	}
 
-	// Read file
+	// Construct and validate the resolved path stays within the base directory
 	fullPath := filepath.Join(ac.storage.baseDir, targetUserID, filePath)
-	return os.ReadFile(fullPath)
+	resolvedPath, err := filepath.Abs(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("invalid file path: %w", err)
+	}
+	baseResolved, err := filepath.Abs(filepath.Join(ac.storage.baseDir, targetUserID))
+	if err != nil {
+		return nil, fmt.Errorf("invalid base path: %w", err)
+	}
+	if !strings.HasPrefix(resolvedPath, baseResolved+string(filepath.Separator)) && resolvedPath != baseResolved {
+		return nil, fmt.Errorf("access denied: path escapes user directory")
+	}
+
+	return os.ReadFile(resolvedPath)
 }
 
 // isAdmin checks if a user has admin privileges

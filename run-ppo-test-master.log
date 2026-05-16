@@ -1,0 +1,102 @@
+2026/05/02 20:12:25 Loaded .env from .env
+2026/05/02 20:12:25 Warning: Cannot create /var/cloudai/files: mkdir /var/cloudai: permission denied
+2026/05/02 20:12:25 ✓ Using fallback file storage directory: /Users/codesmith28/.cloudai/files
+2026/05/02 20:12:25 === System Information ===
+2026/05/02 20:12:25 Hostname: Thea
+2026/05/02 20:12:25 IP Addresses: [10.1.74.234]
+2026/05/02 20:12:25 OS: darwin
+2026/05/02 20:12:25 Architecture: arm64
+2026/05/02 20:12:25 CPU Cores: 12
+2026/05/02 20:12:25 Process ID: 6182
+2026/05/02 20:12:25 User ID: 501
+2026/05/02 20:12:25 Group ID: 20
+2026/05/02 20:12:25 Master Address: 10.1.74.234
+2026/05/02 20:12:25 Master Port: :50051
+2026/05/02 20:12:25 ==========================
+2026/05/02 20:12:25 ✓ MongoDB collections ensured
+2026/05/02 20:12:25 ✓ WorkerDB initialized
+2026/05/02 20:12:25 ✓ TaskDB initialized
+2026/05/02 20:12:25 ✓ AssignmentDB initialized
+2026/05/02 20:12:25 ✓ AttemptDB initialized
+2026/05/02 20:12:25 ✓ ResultDB initialized
+2026/05/02 20:12:25 ✓ UserDB initialized
+2026/05/02 20:12:25 ✓ Web UI admin user already exists for admin@localhost (password unchanged)
+2026/05/02 20:12:25 ✓ FileMetadataDB initialized
+2026/05/02 20:12:25 ✓ SchedulerModelDB initialized
+2026/05/02 20:12:25 ✓ FileStorageService initialized with access control
+2026/05/02 20:12:25 ✓ FileStorageService initialized (base: /Users/codesmith28/.cloudai/files)
+2026/05/02 20:12:25 Telemetry manager started
+2026/05/02 20:12:25 ✓ Telemetry manager started
+2026/05/02 20:12:25 ✓ Tau store initialized with default values:
+2026/05/02 20:12:25   - cpu-light: 5.0s
+2026/05/02 20:12:25   - cpu-heavy: 15.0s
+2026/05/02 20:12:25   - memory-heavy: 20.0s
+2026/05/02 20:12:25   - mixed: 10.0s
+2026/05/02 20:12:25 ✓ SLA multiplier (k): 2.0
+2026/05/02 20:12:25 ✓ Migrated local RTS cache to Mongo for fingerprint=ab4e93acfc322b0ec0a428dcb5743254d6199b9bafa696f834eb7c6d7ad0eac6
+2026/05/02 20:12:25 ✓ Round-Robin scheduler created
+2026/05/02 20:12:25 ✓ Telemetry source adapter created
+2026/05/02 20:12:25 ✓ RTS params store initialized (MongoDB: RTS_WEIGHTS)
+2026/05/02 20:12:25 ✓ RTS Scheduler initialized with params from mongodb collection RTS_WEIGHTS
+2026/05/02 20:12:25 ✓ RTS scheduler initialized (params: /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json)
+2026/05/02 20:12:25   - Fallback: Round-Robin
+2026/05/02 20:12:25   - Parameter hot-reload: enabled (every 30s from local cache)
+2026/05/02 20:12:25 ✓ PPO deployment mode: active (online updates: true)
+2026/05/02 20:12:25 ℹ️  PPO service already reachable at 127.0.0.1:50050, reusing existing process
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x2 addr=0xa0 pc=0x102bbd02c]
+
+goroutine 1 [running]:
+main.main()
+	/Users/codesmith28/personal/Projects/acc/BTEP/master/main.go:286 +0x1f9c
+2026/05/02 20:19:00 Loaded .env from .env
+2026/05/02 20:19:00 Warning: Cannot create /var/cloudai/files: mkdir /var/cloudai: permission denied
+2026/05/02 20:19:00 ✓ Using fallback file storage directory: /Users/codesmith28/.cloudai/files
+2026/05/02 20:19:00 === System Information ===
+2026/05/02 20:19:00 Hostname: Thea
+2026/05/02 20:19:00 IP Addresses: [10.1.74.234]
+2026/05/02 20:19:00 OS: darwin
+2026/05/02 20:19:00 Architecture: arm64
+2026/05/02 20:19:00 CPU Cores: 12
+2026/05/02 20:19:00 Process ID: 8830
+2026/05/02 20:19:00 User ID: 501
+2026/05/02 20:19:00 Group ID: 20
+2026/05/02 20:19:00 Master Address: 10.1.74.234
+2026/05/02 20:19:00 Master Port: :50051
+2026/05/02 20:19:00 ==========================
+2026/05/02 20:19:00 ✓ MongoDB collections ensured
+2026/05/02 20:19:00 ✓ WorkerDB initialized
+2026/05/02 20:19:00 ✓ TaskDB initialized
+2026/05/02 20:19:00 ✓ AssignmentDB initialized
+2026/05/02 20:19:00 ✓ AttemptDB initialized
+2026/05/02 20:19:00 ✓ ResultDB initialized
+2026/05/02 20:19:00 ✓ UserDB initialized
+2026/05/02 20:19:00 ✓ Web UI admin user already exists for admin@localhost (password unchanged)
+2026/05/02 20:19:00 ✓ FileMetadataDB initialized
+2026/05/02 20:19:00 ✓ SchedulerModelDB initialized
+2026/05/02 20:19:00 ✓ FileStorageService initialized with access control
+2026/05/02 20:19:00 ✓ FileStorageService initialized (base: /Users/codesmith28/.cloudai/files)
+2026/05/02 20:19:00 Telemetry manager started
+2026/05/02 20:19:00 ✓ Telemetry manager started
+2026/05/02 20:19:00 ✓ Tau store initialized with default values:
+2026/05/02 20:19:00   - memory-heavy: 20.0s
+2026/05/02 20:19:00   - mixed: 10.0s
+2026/05/02 20:19:00   - cpu-light: 5.0s
+2026/05/02 20:19:00   - cpu-heavy: 15.0s
+2026/05/02 20:19:00 ✓ SLA multiplier (k): 2.0
+2026/05/02 20:19:00 ✓ Migrated local RTS cache to Mongo for fingerprint=ab4e93acfc322b0ec0a428dcb5743254d6199b9bafa696f834eb7c6d7ad0eac6
+2026/05/02 20:19:00 ✓ Round-Robin scheduler created
+2026/05/02 20:19:00 ✓ Telemetry source adapter created
+2026/05/02 20:19:00 ✓ RTS params store initialized (MongoDB: RTS_WEIGHTS)
+2026/05/02 20:19:00 ✓ RTS Scheduler initialized with params from mongodb collection RTS_WEIGHTS
+2026/05/02 20:19:00 ✓ RTS scheduler initialized (params: /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json)
+2026/05/02 20:19:00   - Fallback: Round-Robin
+2026/05/02 20:19:00   - Parameter hot-reload: enabled (every 30s from local cache)
+2026/05/02 20:19:00 ✓ PPO deployment mode: active (online updates: true)
+2026/05/02 20:19:00 ℹ️  PPO service already reachable at 127.0.0.1:50050, reusing existing process
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x2 addr=0xa0 pc=0x10522102c]
+
+goroutine 1 [running]:
+main.main()
+	/Users/codesmith28/personal/Projects/acc/BTEP/master/main.go:286 +0x1f9c

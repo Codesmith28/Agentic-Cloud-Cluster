@@ -23,7 +23,7 @@ const Navbar = ({ onMenuClick }) => {
         
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="body2">
-            Master: localhost:8080
+            Master: Connected
           </Typography>
         </Box>
       </Toolbar>

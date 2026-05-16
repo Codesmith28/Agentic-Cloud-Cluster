@@ -44,16 +44,38 @@ func NewMasterTelemetrySource(telemetryMgr *telemetry.TelemetryManager, workerDB
 
 // GetWorkerViews returns the current state of all active workers
 func (mts *MasterTelemetrySource) GetWorkerViews(ctx context.Context) ([]WorkerView, error) {
+	if mts.telemetryMgr == nil {
+		return nil, fmt.Errorf("telemetry manager is not available")
+	}
+
+	telemetryData := mts.telemetryMgr.GetAllWorkerTelemetry()
+
+	// No DB: build views from telemetry alone (capacity unknown, use load only)
+	if mts.workerDB == nil {
+		var views []WorkerView
+		for id, tel := range telemetryData {
+			if !tel.IsActive {
+				continue
+			}
+			views = append(views, WorkerView{
+				ID:           id,
+				CPUAvail:     1.0 - tel.CpuUsage,
+				MemAvail:     1.0 - tel.MemoryUsage,
+				StorageAvail: 1.0 - tel.StorageUsage,
+				Load:         tel.CpuUsage,
+			})
+		}
+		return views, nil
+	}
+
 	// Get all workers from DB (for capacity information)
 	workers, err := mts.workerDB.GetAllWorkers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get workers from DB: %w", err)
 	}
 
-	// Get all telemetry data (for usage information)
-	telemetryData := mts.telemetryMgr.GetAllWorkerTelemetry()
-
-	// Build WorkerView for each active worker
+	// Build WorkerView for each active worker using DB capacity + live telemetry
+	dbTelemetryData := mts.telemetryMgr.GetAllWorkerTelemetry()
 	var views []WorkerView
 	for _, worker := range workers {
 		// Only include active workers
@@ -61,10 +83,9 @@ func (mts *MasterTelemetrySource) GetWorkerViews(ctx context.Context) ([]WorkerV
 			continue
 		}
 
-		// Compute available resources (Total - Allocated)
+		// Compute available resources (Total - Allocated).
 		cpuAvail := worker.TotalCPU - worker.AllocatedCPU
 		memAvail := worker.TotalMemory - worker.AllocatedMemory
-		gpuAvail := worker.TotalGPU - worker.AllocatedGPU
 		storageAvail := worker.TotalStorage - worker.AllocatedStorage
 
 		// Ensure non-negative values (in case of oversubscription)
@@ -74,21 +95,17 @@ func (mts *MasterTelemetrySource) GetWorkerViews(ctx context.Context) ([]WorkerV
 		if memAvail < 0 {
 			memAvail = 0
 		}
-		if gpuAvail < 0 {
-			gpuAvail = 0
-		}
 		if storageAvail < 0 {
 			storageAvail = 0
 		}
 
 		// Compute normalized load from telemetry data
-		load := mts.computeNormalizedLoad(worker.WorkerID, telemetryData, &worker)
+		load := mts.computeNormalizedLoad(worker.WorkerID, dbTelemetryData, &worker)
 
 		view := WorkerView{
 			ID:           worker.WorkerID,
 			CPUAvail:     cpuAvail,
 			MemAvail:     memAvail,
-			GPUAvail:     gpuAvail,
 			StorageAvail: storageAvail,
 			Load:         load,
 		}
@@ -101,6 +118,10 @@ func (mts *MasterTelemetrySource) GetWorkerViews(ctx context.Context) ([]WorkerV
 
 // GetWorkerLoad returns the normalized load for a specific worker
 func (mts *MasterTelemetrySource) GetWorkerLoad(workerID string) float64 {
+	if mts.telemetryMgr == nil || mts.workerDB == nil {
+		return 0.0
+	}
+
 	// Get telemetry data for this worker
 	telData, exists := mts.telemetryMgr.GetWorkerTelemetry(workerID)
 	if !exists || !telData.IsActive {
@@ -118,9 +139,9 @@ func (mts *MasterTelemetrySource) GetWorkerLoad(workerID string) float64 {
 	return mts.computeNormalizedLoad(workerID, telemetryData, worker)
 }
 
-// computeNormalizedLoad computes the normalized load for a worker
-// Load is based on the weighted combination of CPU, Memory, and GPU usage
-// Formula: Load = (w_cpu * CPU_usage + w_mem * Mem_usage + w_gpu * GPU_usage) / (w_cpu + w_mem + w_gpu)
+// computeNormalizedLoad computes the normalized load for a worker.
+// Load is based on the weighted combination of CPU, memory, and storage pressure.
+// Formula: Load = (w_cpu * CPU_usage + w_mem * Mem_usage + w_storage * Storage_usage) / (w_cpu + w_mem + w_storage)
 // where weights are proportional to the resource capacities
 func (mts *MasterTelemetrySource) computeNormalizedLoad(
 	workerID string,
@@ -133,25 +154,25 @@ func (mts *MasterTelemetrySource) computeNormalizedLoad(
 		return 0.0
 	}
 
-	// Extract usage percentages from telemetry
-	cpuUsage := telData.CpuUsage    // 0.0 to 1.0 (percentage)
-	memUsage := telData.MemoryUsage // 0.0 to 1.0 (percentage)
-	gpuUsage := telData.GpuUsage    // 0.0 to 1.0 (percentage)
+	// Extract usage percentages from telemetry.
+	cpuUsage := telData.CpuUsage         // 0.0 to 1.0
+	memUsage := telData.MemoryUsage      // 0.0 to 1.0
+	storageUsage := telData.StorageUsage // 0.0 to 1.0
 
 	// Compute weights based on resource capacities
-	// This ensures resources with higher capacity have more influence on the load metric
+	// This ensures resources with higher capacity have more influence on the load metric.
 	wCPU := worker.TotalCPU
 	wMem := worker.TotalMemory / 10.0 // Scale down memory to be comparable to CPU
-	wGPU := worker.TotalGPU * 2.0     // Scale up GPU to emphasize its importance
+	wStorage := worker.TotalStorage / 100.0
 
 	// Handle edge case: no resources
-	totalWeight := wCPU + wMem + wGPU
+	totalWeight := wCPU + wMem + wStorage
 	if totalWeight == 0 {
 		return 0.0
 	}
 
 	// Compute weighted average load
-	load := (wCPU*cpuUsage + wMem*memUsage + wGPU*gpuUsage) / totalWeight
+	load := (wCPU*cpuUsage + wMem*memUsage + wStorage*storageUsage) / totalWeight
 
 	// Clamp to [0.0, inf) - can exceed 1.0 if oversubscribed
 	if load < 0 {

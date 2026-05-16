@@ -1,0 +1,23 @@
+{
+  "suite": "reliability",
+  "description": "Overload campaign with reliability assertions.",
+  "runner": "campaign",
+  "scenarios": [
+    "overload"
+  ],
+  "workloads": [
+    "heterogeneous-smoke"
+  ],
+  "schedulers": [
+    "RR",
+    "RTS",
+    "PPO"
+  ],
+  "assertions": [
+    "queue-and-drain",
+    "cancellation-path",
+    "bad-image-failure",
+    "non-zero-exit-failure",
+    "requeue-after-worker-loss"
+  ]
+}

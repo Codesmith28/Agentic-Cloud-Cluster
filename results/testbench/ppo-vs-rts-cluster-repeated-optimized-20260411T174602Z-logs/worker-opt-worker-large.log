@@ -1,0 +1,1951 @@
+2026/04/11 23:16:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:02   CloudAI Worker Node - Starting...
+2026/04/11 23:16:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:02 ⚠️  Using user directory (no /var/cloudai access): /home/codesmith28/.cloudai/outputs
+2026/04/11 23:16:02 
+2026/04/11 23:16:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:02   Worker Details (use these to register with master):
+2026/04/11 23:16:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:02   Hostname:       Tessa
+2026/04/11 23:16:02   Worker ID:      opt-worker-large
+2026/04/11 23:16:02   Bind Address:   127.0.0.1:56054
+2026/04/11 23:16:02   Reachable Addr: 10.237.185.232:56054
+2026/04/11 23:16:02   Metrics Port:   19213
+2026/04/11 23:16:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:02 
+2026/04/11 23:16:02 To register this worker, run in master CLI:
+2026/04/11 23:16:02   master> register opt-worker-large 10.237.185.232:56054
+2026/04/11 23:16:02 
+2026/04/11 23:16:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:02 Starting telemetry monitor (interval: 5s)
+2026/04/11 23:16:02 ✓ Metrics server listening on 127.0.0.1:19213
+2026/04/11 23:16:02 ✓ Worker opt-worker-large started successfully
+2026/04/11 23:16:02 ✓ gRPC server listening on 127.0.0.1:56054
+2026/04/11 23:16:02 ✓ Ready to receive master registration...
+2026/04/11 23:16:02 ✓ Waiting for tasks...
+2026/04/11 23:16:03 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:16:03 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:16:03 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:16:03 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:03 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:03 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:03 Detected System Resources:
+2026/04/11 23:16:03   CPU:     3.00 cores
+2026/04/11 23:16:03   Memory:  5.00 GB
+2026/04/11 23:16:03   Storage: 80.00 GB
+2026/04/11 23:16:03 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:16:03 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:16:03 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:16:03 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:16:03 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:03 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:03 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:03 Detected System Resources:
+2026/04/11 23:16:03   CPU:     3.00 cores
+2026/04/11 23:16:03   Memory:  5.00 GB
+2026/04/11 23:16:03   Storage: 80.00 GB
+2026/04/11 23:16:03 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:16:08 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:08 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:08 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:08 Heartbeat sent: CPU=2.4%, Memory=49.6%, Storage=0.0%, Tasks=0
+2026/04/11 23:16:13  
+2026/04/11 23:16:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:13   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:16:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:13   Task ID:           task-1775929569619781476
+2026/04/11 23:16:13   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:13   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:16:13   Target Worker:     opt-worker-large
+2026/04/11 23:16:13 ───────────────────────────────────────────────────────
+2026/04/11 23:16:13   System Requirements:
+2026/04/11 23:16:13     • CPU Cores:     1.20 cores
+2026/04/11 23:16:13     • Memory:        1.20 GB
+2026/04/11 23:16:13     • Storage:       2.00 GB
+2026/04/11 23:16:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:13   ✓ Task accepted - Starting execution...
+2026/04/11 23:16:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:13 
+2026/04/11 23:16:13 Task task-1775929569619781476 added to monitoring (total tasks: 1)
+2026/04/11 23:16:13 [Task task-1775929569619781476] Starting execution...
+2026/04/11 23:16:13 [Task task-1775929569619781476] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:16:13  
+2026/04/11 23:16:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:13   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:16:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:13   Task ID:           task-1775929569620793939
+2026/04/11 23:16:13   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:13   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:16:13   Target Worker:     opt-worker-large
+2026/04/11 23:16:13 ───────────────────────────────────────────────────────
+2026/04/11 23:16:13   System Requirements:
+2026/04/11 23:16:13     • CPU Cores:     1.50 cores
+2026/04/11 23:16:13     • Memory:        0.75 GB
+2026/04/11 23:16:13     • Storage:       1.00 GB
+2026/04/11 23:16:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:13   ✓ Task accepted - Starting execution...
+2026/04/11 23:16:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:13 
+2026/04/11 23:16:13 Task task-1775929569620793939 added to monitoring (total tasks: 2)
+2026/04/11 23:16:13 [Task task-1775929569620793939] Starting execution...
+2026/04/11 23:16:13 [Task task-1775929569620793939] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:16:13 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:13 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:13 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:13 Heartbeat sent: CPU=2.1%, Memory=49.6%, Storage=0.0%, Tasks=2
+2026/04/11 23:16:15 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:16:15 [Task task-1775929569620793939] Creating container with resource limits (CPU: 1.50, Memory: 0.75GB)...
+2026/04/11 23:16:15 [Task task-1775929569620793939] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929569620793939
+2026/04/11 23:16:15 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:16:15 [Task task-1775929569619781476] Creating container with resource limits (CPU: 1.20, Memory: 1.20GB)...
+2026/04/11 23:16:15 [Task task-1775929569619781476] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929569619781476
+2026/04/11 23:16:15 [Task task-1775929569620793939] Starting container: b98751794f95
+2026/04/11 23:16:15 [Task task-1775929569619781476] Starting container: bdc5d174737c
+2026/04/11 23:16:16 [Task task-1775929569619781476] Waiting for completion...
+2026/04/11 23:16:16 [Task task-1775929569619781476] ✓ Completed successfully
+2026/04/11 23:16:16  
+2026/04/11 23:16:16 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:16   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:16:16 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:16   Task ID:           task-1775929569619781476
+2026/04/11 23:16:16   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:16   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:16:16   Exit Code:         0
+2026/04/11 23:16:16 ───────────────────────────────────────────────────────
+2026/04/11 23:16:16   Resources Released:
+2026/04/11 23:16:16     • CPU Cores:     1.20 cores
+2026/04/11 23:16:16     • Memory:        1.20 GB
+2026/04/11 23:16:16 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:16 
+2026/04/11 23:16:16 [Task task-1775929569619781476] ✓ Collected 1 output file(s)
+2026/04/11 23:16:16 Task task-1775929569619781476 removed from monitoring (total tasks: 1)
+2026/04/11 23:16:16 [Task task-1775929569619781476] Uploading 1 output file(s) to master...
+2026/04/11 23:16:16 [Task task-1775929569619781476] ✓ Uploaded file: workflow-result.json (345 bytes)
+2026/04/11 23:16:16 [Task task-1775929569619781476] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:16:16 [Task task-1775929569619781476] ✓ Output files uploaded successfully
+2026/04/11 23:16:16 ✓ Task result reported: Task result received and processed
+2026/04/11 23:16:16 [Task task-1775929569620793939] Waiting for completion...
+2026/04/11 23:16:16 [Task task-1775929569620793939] ✓ Completed successfully
+2026/04/11 23:16:16  
+2026/04/11 23:16:16 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:16   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:16:16 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:16   Task ID:           task-1775929569620793939
+2026/04/11 23:16:16   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:16   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:16:16   Exit Code:         0
+2026/04/11 23:16:16 ───────────────────────────────────────────────────────
+2026/04/11 23:16:16   Resources Released:
+2026/04/11 23:16:16     • CPU Cores:     1.50 cores
+2026/04/11 23:16:16     • Memory:        0.75 GB
+2026/04/11 23:16:16 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:16 
+2026/04/11 23:16:16 [Task task-1775929569620793939] ✓ Collected 1 output file(s)
+2026/04/11 23:16:16 Task task-1775929569620793939 removed from monitoring (total tasks: 0)
+2026/04/11 23:16:16 [Task task-1775929569620793939] Uploading 1 output file(s) to master...
+2026/04/11 23:16:16 [Task task-1775929569620793939] ✓ Uploaded file: workflow-result.json (234 bytes)
+2026/04/11 23:16:16 [Task task-1775929569620793939] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:16:16 [Task task-1775929569620793939] ✓ Output files uploaded successfully
+2026/04/11 23:16:16 ✓ Task result reported: Task result received and processed
+2026/04/11 23:16:18  
+2026/04/11 23:16:18 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:18   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:16:18 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:18   Task ID:           task-1775929569621656298
+2026/04/11 23:16:18   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:18   Command:           /usr/local/bin/workflow mixed --iterations 2000000 --memory-mib 256 --passes 2 --seed 408
+2026/04/11 23:16:18   Target Worker:     opt-worker-large
+2026/04/11 23:16:18 ───────────────────────────────────────────────────────
+2026/04/11 23:16:18   System Requirements:
+2026/04/11 23:16:18     • CPU Cores:     1.60 cores
+2026/04/11 23:16:18     • Memory:        1.00 GB
+2026/04/11 23:16:18     • Storage:       2.00 GB
+2026/04/11 23:16:18 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:18   ✓ Task accepted - Starting execution...
+2026/04/11 23:16:18 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:18 
+2026/04/11 23:16:18 Task task-1775929569621656298 added to monitoring (total tasks: 1)
+2026/04/11 23:16:18 [Task task-1775929569621656298] Starting execution...
+2026/04/11 23:16:18 [Task task-1775929569621656298] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:16:18 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:18 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:18 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:18 Heartbeat sent: CPU=2.4%, Memory=49.9%, Storage=0.0%, Tasks=1
+2026/04/11 23:16:19 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:16:19 [Task task-1775929569621656298] Creating container with resource limits (CPU: 1.60, Memory: 1.00GB)...
+2026/04/11 23:16:19 [Task task-1775929569621656298] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929569621656298
+2026/04/11 23:16:19 [Task task-1775929569621656298] Starting container: 451797b66fbd
+2026/04/11 23:16:20 [Task task-1775929569621656298] Waiting for completion...
+2026/04/11 23:16:20 [Task task-1775929569621656298] ✓ Completed successfully
+2026/04/11 23:16:20  
+2026/04/11 23:16:20 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:20   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:16:20 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:20   Task ID:           task-1775929569621656298
+2026/04/11 23:16:20   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:20   Command:           /usr/local/bin/workflow mixed --iterations 2000000 --memory-mib 256 --passes 2 --seed 408
+2026/04/11 23:16:20   Exit Code:         0
+2026/04/11 23:16:20 ───────────────────────────────────────────────────────
+2026/04/11 23:16:20   Resources Released:
+2026/04/11 23:16:20     • CPU Cores:     1.60 cores
+2026/04/11 23:16:20     • Memory:        1.00 GB
+2026/04/11 23:16:20 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:20 
+2026/04/11 23:16:20 [Task task-1775929569621656298] ✓ Collected 1 output file(s)
+2026/04/11 23:16:20 Task task-1775929569621656298 removed from monitoring (total tasks: 0)
+2026/04/11 23:16:20 [Task task-1775929569621656298] Uploading 1 output file(s) to master...
+2026/04/11 23:16:20 [Task task-1775929569621656298] ✓ Uploaded file: workflow-result.json (347 bytes)
+2026/04/11 23:16:20 [Task task-1775929569621656298] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:16:20 [Task task-1775929569621656298] ✓ Output files uploaded successfully
+2026/04/11 23:16:20 ✓ Task result reported: Task result received and processed
+2026/04/11 23:16:23  
+2026/04/11 23:16:23 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:23   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:16:23 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:23   Task ID:           task-1775929569622516483
+2026/04/11 23:16:23   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:23   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4800000 --seed 210
+2026/04/11 23:16:23   Target Worker:     opt-worker-large
+2026/04/11 23:16:23 ───────────────────────────────────────────────────────
+2026/04/11 23:16:23   System Requirements:
+2026/04/11 23:16:23     • CPU Cores:     2.00 cores
+2026/04/11 23:16:23     • Memory:        1.25 GB
+2026/04/11 23:16:23     • Storage:       2.00 GB
+2026/04/11 23:16:23 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:23   ✓ Task accepted - Starting execution...
+2026/04/11 23:16:23 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:23 
+2026/04/11 23:16:23 Task task-1775929569622516483 added to monitoring (total tasks: 1)
+2026/04/11 23:16:23 [Task task-1775929569622516483] Starting execution...
+2026/04/11 23:16:23 [Task task-1775929569622516483] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:16:23 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:23 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:23 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:23 Heartbeat sent: CPU=2.6%, Memory=50.2%, Storage=0.0%, Tasks=1
+2026/04/11 23:16:24 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:16:24 [Task task-1775929569622516483] Creating container with resource limits (CPU: 2.00, Memory: 1.25GB)...
+2026/04/11 23:16:24 [Task task-1775929569622516483] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929569622516483
+2026/04/11 23:16:24 [Task task-1775929569622516483] Starting container: 91421e489d1e
+2026/04/11 23:16:25 [Task task-1775929569622516483] Waiting for completion...
+2026/04/11 23:16:25 [Task task-1775929569622516483] ✓ Completed successfully
+2026/04/11 23:16:25  
+2026/04/11 23:16:25 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:25   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:16:25 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:25   Task ID:           task-1775929569622516483
+2026/04/11 23:16:25   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:25   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4800000 --seed 210
+2026/04/11 23:16:25   Exit Code:         0
+2026/04/11 23:16:25 ───────────────────────────────────────────────────────
+2026/04/11 23:16:25   Resources Released:
+2026/04/11 23:16:25     • CPU Cores:     2.00 cores
+2026/04/11 23:16:25     • Memory:        1.25 GB
+2026/04/11 23:16:25 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:25 
+2026/04/11 23:16:25 [Task task-1775929569622516483] ✓ Collected 1 output file(s)
+2026/04/11 23:16:25 Task task-1775929569622516483 removed from monitoring (total tasks: 0)
+2026/04/11 23:16:25 [Task task-1775929569622516483] Uploading 1 output file(s) to master...
+2026/04/11 23:16:25 [Task task-1775929569622516483] ✓ Uploaded file: workflow-result.json (235 bytes)
+2026/04/11 23:16:25 [Task task-1775929569622516483] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:16:25 [Task task-1775929569622516483] ✓ Output files uploaded successfully
+2026/04/11 23:16:25 ✓ Task result reported: Task result received and processed
+2026/04/11 23:16:28 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:28 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:28 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:28 Failed to send heartbeat: rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing: dial tcp 10.237.185.232:51051: connect: connection refused"
+2026/04/11 23:16:33 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:16:33 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:16:33 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:16:33 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:33 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:33 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:33 Detected System Resources:
+2026/04/11 23:16:33   CPU:     3.00 cores
+2026/04/11 23:16:33   Memory:  5.00 GB
+2026/04/11 23:16:33   Storage: 80.00 GB
+2026/04/11 23:16:33 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:16:33 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:16:33 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:16:33 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:16:33 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:33 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:33 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:33 Detected System Resources:
+2026/04/11 23:16:33   CPU:     3.00 cores
+2026/04/11 23:16:33   Memory:  5.00 GB
+2026/04/11 23:16:33   Storage: 80.00 GB
+2026/04/11 23:16:33 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:16:34 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:34 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:34 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:34 Heartbeat sent: CPU=1.6%, Memory=49.9%, Storage=0.0%, Tasks=0
+2026/04/11 23:16:37  
+2026/04/11 23:16:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:37   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:16:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:37   Task ID:           task-1775929595356787817
+2026/04/11 23:16:37   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:37   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:16:37   Target Worker:     opt-worker-large
+2026/04/11 23:16:37 ───────────────────────────────────────────────────────
+2026/04/11 23:16:37   System Requirements:
+2026/04/11 23:16:37     • CPU Cores:     1.20 cores
+2026/04/11 23:16:37     • Memory:        1.20 GB
+2026/04/11 23:16:37     • Storage:       2.00 GB
+2026/04/11 23:16:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:37   ✓ Task accepted - Starting execution...
+2026/04/11 23:16:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:37 
+2026/04/11 23:16:37 Task task-1775929595356787817 added to monitoring (total tasks: 1)
+2026/04/11 23:16:37 [Task task-1775929595356787817] Starting execution...
+2026/04/11 23:16:37 [Task task-1775929595356787817] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:16:37  
+2026/04/11 23:16:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:37   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:16:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:37   Task ID:           task-1775929595358479686
+2026/04/11 23:16:37   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:37   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:16:37   Target Worker:     opt-worker-large
+2026/04/11 23:16:37 ───────────────────────────────────────────────────────
+2026/04/11 23:16:37   System Requirements:
+2026/04/11 23:16:37     • CPU Cores:     1.50 cores
+2026/04/11 23:16:37     • Memory:        0.75 GB
+2026/04/11 23:16:37     • Storage:       1.00 GB
+2026/04/11 23:16:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:37   ✓ Task accepted - Starting execution...
+2026/04/11 23:16:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:37 
+2026/04/11 23:16:37 Task task-1775929595358479686 added to monitoring (total tasks: 2)
+2026/04/11 23:16:37 [Task task-1775929595358479686] Starting execution...
+2026/04/11 23:16:37 [Task task-1775929595358479686] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:16:38 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:38 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:38 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:38 Heartbeat sent: CPU=3.1%, Memory=49.9%, Storage=0.0%, Tasks=2
+2026/04/11 23:16:39 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:16:39 [Task task-1775929595358479686] Creating container with resource limits (CPU: 1.50, Memory: 0.75GB)...
+2026/04/11 23:16:39 [Task task-1775929595358479686] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929595358479686
+2026/04/11 23:16:39 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:16:39 [Task task-1775929595356787817] Creating container with resource limits (CPU: 1.20, Memory: 1.20GB)...
+2026/04/11 23:16:39 [Task task-1775929595356787817] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929595356787817
+2026/04/11 23:16:39 [Task task-1775929595358479686] Starting container: 07a82642ab09
+2026/04/11 23:16:39 [Task task-1775929595356787817] Starting container: 3fcd1ba38408
+2026/04/11 23:16:40 [Task task-1775929595356787817] Waiting for completion...
+2026/04/11 23:16:40 [Task task-1775929595356787817] ✓ Completed successfully
+2026/04/11 23:16:40  
+2026/04/11 23:16:40 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:40   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:16:40 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:40   Task ID:           task-1775929595356787817
+2026/04/11 23:16:40   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:40   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:16:40   Exit Code:         0
+2026/04/11 23:16:40 ───────────────────────────────────────────────────────
+2026/04/11 23:16:40   Resources Released:
+2026/04/11 23:16:40     • CPU Cores:     1.20 cores
+2026/04/11 23:16:40     • Memory:        1.20 GB
+2026/04/11 23:16:40 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:40 
+2026/04/11 23:16:40 [Task task-1775929595356787817] ✓ Collected 1 output file(s)
+2026/04/11 23:16:40 Task task-1775929595356787817 removed from monitoring (total tasks: 1)
+2026/04/11 23:16:40 [Task task-1775929595356787817] Uploading 1 output file(s) to master...
+2026/04/11 23:16:40 [Task task-1775929595356787817] ✓ Uploaded file: workflow-result.json (345 bytes)
+2026/04/11 23:16:40 [Task task-1775929595356787817] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:16:40 [Task task-1775929595356787817] ✓ Output files uploaded successfully
+2026/04/11 23:16:40 ✓ Task result reported: Task result received and processed
+2026/04/11 23:16:41 [Task task-1775929595358479686] Waiting for completion...
+2026/04/11 23:16:41 [Task task-1775929595358479686] ✓ Completed successfully
+2026/04/11 23:16:41  
+2026/04/11 23:16:41 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:41   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:16:41 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:41   Task ID:           task-1775929595358479686
+2026/04/11 23:16:41   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:41   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:16:41   Exit Code:         0
+2026/04/11 23:16:41 ───────────────────────────────────────────────────────
+2026/04/11 23:16:41   Resources Released:
+2026/04/11 23:16:41     • CPU Cores:     1.50 cores
+2026/04/11 23:16:41     • Memory:        0.75 GB
+2026/04/11 23:16:41 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:41 
+2026/04/11 23:16:41 [Task task-1775929595358479686] ✓ Collected 1 output file(s)
+2026/04/11 23:16:41 Task task-1775929595358479686 removed from monitoring (total tasks: 0)
+2026/04/11 23:16:41 [Task task-1775929595358479686] Uploading 1 output file(s) to master...
+2026/04/11 23:16:41 [Task task-1775929595358479686] ✓ Uploaded file: workflow-result.json (236 bytes)
+2026/04/11 23:16:41 [Task task-1775929595358479686] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:16:41 [Task task-1775929595358479686] ✓ Output files uploaded successfully
+2026/04/11 23:16:41 ✓ Task result reported: Task result received and processed
+2026/04/11 23:16:42  
+2026/04/11 23:16:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:42   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:16:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:42   Task ID:           task-1775929595360779506
+2026/04/11 23:16:42   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:42   Command:           /usr/local/bin/workflow cpu-light --iterations 610000 --seed 109
+2026/04/11 23:16:42   Target Worker:     opt-worker-large
+2026/04/11 23:16:42 ───────────────────────────────────────────────────────
+2026/04/11 23:16:42   System Requirements:
+2026/04/11 23:16:42     • CPU Cores:     0.50 cores
+2026/04/11 23:16:42     • Memory:        0.25 GB
+2026/04/11 23:16:42     • Storage:       1.00 GB
+2026/04/11 23:16:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:42   ✓ Task accepted - Starting execution...
+2026/04/11 23:16:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:42 
+2026/04/11 23:16:42 Task task-1775929595360779506 added to monitoring (total tasks: 1)
+2026/04/11 23:16:42 [Task task-1775929595360779506] Starting execution...
+2026/04/11 23:16:42 [Task task-1775929595360779506] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:16:42  
+2026/04/11 23:16:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:42   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:16:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:42   Task ID:           task-1775929595361499602
+2026/04/11 23:16:42   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:42   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4800000 --seed 210
+2026/04/11 23:16:42   Target Worker:     opt-worker-large
+2026/04/11 23:16:42 ───────────────────────────────────────────────────────
+2026/04/11 23:16:42   System Requirements:
+2026/04/11 23:16:42     • CPU Cores:     2.00 cores
+2026/04/11 23:16:42     • Memory:        1.25 GB
+2026/04/11 23:16:42     • Storage:       2.00 GB
+2026/04/11 23:16:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:42   ✓ Task accepted - Starting execution...
+2026/04/11 23:16:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:42 
+2026/04/11 23:16:42 Task task-1775929595361499602 added to monitoring (total tasks: 2)
+2026/04/11 23:16:42 [Task task-1775929595361499602] Starting execution...
+2026/04/11 23:16:42 [Task task-1775929595361499602] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:16:43 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:43 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:43 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:43 Heartbeat sent: CPU=2.9%, Memory=50.3%, Storage=0.0%, Tasks=2
+2026/04/11 23:16:44 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:16:44 [Task task-1775929595361499602] Creating container with resource limits (CPU: 2.00, Memory: 1.25GB)...
+2026/04/11 23:16:44 [Task task-1775929595361499602] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929595361499602
+2026/04/11 23:16:44 [Task task-1775929595361499602] Starting container: 69d99b3cd67b
+2026/04/11 23:16:45 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:16:45 [Task task-1775929595360779506] Creating container with resource limits (CPU: 0.50, Memory: 0.25GB)...
+2026/04/11 23:16:45 [Task task-1775929595360779506] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929595360779506
+2026/04/11 23:16:45 [Task task-1775929595360779506] Starting container: 2ca28fa75a5f
+2026/04/11 23:16:45 [Task task-1775929595361499602] Waiting for completion...
+2026/04/11 23:16:45 [Task task-1775929595361499602] ✓ Completed successfully
+2026/04/11 23:16:45  
+2026/04/11 23:16:45 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:45   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:16:45 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:45   Task ID:           task-1775929595361499602
+2026/04/11 23:16:45   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:45   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4800000 --seed 210
+2026/04/11 23:16:45   Exit Code:         0
+2026/04/11 23:16:45 ───────────────────────────────────────────────────────
+2026/04/11 23:16:45   Resources Released:
+2026/04/11 23:16:45     • CPU Cores:     2.00 cores
+2026/04/11 23:16:45     • Memory:        1.25 GB
+2026/04/11 23:16:45 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:45 
+2026/04/11 23:16:45 [Task task-1775929595361499602] ✓ Collected 1 output file(s)
+2026/04/11 23:16:45 Task task-1775929595361499602 removed from monitoring (total tasks: 1)
+2026/04/11 23:16:45 [Task task-1775929595361499602] Uploading 1 output file(s) to master...
+2026/04/11 23:16:45 [Task task-1775929595361499602] ✓ Uploaded file: workflow-result.json (235 bytes)
+2026/04/11 23:16:45 [Task task-1775929595361499602] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:16:45 [Task task-1775929595361499602] ✓ Output files uploaded successfully
+2026/04/11 23:16:45 ✓ Task result reported: Task result received and processed
+2026/04/11 23:16:45 [Task task-1775929595360779506] Waiting for completion...
+2026/04/11 23:16:45 [Task task-1775929595360779506] ✓ Completed successfully
+2026/04/11 23:16:45  
+2026/04/11 23:16:45 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:45   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:16:45 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:45   Task ID:           task-1775929595360779506
+2026/04/11 23:16:45   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:16:45   Command:           /usr/local/bin/workflow cpu-light --iterations 610000 --seed 109
+2026/04/11 23:16:45   Exit Code:         0
+2026/04/11 23:16:45 ───────────────────────────────────────────────────────
+2026/04/11 23:16:45   Resources Released:
+2026/04/11 23:16:45     • CPU Cores:     0.50 cores
+2026/04/11 23:16:45     • Memory:        0.25 GB
+2026/04/11 23:16:45 ═══════════════════════════════════════════════════════
+2026/04/11 23:16:45 
+2026/04/11 23:16:45 [Task task-1775929595360779506] ✓ Collected 1 output file(s)
+2026/04/11 23:16:45 Task task-1775929595360779506 removed from monitoring (total tasks: 0)
+2026/04/11 23:16:45 [Task task-1775929595360779506] Uploading 1 output file(s) to master...
+2026/04/11 23:16:45 [Task task-1775929595360779506] ✓ Uploaded file: workflow-result.json (235 bytes)
+2026/04/11 23:16:45 [Task task-1775929595360779506] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:16:45 [Task task-1775929595360779506] ✓ Output files uploaded successfully
+2026/04/11 23:16:45 ✓ Task result reported: Task result received and processed
+2026/04/11 23:16:52 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:16:52 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:16:52 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:16:52 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:52 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:52 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:52 Detected System Resources:
+2026/04/11 23:16:52   CPU:     3.00 cores
+2026/04/11 23:16:52   Memory:  5.00 GB
+2026/04/11 23:16:52   Storage: 80.00 GB
+2026/04/11 23:16:52 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:16:52 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:16:52 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:16:52 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:16:52 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:52 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:52 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:52 Detected System Resources:
+2026/04/11 23:16:52   CPU:     3.00 cores
+2026/04/11 23:16:52   Memory:  5.00 GB
+2026/04/11 23:16:52   Storage: 80.00 GB
+2026/04/11 23:16:52 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:16:53 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:53 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:53 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:53 Heartbeat sent: CPU=1.9%, Memory=50.0%, Storage=0.0%, Tasks=0
+2026/04/11 23:16:54 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:54 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:54 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:54 Heartbeat sent: CPU=2.1%, Memory=50.0%, Storage=0.0%, Tasks=0
+2026/04/11 23:16:58 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:16:58 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:16:58 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:16:58 Heartbeat sent: CPU=1.5%, Memory=49.8%, Storage=0.0%, Tasks=0
+2026/04/11 23:17:02  
+2026/04/11 23:17:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:02   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:17:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:02   Task ID:           task-1775929619119608837
+2026/04/11 23:17:02   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:02   Command:           /usr/local/bin/workflow cpu-heavy --iterations 3600000 --seed 202
+2026/04/11 23:17:02   Target Worker:     opt-worker-large
+2026/04/11 23:17:02 ───────────────────────────────────────────────────────
+2026/04/11 23:17:02   System Requirements:
+2026/04/11 23:17:02     • CPU Cores:     1.00 cores
+2026/04/11 23:17:02     • Memory:        0.50 GB
+2026/04/11 23:17:02     • Storage:       1.00 GB
+2026/04/11 23:17:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:02   ✓ Task accepted - Starting execution...
+2026/04/11 23:17:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:02 
+2026/04/11 23:17:02 Task task-1775929619119608837 added to monitoring (total tasks: 1)
+2026/04/11 23:17:02 [Task task-1775929619119608837] Starting execution...
+2026/04/11 23:17:02 [Task task-1775929619119608837] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:17:02  
+2026/04/11 23:17:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:02   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:17:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:02   Task ID:           task-1775929619120495491
+2026/04/11 23:17:02   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:02   Command:           /usr/local/bin/workflow memory-heavy --memory-mib 448 --passes 2 --seed 303
+2026/04/11 23:17:02   Target Worker:     opt-worker-large
+2026/04/11 23:17:02 ───────────────────────────────────────────────────────
+2026/04/11 23:17:02   System Requirements:
+2026/04/11 23:17:02     • CPU Cores:     0.70 cores
+2026/04/11 23:17:02     • Memory:        1.00 GB
+2026/04/11 23:17:02     • Storage:       2.00 GB
+2026/04/11 23:17:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:02   ✓ Task accepted - Starting execution...
+2026/04/11 23:17:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:02 
+2026/04/11 23:17:02 Task task-1775929619120495491 added to monitoring (total tasks: 2)
+2026/04/11 23:17:02 [Task task-1775929619120495491] Starting execution...
+2026/04/11 23:17:02 [Task task-1775929619120495491] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:17:02  
+2026/04/11 23:17:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:02   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:17:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:02   Task ID:           task-1775929619121244781
+2026/04/11 23:17:02   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:02   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:17:02   Target Worker:     opt-worker-large
+2026/04/11 23:17:02 ───────────────────────────────────────────────────────
+2026/04/11 23:17:02   System Requirements:
+2026/04/11 23:17:02     • CPU Cores:     1.20 cores
+2026/04/11 23:17:02     • Memory:        1.20 GB
+2026/04/11 23:17:02     • Storage:       2.00 GB
+2026/04/11 23:17:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:02   ✓ Task accepted - Starting execution...
+2026/04/11 23:17:02 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:02 
+2026/04/11 23:17:02 Task task-1775929619121244781 added to monitoring (total tasks: 3)
+2026/04/11 23:17:02 [Task task-1775929619121244781] Starting execution...
+2026/04/11 23:17:02 [Task task-1775929619121244781] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:17:03 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:03 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:03 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:03 Heartbeat sent: CPU=1.9%, Memory=49.7%, Storage=0.0%, Tasks=3
+2026/04/11 23:17:04 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:17:04 [Task task-1775929619120495491] Creating container with resource limits (CPU: 0.70, Memory: 1.00GB)...
+2026/04/11 23:17:04 [Task task-1775929619120495491] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929619120495491
+2026/04/11 23:17:04 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:17:04 [Task task-1775929619119608837] Creating container with resource limits (CPU: 1.00, Memory: 0.50GB)...
+2026/04/11 23:17:04 [Task task-1775929619119608837] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929619119608837
+2026/04/11 23:17:04 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:17:04 [Task task-1775929619121244781] Creating container with resource limits (CPU: 1.20, Memory: 1.20GB)...
+2026/04/11 23:17:04 [Task task-1775929619121244781] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929619121244781
+2026/04/11 23:17:04 [Task task-1775929619121244781] Starting container: cca0ee05b88a
+2026/04/11 23:17:04 [Task task-1775929619119608837] Starting container: d27230af6b92
+2026/04/11 23:17:04 [Task task-1775929619120495491] Starting container: 86836cfbfb90
+2026/04/11 23:17:04 [Task task-1775929619120495491] Waiting for completion...
+2026/04/11 23:17:04 [Task task-1775929619120495491] ✓ Completed successfully
+2026/04/11 23:17:04  
+2026/04/11 23:17:04 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:04   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:17:04 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:04   Task ID:           task-1775929619120495491
+2026/04/11 23:17:04   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:04   Command:           /usr/local/bin/workflow memory-heavy --memory-mib 448 --passes 2 --seed 303
+2026/04/11 23:17:04   Exit Code:         0
+2026/04/11 23:17:04 ───────────────────────────────────────────────────────
+2026/04/11 23:17:04   Resources Released:
+2026/04/11 23:17:04     • CPU Cores:     0.70 cores
+2026/04/11 23:17:04     • Memory:        1.00 GB
+2026/04/11 23:17:04 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:04 
+2026/04/11 23:17:04 [Task task-1775929619120495491] ✓ Collected 1 output file(s)
+2026/04/11 23:17:04 Task task-1775929619120495491 removed from monitoring (total tasks: 2)
+2026/04/11 23:17:04 [Task task-1775929619120495491] Uploading 1 output file(s) to master...
+2026/04/11 23:17:04 [Task task-1775929619120495491] ✓ Uploaded file: workflow-result.json (251 bytes)
+2026/04/11 23:17:04 [Task task-1775929619120495491] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:17:04 [Task task-1775929619120495491] ✓ Output files uploaded successfully
+2026/04/11 23:17:04 ✓ Task result reported: Task result received and processed
+2026/04/11 23:17:04 [Task task-1775929619121244781] Waiting for completion...
+2026/04/11 23:17:04 [Task task-1775929619121244781] ✓ Completed successfully
+2026/04/11 23:17:04  
+2026/04/11 23:17:04 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:04   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:17:04 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:04   Task ID:           task-1775929619121244781
+2026/04/11 23:17:04   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:04   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:17:04   Exit Code:         0
+2026/04/11 23:17:04 ───────────────────────────────────────────────────────
+2026/04/11 23:17:04   Resources Released:
+2026/04/11 23:17:04     • CPU Cores:     1.20 cores
+2026/04/11 23:17:04     • Memory:        1.20 GB
+2026/04/11 23:17:04 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:04 
+2026/04/11 23:17:04 [Task task-1775929619121244781] ✓ Collected 1 output file(s)
+2026/04/11 23:17:04 Task task-1775929619121244781 removed from monitoring (total tasks: 1)
+2026/04/11 23:17:04 [Task task-1775929619121244781] Uploading 1 output file(s) to master...
+2026/04/11 23:17:04 [Task task-1775929619121244781] ✓ Uploaded file: workflow-result.json (345 bytes)
+2026/04/11 23:17:04 [Task task-1775929619121244781] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:17:04 [Task task-1775929619121244781] ✓ Output files uploaded successfully
+2026/04/11 23:17:04 ✓ Task result reported: Task result received and processed
+2026/04/11 23:17:05 [Task task-1775929619119608837] Waiting for completion...
+2026/04/11 23:17:05 [Task task-1775929619119608837] ✓ Completed successfully
+2026/04/11 23:17:05  
+2026/04/11 23:17:05 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:05   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:17:05 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:05   Task ID:           task-1775929619119608837
+2026/04/11 23:17:05   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:05   Command:           /usr/local/bin/workflow cpu-heavy --iterations 3600000 --seed 202
+2026/04/11 23:17:05   Exit Code:         0
+2026/04/11 23:17:05 ───────────────────────────────────────────────────────
+2026/04/11 23:17:05   Resources Released:
+2026/04/11 23:17:05     • CPU Cores:     1.00 cores
+2026/04/11 23:17:05     • Memory:        0.50 GB
+2026/04/11 23:17:05 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:05 
+2026/04/11 23:17:05 [Task task-1775929619119608837] ✓ Collected 1 output file(s)
+2026/04/11 23:17:05 Task task-1775929619119608837 removed from monitoring (total tasks: 0)
+2026/04/11 23:17:05 [Task task-1775929619119608837] Uploading 1 output file(s) to master...
+2026/04/11 23:17:05 [Task task-1775929619119608837] ✓ Uploaded file: workflow-result.json (236 bytes)
+2026/04/11 23:17:05 [Task task-1775929619119608837] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:17:05 [Task task-1775929619119608837] ✓ Output files uploaded successfully
+2026/04/11 23:17:05 ✓ Task result reported: Task result received and processed
+2026/04/11 23:17:07  
+2026/04/11 23:17:07 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:07   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:17:07 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:07   Task ID:           task-1775929619124479922
+2026/04/11 23:17:07   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:07   Command:           /usr/local/bin/workflow mixed --iterations 2000000 --memory-mib 256 --passes 2 --seed 408
+2026/04/11 23:17:07   Target Worker:     opt-worker-large
+2026/04/11 23:17:07 ───────────────────────────────────────────────────────
+2026/04/11 23:17:07   System Requirements:
+2026/04/11 23:17:07     • CPU Cores:     1.60 cores
+2026/04/11 23:17:07     • Memory:        1.00 GB
+2026/04/11 23:17:07     • Storage:       2.00 GB
+2026/04/11 23:17:07 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:07   ✓ Task accepted - Starting execution...
+2026/04/11 23:17:07 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:07 
+2026/04/11 23:17:07 Task task-1775929619124479922 added to monitoring (total tasks: 1)
+2026/04/11 23:17:07 [Task task-1775929619124479922] Starting execution...
+2026/04/11 23:17:07 [Task task-1775929619124479922] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:17:08 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:08 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:08 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:08 Heartbeat sent: CPU=1.4%, Memory=49.9%, Storage=0.0%, Tasks=1
+2026/04/11 23:17:08 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:17:08 [Task task-1775929619124479922] Creating container with resource limits (CPU: 1.60, Memory: 1.00GB)...
+2026/04/11 23:17:08 [Task task-1775929619124479922] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929619124479922
+2026/04/11 23:17:08 [Task task-1775929619124479922] Starting container: 08ed56b1dfdd
+2026/04/11 23:17:09 [Task task-1775929619124479922] Waiting for completion...
+2026/04/11 23:17:09 [Task task-1775929619124479922] ✓ Completed successfully
+2026/04/11 23:17:09  
+2026/04/11 23:17:09 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:09   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:17:09 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:09   Task ID:           task-1775929619124479922
+2026/04/11 23:17:09   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:09   Command:           /usr/local/bin/workflow mixed --iterations 2000000 --memory-mib 256 --passes 2 --seed 408
+2026/04/11 23:17:09   Exit Code:         0
+2026/04/11 23:17:09 ───────────────────────────────────────────────────────
+2026/04/11 23:17:09   Resources Released:
+2026/04/11 23:17:09     • CPU Cores:     1.60 cores
+2026/04/11 23:17:09     • Memory:        1.00 GB
+2026/04/11 23:17:09 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:09 
+2026/04/11 23:17:09 [Task task-1775929619124479922] ✓ Collected 1 output file(s)
+2026/04/11 23:17:09 Task task-1775929619124479922 removed from monitoring (total tasks: 0)
+2026/04/11 23:17:09 [Task task-1775929619124479922] Uploading 1 output file(s) to master...
+2026/04/11 23:17:09 [Task task-1775929619124479922] ✓ Uploaded file: workflow-result.json (346 bytes)
+2026/04/11 23:17:09 [Task task-1775929619124479922] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:17:09 [Task task-1775929619124479922] ✓ Output files uploaded successfully
+2026/04/11 23:17:09 ✓ Task result reported: Task result received and processed
+2026/04/11 23:17:12  
+2026/04/11 23:17:12 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:12   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:17:12 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:12   Task ID:           task-1775929619126110677
+2026/04/11 23:17:12   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:12   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4800000 --seed 210
+2026/04/11 23:17:12   Target Worker:     opt-worker-large
+2026/04/11 23:17:12 ───────────────────────────────────────────────────────
+2026/04/11 23:17:12   System Requirements:
+2026/04/11 23:17:12     • CPU Cores:     2.00 cores
+2026/04/11 23:17:12     • Memory:        1.25 GB
+2026/04/11 23:17:12     • Storage:       2.00 GB
+2026/04/11 23:17:12 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:12   ✓ Task accepted - Starting execution...
+2026/04/11 23:17:12 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:12 
+2026/04/11 23:17:12 Task task-1775929619126110677 added to monitoring (total tasks: 1)
+2026/04/11 23:17:12 [Task task-1775929619126110677] Starting execution...
+2026/04/11 23:17:12 [Task task-1775929619126110677] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:17:13 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:13 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:13 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:13 Heartbeat sent: CPU=1.6%, Memory=50.1%, Storage=0.0%, Tasks=1
+2026/04/11 23:17:14 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:17:14 [Task task-1775929619126110677] Creating container with resource limits (CPU: 2.00, Memory: 1.25GB)...
+2026/04/11 23:17:14 [Task task-1775929619126110677] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929619126110677
+2026/04/11 23:17:14 [Task task-1775929619126110677] Starting container: eb7c01246dab
+2026/04/11 23:17:15 [Task task-1775929619126110677] Waiting for completion...
+2026/04/11 23:17:15 [Task task-1775929619126110677] ✓ Completed successfully
+2026/04/11 23:17:15  
+2026/04/11 23:17:15 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:15   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:17:15 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:15   Task ID:           task-1775929619126110677
+2026/04/11 23:17:15   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:15   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4800000 --seed 210
+2026/04/11 23:17:15   Exit Code:         0
+2026/04/11 23:17:15 ───────────────────────────────────────────────────────
+2026/04/11 23:17:15   Resources Released:
+2026/04/11 23:17:15     • CPU Cores:     2.00 cores
+2026/04/11 23:17:15     • Memory:        1.25 GB
+2026/04/11 23:17:15 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:15 
+2026/04/11 23:17:15 [Task task-1775929619126110677] ✓ Collected 1 output file(s)
+2026/04/11 23:17:15 Task task-1775929619126110677 removed from monitoring (total tasks: 0)
+2026/04/11 23:17:15 [Task task-1775929619126110677] Uploading 1 output file(s) to master...
+2026/04/11 23:17:15 [Task task-1775929619126110677] ✓ Uploaded file: workflow-result.json (234 bytes)
+2026/04/11 23:17:15 [Task task-1775929619126110677] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:17:15 [Task task-1775929619126110677] ✓ Output files uploaded successfully
+2026/04/11 23:17:15 ✓ Task result reported: Task result received and processed
+2026/04/11 23:17:15 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:17:15 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:17:15 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:17:15 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:15 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:15 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:15 Detected System Resources:
+2026/04/11 23:17:15   CPU:     3.00 cores
+2026/04/11 23:17:15   Memory:  5.00 GB
+2026/04/11 23:17:15   Storage: 80.00 GB
+2026/04/11 23:17:15 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:17:15 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:17:15 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:17:15 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:17:15 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:15 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:15 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:15 Detected System Resources:
+2026/04/11 23:17:15   CPU:     3.00 cores
+2026/04/11 23:17:15   Memory:  5.00 GB
+2026/04/11 23:17:15   Storage: 80.00 GB
+2026/04/11 23:17:15 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:17:18 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:18 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:18 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:18 Heartbeat sent: CPU=1.8%, Memory=49.9%, Storage=0.0%, Tasks=0
+2026/04/11 23:17:20  
+2026/04/11 23:17:20 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:20   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:17:20 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:20   Task ID:           task-1775929639866833481
+2026/04/11 23:17:20   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:20   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:17:20   Target Worker:     opt-worker-large
+2026/04/11 23:17:20 ───────────────────────────────────────────────────────
+2026/04/11 23:17:20   System Requirements:
+2026/04/11 23:17:20     • CPU Cores:     1.20 cores
+2026/04/11 23:17:20     • Memory:        1.20 GB
+2026/04/11 23:17:20     • Storage:       2.00 GB
+2026/04/11 23:17:20 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:20   ✓ Task accepted - Starting execution...
+2026/04/11 23:17:20 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:20 
+2026/04/11 23:17:20 Task task-1775929639866833481 added to monitoring (total tasks: 1)
+2026/04/11 23:17:20 [Task task-1775929639866833481] Starting execution...
+2026/04/11 23:17:20 [Task task-1775929639866833481] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:17:20  
+2026/04/11 23:17:20 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:20   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:17:20 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:20   Task ID:           task-1775929639868622070
+2026/04/11 23:17:20   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:20   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:17:20   Target Worker:     opt-worker-large
+2026/04/11 23:17:20 ───────────────────────────────────────────────────────
+2026/04/11 23:17:20   System Requirements:
+2026/04/11 23:17:20     • CPU Cores:     1.50 cores
+2026/04/11 23:17:20     • Memory:        0.75 GB
+2026/04/11 23:17:20     • Storage:       1.00 GB
+2026/04/11 23:17:20 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:20   ✓ Task accepted - Starting execution...
+2026/04/11 23:17:20 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:20 
+2026/04/11 23:17:20 Task task-1775929639868622070 added to monitoring (total tasks: 2)
+2026/04/11 23:17:20 [Task task-1775929639868622070] Starting execution...
+2026/04/11 23:17:20 [Task task-1775929639868622070] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:17:21 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:17:21 [Task task-1775929639866833481] Creating container with resource limits (CPU: 1.20, Memory: 1.20GB)...
+2026/04/11 23:17:21 [Task task-1775929639866833481] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929639866833481
+2026/04/11 23:17:21 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:17:21 [Task task-1775929639868622070] Creating container with resource limits (CPU: 1.50, Memory: 0.75GB)...
+2026/04/11 23:17:21 [Task task-1775929639868622070] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929639868622070
+2026/04/11 23:17:21 [Task task-1775929639866833481] Starting container: 9d7568672a54
+2026/04/11 23:17:21 [Task task-1775929639868622070] Starting container: 7e1cadc7bca4
+2026/04/11 23:17:22 [Task task-1775929639866833481] Waiting for completion...
+2026/04/11 23:17:22 [Task task-1775929639866833481] ✓ Completed successfully
+2026/04/11 23:17:22  
+2026/04/11 23:17:22 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:22   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:17:22 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:22   Task ID:           task-1775929639866833481
+2026/04/11 23:17:22   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:22   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:17:22   Exit Code:         0
+2026/04/11 23:17:22 ───────────────────────────────────────────────────────
+2026/04/11 23:17:22   Resources Released:
+2026/04/11 23:17:22     • CPU Cores:     1.20 cores
+2026/04/11 23:17:22     • Memory:        1.20 GB
+2026/04/11 23:17:22 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:22 
+2026/04/11 23:17:22 [Task task-1775929639866833481] ✓ Collected 1 output file(s)
+2026/04/11 23:17:22 Task task-1775929639866833481 removed from monitoring (total tasks: 1)
+2026/04/11 23:17:22 [Task task-1775929639866833481] Uploading 1 output file(s) to master...
+2026/04/11 23:17:22 [Task task-1775929639866833481] ✓ Uploaded file: workflow-result.json (345 bytes)
+2026/04/11 23:17:22 [Task task-1775929639866833481] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:17:22 [Task task-1775929639866833481] ✓ Output files uploaded successfully
+2026/04/11 23:17:22 ✓ Task result reported: Task result received and processed
+2026/04/11 23:17:23 [Task task-1775929639868622070] Waiting for completion...
+2026/04/11 23:17:23 [Task task-1775929639868622070] ✓ Completed successfully
+2026/04/11 23:17:23  
+2026/04/11 23:17:23 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:23   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:17:23 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:23   Task ID:           task-1775929639868622070
+2026/04/11 23:17:23   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:23   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:17:23   Exit Code:         0
+2026/04/11 23:17:23 ───────────────────────────────────────────────────────
+2026/04/11 23:17:23   Resources Released:
+2026/04/11 23:17:23     • CPU Cores:     1.50 cores
+2026/04/11 23:17:23     • Memory:        0.75 GB
+2026/04/11 23:17:23 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:23 
+2026/04/11 23:17:23 [Task task-1775929639868622070] ✓ Collected 1 output file(s)
+2026/04/11 23:17:23 Task task-1775929639868622070 removed from monitoring (total tasks: 0)
+2026/04/11 23:17:23 [Task task-1775929639868622070] Uploading 1 output file(s) to master...
+2026/04/11 23:17:23 [Task task-1775929639868622070] ✓ Uploaded file: workflow-result.json (235 bytes)
+2026/04/11 23:17:23 [Task task-1775929639868622070] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:17:23 [Task task-1775929639868622070] ✓ Output files uploaded successfully
+2026/04/11 23:17:23 ✓ Task result reported: Task result received and processed
+2026/04/11 23:17:23 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:23 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:23 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:23 Heartbeat sent: CPU=7.4%, Memory=50.3%, Storage=0.0%, Tasks=0
+2026/04/11 23:17:25  
+2026/04/11 23:17:25 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:25   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:17:25 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:25   Task ID:           task-1775929639869558760
+2026/04/11 23:17:25   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:25   Command:           /usr/local/bin/workflow memory-heavy --memory-mib 576 --passes 3 --seed 307
+2026/04/11 23:17:25   Target Worker:     opt-worker-large
+2026/04/11 23:17:25 ───────────────────────────────────────────────────────
+2026/04/11 23:17:25   System Requirements:
+2026/04/11 23:17:25     • CPU Cores:     0.80 cores
+2026/04/11 23:17:25     • Memory:        1.50 GB
+2026/04/11 23:17:25     • Storage:       3.00 GB
+2026/04/11 23:17:25 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:25   ✓ Task accepted - Starting execution...
+2026/04/11 23:17:25 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:25 
+2026/04/11 23:17:25 Task task-1775929639869558760 added to monitoring (total tasks: 1)
+2026/04/11 23:17:25 [Task task-1775929639869558760] Starting execution...
+2026/04/11 23:17:25 [Task task-1775929639869558760] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:17:25  
+2026/04/11 23:17:25 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:25   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:17:25 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:25   Task ID:           task-1775929639870536104
+2026/04/11 23:17:25   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:25   Command:           /usr/local/bin/workflow mixed --iterations 2000000 --memory-mib 256 --passes 2 --seed 408
+2026/04/11 23:17:25   Target Worker:     opt-worker-large
+2026/04/11 23:17:25 ───────────────────────────────────────────────────────
+2026/04/11 23:17:25   System Requirements:
+2026/04/11 23:17:25     • CPU Cores:     1.60 cores
+2026/04/11 23:17:25     • Memory:        1.00 GB
+2026/04/11 23:17:25     • Storage:       2.00 GB
+2026/04/11 23:17:25 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:25   ✓ Task accepted - Starting execution...
+2026/04/11 23:17:25 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:25 
+2026/04/11 23:17:25 Task task-1775929639870536104 added to monitoring (total tasks: 2)
+2026/04/11 23:17:25 [Task task-1775929639870536104] Starting execution...
+2026/04/11 23:17:25 [Task task-1775929639870536104] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:17:26 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:17:26 [Task task-1775929639869558760] Creating container with resource limits (CPU: 0.80, Memory: 1.50GB)...
+2026/04/11 23:17:26 [Task task-1775929639869558760] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929639869558760
+2026/04/11 23:17:26 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:17:26 [Task task-1775929639870536104] Creating container with resource limits (CPU: 1.60, Memory: 1.00GB)...
+2026/04/11 23:17:26 [Task task-1775929639870536104] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929639870536104
+2026/04/11 23:17:26 [Task task-1775929639869558760] Starting container: 88955dc241bb
+2026/04/11 23:17:26 [Task task-1775929639870536104] Starting container: 7982de514151
+2026/04/11 23:17:27 [Task task-1775929639869558760] Waiting for completion...
+2026/04/11 23:17:27 [Task task-1775929639869558760] ✓ Completed successfully
+2026/04/11 23:17:27  
+2026/04/11 23:17:27 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:27   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:17:27 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:27   Task ID:           task-1775929639869558760
+2026/04/11 23:17:27   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:27   Command:           /usr/local/bin/workflow memory-heavy --memory-mib 576 --passes 3 --seed 307
+2026/04/11 23:17:27   Exit Code:         0
+2026/04/11 23:17:27 ───────────────────────────────────────────────────────
+2026/04/11 23:17:27   Resources Released:
+2026/04/11 23:17:27     • CPU Cores:     0.80 cores
+2026/04/11 23:17:27     • Memory:        1.50 GB
+2026/04/11 23:17:27 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:27 
+2026/04/11 23:17:27 [Task task-1775929639869558760] ✓ Collected 1 output file(s)
+2026/04/11 23:17:27 Task task-1775929639869558760 removed from monitoring (total tasks: 1)
+2026/04/11 23:17:27 [Task task-1775929639869558760] Uploading 1 output file(s) to master...
+2026/04/11 23:17:27 [Task task-1775929639869558760] ✓ Uploaded file: workflow-result.json (252 bytes)
+2026/04/11 23:17:27 [Task task-1775929639869558760] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:17:27 [Task task-1775929639869558760] ✓ Output files uploaded successfully
+2026/04/11 23:17:27 ✓ Task result reported: Task result received and processed
+2026/04/11 23:17:27 [Task task-1775929639870536104] Waiting for completion...
+2026/04/11 23:17:27 [Task task-1775929639870536104] ✓ Completed successfully
+2026/04/11 23:17:27  
+2026/04/11 23:17:27 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:27   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:17:27 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:27   Task ID:           task-1775929639870536104
+2026/04/11 23:17:27   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:27   Command:           /usr/local/bin/workflow mixed --iterations 2000000 --memory-mib 256 --passes 2 --seed 408
+2026/04/11 23:17:27   Exit Code:         0
+2026/04/11 23:17:27 ───────────────────────────────────────────────────────
+2026/04/11 23:17:27   Resources Released:
+2026/04/11 23:17:27     • CPU Cores:     1.60 cores
+2026/04/11 23:17:27     • Memory:        1.00 GB
+2026/04/11 23:17:27 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:27 
+2026/04/11 23:17:27 [Task task-1775929639870536104] ✓ Collected 1 output file(s)
+2026/04/11 23:17:27 Task task-1775929639870536104 removed from monitoring (total tasks: 0)
+2026/04/11 23:17:27 [Task task-1775929639870536104] Uploading 1 output file(s) to master...
+2026/04/11 23:17:27 [Task task-1775929639870536104] ✓ Uploaded file: workflow-result.json (347 bytes)
+2026/04/11 23:17:27 [Task task-1775929639870536104] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:17:27 [Task task-1775929639870536104] ✓ Output files uploaded successfully
+2026/04/11 23:17:27 ✓ Task result reported: Task result received and processed
+2026/04/11 23:17:28 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:28 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:28 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:28 Heartbeat sent: CPU=1.6%, Memory=50.3%, Storage=0.0%, Tasks=0
+2026/04/11 23:17:33 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:33 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:33 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:33 Heartbeat sent: CPU=3.4%, Memory=50.1%, Storage=0.0%, Tasks=0
+2026/04/11 23:17:34 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:17:34 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:17:34 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:17:34 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:34 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:34 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:34 Detected System Resources:
+2026/04/11 23:17:34   CPU:     3.00 cores
+2026/04/11 23:17:34   Memory:  5.00 GB
+2026/04/11 23:17:34   Storage: 80.00 GB
+2026/04/11 23:17:34 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:17:34 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:17:34 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:17:34 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:17:34 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:34 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:34 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:34 Detected System Resources:
+2026/04/11 23:17:34   CPU:     3.00 cores
+2026/04/11 23:17:34   Memory:  5.00 GB
+2026/04/11 23:17:34   Storage: 80.00 GB
+2026/04/11 23:17:34 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:17:38 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:38 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:38 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:38 Heartbeat sent: CPU=1.8%, Memory=49.7%, Storage=0.0%, Tasks=0
+2026/04/11 23:17:43 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:43 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:43 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:43 Heartbeat sent: CPU=1.6%, Memory=49.8%, Storage=0.0%, Tasks=0
+2026/04/11 23:17:43  
+2026/04/11 23:17:43 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:43   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:17:43 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:43   Task ID:           task-1775929660628585579
+2026/04/11 23:17:43   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:43   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:17:43   Target Worker:     opt-worker-large
+2026/04/11 23:17:43 ───────────────────────────────────────────────────────
+2026/04/11 23:17:43   System Requirements:
+2026/04/11 23:17:43     • CPU Cores:     1.20 cores
+2026/04/11 23:17:43     • Memory:        1.20 GB
+2026/04/11 23:17:43     • Storage:       2.00 GB
+2026/04/11 23:17:43 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:43   ✓ Task accepted - Starting execution...
+2026/04/11 23:17:43 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:43 
+2026/04/11 23:17:43 Task task-1775929660628585579 added to monitoring (total tasks: 1)
+2026/04/11 23:17:43 [Task task-1775929660628585579] Starting execution...
+2026/04/11 23:17:43 [Task task-1775929660628585579] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:17:43  
+2026/04/11 23:17:43 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:43   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:17:43 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:43   Task ID:           task-1775929660629584895
+2026/04/11 23:17:43   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:43   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:17:43   Target Worker:     opt-worker-large
+2026/04/11 23:17:43 ───────────────────────────────────────────────────────
+2026/04/11 23:17:43   System Requirements:
+2026/04/11 23:17:43     • CPU Cores:     1.50 cores
+2026/04/11 23:17:43     • Memory:        0.75 GB
+2026/04/11 23:17:43     • Storage:       1.00 GB
+2026/04/11 23:17:43 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:43   ✓ Task accepted - Starting execution...
+2026/04/11 23:17:43 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:43 
+2026/04/11 23:17:43 Task task-1775929660629584895 added to monitoring (total tasks: 2)
+2026/04/11 23:17:43 [Task task-1775929660629584895] Starting execution...
+2026/04/11 23:17:43 [Task task-1775929660629584895] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:17:45 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:17:45 [Task task-1775929660629584895] Creating container with resource limits (CPU: 1.50, Memory: 0.75GB)...
+2026/04/11 23:17:45 [Task task-1775929660629584895] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929660629584895
+2026/04/11 23:17:45 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:17:45 [Task task-1775929660628585579] Creating container with resource limits (CPU: 1.20, Memory: 1.20GB)...
+2026/04/11 23:17:45 [Task task-1775929660628585579] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929660628585579
+2026/04/11 23:17:45 [Task task-1775929660629584895] Starting container: bee66cbdee4a
+2026/04/11 23:17:45 [Task task-1775929660628585579] Starting container: e312a9b55c56
+2026/04/11 23:17:46 [Task task-1775929660628585579] Waiting for completion...
+2026/04/11 23:17:46 [Task task-1775929660628585579] ✓ Completed successfully
+2026/04/11 23:17:46  
+2026/04/11 23:17:46 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:46   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:17:46 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:46   Task ID:           task-1775929660628585579
+2026/04/11 23:17:46   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:46   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:17:46   Exit Code:         0
+2026/04/11 23:17:46 ───────────────────────────────────────────────────────
+2026/04/11 23:17:46   Resources Released:
+2026/04/11 23:17:46     • CPU Cores:     1.20 cores
+2026/04/11 23:17:46     • Memory:        1.20 GB
+2026/04/11 23:17:46 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:46 
+2026/04/11 23:17:46 [Task task-1775929660628585579] ✓ Collected 1 output file(s)
+2026/04/11 23:17:46 Task task-1775929660628585579 removed from monitoring (total tasks: 1)
+2026/04/11 23:17:46 [Task task-1775929660628585579] Uploading 1 output file(s) to master...
+2026/04/11 23:17:46 [Task task-1775929660628585579] ✓ Uploaded file: workflow-result.json (345 bytes)
+2026/04/11 23:17:46 [Task task-1775929660628585579] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:17:46 [Task task-1775929660628585579] ✓ Output files uploaded successfully
+2026/04/11 23:17:46 ✓ Task result reported: Task result received and processed
+2026/04/11 23:17:46 [Task task-1775929660629584895] Waiting for completion...
+2026/04/11 23:17:46 [Task task-1775929660629584895] ✓ Completed successfully
+2026/04/11 23:17:46  
+2026/04/11 23:17:46 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:46   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:17:46 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:46   Task ID:           task-1775929660629584895
+2026/04/11 23:17:46   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:46   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:17:46   Exit Code:         0
+2026/04/11 23:17:46 ───────────────────────────────────────────────────────
+2026/04/11 23:17:46   Resources Released:
+2026/04/11 23:17:46     • CPU Cores:     1.50 cores
+2026/04/11 23:17:46     • Memory:        0.75 GB
+2026/04/11 23:17:46 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:46 
+2026/04/11 23:17:46 [Task task-1775929660629584895] ✓ Collected 1 output file(s)
+2026/04/11 23:17:46 Task task-1775929660629584895 removed from monitoring (total tasks: 0)
+2026/04/11 23:17:46 [Task task-1775929660629584895] Uploading 1 output file(s) to master...
+2026/04/11 23:17:46 [Task task-1775929660629584895] ✓ Uploaded file: workflow-result.json (236 bytes)
+2026/04/11 23:17:46 [Task task-1775929660629584895] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:17:46 [Task task-1775929660629584895] ✓ Output files uploaded successfully
+2026/04/11 23:17:46 ✓ Task result reported: Task result received and processed
+2026/04/11 23:17:48 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:48 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:48 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:48 Heartbeat sent: CPU=1.6%, Memory=51.0%, Storage=0.0%, Tasks=0
+2026/04/11 23:17:48  
+2026/04/11 23:17:48 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:48   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:17:48 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:48   Task ID:           task-1775929660630411529
+2026/04/11 23:17:48   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:48   Command:           /usr/local/bin/workflow mixed --iterations 2000000 --memory-mib 256 --passes 2 --seed 408
+2026/04/11 23:17:48   Target Worker:     opt-worker-large
+2026/04/11 23:17:48 ───────────────────────────────────────────────────────
+2026/04/11 23:17:48   System Requirements:
+2026/04/11 23:17:48     • CPU Cores:     1.60 cores
+2026/04/11 23:17:48     • Memory:        1.00 GB
+2026/04/11 23:17:48     • Storage:       2.00 GB
+2026/04/11 23:17:48 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:48   ✓ Task accepted - Starting execution...
+2026/04/11 23:17:48 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:48 
+2026/04/11 23:17:48 Task task-1775929660630411529 added to monitoring (total tasks: 1)
+2026/04/11 23:17:48 [Task task-1775929660630411529] Starting execution...
+2026/04/11 23:17:48 [Task task-1775929660630411529] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:17:50 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:17:50 [Task task-1775929660630411529] Creating container with resource limits (CPU: 1.60, Memory: 1.00GB)...
+2026/04/11 23:17:50 [Task task-1775929660630411529] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929660630411529
+2026/04/11 23:17:50 [Task task-1775929660630411529] Starting container: 6cc1db6f6b0c
+2026/04/11 23:17:51 [Task task-1775929660630411529] Waiting for completion...
+2026/04/11 23:17:51 [Task task-1775929660630411529] ✓ Completed successfully
+2026/04/11 23:17:51  
+2026/04/11 23:17:51 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:51   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:17:51 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:51   Task ID:           task-1775929660630411529
+2026/04/11 23:17:51   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:51   Command:           /usr/local/bin/workflow mixed --iterations 2000000 --memory-mib 256 --passes 2 --seed 408
+2026/04/11 23:17:51   Exit Code:         0
+2026/04/11 23:17:51 ───────────────────────────────────────────────────────
+2026/04/11 23:17:51   Resources Released:
+2026/04/11 23:17:51     • CPU Cores:     1.60 cores
+2026/04/11 23:17:51     • Memory:        1.00 GB
+2026/04/11 23:17:51 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:51 
+2026/04/11 23:17:51 [Task task-1775929660630411529] ✓ Collected 1 output file(s)
+2026/04/11 23:17:51 Task task-1775929660630411529 removed from monitoring (total tasks: 0)
+2026/04/11 23:17:51 [Task task-1775929660630411529] Uploading 1 output file(s) to master...
+2026/04/11 23:17:51 [Task task-1775929660630411529] ✓ Uploaded file: workflow-result.json (347 bytes)
+2026/04/11 23:17:51 [Task task-1775929660630411529] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:17:51 [Task task-1775929660630411529] ✓ Output files uploaded successfully
+2026/04/11 23:17:51 ✓ Task result reported: Task result received and processed
+2026/04/11 23:17:53 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:53 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:53 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:53 Heartbeat sent: CPU=1.5%, Memory=50.2%, Storage=0.0%, Tasks=0
+2026/04/11 23:17:53  
+2026/04/11 23:17:53 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:53   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:17:53 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:53   Task ID:           task-1775929660631202943
+2026/04/11 23:17:53   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:53   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4800000 --seed 210
+2026/04/11 23:17:53   Target Worker:     opt-worker-large
+2026/04/11 23:17:53 ───────────────────────────────────────────────────────
+2026/04/11 23:17:53   System Requirements:
+2026/04/11 23:17:53     • CPU Cores:     2.00 cores
+2026/04/11 23:17:53     • Memory:        1.25 GB
+2026/04/11 23:17:53     • Storage:       2.00 GB
+2026/04/11 23:17:53 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:53   ✓ Task accepted - Starting execution...
+2026/04/11 23:17:53 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:53 
+2026/04/11 23:17:53 Task task-1775929660631202943 added to monitoring (total tasks: 1)
+2026/04/11 23:17:53 [Task task-1775929660631202943] Starting execution...
+2026/04/11 23:17:53 [Task task-1775929660631202943] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:17:55 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:17:55 [Task task-1775929660631202943] Creating container with resource limits (CPU: 2.00, Memory: 1.25GB)...
+2026/04/11 23:17:55 [Task task-1775929660631202943] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929660631202943
+2026/04/11 23:17:55 [Task task-1775929660631202943] Starting container: 3923fe76379a
+2026/04/11 23:17:56 [Task task-1775929660631202943] Waiting for completion...
+2026/04/11 23:17:56 [Task task-1775929660631202943] ✓ Completed successfully
+2026/04/11 23:17:56  
+2026/04/11 23:17:56 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:56   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:17:56 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:56   Task ID:           task-1775929660631202943
+2026/04/11 23:17:56   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:17:56   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4800000 --seed 210
+2026/04/11 23:17:56   Exit Code:         0
+2026/04/11 23:17:56 ───────────────────────────────────────────────────────
+2026/04/11 23:17:56   Resources Released:
+2026/04/11 23:17:56     • CPU Cores:     2.00 cores
+2026/04/11 23:17:56     • Memory:        1.25 GB
+2026/04/11 23:17:56 ═══════════════════════════════════════════════════════
+2026/04/11 23:17:56 
+2026/04/11 23:17:56 [Task task-1775929660631202943] ✓ Collected 1 output file(s)
+2026/04/11 23:17:56 Task task-1775929660631202943 removed from monitoring (total tasks: 0)
+2026/04/11 23:17:56 [Task task-1775929660631202943] Uploading 1 output file(s) to master...
+2026/04/11 23:17:56 [Task task-1775929660631202943] ✓ Uploaded file: workflow-result.json (235 bytes)
+2026/04/11 23:17:56 [Task task-1775929660631202943] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:17:56 [Task task-1775929660631202943] ✓ Output files uploaded successfully
+2026/04/11 23:17:56 ✓ Task result reported: Task result received and processed
+2026/04/11 23:17:58 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:17:58 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:17:58 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:17:58 Heartbeat sent: CPU=1.5%, Memory=50.1%, Storage=0.0%, Tasks=0
+2026/04/11 23:18:04 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:18:04 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:18:04 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:18:04 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:04 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:04 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:04 Detected System Resources:
+2026/04/11 23:18:04   CPU:     3.00 cores
+2026/04/11 23:18:04   Memory:  5.00 GB
+2026/04/11 23:18:04   Storage: 80.00 GB
+2026/04/11 23:18:04 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:18:04 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:18:04 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:18:04 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:18:04 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:04 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:04 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:04 Detected System Resources:
+2026/04/11 23:18:04   CPU:     3.00 cores
+2026/04/11 23:18:04   Memory:  5.00 GB
+2026/04/11 23:18:04   Storage: 80.00 GB
+2026/04/11 23:18:04 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:18:06 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:06 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:06 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:06 Heartbeat sent: CPU=2.4%, Memory=49.9%, Storage=0.0%, Tasks=0
+2026/04/11 23:18:08 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:08 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:08 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:08 Heartbeat sent: CPU=2.9%, Memory=49.9%, Storage=0.0%, Tasks=0
+2026/04/11 23:18:08  
+2026/04/11 23:18:08 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:08   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:18:08 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:08   Task ID:           task-1775929688391772131
+2026/04/11 23:18:08   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:08   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:18:08   Target Worker:     opt-worker-large
+2026/04/11 23:18:08 ───────────────────────────────────────────────────────
+2026/04/11 23:18:08   System Requirements:
+2026/04/11 23:18:08     • CPU Cores:     1.20 cores
+2026/04/11 23:18:08     • Memory:        1.20 GB
+2026/04/11 23:18:08     • Storage:       2.00 GB
+2026/04/11 23:18:08 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:08   ✓ Task accepted - Starting execution...
+2026/04/11 23:18:08 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:08 
+2026/04/11 23:18:08 Task task-1775929688391772131 added to monitoring (total tasks: 1)
+2026/04/11 23:18:08 [Task task-1775929688391772131] Starting execution...
+2026/04/11 23:18:08 [Task task-1775929688391772131] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:18:08  
+2026/04/11 23:18:08 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:08   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:18:08 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:08   Task ID:           task-1775929688392753817
+2026/04/11 23:18:08   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:08   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:18:08   Target Worker:     opt-worker-large
+2026/04/11 23:18:08 ───────────────────────────────────────────────────────
+2026/04/11 23:18:08   System Requirements:
+2026/04/11 23:18:08     • CPU Cores:     1.50 cores
+2026/04/11 23:18:08     • Memory:        0.75 GB
+2026/04/11 23:18:08     • Storage:       1.00 GB
+2026/04/11 23:18:08 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:08   ✓ Task accepted - Starting execution...
+2026/04/11 23:18:08 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:08 
+2026/04/11 23:18:08 Task task-1775929688392753817 added to monitoring (total tasks: 2)
+2026/04/11 23:18:08 [Task task-1775929688392753817] Starting execution...
+2026/04/11 23:18:08 [Task task-1775929688392753817] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:18:10 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:18:10 [Task task-1775929688391772131] Creating container with resource limits (CPU: 1.20, Memory: 1.20GB)...
+2026/04/11 23:18:10 [Task task-1775929688391772131] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929688391772131
+2026/04/11 23:18:10 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:18:10 [Task task-1775929688392753817] Creating container with resource limits (CPU: 1.50, Memory: 0.75GB)...
+2026/04/11 23:18:10 [Task task-1775929688392753817] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929688392753817
+2026/04/11 23:18:10 [Task task-1775929688391772131] Starting container: 5d0370fc2ece
+2026/04/11 23:18:10 [Task task-1775929688392753817] Starting container: 50149dcb3b66
+2026/04/11 23:18:11 [Task task-1775929688391772131] Waiting for completion...
+2026/04/11 23:18:11 [Task task-1775929688391772131] ✓ Completed successfully
+2026/04/11 23:18:11  
+2026/04/11 23:18:11 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:11   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:18:11 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:11   Task ID:           task-1775929688391772131
+2026/04/11 23:18:11   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:11   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:18:11   Exit Code:         0
+2026/04/11 23:18:11 ───────────────────────────────────────────────────────
+2026/04/11 23:18:11   Resources Released:
+2026/04/11 23:18:11     • CPU Cores:     1.20 cores
+2026/04/11 23:18:11     • Memory:        1.20 GB
+2026/04/11 23:18:11 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:11 
+2026/04/11 23:18:11 [Task task-1775929688391772131] ✓ Collected 1 output file(s)
+2026/04/11 23:18:11 Task task-1775929688391772131 removed from monitoring (total tasks: 1)
+2026/04/11 23:18:11 [Task task-1775929688391772131] Uploading 1 output file(s) to master...
+2026/04/11 23:18:11 [Task task-1775929688391772131] ✓ Uploaded file: workflow-result.json (345 bytes)
+2026/04/11 23:18:11 [Task task-1775929688391772131] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:18:11 [Task task-1775929688391772131] ✓ Output files uploaded successfully
+2026/04/11 23:18:11 ✓ Task result reported: Task result received and processed
+2026/04/11 23:18:11 [Task task-1775929688392753817] Waiting for completion...
+2026/04/11 23:18:11 [Task task-1775929688392753817] ✓ Completed successfully
+2026/04/11 23:18:11  
+2026/04/11 23:18:11 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:11   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:18:11 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:11   Task ID:           task-1775929688392753817
+2026/04/11 23:18:11   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:11   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:18:11   Exit Code:         0
+2026/04/11 23:18:11 ───────────────────────────────────────────────────────
+2026/04/11 23:18:11   Resources Released:
+2026/04/11 23:18:11     • CPU Cores:     1.50 cores
+2026/04/11 23:18:11     • Memory:        0.75 GB
+2026/04/11 23:18:11 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:11 
+2026/04/11 23:18:11 [Task task-1775929688392753817] ✓ Collected 1 output file(s)
+2026/04/11 23:18:11 Task task-1775929688392753817 removed from monitoring (total tasks: 0)
+2026/04/11 23:18:11 [Task task-1775929688392753817] Uploading 1 output file(s) to master...
+2026/04/11 23:18:11 [Task task-1775929688392753817] ✓ Uploaded file: workflow-result.json (235 bytes)
+2026/04/11 23:18:11 [Task task-1775929688392753817] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:18:11 [Task task-1775929688392753817] ✓ Output files uploaded successfully
+2026/04/11 23:18:11 ✓ Task result reported: Task result received and processed
+2026/04/11 23:18:13 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:13 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:13 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:13 Heartbeat sent: CPU=2.5%, Memory=50.2%, Storage=0.0%, Tasks=0
+2026/04/11 23:18:13  
+2026/04/11 23:18:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:13   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:18:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:13   Task ID:           task-1775929688393743021
+2026/04/11 23:18:13   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:13   Command:           /usr/local/bin/workflow mixed --iterations 2000000 --memory-mib 256 --passes 2 --seed 408
+2026/04/11 23:18:13   Target Worker:     opt-worker-large
+2026/04/11 23:18:13 ───────────────────────────────────────────────────────
+2026/04/11 23:18:13   System Requirements:
+2026/04/11 23:18:13     • CPU Cores:     1.60 cores
+2026/04/11 23:18:13     • Memory:        1.00 GB
+2026/04/11 23:18:13     • Storage:       2.00 GB
+2026/04/11 23:18:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:13   ✓ Task accepted - Starting execution...
+2026/04/11 23:18:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:13 
+2026/04/11 23:18:13 Task task-1775929688393743021 added to monitoring (total tasks: 1)
+2026/04/11 23:18:13 [Task task-1775929688393743021] Starting execution...
+2026/04/11 23:18:13 [Task task-1775929688393743021] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:18:13  
+2026/04/11 23:18:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:13   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:18:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:13   Task ID:           task-1775929688394215807
+2026/04/11 23:18:13   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:13   Command:           /usr/local/bin/workflow cpu-light --iterations 610000 --seed 109
+2026/04/11 23:18:13   Target Worker:     opt-worker-large
+2026/04/11 23:18:13 ───────────────────────────────────────────────────────
+2026/04/11 23:18:13   System Requirements:
+2026/04/11 23:18:13     • CPU Cores:     0.50 cores
+2026/04/11 23:18:13     • Memory:        0.25 GB
+2026/04/11 23:18:13     • Storage:       1.00 GB
+2026/04/11 23:18:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:13   ✓ Task accepted - Starting execution...
+2026/04/11 23:18:13 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:13 
+2026/04/11 23:18:13 Task task-1775929688394215807 added to monitoring (total tasks: 2)
+2026/04/11 23:18:13 [Task task-1775929688394215807] Starting execution...
+2026/04/11 23:18:13 [Task task-1775929688394215807] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:18:15 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:18:15 [Task task-1775929688393743021] Creating container with resource limits (CPU: 1.60, Memory: 1.00GB)...
+2026/04/11 23:18:15 [Task task-1775929688393743021] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929688393743021
+2026/04/11 23:18:15 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:18:15 [Task task-1775929688394215807] Creating container with resource limits (CPU: 0.50, Memory: 0.25GB)...
+2026/04/11 23:18:15 [Task task-1775929688394215807] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929688394215807
+2026/04/11 23:18:15 [Task task-1775929688394215807] Starting container: 9df61474d262
+2026/04/11 23:18:15 [Task task-1775929688393743021] Starting container: e47b5bab8130
+2026/04/11 23:18:16 [Task task-1775929688394215807] Waiting for completion...
+2026/04/11 23:18:16 [Task task-1775929688394215807] ✓ Completed successfully
+2026/04/11 23:18:16  
+2026/04/11 23:18:16 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:16   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:18:16 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:16   Task ID:           task-1775929688394215807
+2026/04/11 23:18:16   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:16   Command:           /usr/local/bin/workflow cpu-light --iterations 610000 --seed 109
+2026/04/11 23:18:16   Exit Code:         0
+2026/04/11 23:18:16 ───────────────────────────────────────────────────────
+2026/04/11 23:18:16   Resources Released:
+2026/04/11 23:18:16     • CPU Cores:     0.50 cores
+2026/04/11 23:18:16     • Memory:        0.25 GB
+2026/04/11 23:18:16 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:16 
+2026/04/11 23:18:16 [Task task-1775929688394215807] ✓ Collected 1 output file(s)
+2026/04/11 23:18:16 Task task-1775929688394215807 removed from monitoring (total tasks: 1)
+2026/04/11 23:18:16 [Task task-1775929688394215807] Uploading 1 output file(s) to master...
+2026/04/11 23:18:16 [Task task-1775929688394215807] ✓ Uploaded file: workflow-result.json (234 bytes)
+2026/04/11 23:18:16 [Task task-1775929688394215807] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:18:16 [Task task-1775929688394215807] ✓ Output files uploaded successfully
+2026/04/11 23:18:16 ✓ Task result reported: Task result received and processed
+2026/04/11 23:18:16 [Task task-1775929688393743021] Waiting for completion...
+2026/04/11 23:18:16 [Task task-1775929688393743021] ✓ Completed successfully
+2026/04/11 23:18:16  
+2026/04/11 23:18:16 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:16   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:18:16 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:16   Task ID:           task-1775929688393743021
+2026/04/11 23:18:16   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:16   Command:           /usr/local/bin/workflow mixed --iterations 2000000 --memory-mib 256 --passes 2 --seed 408
+2026/04/11 23:18:16   Exit Code:         0
+2026/04/11 23:18:16 ───────────────────────────────────────────────────────
+2026/04/11 23:18:16   Resources Released:
+2026/04/11 23:18:16     • CPU Cores:     1.60 cores
+2026/04/11 23:18:16     • Memory:        1.00 GB
+2026/04/11 23:18:16 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:16 
+2026/04/11 23:18:16 [Task task-1775929688393743021] ✓ Collected 1 output file(s)
+2026/04/11 23:18:16 Task task-1775929688393743021 removed from monitoring (total tasks: 0)
+2026/04/11 23:18:16 [Task task-1775929688393743021] Uploading 1 output file(s) to master...
+2026/04/11 23:18:16 [Task task-1775929688393743021] ✓ Uploaded file: workflow-result.json (346 bytes)
+2026/04/11 23:18:16 [Task task-1775929688393743021] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:18:16 [Task task-1775929688393743021] ✓ Output files uploaded successfully
+2026/04/11 23:18:16 ✓ Task result reported: Task result received and processed
+2026/04/11 23:18:18 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:18 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:18 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:18 Heartbeat sent: CPU=2.3%, Memory=50.2%, Storage=0.0%, Tasks=0
+2026/04/11 23:18:28 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:18:28 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:18:28 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:18:28 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:28 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:28 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:28 Detected System Resources:
+2026/04/11 23:18:28   CPU:     3.00 cores
+2026/04/11 23:18:28   Memory:  5.00 GB
+2026/04/11 23:18:28   Storage: 80.00 GB
+2026/04/11 23:18:28 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:18:28 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:18:28 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:18:28 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:28 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:28 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:28 Detected System Resources:
+2026/04/11 23:18:28   CPU:     3.00 cores
+2026/04/11 23:18:28   Memory:  5.00 GB
+2026/04/11 23:18:28   Storage: 80.00 GB
+2026/04/11 23:18:28 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:18:28 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:18:28 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:28 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:28 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:28 Heartbeat sent: CPU=2.9%, Memory=49.8%, Storage=0.0%, Tasks=0
+2026/04/11 23:18:29 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:29 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:29 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:29 Heartbeat sent: CPU=1.5%, Memory=49.8%, Storage=0.0%, Tasks=0
+2026/04/11 23:18:33 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:33 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:33 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:33 Heartbeat sent: CPU=2.5%, Memory=49.7%, Storage=0.0%, Tasks=0
+2026/04/11 23:18:37  
+2026/04/11 23:18:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:37   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:18:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:37   Task ID:           task-1775929714174475176
+2026/04/11 23:18:37   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:37   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:18:37   Target Worker:     opt-worker-large
+2026/04/11 23:18:37 ───────────────────────────────────────────────────────
+2026/04/11 23:18:37   System Requirements:
+2026/04/11 23:18:37     • CPU Cores:     1.20 cores
+2026/04/11 23:18:37     • Memory:        1.20 GB
+2026/04/11 23:18:37     • Storage:       2.00 GB
+2026/04/11 23:18:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:37   ✓ Task accepted - Starting execution...
+2026/04/11 23:18:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:37 
+2026/04/11 23:18:37 Task task-1775929714174475176 added to monitoring (total tasks: 1)
+2026/04/11 23:18:37 [Task task-1775929714174475176] Starting execution...
+2026/04/11 23:18:37 [Task task-1775929714174475176] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:18:37  
+2026/04/11 23:18:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:37   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:18:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:37   Task ID:           task-1775929714175432618
+2026/04/11 23:18:37   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:37   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:18:37   Target Worker:     opt-worker-large
+2026/04/11 23:18:37 ───────────────────────────────────────────────────────
+2026/04/11 23:18:37   System Requirements:
+2026/04/11 23:18:37     • CPU Cores:     1.50 cores
+2026/04/11 23:18:37     • Memory:        0.75 GB
+2026/04/11 23:18:37     • Storage:       1.00 GB
+2026/04/11 23:18:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:37   ✓ Task accepted - Starting execution...
+2026/04/11 23:18:37 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:37 
+2026/04/11 23:18:37 Task task-1775929714175432618 added to monitoring (total tasks: 2)
+2026/04/11 23:18:37 [Task task-1775929714175432618] Starting execution...
+2026/04/11 23:18:37 [Task task-1775929714175432618] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:18:38 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:38 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:38 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:38 Heartbeat sent: CPU=2.5%, Memory=49.8%, Storage=0.0%, Tasks=2
+2026/04/11 23:18:39 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:18:39 [Task task-1775929714174475176] Creating container with resource limits (CPU: 1.20, Memory: 1.20GB)...
+2026/04/11 23:18:39 [Task task-1775929714174475176] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929714174475176
+2026/04/11 23:18:39 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:18:39 [Task task-1775929714175432618] Creating container with resource limits (CPU: 1.50, Memory: 0.75GB)...
+2026/04/11 23:18:39 [Task task-1775929714175432618] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929714175432618
+2026/04/11 23:18:39 [Task task-1775929714174475176] Starting container: 5a61d473f976
+2026/04/11 23:18:39 [Task task-1775929714175432618] Starting container: 828cd55773a9
+2026/04/11 23:18:40 [Task task-1775929714174475176] Waiting for completion...
+2026/04/11 23:18:40 [Task task-1775929714174475176] ✓ Completed successfully
+2026/04/11 23:18:40  
+2026/04/11 23:18:40 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:40   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:18:40 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:40   Task ID:           task-1775929714174475176
+2026/04/11 23:18:40   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:40   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:18:40   Exit Code:         0
+2026/04/11 23:18:40 ───────────────────────────────────────────────────────
+2026/04/11 23:18:40   Resources Released:
+2026/04/11 23:18:40     • CPU Cores:     1.20 cores
+2026/04/11 23:18:40     • Memory:        1.20 GB
+2026/04/11 23:18:40 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:40 
+2026/04/11 23:18:40 [Task task-1775929714174475176] ✓ Collected 1 output file(s)
+2026/04/11 23:18:40 Task task-1775929714174475176 removed from monitoring (total tasks: 1)
+2026/04/11 23:18:40 [Task task-1775929714174475176] Uploading 1 output file(s) to master...
+2026/04/11 23:18:40 [Task task-1775929714174475176] ✓ Uploaded file: workflow-result.json (345 bytes)
+2026/04/11 23:18:40 [Task task-1775929714174475176] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:18:40 [Task task-1775929714174475176] ✓ Output files uploaded successfully
+2026/04/11 23:18:40 ✓ Task result reported: Task result received and processed
+2026/04/11 23:18:40 [Task task-1775929714175432618] Waiting for completion...
+2026/04/11 23:18:40 [Task task-1775929714175432618] ✓ Completed successfully
+2026/04/11 23:18:40  
+2026/04/11 23:18:40 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:40   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:18:40 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:40   Task ID:           task-1775929714175432618
+2026/04/11 23:18:40   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:40   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:18:40   Exit Code:         0
+2026/04/11 23:18:40 ───────────────────────────────────────────────────────
+2026/04/11 23:18:40   Resources Released:
+2026/04/11 23:18:40     • CPU Cores:     1.50 cores
+2026/04/11 23:18:40     • Memory:        0.75 GB
+2026/04/11 23:18:40 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:40 
+2026/04/11 23:18:40 [Task task-1775929714175432618] ✓ Collected 1 output file(s)
+2026/04/11 23:18:41 Task task-1775929714175432618 removed from monitoring (total tasks: 0)
+2026/04/11 23:18:41 [Task task-1775929714175432618] Uploading 1 output file(s) to master...
+2026/04/11 23:18:41 [Task task-1775929714175432618] ✓ Uploaded file: workflow-result.json (236 bytes)
+2026/04/11 23:18:41 [Task task-1775929714175432618] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:18:41 [Task task-1775929714175432618] ✓ Output files uploaded successfully
+2026/04/11 23:18:41 ✓ Task result reported: Task result received and processed
+2026/04/11 23:18:42  
+2026/04/11 23:18:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:42   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:18:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:42   Task ID:           task-1775929714176785129
+2026/04/11 23:18:42   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:42   Command:           /usr/local/bin/workflow cpu-light --iterations 610000 --seed 109
+2026/04/11 23:18:42   Target Worker:     opt-worker-large
+2026/04/11 23:18:42 ───────────────────────────────────────────────────────
+2026/04/11 23:18:42   System Requirements:
+2026/04/11 23:18:42     • CPU Cores:     0.50 cores
+2026/04/11 23:18:42     • Memory:        0.25 GB
+2026/04/11 23:18:42     • Storage:       1.00 GB
+2026/04/11 23:18:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:42   ✓ Task accepted - Starting execution...
+2026/04/11 23:18:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:42 
+2026/04/11 23:18:42 Task task-1775929714176785129 added to monitoring (total tasks: 1)
+2026/04/11 23:18:42 [Task task-1775929714176785129] Starting execution...
+2026/04/11 23:18:42 [Task task-1775929714176785129] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:18:42  
+2026/04/11 23:18:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:42   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:18:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:42   Task ID:           task-1775929714177330311
+2026/04/11 23:18:42   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:42   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4800000 --seed 210
+2026/04/11 23:18:42   Target Worker:     opt-worker-large
+2026/04/11 23:18:42 ───────────────────────────────────────────────────────
+2026/04/11 23:18:42   System Requirements:
+2026/04/11 23:18:42     • CPU Cores:     2.00 cores
+2026/04/11 23:18:42     • Memory:        1.25 GB
+2026/04/11 23:18:42     • Storage:       2.00 GB
+2026/04/11 23:18:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:42   ✓ Task accepted - Starting execution...
+2026/04/11 23:18:42 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:42 
+2026/04/11 23:18:42 Task task-1775929714177330311 added to monitoring (total tasks: 2)
+2026/04/11 23:18:42 [Task task-1775929714177330311] Starting execution...
+2026/04/11 23:18:42 [Task task-1775929714177330311] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:18:43 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:43 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:43 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:43 Heartbeat sent: CPU=2.3%, Memory=50.1%, Storage=0.0%, Tasks=2
+2026/04/11 23:18:44 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:18:44 [Task task-1775929714177330311] Creating container with resource limits (CPU: 2.00, Memory: 1.25GB)...
+2026/04/11 23:18:44 [Task task-1775929714177330311] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929714177330311
+2026/04/11 23:18:44 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:18:44 [Task task-1775929714176785129] Creating container with resource limits (CPU: 0.50, Memory: 0.25GB)...
+2026/04/11 23:18:44 [Task task-1775929714176785129] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929714176785129
+2026/04/11 23:18:44 [Task task-1775929714177330311] Starting container: 21f394f23803
+2026/04/11 23:18:44 [Task task-1775929714176785129] Starting container: 977bcb815f46
+2026/04/11 23:18:44 [Task task-1775929714176785129] Waiting for completion...
+2026/04/11 23:18:44 [Task task-1775929714176785129] ✓ Completed successfully
+2026/04/11 23:18:44  
+2026/04/11 23:18:44 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:44   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:18:44 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:44   Task ID:           task-1775929714176785129
+2026/04/11 23:18:44   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:44   Command:           /usr/local/bin/workflow cpu-light --iterations 610000 --seed 109
+2026/04/11 23:18:44   Exit Code:         0
+2026/04/11 23:18:44 ───────────────────────────────────────────────────────
+2026/04/11 23:18:44   Resources Released:
+2026/04/11 23:18:44     • CPU Cores:     0.50 cores
+2026/04/11 23:18:44     • Memory:        0.25 GB
+2026/04/11 23:18:44 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:44 
+2026/04/11 23:18:44 [Task task-1775929714176785129] ✓ Collected 1 output file(s)
+2026/04/11 23:18:44 Task task-1775929714176785129 removed from monitoring (total tasks: 1)
+2026/04/11 23:18:44 [Task task-1775929714176785129] Uploading 1 output file(s) to master...
+2026/04/11 23:18:44 [Task task-1775929714176785129] ✓ Uploaded file: workflow-result.json (235 bytes)
+2026/04/11 23:18:44 [Task task-1775929714176785129] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:18:44 [Task task-1775929714176785129] ✓ Output files uploaded successfully
+2026/04/11 23:18:44 ✓ Task result reported: Task result received and processed
+2026/04/11 23:18:45 [Task task-1775929714177330311] Waiting for completion...
+2026/04/11 23:18:45 [Task task-1775929714177330311] ✓ Completed successfully
+2026/04/11 23:18:45  
+2026/04/11 23:18:45 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:45   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:18:45 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:45   Task ID:           task-1775929714177330311
+2026/04/11 23:18:45   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:45   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4800000 --seed 210
+2026/04/11 23:18:45   Exit Code:         0
+2026/04/11 23:18:45 ───────────────────────────────────────────────────────
+2026/04/11 23:18:45   Resources Released:
+2026/04/11 23:18:45     • CPU Cores:     2.00 cores
+2026/04/11 23:18:45     • Memory:        1.25 GB
+2026/04/11 23:18:45 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:45 
+2026/04/11 23:18:45 [Task task-1775929714177330311] ✓ Collected 1 output file(s)
+2026/04/11 23:18:45 Task task-1775929714177330311 removed from monitoring (total tasks: 0)
+2026/04/11 23:18:45 [Task task-1775929714177330311] Uploading 1 output file(s) to master...
+2026/04/11 23:18:45 [Task task-1775929714177330311] ✓ Uploaded file: workflow-result.json (234 bytes)
+2026/04/11 23:18:45 [Task task-1775929714177330311] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:18:45 [Task task-1775929714177330311] ✓ Output files uploaded successfully
+2026/04/11 23:18:45 ✓ Task result reported: Task result received and processed
+2026/04/11 23:18:46 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:18:46 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:18:46 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:18:46 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:46 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:46 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:46 Detected System Resources:
+2026/04/11 23:18:46   CPU:     3.00 cores
+2026/04/11 23:18:46   Memory:  5.00 GB
+2026/04/11 23:18:46   Storage: 80.00 GB
+2026/04/11 23:18:46 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:18:46 Master registration request from: master-1 (10.237.185.232:51051)
+2026/04/11 23:18:46 Updated master address to: 10.237.185.232:51051
+2026/04/11 23:18:46 Registering worker opt-worker-large with master at 10.237.185.232:51051
+2026/04/11 23:18:46 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:46 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:46 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:46 Detected System Resources:
+2026/04/11 23:18:46   CPU:     3.00 cores
+2026/04/11 23:18:46   Memory:  5.00 GB
+2026/04/11 23:18:46   Storage: 80.00 GB
+2026/04/11 23:18:46 ✓ Successfully registered with master: Worker registered successfully
+2026/04/11 23:18:48 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:48 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:48 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:48 Heartbeat sent: CPU=2.3%, Memory=49.8%, Storage=0.0%, Tasks=0
+2026/04/11 23:18:51  
+2026/04/11 23:18:51 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:51   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:18:51 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:51   Task ID:           task-1775929728911038918
+2026/04/11 23:18:51   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:51   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:18:51   Target Worker:     opt-worker-large
+2026/04/11 23:18:51 ───────────────────────────────────────────────────────
+2026/04/11 23:18:51   System Requirements:
+2026/04/11 23:18:51     • CPU Cores:     1.20 cores
+2026/04/11 23:18:51     • Memory:        1.20 GB
+2026/04/11 23:18:51     • Storage:       2.00 GB
+2026/04/11 23:18:51 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:51   ✓ Task accepted - Starting execution...
+2026/04/11 23:18:51 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:51 
+2026/04/11 23:18:51 Task task-1775929728911038918 added to monitoring (total tasks: 1)
+2026/04/11 23:18:51 [Task task-1775929728911038918] Starting execution...
+2026/04/11 23:18:51 [Task task-1775929728911038918] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:18:51  
+2026/04/11 23:18:51 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:51   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:18:51 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:51   Task ID:           task-1775929728911971605
+2026/04/11 23:18:51   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:51   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:18:51   Target Worker:     opt-worker-large
+2026/04/11 23:18:51 ───────────────────────────────────────────────────────
+2026/04/11 23:18:51   System Requirements:
+2026/04/11 23:18:51     • CPU Cores:     1.50 cores
+2026/04/11 23:18:51     • Memory:        0.75 GB
+2026/04/11 23:18:51     • Storage:       1.00 GB
+2026/04/11 23:18:51 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:51   ✓ Task accepted - Starting execution...
+2026/04/11 23:18:51 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:51 
+2026/04/11 23:18:51 Task task-1775929728911971605 added to monitoring (total tasks: 2)
+2026/04/11 23:18:51 [Task task-1775929728911971605] Starting execution...
+2026/04/11 23:18:51 [Task task-1775929728911971605] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:18:52 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:18:52 [Task task-1775929728911038918] Creating container with resource limits (CPU: 1.20, Memory: 1.20GB)...
+2026/04/11 23:18:52 [Task task-1775929728911038918] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929728911038918
+2026/04/11 23:18:52 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:18:52 [Task task-1775929728911971605] Creating container with resource limits (CPU: 1.50, Memory: 0.75GB)...
+2026/04/11 23:18:52 [Task task-1775929728911971605] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929728911971605
+2026/04/11 23:18:52 [Task task-1775929728911038918] Starting container: 609e59adf0f8
+2026/04/11 23:18:52 [Task task-1775929728911971605] Starting container: 064814c2e73c
+2026/04/11 23:18:53 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:53 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:53 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:53 Heartbeat sent: CPU=19.1%, Memory=52.3%, Storage=0.0%, Tasks=2
+2026/04/11 23:18:53 [Task task-1775929728911038918] Waiting for completion...
+2026/04/11 23:18:53 [Task task-1775929728911038918] ✓ Completed successfully
+2026/04/11 23:18:53  
+2026/04/11 23:18:53 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:53   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:18:53 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:53   Task ID:           task-1775929728911038918
+2026/04/11 23:18:53   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:53   Command:           /usr/local/bin/workflow mixed --iterations 1700000 --memory-mib 192 --passes 2 --seed 404
+2026/04/11 23:18:53   Exit Code:         0
+2026/04/11 23:18:53 ───────────────────────────────────────────────────────
+2026/04/11 23:18:53   Resources Released:
+2026/04/11 23:18:53     • CPU Cores:     1.20 cores
+2026/04/11 23:18:53     • Memory:        1.20 GB
+2026/04/11 23:18:53 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:53 
+2026/04/11 23:18:53 [Task task-1775929728911038918] ✓ Collected 1 output file(s)
+2026/04/11 23:18:53 Task task-1775929728911038918 removed from monitoring (total tasks: 1)
+2026/04/11 23:18:53 [Task task-1775929728911038918] Uploading 1 output file(s) to master...
+2026/04/11 23:18:53 [Task task-1775929728911038918] ✓ Uploaded file: workflow-result.json (345 bytes)
+2026/04/11 23:18:53 [Task task-1775929728911038918] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:18:53 [Task task-1775929728911038918] ✓ Output files uploaded successfully
+2026/04/11 23:18:53 ✓ Task result reported: Task result received and processed
+2026/04/11 23:18:54 [Task task-1775929728911971605] Waiting for completion...
+2026/04/11 23:18:54 [Task task-1775929728911971605] ✓ Completed successfully
+2026/04/11 23:18:54  
+2026/04/11 23:18:54 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:54   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:18:54 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:54   Task ID:           task-1775929728911971605
+2026/04/11 23:18:54   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:54   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4200000 --seed 206
+2026/04/11 23:18:54   Exit Code:         0
+2026/04/11 23:18:54 ───────────────────────────────────────────────────────
+2026/04/11 23:18:54   Resources Released:
+2026/04/11 23:18:54     • CPU Cores:     1.50 cores
+2026/04/11 23:18:54     • Memory:        0.75 GB
+2026/04/11 23:18:54 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:54 
+2026/04/11 23:18:54 [Task task-1775929728911971605] ✓ Collected 1 output file(s)
+2026/04/11 23:18:54 Task task-1775929728911971605 removed from monitoring (total tasks: 0)
+2026/04/11 23:18:54 [Task task-1775929728911971605] Uploading 1 output file(s) to master...
+2026/04/11 23:18:54 [Task task-1775929728911971605] ✓ Uploaded file: workflow-result.json (236 bytes)
+2026/04/11 23:18:54 [Task task-1775929728911971605] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:18:54 [Task task-1775929728911971605] ✓ Output files uploaded successfully
+2026/04/11 23:18:54 ✓ Task result reported: Task result received and processed
+2026/04/11 23:18:56  
+2026/04/11 23:18:56 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:56   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:18:56 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:56   Task ID:           task-1775929728912382484
+2026/04/11 23:18:56   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:56   Command:           /usr/local/bin/workflow memory-heavy --memory-mib 576 --passes 3 --seed 307
+2026/04/11 23:18:56   Target Worker:     opt-worker-large
+2026/04/11 23:18:56 ───────────────────────────────────────────────────────
+2026/04/11 23:18:56   System Requirements:
+2026/04/11 23:18:56     • CPU Cores:     0.80 cores
+2026/04/11 23:18:56     • Memory:        1.50 GB
+2026/04/11 23:18:56     • Storage:       3.00 GB
+2026/04/11 23:18:56 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:56   ✓ Task accepted - Starting execution...
+2026/04/11 23:18:56 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:56 
+2026/04/11 23:18:56 Task task-1775929728912382484 added to monitoring (total tasks: 1)
+2026/04/11 23:18:56 [Task task-1775929728912382484] Starting execution...
+2026/04/11 23:18:56 [Task task-1775929728912382484] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:18:56  
+2026/04/11 23:18:56 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:56   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:18:56 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:56   Task ID:           task-1775929728912789846
+2026/04/11 23:18:56   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:56   Command:           /usr/local/bin/workflow mixed --iterations 2000000 --memory-mib 256 --passes 2 --seed 408
+2026/04/11 23:18:56   Target Worker:     opt-worker-large
+2026/04/11 23:18:56 ───────────────────────────────────────────────────────
+2026/04/11 23:18:56   System Requirements:
+2026/04/11 23:18:56     • CPU Cores:     1.60 cores
+2026/04/11 23:18:56     • Memory:        1.00 GB
+2026/04/11 23:18:56     • Storage:       2.00 GB
+2026/04/11 23:18:56 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:56   ✓ Task accepted - Starting execution...
+2026/04/11 23:18:56 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:56 
+2026/04/11 23:18:56 Task task-1775929728912789846 added to monitoring (total tasks: 2)
+2026/04/11 23:18:56 [Task task-1775929728912789846] Starting execution...
+2026/04/11 23:18:56 [Task task-1775929728912789846] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:18:57 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:18:57 [Task task-1775929728912382484] Creating container with resource limits (CPU: 0.80, Memory: 1.50GB)...
+2026/04/11 23:18:57 [Task task-1775929728912382484] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929728912382484
+2026/04/11 23:18:57 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:18:57 [Task task-1775929728912789846] Creating container with resource limits (CPU: 1.60, Memory: 1.00GB)...
+2026/04/11 23:18:57 [Task task-1775929728912789846] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929728912789846
+2026/04/11 23:18:57 [Task task-1775929728912382484] Starting container: 44ed89fa2120
+2026/04/11 23:18:57 [Task task-1775929728912789846] Starting container: 3b04fb442885
+2026/04/11 23:18:58 [Task task-1775929728912382484] Waiting for completion...
+2026/04/11 23:18:58 [Task task-1775929728912382484] ✓ Completed successfully
+2026/04/11 23:18:58  
+2026/04/11 23:18:58 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:58   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:18:58 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:58   Task ID:           task-1775929728912382484
+2026/04/11 23:18:58   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:58   Command:           /usr/local/bin/workflow memory-heavy --memory-mib 576 --passes 3 --seed 307
+2026/04/11 23:18:58   Exit Code:         0
+2026/04/11 23:18:58 ───────────────────────────────────────────────────────
+2026/04/11 23:18:58   Resources Released:
+2026/04/11 23:18:58     • CPU Cores:     0.80 cores
+2026/04/11 23:18:58     • Memory:        1.50 GB
+2026/04/11 23:18:58 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:58 
+2026/04/11 23:18:58 [Task task-1775929728912382484] ✓ Collected 1 output file(s)
+2026/04/11 23:18:58 Task task-1775929728912382484 removed from monitoring (total tasks: 1)
+2026/04/11 23:18:58 [Task task-1775929728912382484] Uploading 1 output file(s) to master...
+2026/04/11 23:18:58 [Task task-1775929728912382484] ✓ Uploaded file: workflow-result.json (252 bytes)
+2026/04/11 23:18:58 [Task task-1775929728912382484] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:18:58 [Task task-1775929728912382484] ✓ Output files uploaded successfully
+2026/04/11 23:18:58 ✓ Task result reported: Task result received and processed
+2026/04/11 23:18:58 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:18:58 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:18:58 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:18:58 Heartbeat sent: CPU=10.9%, Memory=50.1%, Storage=0.0%, Tasks=1
+2026/04/11 23:18:58 [Task task-1775929728912789846] Waiting for completion...
+2026/04/11 23:18:58 [Task task-1775929728912789846] ✓ Completed successfully
+2026/04/11 23:18:58  
+2026/04/11 23:18:58 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:58   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:18:58 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:58   Task ID:           task-1775929728912789846
+2026/04/11 23:18:58   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:18:58   Command:           /usr/local/bin/workflow mixed --iterations 2000000 --memory-mib 256 --passes 2 --seed 408
+2026/04/11 23:18:58   Exit Code:         0
+2026/04/11 23:18:58 ───────────────────────────────────────────────────────
+2026/04/11 23:18:58   Resources Released:
+2026/04/11 23:18:58     • CPU Cores:     1.60 cores
+2026/04/11 23:18:58     • Memory:        1.00 GB
+2026/04/11 23:18:58 ═══════════════════════════════════════════════════════
+2026/04/11 23:18:58 
+2026/04/11 23:18:58 [Task task-1775929728912789846] ✓ Collected 1 output file(s)
+2026/04/11 23:18:58 Task task-1775929728912789846 removed from monitoring (total tasks: 0)
+2026/04/11 23:18:58 [Task task-1775929728912789846] Uploading 1 output file(s) to master...
+2026/04/11 23:18:58 [Task task-1775929728912789846] ✓ Uploaded file: workflow-result.json (346 bytes)
+2026/04/11 23:18:58 [Task task-1775929728912789846] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:18:58 [Task task-1775929728912789846] ✓ Output files uploaded successfully
+2026/04/11 23:18:58 ✓ Task result reported: Task result received and processed
+2026/04/11 23:19:01  
+2026/04/11 23:19:01 ═══════════════════════════════════════════════════════
+2026/04/11 23:19:01   📥 TASK RECEIVED FROM MASTER
+2026/04/11 23:19:01 ═══════════════════════════════════════════════════════
+2026/04/11 23:19:01   Task ID:           task-1775929728913638009
+2026/04/11 23:19:01   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:19:01   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4800000 --seed 210
+2026/04/11 23:19:01   Target Worker:     opt-worker-large
+2026/04/11 23:19:01 ───────────────────────────────────────────────────────
+2026/04/11 23:19:01   System Requirements:
+2026/04/11 23:19:01     • CPU Cores:     2.00 cores
+2026/04/11 23:19:01     • Memory:        1.25 GB
+2026/04/11 23:19:01     • Storage:       2.00 GB
+2026/04/11 23:19:01 ═══════════════════════════════════════════════════════
+2026/04/11 23:19:01   ✓ Task accepted - Starting execution...
+2026/04/11 23:19:01 ═══════════════════════════════════════════════════════
+2026/04/11 23:19:01 
+2026/04/11 23:19:01 Task task-1775929728913638009 added to monitoring (total tasks: 1)
+2026/04/11 23:19:01 [Task task-1775929728913638009] Starting execution...
+2026/04/11 23:19:01 [Task task-1775929728913638009] Pulling image: cloudai/workflow-deterministic:v1
+2026/04/11 23:19:02 ⚠️  Image pull failed for cloudai/workflow-deterministic:v1; using local image instead: Error response from daemon: pull access denied for cloudai/workflow-deterministic, repository does not exist or may require 'docker login'
+2026/04/11 23:19:02 [Task task-1775929728913638009] Creating container with resource limits (CPU: 2.00, Memory: 1.25GB)...
+2026/04/11 23:19:02 [Task task-1775929728913638009] ✓ Created secure output directory: /home/codesmith28/.cloudai/outputs/task-1775929728913638009
+2026/04/11 23:19:02 [Task task-1775929728913638009] Starting container: cb27ccc3b29e
+2026/04/11 23:19:03 ✓ Worker CPU override applied: 3.00 cores
+2026/04/11 23:19:03 ✓ Worker memory override applied: 5.00 GB
+2026/04/11 23:19:03 ✓ Worker storage override applied: 80.00 GB
+2026/04/11 23:19:03 Heartbeat sent: CPU=6.5%, Memory=49.9%, Storage=0.0%, Tasks=1
+2026/04/11 23:19:03 [Task task-1775929728913638009] Waiting for completion...
+2026/04/11 23:19:04 [Task task-1775929728913638009] ✓ Completed successfully
+2026/04/11 23:19:04  
+2026/04/11 23:19:04 ═══════════════════════════════════════════════════════
+2026/04/11 23:19:04   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/11 23:19:04 ═══════════════════════════════════════════════════════
+2026/04/11 23:19:04   Task ID:           task-1775929728913638009
+2026/04/11 23:19:04   Docker Image:      cloudai/workflow-deterministic:v1
+2026/04/11 23:19:04   Command:           /usr/local/bin/workflow cpu-heavy --iterations 4800000 --seed 210
+2026/04/11 23:19:04   Exit Code:         0
+2026/04/11 23:19:04 ───────────────────────────────────────────────────────
+2026/04/11 23:19:04   Resources Released:
+2026/04/11 23:19:04     • CPU Cores:     2.00 cores
+2026/04/11 23:19:04     • Memory:        1.25 GB
+2026/04/11 23:19:04 ═══════════════════════════════════════════════════════
+2026/04/11 23:19:04 
+2026/04/11 23:19:04 [Task task-1775929728913638009] ✓ Collected 1 output file(s)
+2026/04/11 23:19:04 Task task-1775929728913638009 removed from monitoring (total tasks: 0)
+2026/04/11 23:19:04 [Task task-1775929728913638009] Uploading 1 output file(s) to master...
+2026/04/11 23:19:04 [Task task-1775929728913638009] ✓ Uploaded file: workflow-result.json (235 bytes)
+2026/04/11 23:19:04 [Task task-1775929728913638009] ✓ Uploaded 1 file(s) successfully
+2026/04/11 23:19:04 [Task task-1775929728913638009] ✓ Output files uploaded successfully
+2026/04/11 23:19:04 ✓ Task result reported: Task result received and processed
+
+╔═══════════════════════════════════════════════════════
+║  Shutdown signal received - gracefully shutting down...
+╚═══════════════════════════════════════════════════════
+╔═══════════════════════════════════════════════════════
+║  Worker Shutdown - Cleaning up running tasks...
+╚═══════════════════════════════════════════════════════
+  ✓ No running tasks to clean up

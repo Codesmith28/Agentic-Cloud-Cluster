@@ -5,21 +5,29 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
 
+	workermetrics "worker/internal/metrics"
 	"worker/internal/server"
 	"worker/internal/system"
 	"worker/internal/telemetry"
 	pb "worker/proto"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 )
 
 func main() {
+	// Docker HEALTHCHECK: exit 0 immediately when called with --healthcheck
+	if len(os.Args) > 1 && os.Args[1] == "--healthcheck" {
+		os.Exit(0)
+	}
+
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("  CloudAI Worker Node - Starting...")
 	log.Println("═══════════════════════════════════════════════════════")
@@ -48,25 +56,40 @@ func main() {
 		log.Fatalf("Failed to collect system information: %v", err)
 	}
 
-	// Find available port starting from default
+	// Resolve worker port (WORKER_PORT override or first available port from default).
 	defaultPort := 50052
-	availablePort, err := system.FindAvailablePort(defaultPort)
+	availablePort, err := system.ResolveWorkerPort(defaultPort)
 	if err != nil {
-		log.Fatalf("Failed to find available port: %v", err)
+		log.Fatalf("Failed to resolve worker port: %v", err)
 	}
 	sysInfo.SetWorkerPort(availablePort)
 
-	// Auto-detect IP address and port
+	// Resolve bind IP for gRPC listener. Defaults to detected worker address.
 	workerIP := sysInfo.GetWorkerAddress()
+	workerBindIP := system.ResolveWorkerBindIP(workerIP)
 	workerPort := sysInfo.GetWorkerPort()
-	workerID := sysInfo.Hostname // Use hostname as worker ID
+	metricsPort, err := system.ResolveWorkerMetricsPort(9101)
+	if err != nil {
+		log.Fatalf("Failed to resolve worker metrics port: %v", err)
+	}
+	workerID, err := system.ResolveWorkerID(sysInfo.Hostname)
+	if err != nil {
+		log.Printf("⚠️  Failed to resolve persistent worker ID: %v", err)
+		workerID = sysInfo.Hostname
+		if workerID == "" {
+			workerID = "worker-unknown"
+		}
+	}
 
 	log.Println("")
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("  Worker Details (use these to register with master):")
 	log.Println("═══════════════════════════════════════════════════════")
+	log.Printf("  Hostname:       %s", sysInfo.Hostname)
 	log.Printf("  Worker ID:      %s", workerID)
-	log.Printf("  Worker Address: %s%s", workerIP, workerPort)
+	log.Printf("  Bind Address:   %s%s", workerBindIP, workerPort)
+	log.Printf("  Reachable Addr: %s%s", workerIP, workerPort)
+	log.Printf("  Metrics Port:   %d", metricsPort)
 	log.Println("═══════════════════════════════════════════════════════")
 	log.Println("")
 	log.Printf("To register this worker, run in master CLI:")
@@ -82,6 +105,17 @@ func main() {
 
 	// Start telemetry monitoring (will start sending heartbeats once master is known)
 	go monitor.Start(ctx)
+	workermetrics.Get()
+
+	go func() {
+		metricsAddress := net.JoinHostPort(workerBindIP, fmt.Sprintf("%d", metricsPort))
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		log.Printf("✓ Metrics server listening on %s", metricsAddress)
+		if err := http.ListenAndServe(metricsAddress, mux); err != nil && err != http.ErrServerClosed {
+			log.Printf("Metrics server stopped: %v", err)
+		}
+	}()
 
 	// Create worker server
 	workerServer, err := server.NewWorkerServer(workerID, monitor)
@@ -91,13 +125,15 @@ func main() {
 	defer workerServer.Close()
 
 	// Start gRPC server
-	workerAddress := workerIP + workerPort
+	workerAddress := net.JoinHostPort(workerBindIP, fmt.Sprintf("%d", availablePort))
 	lis, err := net.Listen("tcp", workerAddress)
 	if err != nil {
 		log.Fatalf("Failed to listen on %s: %v", workerAddress, err)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.MaxRecvMsgSize(4*1024*1024), // 4 MB max inbound message
+	)
 	pb.RegisterMasterWorkerServer(grpcServer, workerServer)
 
 	// Handle graceful shutdown

@@ -23,18 +23,22 @@ type Task struct {
 	ReqCPU      float64 `bson:"req_cpu"`
 	ReqMemory   float64 `bson:"req_memory"`
 	ReqStorage  float64 `bson:"req_storage"`
-	ReqGPU      float64 `bson:"req_gpu"`
-	
+
 	// GUI fields: generic tagging
-	Tag    string  `bson:"tag,omitempty"`    // Generic tag field from GUI
+	Tag    string  `bson:"tag,omitempty"`     // Generic tag field from GUI
 	KValue float64 `bson:"k_value,omitempty"` // K-value from GUI (same as SLAMultiplier)
-	
+
 	// Scheduler fields: SLA and task classification
-	TaskType      string    `bson:"task_type,omitempty"`    // Task type: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed
-	SLAMultiplier float64   `bson:"sla_multiplier"`         // k value: 1.5-2.5, default: 2.0 (prioritized over KValue if both set)
-	Deadline      time.Time `bson:"deadline,omitempty"`     // SLA deadline: arrival_time + k * tau
-	Tau           float64   `bson:"tau,omitempty"`          // Expected runtime baseline (seconds)
-	
+	TaskType          string    `bson:"task_type,omitempty"` // Task type: cpu-light, cpu-heavy, memory-heavy, mixed
+	SLAMultiplier     float64   `bson:"sla_multiplier"`      // k value: 1.5-2.5, default: 2.0 (prioritized over KValue if both set)
+	Deadline          time.Time `bson:"deadline,omitempty"`  // SLA deadline: arrival_time + k * tau
+	Tau               float64   `bson:"tau,omitempty"`       // Expected runtime baseline (seconds)
+	CurrentAttemptID  string    `bson:"current_attempt_id,omitempty"`
+	CurrentAttemptNo  int32     `bson:"current_attempt_no,omitempty"`
+	RecoveryCount     int32     `bson:"recovery_count,omitempty"`
+	LastFailureReason string    `bson:"last_failure_reason,omitempty"`
+	LastWorkerID      string    `bson:"last_worker_id,omitempty"`
+
 	Status      string    `bson:"status"` // pending, running, completed, failed
 	CreatedAt   time.Time `bson:"created_at"`
 	StartedAt   time.Time `bson:"started_at,omitempty"`
@@ -69,7 +73,9 @@ func NewTaskDB(ctx context.Context, cfg *config.Config) (*TaskDB, error) {
 // CreateTask inserts a new task into the database
 func (db *TaskDB) CreateTask(ctx context.Context, task *Task) error {
 	task.CreatedAt = time.Now()
-	task.Status = "pending"
+	if task.Status == "" {
+		task.Status = "pending"
+	}
 
 	_, err := db.collection.InsertOne(ctx, task)
 	if err != nil {
@@ -147,6 +153,7 @@ func (db *TaskDB) UpdateTaskStatus(ctx context.Context, taskID string, status st
 		"$set": bson.M{
 			"status": status,
 		},
+		"$unset": bson.M{},
 	}
 
 	// Add timestamp fields based on status
@@ -154,6 +161,15 @@ func (db *TaskDB) UpdateTaskStatus(ctx context.Context, taskID string, status st
 		update["$set"].(bson.M)["started_at"] = time.Now()
 	} else if status == "completed" || status == "failed" {
 		update["$set"].(bson.M)["completed_at"] = time.Now()
+	} else if status == "queued" || status == "pending" || status == "cancelled" {
+		update["$unset"].(bson.M)["completed_at"] = ""
+		if status == "queued" || status == "pending" {
+			update["$unset"].(bson.M)["started_at"] = ""
+		}
+	}
+
+	if len(update["$unset"].(bson.M)) == 0 {
+		delete(update, "$unset")
 	}
 
 	result, err := db.collection.UpdateOne(
@@ -169,6 +185,57 @@ func (db *TaskDB) UpdateTaskStatus(ctx context.Context, taskID string, status st
 		return fmt.Errorf("task not found: %s", taskID)
 	}
 
+	return nil
+}
+
+// UpdateTaskAttempt updates the logical task's currently active execution attempt.
+func (db *TaskDB) UpdateTaskAttempt(ctx context.Context, taskID, attemptID string, attemptNo int32, workerID string) error {
+	update := bson.M{
+		"$set": bson.M{
+			"current_attempt_id": attemptID,
+			"current_attempt_no": attemptNo,
+			"last_worker_id":     workerID,
+			"status":             "running",
+			"started_at":         time.Now(),
+		},
+		"$unset": bson.M{
+			"completed_at": "",
+		},
+	}
+
+	result, err := db.collection.UpdateOne(ctx, bson.M{"task_id": taskID}, update)
+	if err != nil {
+		return fmt.Errorf("update task attempt: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+	return nil
+}
+
+// MarkTaskForRequeue records a recovery event and moves the logical task back to queued.
+func (db *TaskDB) MarkTaskForRequeue(ctx context.Context, taskID, failureReason string) error {
+	update := bson.M{
+		"$set": bson.M{
+			"status":              "queued",
+			"last_failure_reason": failureReason,
+		},
+		"$inc": bson.M{
+			"recovery_count": 1,
+		},
+		"$unset": bson.M{
+			"completed_at": "",
+			"started_at":   "",
+		},
+	}
+
+	result, err := db.collection.UpdateOne(ctx, bson.M{"task_id": taskID}, update)
+	if err != nil {
+		return fmt.Errorf("mark task for requeue: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
 	return nil
 }
 
@@ -227,12 +294,11 @@ func (db *TaskDB) ListAllTasks(ctx context.Context) ([]*Task, error) {
 func (db *TaskDB) UpdateTaskWithSLA(ctx context.Context, taskID string, deadline time.Time, tau float64, taskType string) error {
 	// Validate task type
 	validTypes := map[string]bool{
-		"cpu-light": true, "cpu-heavy": true, "memory-heavy": true,
-		"gpu-inference": true, "gpu-training": true, "mixed": true,
+		"cpu-light": true, "cpu-heavy": true, "memory-heavy": true, "mixed": true,
 	}
 
 	if taskType != "" && !validTypes[taskType] {
-		return fmt.Errorf("invalid task type: %s (must be one of: cpu-light, cpu-heavy, memory-heavy, gpu-inference, gpu-training, mixed)", taskType)
+		return fmt.Errorf("invalid task type: %s (must be one of: cpu-light, cpu-heavy, memory-heavy, mixed)", taskType)
 	}
 
 	// Build update document

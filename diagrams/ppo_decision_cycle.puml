@@ -1,0 +1,114 @@
+@startuml
+
+' ══════════════════════════════════════════════════════════════════════════════
+'  CloudAI — PPO Scheduling Decision Cycle
+'  Designed for 16:9 slides · Same visual language as lifecycle diagrams
+' ══════════════════════════════════════════════════════════════════════════════
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam dpi 150
+skinparam defaultFontName Arial
+skinparam defaultFontSize 20
+skinparam roundCorner 8
+
+skinparam sequence {
+    ArrowColor #1E293B
+    ArrowFontSize 20
+    ArrowFontColor #1E293B
+    LifeLineBorderColor #1E293B
+    LifeLineBackgroundColor #94A3B8
+    LifeLineBorderThickness 3
+    ParticipantBorderThickness 2
+    ParticipantBorderColor #1E3A5F
+    ParticipantFontSize 28
+    ParticipantFontColor #0F172A
+    ParticipantPadding 40
+    DividerBorderColor #64748B
+    DividerBorderThickness 2
+    DividerFontColor #0F172A
+    DividerFontSize 24
+    GroupBorderColor #64748B
+    GroupHeaderFontSize 20
+    GroupFontColor #334155
+}
+
+skinparam note {
+    BorderColor #94A3B8
+    BackgroundColor #F1F5F9
+    FontSize 18
+    FontColor #1E293B
+}
+
+title <size:36><b>CloudAI — PPO Scheduling Decision Cycle</b></size>\n<size:18><color:#475569>Observe · Decide · Execute · Learn</color></size>\n
+
+participant "    Master Node    " as M #B6D4F7
+participant "    PPO Service    " as P #D4C8F5
+participant "   Worker Pool   " as W #A7EDCA
+database "     MongoDB     " as DB #FDEAAB
+
+|||
+
+== <b>  1 · Observe Cluster State  </b> ==
+
+M -> DB : Query active workers + queue depth
+DB --> M : worker_metrics[], queue_length
+M -> M : Build **state vector** s_t
+note right of M #D1FAE5 : s_t = [cpu_avail, mem_avail,\ngpu_avail, load, queue_len,\ntask_cpu, task_mem, task_type]
+
+|||
+
+== <b>  2 · PPO Inference (Action Selection)  </b> ==
+
+activate P #D4C8F5
+M -> P : **SelectWorker**(state = s_t, candidates)
+P -> P : Actor network forward pass
+note right of P #D4C8F5 : π_θ(a | s_t) → softmax\nover candidate workers
+P -> P : Sample action a_t ~ π_θ
+P --> M : **worker_id** = a_t
+note right of P #F1F5F9 : Also store: log π_θ(a_t|s_t)\nand V(s_t) for training
+deactivate P
+
+|||
+
+== <b>  3 · Execute Decision  </b> ==
+
+activate M #B6D4F7
+M -> W : **AssignTask**(task, worker = a_t)
+W --> M : Ack ✓
+deactivate M
+
+activate W #A7EDCA
+W -> W : Pull image → Create container → Run
+W -> W : Wait for exit · Collect outputs
+deactivate W
+
+|||
+
+== <b>  4 · Compute Reward  </b> ==
+
+W -> M : **ReportCompletion**(status, latency, logs)
+M -> M : Compute reward r_t
+note right of M #FDEAAB : r_t = +1.0  if SLA met\nr_t = −1.0  if SLA violated\n+ bonus for low latency\n− penalty for high load imbalance
+
+|||
+
+== <b>  5 · PPO Policy Update  </b> ==
+
+M -> P : **ReportOutcome**(s_t, a_t, r_t, s_{t+1})
+activate P #D4C8F5
+P -> P : Store transition in buffer
+note right of P #D4C8F5 : Buffer: [(s, a, r, s', logπ, V)]
+
+opt <size:16>Buffer full (batch size reached)</size>
+    P -> P : Compute advantages Â_t (GAE-λ)
+    P -> P : PPO clipped objective update
+    note right of P #D4C8F5 : L = E[min(r_t Â_t, clip(r_t)Â_t)]\nUpdate for K=4 epochs
+    P -> DB : Save checkpoint (GridFS)
+end
+
+deactivate P
+
+|||
+
+@enduml

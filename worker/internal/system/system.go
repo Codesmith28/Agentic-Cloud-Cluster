@@ -1,14 +1,11 @@
 package system
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"runtime"
-	"strconv"
-	"strings"
 	"syscall"
 )
 
@@ -30,7 +27,6 @@ type ResourceInfo struct {
 	TotalCPU     float64 // Number of CPU cores
 	TotalMemory  float64 // Total memory in GB
 	TotalStorage float64 // Total storage in GB
-	TotalGPU     float64 // Number of GPU cores (0 if not available)
 }
 
 // CollectSystemInfo collects system information using syscalls and Go runtime
@@ -108,9 +104,20 @@ func (s *SystemInfo) GetWorkerPort() string {
 	return fmt.Sprintf(":%d", s.WorkerPort)
 }
 
-// FindAvailablePort finds an available port starting from the given port number
+// PortScanRange is the number of consecutive ports to probe when
+// searching for a free port. 500 allows up to ~500 co-located workers
+// on a single host before exhaustion (bare-metal without containers).
+const PortScanRange = 500
+
+// FindAvailablePort finds an available port starting from the given port number.
+// It probes up to PortScanRange consecutive ports and returns the first one
+// that can be bound. For truly unlimited scaling, deploy workers in
+// containers (each gets its own network namespace) or on separate hosts.
 func FindAvailablePort(startPort int) (int, error) {
-	for port := startPort; port < startPort+100; port++ { // Try up to 100 ports
+	for port := startPort; port < startPort+PortScanRange; port++ {
+		if port > 65535 {
+			break
+		}
 		address := fmt.Sprintf(":%d", port)
 		listener, err := net.Listen("tcp", address)
 		if err == nil {
@@ -118,14 +125,13 @@ func FindAvailablePort(startPort int) (int, error) {
 			return port, nil
 		}
 	}
-	return 0, fmt.Errorf("no available ports found starting from %d", startPort)
+	return 0, fmt.Errorf("no available port in range %d–%d", startPort, min(startPort+PortScanRange-1, 65535))
 }
 
-// GetSystemResources retrieves actual system resources (CPU, Memory, Storage, GPU)
+// GetSystemResources retrieves actual system resources (CPU, Memory, Storage).
 func GetSystemResources() (*ResourceInfo, error) {
 	resources := &ResourceInfo{
 		TotalCPU: float64(runtime.NumCPU()),
-		TotalGPU: 0.0, // GPU detection requires additional libraries (nvidia-smi, etc.)
 	}
 
 	// Get total memory
@@ -146,56 +152,9 @@ func GetSystemResources() (*ResourceInfo, error) {
 		resources.TotalStorage = storage
 	}
 
+	applyResourceOverrides(resources)
+
 	return resources, nil
-}
-
-// getTotalMemory returns the total system memory in GB
-func getTotalMemory() (float64, error) {
-	// Try reading from /proc/meminfo first (Linux)
-	file, err := os.Open("/proc/meminfo")
-	if err != nil {
-		// Fallback to sysinfo syscall
-		return getMemoryViaSysinfo()
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "MemTotal:") {
-			fields := strings.Fields(line)
-			if len(fields) >= 2 {
-				memKB, err := strconv.ParseUint(fields[1], 10, 64)
-				if err != nil {
-					return 0, fmt.Errorf("failed to parse memory value: %w", err)
-				}
-				// Convert KB to GB
-				memGB := float64(memKB) / (1024.0 * 1024.0)
-				return memGB, nil
-			}
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return getMemoryViaSysinfo()
-	}
-
-	return 0, fmt.Errorf("MemTotal not found in /proc/meminfo")
-}
-
-// getMemoryViaSysinfo gets memory using syscall.Sysinfo (fallback method)
-func getMemoryViaSysinfo() (float64, error) {
-	var info syscall.Sysinfo_t
-	err := syscall.Sysinfo(&info)
-	if err != nil {
-		return 0, fmt.Errorf("sysinfo syscall failed: %w", err)
-	}
-
-	// Total RAM in bytes = Totalram * Unit
-	totalRAM := info.Totalram * uint64(info.Unit)
-	// Convert bytes to GB
-	memGB := float64(totalRAM) / (1024.0 * 1024.0 * 1024.0)
-	return memGB, nil
 }
 
 // getTotalStorage returns the total available storage in GB for the root filesystem

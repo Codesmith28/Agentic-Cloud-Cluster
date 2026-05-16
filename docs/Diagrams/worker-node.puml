@@ -54,7 +54,7 @@ note right of LogPkg
 end note
 
 note right of TelePkg
-    - System metrics (CPU, Memory, GPU)
+    - System metrics (CPU, Memory, Storage)
     - Heartbeat every 5 seconds
     - Running task tracking
 end note

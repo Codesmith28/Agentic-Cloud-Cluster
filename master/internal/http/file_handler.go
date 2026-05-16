@@ -92,7 +92,7 @@ func (h *FileAPIHandler) HandleListFiles(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		log.Printf("Error listing files for user %s (requested by %s): %v", targetUserID, requestingUserID, err)
-		http.Error(w, fmt.Sprintf("Failed to list files: %v", err), http.StatusInternalServerError)
+		http.Error(w, "Failed to list files", http.StatusInternalServerError)
 		return
 	}
 
@@ -178,7 +178,7 @@ func (h *FileAPIHandler) HandleGetTaskFiles(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		log.Printf("Error getting task files %s for user %s: %v", taskID, targetUserID, err)
-		http.Error(w, fmt.Sprintf("Failed to get task files: %v", err), http.StatusInternalServerError)
+		http.Error(w, "Failed to get task files", http.StatusInternalServerError)
 		return
 	}
 
@@ -257,13 +257,20 @@ func (h *FileAPIHandler) HandleDownloadFile(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		log.Printf("Error reading file %s for task %s: %v", filePath, taskID, err)
-		http.Error(w, fmt.Sprintf("Failed to read file: %v", err), http.StatusInternalServerError)
+		http.Error(w, "Failed to read file", http.StatusInternalServerError)
 		return
 	}
 
-	// Set headers for file download
+	// Set headers for file download - sanitize filename to prevent header injection
 	filename := filepath.Base(filePath)
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	// Remove any characters that could be used for header injection
+	sanitizedFilename := strings.Map(func(r rune) rune {
+		if r == '"' || r == '\n' || r == '\r' || r == '\\' {
+			return '_'
+		}
+		return r
+	}, filename)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", sanitizedFilename))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(fileData)))
 
@@ -325,7 +332,7 @@ func (h *FileAPIHandler) HandleDeleteTaskFiles(w http.ResponseWriter, r *http.Re
 			return
 		}
 		log.Printf("Error deleting files for task %s: %v", taskID, err)
-		http.Error(w, fmt.Sprintf("Failed to delete files: %v", err), http.StatusInternalServerError)
+		http.Error(w, "Failed to delete files", http.StatusInternalServerError)
 		return
 	}
 

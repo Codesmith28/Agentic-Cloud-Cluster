@@ -102,11 +102,11 @@ func computeWorkerOverloadRate(stats db.WorkerStats) float64 {
 // computeEnergyNorm calculates normalized energy consumption for a worker
 //
 // Energy is estimated as the sum of resource-seconds used:
-//   - CPU-seconds + Memory-GB-seconds + GPU-seconds
+//   - CPU-seconds + Memory-GB-seconds + Storage-GB-seconds
 //
 // Formula:
 //
-//	energy = (CPU_used_total + Mem_used_total + GPU_used_total) / max_energy
+//	energy = (CPU_used_total + Mem_used_total + Storage_used_total) / max_energy
 //
 // Returns:
 //   - Range: [0.0, 1.0]
@@ -116,8 +116,8 @@ func computeEnergyNorm(stats db.WorkerStats, maxEnergy float64) float64 {
 		return 0.0
 	}
 
-	// Aggregate energy metric: sum of all resource-seconds
-	energy := stats.CPUUsedTotal + stats.MemUsedTotal + stats.GPUUsedTotal
+	// Aggregate energy metric: sum of all resource-seconds.
+	energy := stats.CPUUsedTotal + stats.MemUsedTotal + stats.StorageUsedTotal
 
 	// Normalize by maximum energy across all workers
 	energyNorm := energy / maxEnergy
@@ -132,7 +132,7 @@ func findMaxEnergy(workerStats []db.WorkerStats) float64 {
 	maxEnergy := 0.0
 
 	for _, stats := range workerStats {
-		energy := stats.CPUUsedTotal + stats.MemUsedTotal + stats.GPUUsedTotal
+		energy := stats.CPUUsedTotal + stats.MemUsedTotal + stats.StorageUsedTotal
 		if energy > maxEnergy {
 			maxEnergy = energy
 		}

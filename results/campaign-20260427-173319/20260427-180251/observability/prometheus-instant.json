@@ -1,0 +1,330 @@
+{
+  "max_queue_depth": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "instance": "host.docker.internal:8080",
+            "job": "master"
+          },
+          "value": [
+            1777293178.358,
+            "30"
+          ]
+        }
+      ]
+    }
+  },
+  "task_requeues": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "task_dequeues": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "outcome": "assigned"
+          },
+          "value": [
+            1777293178.358,
+            "504.4249291784702"
+          ]
+        }
+      ]
+    }
+  },
+  "stale_results": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "worker_timeouts": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  },
+  "task_terminals": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "status": "completed",
+            "task_type": "cpu-heavy"
+          },
+          "value": [
+            1777293178.358,
+            "149.42329545454544"
+          ]
+        },
+        {
+          "metric": {
+            "status": "completed",
+            "task_type": "cpu-light"
+          },
+          "value": [
+            1777293178.358,
+            "132.37499999999997"
+          ]
+        },
+        {
+          "metric": {
+            "status": "completed",
+            "task_type": "memory-heavy"
+          },
+          "value": [
+            1777293178.358,
+            "28.07954545454545"
+          ]
+        },
+        {
+          "metric": {
+            "status": "completed",
+            "task_type": "mixed"
+          },
+          "value": [
+            1777293178.358,
+            "104.29545454545453"
+          ]
+        },
+        {
+          "metric": {
+            "status": "failed",
+            "task_type": "memory-heavy"
+          },
+          "value": [
+            1777293178.358,
+            "89.26646706586828"
+          ]
+        }
+      ]
+    }
+  },
+  "worker_container_cpu_seconds": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "task_type": "other"
+          },
+          "value": [
+            1777293178.358,
+            "0"
+          ]
+        }
+      ]
+    }
+  },
+  "worker_container_io_bytes": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "task_type": "other"
+          },
+          "value": [
+            1777293178.358,
+            "0"
+          ]
+        }
+      ]
+    }
+  },
+  "worker_container_memory_peak_p95": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "task_type": "other"
+          },
+          "value": [
+            1777293178.358,
+            "15938355.2"
+          ]
+        }
+      ]
+    }
+  },
+  "p95_scheduling_latency": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "scheduler": "Round-Robin"
+          },
+          "value": [
+            1777293178.358,
+            "0.02260294117647059"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "RTS"
+          },
+          "value": [
+            1777293178.358,
+            "0.023824626865671647"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "PPO"
+          },
+          "value": [
+            1777293178.358,
+            "0.024637640449438204"
+          ]
+        }
+      ]
+    }
+  },
+  "p95_queue_wait": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "scheduler": "Round-Robin",
+            "task_type": "cpu-heavy"
+          },
+          "value": [
+            1777293178.358,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "Round-Robin",
+            "task_type": "cpu-light"
+          },
+          "value": [
+            1777293178.358,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "RTS",
+            "task_type": "cpu-heavy"
+          },
+          "value": [
+            1777293178.358,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "RTS",
+            "task_type": "cpu-light"
+          },
+          "value": [
+            1777293178.358,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "RTS",
+            "task_type": "memory-heavy"
+          },
+          "value": [
+            1777293178.358,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "PPO",
+            "task_type": "cpu-heavy"
+          },
+          "value": [
+            1777293178.358,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "PPO",
+            "task_type": "cpu-light"
+          },
+          "value": [
+            1777293178.358,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "PPO",
+            "task_type": "memory-heavy"
+          },
+          "value": [
+            1777293178.358,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "Round-Robin",
+            "task_type": "memory-heavy"
+          },
+          "value": [
+            1777293178.358,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "Round-Robin",
+            "task_type": "mixed"
+          },
+          "value": [
+            1777293178.358,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "RTS",
+            "task_type": "mixed"
+          },
+          "value": [
+            1777293178.358,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "scheduler": "PPO",
+            "task_type": "mixed"
+          },
+          "value": [
+            1777293178.358,
+            "10"
+          ]
+        }
+      ]
+    }
+  }
+}

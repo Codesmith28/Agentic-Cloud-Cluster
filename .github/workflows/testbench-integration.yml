@@ -1,0 +1,45 @@
+name: Testbench Integration
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * *"
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: master/go.mod
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Ensure scripts are executable
+        run: chmod +x testbench/scripts/*.sh
+
+      - name: Run full integration + benchmark automation
+        env:
+          RUN_ROOT: ${{ github.workspace }}/results/testbench/ci-${{ github.run_id }}-${{ github.run_attempt }}
+          RUN_UNIT_TESTS: "true"
+          GF_ADMIN_USER: "admin"
+          GF_ADMIN_PASSWORD: ${{ secrets.GF_ADMIN_PASSWORD || 'ci-ephemeral-pw' }}
+        run: make testbench-integration
+
+      - name: Upload integration artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testbench-integration-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ github.workspace }}/results/testbench/ci-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 14

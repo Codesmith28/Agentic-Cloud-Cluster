@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,8 +14,6 @@ import (
 	"master/internal/db"
 	"master/internal/server"
 	pb "master/proto"
-
-	"github.com/gorilla/websocket"
 )
 
 // TaskAPIHandler handles HTTP REST API requests for task management
@@ -22,16 +21,18 @@ type TaskAPIHandler struct {
 	masterServer *server.MasterServer
 	taskDB       *db.TaskDB
 	assignmentDB *db.AssignmentDB
+	attemptDB    *db.AttemptDB
 	resultDB     *db.ResultDB
 	quietMode    bool
 }
 
 // NewTaskAPIHandler creates a new task API handler
-func NewTaskAPIHandler(ms *server.MasterServer, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, resultDB *db.ResultDB) *TaskAPIHandler {
+func NewTaskAPIHandler(ms *server.MasterServer, taskDB *db.TaskDB, assignmentDB *db.AssignmentDB, attemptDB *db.AttemptDB, resultDB *db.ResultDB) *TaskAPIHandler {
 	return &TaskAPIHandler{
 		masterServer: ms,
 		taskDB:       taskDB,
 		assignmentDB: assignmentDB,
+		attemptDB:    attemptDB,
 		resultDB:     resultDB,
 		quietMode:    true,
 	}
@@ -44,7 +45,6 @@ type TaskRequest struct {
 	Command         string      `json:"command,omitempty"`
 	CPURequired     json.Number `json:"cpu_required"`
 	MemoryRequired  json.Number `json:"memory_required"`
-	GPURequired     json.Number `json:"gpu_required,omitempty"`
 	StorageRequired json.Number `json:"storage_required,omitempty"`
 	UserID          string      `json:"user_id,omitempty"`
 	// New fields
@@ -81,7 +81,8 @@ func (h *TaskAPIHandler) HandleCreateTask(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Parse request body
+	// Parse request body with size limit (1MB)
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)
@@ -98,7 +99,6 @@ func (h *TaskAPIHandler) HandleCreateTask(w http.ResponseWriter, r *http.Request
 	// Parse numeric fields
 	cpuRequired := parseFloat64(taskReq.CPURequired, 0)
 	memoryRequired := parseFloat64(taskReq.MemoryRequired, 0)
-	gpuRequired := parseFloat64(taskReq.GPURequired, 0)
 	storageRequired := parseFloat64(taskReq.StorageRequired, 1024) // Default 1GB
 	kValue := parseFloat64(taskReq.KValue, 0)
 
@@ -130,7 +130,6 @@ func (h *TaskAPIHandler) HandleCreateTask(w http.ResponseWriter, r *http.Request
 		ReqCpu:        cpuRequired,
 		ReqMemory:     memoryRequired,
 		ReqStorage:    storageRequired,
-		ReqGpu:        gpuRequired,
 		UserId:        taskReq.UserID,
 		TaskType:      taskReq.Tag,         // Set task_type from tag field
 		SlaMultiplier: kValue,              // Set SLA multiplier
@@ -173,7 +172,20 @@ func (h *TaskAPIHandler) HandleListTasks(w http.ResponseWriter, r *http.Request)
 	}
 
 	if h.taskDB == nil {
-		http.Error(w, "Database not available", http.StatusServiceUnavailable)
+		// No DB: return tasks from in-memory queue so drain/campaign logic works
+		queued := h.masterServer.GetQueuedTasks()
+		taskList := make([]map[string]interface{}, 0, len(queued))
+		for _, qt := range queued {
+			taskList = append(taskList, map[string]interface{}{
+				"task_id":   qt.Task.TaskId,
+				"task_type": qt.Task.TaskType,
+				"status":    "queued",
+				"queued_at": qt.QueuedAt.Format(time.RFC3339),
+				"attempts":  qt.Retries,
+			})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"tasks": taskList, "total": len(taskList)})
 		return
 	}
 
@@ -205,18 +217,21 @@ func (h *TaskAPIHandler) HandleListTasks(w http.ResponseWriter, r *http.Request)
 	taskList := make([]map[string]interface{}, 0)
 	for _, task := range tasks {
 		taskList = append(taskList, map[string]interface{}{
-			"task_id":          task.TaskID,
-			"docker_image":     task.DockerImage,
-			"command":          task.Command,
-			"status":           task.Status,
-			"user_id":          task.UserID,
-			"cpu_required":     task.ReqCPU,
-			"memory_required":  task.ReqMemory,
-			"gpu_required":     task.ReqGPU,
-			"storage_required": task.ReqStorage,
-			"tag":              task.Tag,
-			"k_value":          task.KValue,
-			"created_at":       task.CreatedAt.Unix(),
+			"task_id":             task.TaskID,
+			"docker_image":        task.DockerImage,
+			"command":             task.Command,
+			"status":              task.Status,
+			"user_id":             task.UserID,
+			"cpu_required":        task.ReqCPU,
+			"memory_required":     task.ReqMemory,
+			"storage_required":    task.ReqStorage,
+			"tag":                 task.Tag,
+			"k_value":             task.KValue,
+			"current_attempt_id":  task.CurrentAttemptID,
+			"current_attempt_no":  task.CurrentAttemptNo,
+			"recovery_count":      task.RecoveryCount,
+			"last_failure_reason": task.LastFailureReason,
+			"created_at":          task.CreatedAt.Unix(),
 		})
 	}
 
@@ -236,10 +251,16 @@ func (h *TaskAPIHandler) HandleGetTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract task ID from path
-	taskID := strings.TrimPrefix(r.URL.Path, "/api/tasks/")
-	if taskID == "" || taskID == "api/tasks" {
+	// Extract task ID from path and allow subroutes.
+	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/tasks/"), "/")
+	if len(pathParts) == 0 || pathParts[0] == "" || pathParts[0] == "api" {
 		http.Error(w, "Task ID required", http.StatusBadRequest)
+		return
+	}
+	taskID := pathParts[0]
+
+	if len(pathParts) > 1 && pathParts[1] == "attempts" {
+		h.HandleGetTaskAttempts(w, r, taskID)
 		return
 	}
 
@@ -263,7 +284,38 @@ func (h *TaskAPIHandler) HandleGetTask(w http.ResponseWriter, r *http.Request) {
 		if assignment, err := h.assignmentDB.GetAssignmentByTaskID(ctx, taskID); err == nil {
 			assignmentInfo = map[string]interface{}{
 				"worker_id":   assignment.WorkerID,
+				"attempt_id":  assignment.AttemptID,
+				"attempt_no":  assignment.AttemptNo,
 				"assigned_at": assignment.AssignedAt.Unix(),
+			}
+		}
+	}
+
+	var attemptsInfo []map[string]interface{}
+	if h.attemptDB != nil {
+		if attempts, err := h.attemptDB.GetAttemptsByTask(ctx, taskID); err == nil {
+			attemptsInfo = make([]map[string]interface{}, 0, len(attempts))
+			for _, attempt := range attempts {
+				if attempt == nil {
+					continue
+				}
+				entry := map[string]interface{}{
+					"attempt_id":      attempt.AttemptID,
+					"attempt_no":      attempt.AttemptNo,
+					"worker_id":       attempt.WorkerID,
+					"status":          attempt.Status,
+					"failure_reason":  attempt.FailureReason,
+					"assigned_at":     attempt.AssignedAt.Unix(),
+					"last_heartbeat":  attempt.LastHeartbeat,
+					"load_at_start":   attempt.LoadAtStart,
+					"result_status":   attempt.ResultStatus,
+					"result_location": attempt.ResultLocation,
+					"output_files":    attempt.OutputFiles,
+				}
+				if !attempt.CompletedAt.IsZero() {
+					entry["completed_at"] = attempt.CompletedAt.Unix()
+				}
+				attemptsInfo = append(attemptsInfo, entry)
 			}
 		}
 	}
@@ -271,7 +323,7 @@ func (h *TaskAPIHandler) HandleGetTask(w http.ResponseWriter, r *http.Request) {
 	// Get result info if available
 	var resultInfo map[string]interface{}
 	if h.resultDB != nil {
-		if result, err := h.resultDB.GetResult(ctx, taskID); err == nil {
+		if result, err := h.resultDB.GetResult(ctx, taskID); err == nil && result != nil {
 			resultInfo = map[string]interface{}{
 				"status":       result.Status,
 				"completed_at": result.CompletedAt.Unix(),
@@ -281,24 +333,73 @@ func (h *TaskAPIHandler) HandleGetTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"task_id":          task.TaskID,
-		"docker_image":     task.DockerImage,
-		"command":          task.Command,
-		"status":           task.Status,
-		"user_id":          task.UserID,
-		"cpu_required":     task.ReqCPU,
-		"memory_required":  task.ReqMemory,
-		"gpu_required":     task.ReqGPU,
-		"storage_required": task.ReqStorage,
-		"tag":              task.Tag,
-		"k_value":          task.KValue,
-		"created_at":       task.CreatedAt.Unix(),
-		"assignment":       assignmentInfo,
-		"result":           resultInfo,
+		"task_id":             task.TaskID,
+		"docker_image":        task.DockerImage,
+		"command":             task.Command,
+		"status":              task.Status,
+		"user_id":             task.UserID,
+		"cpu_required":        task.ReqCPU,
+		"memory_required":     task.ReqMemory,
+		"storage_required":    task.ReqStorage,
+		"tag":                 task.Tag,
+		"k_value":             task.KValue,
+		"current_attempt_id":  task.CurrentAttemptID,
+		"current_attempt_no":  task.CurrentAttemptNo,
+		"recovery_count":      task.RecoveryCount,
+		"last_failure_reason": task.LastFailureReason,
+		"last_worker_id":      task.LastWorkerID,
+		"created_at":          task.CreatedAt.Unix(),
+		"assignment":          assignmentInfo,
+		"attempts":            attemptsInfo,
+		"result":              resultInfo,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// HandleGetTaskAttempts handles GET /api/tasks/:id/attempts
+func (h *TaskAPIHandler) HandleGetTaskAttempts(w http.ResponseWriter, r *http.Request, taskID string) {
+	if h.attemptDB == nil {
+		http.Error(w, "Attempt database not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	attempts, err := h.attemptDB.GetAttemptsByTask(context.Background(), taskID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to retrieve attempts: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	response := make([]map[string]interface{}, 0, len(attempts))
+	for _, attempt := range attempts {
+		if attempt == nil {
+			continue
+		}
+		entry := map[string]interface{}{
+			"attempt_id":      attempt.AttemptID,
+			"attempt_no":      attempt.AttemptNo,
+			"worker_id":       attempt.WorkerID,
+			"status":          attempt.Status,
+			"failure_reason":  attempt.FailureReason,
+			"assigned_at":     attempt.AssignedAt.Unix(),
+			"last_heartbeat":  attempt.LastHeartbeat,
+			"load_at_start":   attempt.LoadAtStart,
+			"result_status":   attempt.ResultStatus,
+			"result_location": attempt.ResultLocation,
+			"output_files":    attempt.OutputFiles,
+		}
+		if !attempt.CompletedAt.IsZero() {
+			entry["completed_at"] = attempt.CompletedAt.Unix()
+		}
+		response = append(response, entry)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"task_id":  taskID,
+		"attempts": response,
+	})
 }
 
 // HandleDeleteTask handles DELETE /api/tasks/:id (cancel task)
@@ -386,16 +487,11 @@ func (h *TaskAPIHandler) HandleTaskLogsStream(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Upgrade to WebSocket
-	upgrader := websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true // Allow all origins (restrict in production)
-		},
-	}
-
+	// Upgrade to WebSocket (reuse the package-level upgrader with origin check)
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("WebSocket upgrade failed: %v", err), http.StatusInternalServerError)
+		log.Printf("WebSocket upgrade failed for task %s: %v", taskID, err)
+		http.Error(w, "WebSocket upgrade failed", http.StatusInternalServerError)
 		return
 	}
 	defer conn.Close()
@@ -404,8 +500,9 @@ func (h *TaskAPIHandler) HandleTaskLogsStream(w http.ResponseWriter, r *http.Req
 	ctx := context.Background()
 	userID, err := h.masterServer.GetUserIDForTask(ctx, taskID)
 	if err != nil {
+		log.Printf("Failed to get task info for task %s: %v", taskID, err)
 		conn.WriteJSON(map[string]interface{}{
-			"error": fmt.Sprintf("Failed to get task information: %v", err),
+			"error": "Failed to get task information",
 		})
 		return
 	}

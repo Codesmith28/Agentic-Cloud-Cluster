@@ -1,0 +1,13 @@
+{
+  "name": "steady-cpu",
+  "tasks": [
+    {"task_name": "cpu-01", "workflow_profile": "cpu-light", "workflow_args": ["--seconds", "2", "--label", "cpu-01"], "cpu_required": 0.5, "memory_required": 0.5, "storage_required": 1, "tag": "cpu-light", "k_value": 2.0, "arrival_delay_sec": 1.0},
+    {"task_name": "cpu-02", "workflow_profile": "cpu-heavy", "workflow_args": ["--seconds", "5", "--label", "cpu-02"], "cpu_required": 1.25, "memory_required": 0.75, "storage_required": 1, "tag": "cpu-heavy", "k_value": 2.0, "arrival_delay_sec": 1.0},
+    {"task_name": "cpu-03", "workflow_profile": "cpu-light", "workflow_args": ["--seconds", "2.5", "--label", "cpu-03"], "cpu_required": 0.5, "memory_required": 0.5, "storage_required": 1, "tag": "cpu-light", "k_value": 2.0, "arrival_delay_sec": 1.0},
+    {"task_name": "cpu-04", "workflow_profile": "cpu-heavy", "workflow_args": ["--seconds", "6", "--label", "cpu-04"], "cpu_required": 1.5, "memory_required": 0.75, "storage_required": 1, "tag": "cpu-heavy", "k_value": 2.0, "arrival_delay_sec": 1.0},
+    {"task_name": "cpu-05", "workflow_profile": "cpu-light", "workflow_args": ["--seconds", "2", "--label", "cpu-05"], "cpu_required": 0.5, "memory_required": 0.5, "storage_required": 1, "tag": "cpu-light", "k_value": 2.0, "arrival_delay_sec": 1.0},
+    {"task_name": "cpu-06", "workflow_profile": "cpu-heavy", "workflow_args": ["--seconds", "5.5", "--label", "cpu-06"], "cpu_required": 1.25, "memory_required": 0.75, "storage_required": 1, "tag": "cpu-heavy", "k_value": 2.0, "arrival_delay_sec": 1.0},
+    {"task_name": "cpu-07", "workflow_profile": "cpu-light", "workflow_args": ["--seconds", "2", "--label", "cpu-07"], "cpu_required": 0.5, "memory_required": 0.5, "storage_required": 1, "tag": "cpu-light", "k_value": 2.0, "arrival_delay_sec": 1.0},
+    {"task_name": "cpu-08", "workflow_profile": "cpu-heavy", "workflow_args": ["--seconds", "6", "--label", "cpu-08"], "cpu_required": 1.5, "memory_required": 0.75, "storage_required": 1, "tag": "cpu-heavy", "k_value": 2.0, "arrival_delay_sec": 0.0}
+  ]
+}

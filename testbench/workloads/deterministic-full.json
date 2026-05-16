@@ -1,0 +1,186 @@
+{
+  "name": "deterministic-full",
+  "description": "Full deterministic benchmark workload with a pinned workflow image tag and explicit workflow parameter blocks.",
+  "tasks": [
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "cpu-light", "args": { "iterations": 380000, "seed": 1001 } },
+      "cpu_required": 0.5,
+      "memory_required": 0.25,
+      "storage_required": 1,
+      "tag": "cpu-light",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "cpu-light", "args": { "iterations": 450000, "seed": 1002 } },
+      "cpu_required": 0.5,
+      "memory_required": 0.25,
+      "storage_required": 1,
+      "tag": "cpu-light",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "cpu-light", "args": { "iterations": 520000, "seed": 1003 } },
+      "cpu_required": 0.5,
+      "memory_required": 0.25,
+      "storage_required": 1,
+      "tag": "cpu-light",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "cpu-light", "args": { "iterations": 590000, "seed": 1004 } },
+      "cpu_required": 0.5,
+      "memory_required": 0.25,
+      "storage_required": 1,
+      "tag": "cpu-light",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "cpu-light", "args": { "iterations": 660000, "seed": 1005 } },
+      "cpu_required": 0.5,
+      "memory_required": 0.25,
+      "storage_required": 1,
+      "tag": "cpu-light",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "cpu-heavy", "args": { "iterations": 3200000, "seed": 2001 } },
+      "cpu_required": 1.0,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "cpu-heavy", "args": { "iterations": 3700000, "seed": 2002 } },
+      "cpu_required": 1.0,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "cpu-heavy", "args": { "iterations": 4200000, "seed": 2003 } },
+      "cpu_required": 1.0,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "cpu-heavy", "args": { "iterations": 4700000, "seed": 2004 } },
+      "cpu_required": 1.0,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "cpu-heavy", "args": { "iterations": 5200000, "seed": 2005 } },
+      "cpu_required": 1.0,
+      "memory_required": 0.5,
+      "storage_required": 1,
+      "tag": "cpu-heavy",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "memory-heavy", "args": { "memory-mib": 320, "passes": 2, "seed": 3001 } },
+      "cpu_required": 0.7,
+      "memory_required": 1.0,
+      "storage_required": 2,
+      "tag": "memory-heavy",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "memory-heavy", "args": { "memory-mib": 384, "passes": 2, "seed": 3002 } },
+      "cpu_required": 0.7,
+      "memory_required": 1.0,
+      "storage_required": 2,
+      "tag": "memory-heavy",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "memory-heavy", "args": { "memory-mib": 448, "passes": 3, "seed": 3003 } },
+      "cpu_required": 0.7,
+      "memory_required": 1.0,
+      "storage_required": 2,
+      "tag": "memory-heavy",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "memory-heavy", "args": { "memory-mib": 512, "passes": 3, "seed": 3004 } },
+      "cpu_required": 0.7,
+      "memory_required": 1.0,
+      "storage_required": 2,
+      "tag": "memory-heavy",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "memory-heavy", "args": { "memory-mib": 640, "passes": 3, "seed": 3005 } },
+      "cpu_required": 0.7,
+      "memory_required": 1.0,
+      "storage_required": 2,
+      "tag": "memory-heavy",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "mixed", "args": { "iterations": 1400000, "memory-mib": 160, "passes": 2, "seed": 4001 } },
+      "cpu_required": 1.2,
+      "memory_required": 1.2,
+      "storage_required": 2,
+      "tag": "mixed",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "mixed", "args": { "iterations": 1700000, "memory-mib": 192, "passes": 2, "seed": 4002 } },
+      "cpu_required": 1.2,
+      "memory_required": 1.2,
+      "storage_required": 2,
+      "tag": "mixed",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "mixed", "args": { "iterations": 2000000, "memory-mib": 224, "passes": 2, "seed": 4003 } },
+      "cpu_required": 1.2,
+      "memory_required": 1.2,
+      "storage_required": 2,
+      "tag": "mixed",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "mixed", "args": { "iterations": 2300000, "memory-mib": 256, "passes": 2, "seed": 4004 } },
+      "cpu_required": 1.2,
+      "memory_required": 1.2,
+      "storage_required": 2,
+      "tag": "mixed",
+      "k_value": 2.0
+    },
+    {
+      "docker_image": "cloudai/workflow-deterministic:v1",
+      "workflow": { "profile": "mixed", "args": { "iterations": 2600000, "memory-mib": 288, "passes": 3, "seed": 4005 } },
+      "cpu_required": 1.2,
+      "memory_required": 1.2,
+      "storage_required": 2,
+      "tag": "mixed",
+      "k_value": 2.0
+    }
+  ]
+}

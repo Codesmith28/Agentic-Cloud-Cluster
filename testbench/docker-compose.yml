@@ -1,0 +1,269 @@
+services:
+  mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-cloudai}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-testbench}
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - cloudai
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  master:
+    build:
+      context: ..
+      dockerfile: testbench/docker/Dockerfile.master
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGODB_HOST: mongo:27017
+      MONGODB_USERNAME: ${MONGO_USERNAME:-cloudai}
+      MONGODB_PASSWORD: ${MONGO_PASSWORD:-testbench}
+      MONGODB_DATABASE: cluster_db
+      GRPC_PORT: ":50051"
+      HTTP_PORT: ":8080"
+      CLOUDAI_HEADLESS: "true"
+      SCHED_ALGO: RTS
+      PPO_AUTOSTART: "false"
+      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+    ports:
+      - "50051:50051"
+      - "8080:8080"
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
+    volumes:
+      - master-files:/var/cloudai/files
+    networks:
+      - cloudai
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    depends_on:
+      master:
+        condition: service_started
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - cloudai
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    restart: unless-stopped
+    depends_on:
+      prometheus:
+        condition: service_started
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:-password}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - cloudai
+
+  worker-small-dind:
+    image: docker:27.3-dind
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+      DOCKER_HOST: tcp://127.0.0.1:2375
+    command: ["--host=tcp://0.0.0.0:2375"]
+    cpus: 1.0
+    mem_limit: 1536m
+    pids_limit: 512
+    volumes:
+      - worker-small-docker:/var/lib/docker
+      - worker-small-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+    healthcheck:
+      test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  worker-small:
+    build:
+      context: ..
+      dockerfile: testbench/docker/Dockerfile.worker
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    hostname: worker-small
+    depends_on:
+      master:
+        condition: service_started
+      worker-small-dind:
+        condition: service_healthy
+    environment:
+      WORKER_ID: worker-small
+      WORKER_PORT: "50052"
+      WORKER_METRICS_PORT: "9101"
+      WORKER_BIND_IP: "0.0.0.0"
+      WORKER_TOTAL_CPU: "1.0"
+      WORKER_TOTAL_MEMORY_GB: "1.5"
+      WORKER_TOTAL_STORAGE_GB: "20"
+      DOCKER_HOST: tcp://worker-small-dind:2375
+      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
+    volumes:
+      - worker-small-state:/var/lib/cloudai/worker
+      - worker-small-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+
+  worker-medium-dind:
+    image: docker:27.3-dind
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+      DOCKER_HOST: tcp://127.0.0.1:2375
+    command: ["--host=tcp://0.0.0.0:2375"]
+    cpus: 2.0
+    mem_limit: 3g
+    pids_limit: 768
+    volumes:
+      - worker-medium-docker:/var/lib/docker
+      - worker-medium-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+    healthcheck:
+      test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  worker-medium:
+    build:
+      context: ..
+      dockerfile: testbench/docker/Dockerfile.worker
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    hostname: worker-medium
+    depends_on:
+      master:
+        condition: service_started
+      worker-medium-dind:
+        condition: service_healthy
+    environment:
+      WORKER_ID: worker-medium
+      WORKER_PORT: "50052"
+      WORKER_METRICS_PORT: "9101"
+      WORKER_BIND_IP: "0.0.0.0"
+      WORKER_TOTAL_CPU: "2.0"
+      WORKER_TOTAL_MEMORY_GB: "3"
+      WORKER_TOTAL_STORAGE_GB: "40"
+      DOCKER_HOST: tcp://worker-medium-dind:2375
+      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
+    volumes:
+      - worker-medium-state:/var/lib/cloudai/worker
+      - worker-medium-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+
+  worker-large-dind:
+    image: docker:27.3-dind
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+      DOCKER_HOST: tcp://127.0.0.1:2375
+    command: ["--host=tcp://0.0.0.0:2375"]
+    cpus: 3.0
+    mem_limit: 5g
+    pids_limit: 1024
+    volumes:
+      - worker-large-docker:/var/lib/docker
+      - worker-large-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+    healthcheck:
+      test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  worker-large:
+    build:
+      context: ..
+      dockerfile: testbench/docker/Dockerfile.worker
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    hostname: worker-large
+    depends_on:
+      master:
+        condition: service_started
+      worker-large-dind:
+        condition: service_healthy
+    environment:
+      WORKER_ID: worker-large
+      WORKER_PORT: "50052"
+      WORKER_METRICS_PORT: "9101"
+      WORKER_BIND_IP: "0.0.0.0"
+      WORKER_TOTAL_CPU: "3.0"
+      WORKER_TOTAL_MEMORY_GB: "5"
+      WORKER_TOTAL_STORAGE_GB: "80"
+      DOCKER_HOST: tcp://worker-large-dind:2375
+      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
+    volumes:
+      - worker-large-state:/var/lib/cloudai/worker
+      - worker-large-outputs:/var/cloudai/outputs
+    networks:
+      - cloudai
+
+networks:
+  cloudai:
+    driver: bridge
+
+volumes:
+  mongo-data:
+  prometheus-data:
+  grafana-data:
+  master-files:
+  worker-small-state:
+  worker-small-outputs:
+  worker-small-docker:
+  worker-medium-state:
+  worker-medium-outputs:
+  worker-medium-docker:
+  worker-large-state:
+  worker-large-outputs:
+  worker-large-docker:

@@ -39,6 +39,22 @@ const WorkerRegistrationDialog = ({ open, onClose, onSuccess }) => {
         worker_ip: formData.worker_ip.trim(),
       };
 
+      // Validate worker_id format (alphanumeric, hyphens, underscores)
+      const workerIdPattern = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
+      if (!workerIdPattern.test(data.worker_id)) {
+        setError('Worker ID must be alphanumeric (hyphens and underscores allowed)');
+        setLoading(false);
+        return;
+      }
+
+      // Validate worker_ip format (IP:port or hostname:port)
+      const ipPortPattern = /^[a-zA-Z0-9][a-zA-Z0-9.\-]*:\d{1,5}$/;
+      if (!ipPortPattern.test(data.worker_ip)) {
+        setError('Worker address must be in host:port format (e.g., 192.168.1.100:50052)');
+        setLoading(false);
+        return;
+      }
+
       await workersAPI.registerWorker(data);
       onSuccess();
       handleClose();

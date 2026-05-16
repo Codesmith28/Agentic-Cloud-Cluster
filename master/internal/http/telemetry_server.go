@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -13,12 +14,39 @@ import (
 	"master/internal/telemetry"
 
 	"github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for simplicity (restrict in production)
-	},
+	CheckOrigin:  checkOrigin,
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
+func allowedOriginsSet() map[string]bool {
+	allowed := strings.TrimSpace(os.Getenv("ALLOWED_ORIGINS"))
+	if allowed == "" {
+		allowed = "http://localhost:3000,http://localhost:3001"
+	}
+
+	allowedSet := make(map[string]bool)
+	for _, origin := range strings.Split(allowed, ",") {
+		trimmed := strings.TrimSpace(origin)
+		if trimmed != "" {
+			allowedSet[trimmed] = true
+		}
+	}
+
+	return allowedSet
+}
+
+func checkOrigin(r *http.Request) bool {
+	allowedSet := allowedOriginsSet()
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true // Non-browser clients
+	}
+	return allowedSet[origin]
 }
 
 // WSClient represents a WebSocket client connection
@@ -61,13 +89,19 @@ func NewTelemetryServer(port int, telemetryMgr *telemetry.TelemetryManager) *Tel
 
 	// REST endpoints
 	mux.HandleFunc("/health", ts.handleHealth)
+	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/telemetry", ts.handleTelemetryREST)
 	mux.HandleFunc("/telemetry/", ts.handleWorkerTelemetryREST)
 	mux.HandleFunc("/workers", ts.handleWorkersREST)
 
 	ts.server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: corsMiddleware(mux),
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           corsMiddleware(mux),
+		ReadTimeout:       15 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1MB
 	}
 
 	// Set callback on telemetry manager to broadcast updates
@@ -78,14 +112,17 @@ func NewTelemetryServer(port int, telemetryMgr *telemetry.TelemetryManager) *Tel
 
 // corsMiddleware adds CORS headers to all responses
 func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000") // Vite dev server
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Access-Control-Allow-Credentials", "true") // Allow cookies
+	allowedSet := allowedOriginsSet()
 
-		// Handle preflight requests
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if allowedSet[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -321,7 +358,6 @@ func convertTelemetryToJSON(data *telemetry.WorkerTelemetryData) map[string]inte
 			"task_id":          task.TaskId,
 			"cpu_allocated":    task.CpuAllocated,
 			"memory_allocated": task.MemoryAllocated,
-			"gpu_allocated":    task.GpuAllocated,
 			"status":           task.Status,
 		})
 	}
@@ -330,7 +366,7 @@ func convertTelemetryToJSON(data *telemetry.WorkerTelemetryData) map[string]inte
 		"worker_id":     data.WorkerID,
 		"cpu_usage":     data.CpuUsage,
 		"memory_usage":  data.MemoryUsage,
-		"gpu_usage":     data.GpuUsage,
+		"storage_usage": data.StorageUsage,
 		"running_tasks": tasks,
 		"last_update":   data.LastUpdate,
 		"is_active":     data.IsActive,
@@ -359,6 +395,7 @@ func (ts *TelemetryServer) readPump(client *WSClient) {
 		client.conn.Close()
 	}()
 
+	client.conn.SetReadLimit(4096) // Limit incoming WebSocket message size
 	client.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	client.conn.SetPongHandler(func(string) error {
 		client.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
@@ -425,7 +462,14 @@ func (ts *TelemetryServer) unregisterClient(client *WSClient) {
 	defer ts.clientsMu.Unlock()
 	if _, ok := ts.clients[client]; ok {
 		delete(ts.clients, client)
-		close(client.send)
+		select {
+		case _, open := <-client.send:
+			if open {
+				close(client.send)
+			}
+		default:
+			close(client.send)
+		}
 		if !ts.quietMode {
 			log.Printf("WebSocket client disconnected")
 		}
@@ -531,4 +575,9 @@ func (ts *TelemetryServer) RegisterAuthHandlers(handler *AuthHandler) {
 
 	// Protected endpoint (requires auth)
 	ts.mux.HandleFunc("/api/auth/me", handler.AuthMiddleware(handler.HandleMe))
+}
+
+// RegisterSchedulerHandler registers the scheduler switch endpoint.
+func (ts *TelemetryServer) RegisterSchedulerHandler(handler *SchedulerSwitchHandler) {
+	ts.mux.HandleFunc("/api/config/scheduler", handler.HandleScheduler)
 }

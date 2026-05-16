@@ -29,22 +29,35 @@ type InMemoryTauStore struct {
 
 // Task type constants (must match scheduler.TaskType* constants)
 const (
-	TaskTypeCPULight     = "cpu-light"
-	TaskTypeCPUHeavy     = "cpu-heavy"
-	TaskTypeMemoryHeavy  = "memory-heavy"
-	TaskTypeGPUInference = "gpu-inference"
-	TaskTypeGPUTraining  = "gpu-training"
-	TaskTypeMixed        = "mixed"
+	TaskTypeCPULight    = "cpu-light"
+	TaskTypeCPUHeavy    = "cpu-heavy"
+	TaskTypeMemoryHeavy = "memory-heavy"
+	TaskTypeMixed       = "mixed"
 )
 
 // Default tau values (in seconds) for each task type
 var defaultTauValues = map[string]float64{
-	TaskTypeCPULight:     5.0,  // Light CPU tasks typically finish quickly
-	TaskTypeCPUHeavy:     15.0, // Heavy CPU tasks take longer
-	TaskTypeMemoryHeavy:  20.0, // Memory-intensive tasks need more time
-	TaskTypeGPUInference: 10.0, // GPU inference is relatively fast
-	TaskTypeGPUTraining:  60.0, // GPU training can take much longer
-	TaskTypeMixed:        10.0, // Mixed workloads use a moderate default
+	TaskTypeCPULight:    5.0,  // Light CPU tasks typically finish quickly
+	TaskTypeCPUHeavy:    15.0, // Heavy CPU tasks take longer
+	TaskTypeMemoryHeavy: 20.0, // Memory-intensive tasks need more time
+	TaskTypeMixed:       10.0, // Mixed workloads use a moderate default
+}
+
+// DefaultTauForTaskType returns the default baseline runtime (seconds) for a task type.
+func DefaultTauForTaskType(taskType string) float64 {
+	if defaultTau, exists := defaultTauValues[taskType]; exists {
+		return defaultTau
+	}
+	return defaultTauValues[TaskTypeMixed]
+}
+
+// DefaultTauValues returns a copy of the default tau table.
+func DefaultTauValues() map[string]float64 {
+	result := make(map[string]float64, len(defaultTauValues))
+	for taskType, tau := range defaultTauValues {
+		result[taskType] = tau
+	}
+	return result
 }
 
 // NewInMemoryTauStore creates a new InMemoryTauStore with default tau values
@@ -54,7 +67,7 @@ func NewInMemoryTauStore() *InMemoryTauStore {
 		lambda: 0.2, // Default EMA weight (20% new, 80% old)
 	}
 
-	// Initialize with default tau values for all 6 task types
+	// Initialize with default tau values for all supported task types.
 	for taskType, tau := range defaultTauValues {
 		store.tauMap[taskType] = tau
 	}
@@ -80,18 +93,12 @@ func (s *InMemoryTauStore) GetTau(taskType string) float64 {
 		return tau
 	}
 
-	// Return task-type-specific default if not found
-	if defaultTau, exists := defaultTauValues[taskType]; exists {
-		return defaultTau
-	}
-
-	// Fallback to mixed type default for unknown task types
-	return defaultTauValues[TaskTypeMixed]
+	return DefaultTauForTaskType(taskType)
 }
 
 // UpdateTau updates the tau value for a task type using EMA based on actual runtime
 // Formula: tau_new = lambda * actualRuntime + (1-lambda) * tau_old
-// Only updates if taskType is one of the 6 valid types
+// Only updates if taskType is one of the valid supported types.
 func (s *InMemoryTauStore) UpdateTau(taskType string, actualRuntime float64) {
 	// Validate task type before updating
 	if !isValidTaskType(taskType) {
@@ -178,14 +185,12 @@ func (s *InMemoryTauStore) SetLambda(lambda float64) {
 	s.lambda = lambda
 }
 
-// isValidTaskType checks if the given task type is one of the 6 valid types
+// isValidTaskType checks if the given task type is one of the supported types.
 func isValidTaskType(taskType string) bool {
 	validTypes := []string{
 		TaskTypeCPULight,
 		TaskTypeCPUHeavy,
 		TaskTypeMemoryHeavy,
-		TaskTypeGPUInference,
-		TaskTypeGPUTraining,
 		TaskTypeMixed,
 	}
 

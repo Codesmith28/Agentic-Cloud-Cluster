@@ -60,7 +60,12 @@ func (rdb *ResultDB) Close(ctx context.Context) error {
 func (rdb *ResultDB) CreateResult(ctx context.Context, result *TaskResult) error {
 	result.CompletedAt = time.Now()
 
-	_, err := rdb.collection.InsertOne(ctx, result)
+	_, err := rdb.collection.ReplaceOne(
+		ctx,
+		bson.M{"task_id": result.TaskID},
+		result,
+		options.Replace().SetUpsert(true),
+	)
 	if err != nil {
 		log.Printf("Error creating result: %v", err)
 		return err

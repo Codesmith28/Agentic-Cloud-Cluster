@@ -52,16 +52,19 @@ cd /path/to/CloudAI
 Expected output:
 ```
 Worker ID:      <hostname>
-Worker Address: <ip>:<port>
+Reachable Addr: <ip>:<port>
 
 ✓ Worker gRPC server started on :50052
-✓ Registered with master at localhost:50051
-✓ Telemetry monitor started (5s interval)
+✓ Ready to receive master registration...
 
 Waiting for tasks...
 ```
 
-> **Note:** Worker auto-registers with master on startup!
+Register the worker from the master CLI:
+
+```bash
+master> register <worker_id> <worker_ip:port>
+```
 
 ---
 
@@ -78,7 +81,7 @@ Expected output:
 ║ my-laptop
 ║   Status: 🟢 Active
 ║   IP: 192.168.1.100:50052
-║   Resources: CPU=8.0, Memory=16.0GB, Storage=500.0GB, GPU=0.0
+║   Resources: CPU=8.0, Memory=16.0GB, Storage=500.0GB
 ║   Running Tasks: 0
 ╚═══════════════════════
 ```
@@ -138,7 +141,7 @@ master> task docker.io/library/ubuntu:latest -cpu_cores 1.0 -mem 0.5
     • CPU Cores:     1.00 cores
     • Memory:        0.50 GB
     • Storage:       1.00 GB
-    • GPU Cores:     0.00 cores
+    • Storage:       1.00 GB
 ═══════════════════════════════════════════════════════
 
 ✅ Task task-1730918400 assigned successfully!
@@ -157,7 +160,7 @@ master> task docker.io/library/ubuntu:latest -cpu_cores 1.0 -mem 0.5
     • CPU Cores:     1.00 cores
     • Memory:        0.50 GB
     • Storage:       1.00 GB
-    • GPU Cores:     0.00 cores
+    • Storage:       1.00 GB
 ═══════════════════════════════════════════════════════
   ✓ Task accepted - Starting execution...
 ═══════════════════════════════════════════════════════
@@ -187,7 +190,7 @@ If you see the following, the implementation is working correctly:
 |---------|----------|
 | **"Worker not found"** | Register the worker first using the `register` command |
 | **"Worker is not active"** | Check that the worker is running and sending heartbeats. Wait a few seconds after registration |
-| **"Master not registered yet"** | Wait for master to register with worker (automatic), or restart the worker after master is running |
+| **"Master not registered yet"** | Register worker from master CLI (`register <worker_id> <worker_ip:port>`), then retry |
 | **"Failed to pull image"** | Check Docker is running on worker machine. Verify image name is correct. Check network connectivity |
 | **"Cannot connect to worker"** | Verify worker IP and port are correct. Check firewall settings. Ensure worker is actually running |
 
@@ -229,9 +232,9 @@ master> task docker.io/library/python:3.9-slim -name cpu-test -cpu_cores 4.0 -me
 master> task docker.io/library/ubuntu:latest -name mem-test -cpu_cores 2.0 -mem 8.0
 ```
 
-### GPU Task
+### Storage-Heavy Task
 ```bash
-master> task docker.io/tensorflow/tensorflow:latest -name gpu-train -cpu_cores 4.0 -mem 8.0 -gpu_cores 1.0
+master> task docker.io/library/python:3.9-slim -name nightly-aggregation -cpu_cores 4.0 -mem 8.0 -storage 20.0
 ```
 
 ### Multiple Tasks (Scheduler Distributes)
@@ -288,7 +291,7 @@ wscat -c ws://localhost:8080/ws/telemetry
 
 ## Documentation
 
-- **[README.md](README.md)** - Project overview
+- **[README.md](../README.md)** - Project overview
 - **[GETTING_STARTED.md](GETTING_STARTED.md)** - Setup guide
 - **[DOCUMENTATION.md](DOCUMENTATION.md)** - Complete reference
 

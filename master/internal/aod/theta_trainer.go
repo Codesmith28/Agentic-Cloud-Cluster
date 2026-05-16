@@ -12,10 +12,10 @@ import (
 )
 
 // TrainTheta trains the Theta parameters using linear regression on historical task data.
-// It learns how resource ratios (CPU, Memory, GPU) and worker load affect execution time.
+// It learns how resource ratios (CPU, memory, storage) and worker load affect execution time.
 //
-// The model: E_hat = tau * (1 + θ1*(C/Cavail) + θ2*(M/Mavail) + θ3*(G/Gavail) + θ4*Load)
-// Rearranged: (E_hat/tau - 1) = θ1*(C/Cavail) + θ2*(M/Mavail) + θ3*(G/Gavail) + θ4*Load
+// The model: E_hat = tau * (1 + θ1*(C/Cavail) + θ2*(M/Mavail) + θ3*(S/Savail) + θ4*Load)
+// Rearranged: (E_hat/tau - 1) = θ1*(C/Cavail) + θ2*(M/Mavail) + θ3*(S/Savail) + θ4*Load
 //
 // Parameters:
 //   - history: Historical task execution records
@@ -66,7 +66,7 @@ func TrainTheta(history []db.TaskHistory) scheduler.Theta {
 // buildRegressionMatrix constructs the feature matrix X and target vector y from task history.
 //
 // For each task:
-//   - Features X[i] = [CPU_ratio, Mem_ratio, GPU_ratio, Load_at_start]
+//   - Features X[i] = [CPU_ratio, Mem_ratio, Storage_ratio, Load_at_start]
 //   - Target y[i] = (ActualRuntime / Tau) - 1.0
 //
 // This formulation learns how resource pressure and load affect runtime relative to baseline.
@@ -80,8 +80,8 @@ func buildRegressionMatrix(history []db.TaskHistory) ([][]float64, []float64, er
 			continue
 		}
 
-		// Skip records with invalid resource usage (need to know worker capacity)
-		if record.CPUUsed <= 0 && record.MemUsed <= 0 && record.GPUUsed <= 0 {
+		// Skip records with invalid resource usage (need to know worker capacity).
+		if record.CPUUsed <= 0 && record.MemUsed <= 0 && record.StorageUsed <= 0 {
 			continue
 		}
 
@@ -96,7 +96,7 @@ func buildRegressionMatrix(history []db.TaskHistory) ([][]float64, []float64, er
 
 		cpuRatio := 0.0
 		memRatio := 0.0
-		gpuRatio := 0.0
+		storageRatio := 0.0
 
 		// Simple heuristic: if resource was used, assume it contributed to load
 		// Use load as proxy for resource pressure
@@ -106,8 +106,8 @@ func buildRegressionMatrix(history []db.TaskHistory) ([][]float64, []float64, er
 		if record.MemUsed > 0 {
 			memRatio = record.LoadAtStart * (record.MemUsed / 8.0) // Normalize by typical 8GB
 		}
-		if record.GPUUsed > 0 {
-			gpuRatio = record.LoadAtStart * (record.GPUUsed / 1.0) // Normalize by 1 GPU
+		if record.StorageUsed > 0 {
+			storageRatio = record.LoadAtStart * (record.StorageUsed / 10.0) // Normalize by 10GB
 		}
 
 		// Load at task start
@@ -123,7 +123,7 @@ func buildRegressionMatrix(history []db.TaskHistory) ([][]float64, []float64, er
 		}
 
 		// Add to dataset
-		features := []float64{cpuRatio, memRatio, gpuRatio, load}
+		features := []float64{cpuRatio, memRatio, storageRatio, load}
 		X = append(X, features)
 		y = append(y, target)
 	}
@@ -222,7 +222,7 @@ func getDefaultTheta() scheduler.Theta {
 	return scheduler.Theta{
 		Theta1: 0.1, // CPU impact: 10% per unit ratio
 		Theta2: 0.1, // Memory impact: 10% per unit ratio
-		Theta3: 0.3, // GPU impact: 30% per unit ratio (higher due to GPU importance)
+		Theta3: 0.2, // Storage impact: 20% per unit ratio
 		Theta4: 0.2, // Load impact: 20% per unit load
 	}
 }
@@ -248,11 +248,11 @@ func ComputeRSquared(history []db.TaskHistory, theta scheduler.Theta) float64 {
 		// Compute predicted deviation
 		cpuRatio := record.LoadAtStart
 		memRatio := record.LoadAtStart * (record.MemUsed / 8.0)
-		gpuRatio := record.LoadAtStart * (record.GPUUsed / 1.0)
+		storageRatio := record.LoadAtStart * (record.StorageUsed / 10.0)
 		load := record.LoadAtStart
 
 		predicted := theta.Theta1*cpuRatio + theta.Theta2*memRatio +
-			theta.Theta3*gpuRatio + theta.Theta4*load
+			theta.Theta3*storageRatio + theta.Theta4*load
 
 		actual := (record.ActualRuntime / record.Tau) - 1.0
 

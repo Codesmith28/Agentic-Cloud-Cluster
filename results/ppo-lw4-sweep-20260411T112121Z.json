@@ -1,0 +1,72 @@
+{
+  "timestamp_utc": "2026-04-11T11:21:21.917873+00:00",
+  "baseline_report": "results/ppo-bootstrap-eval-20260411T094544Z.json",
+  "configs": [
+    {
+      "name": "lw4_gae95_u40_r1024",
+      "updates": 40,
+      "rollout": 1024,
+      "gae": 0.95,
+      "lr": 0.0003,
+      "model_path": "agentic_scheduler/models/ppo_lw4_gae95_u40_r1024.pt",
+      "evaluated_steps": 49909,
+      "mean_reward": -0.692358442473344,
+      "feasible_action_rate": 0.3089222384740227
+    },
+    {
+      "name": "lw4_gae95_u20_r512",
+      "updates": 20,
+      "rollout": 512,
+      "gae": 0.95,
+      "lr": 0.0003,
+      "model_path": "agentic_scheduler/models/ppo_lw4_gae95_u20_r512.pt",
+      "evaluated_steps": 49909,
+      "mean_reward": -0.6936687025721346,
+      "feasible_action_rate": 0.3090624937386043
+    },
+    {
+      "name": "lw4_gae98_u40_r512",
+      "updates": 40,
+      "rollout": 512,
+      "gae": 0.98,
+      "lr": 0.0003,
+      "model_path": "agentic_scheduler/models/ppo_lw4_gae98_u40_r512.pt",
+      "evaluated_steps": 49909,
+      "mean_reward": -0.6937549359855203,
+      "feasible_action_rate": 0.3090023843394979
+    },
+    {
+      "name": "lw4_gae90_u40_r512",
+      "updates": 40,
+      "rollout": 512,
+      "gae": 0.9,
+      "lr": 0.0003,
+      "model_path": "agentic_scheduler/models/ppo_lw4_gae90_u40_r512.pt",
+      "evaluated_steps": 49909,
+      "mean_reward": -0.694888572790776,
+      "feasible_action_rate": 0.30904245727223545
+    },
+    {
+      "name": "lw4_gae95_u40_r512",
+      "updates": 40,
+      "rollout": 512,
+      "gae": 0.95,
+      "lr": 0.0003,
+      "model_path": "agentic_scheduler/models/ppo_lw4_gae95_u40_r512.pt",
+      "evaluated_steps": 49909,
+      "mean_reward": -0.6949413161734479,
+      "feasible_action_rate": 0.3090023843394979
+    }
+  ],
+  "best": {
+    "name": "lw4_gae95_u40_r1024",
+    "updates": 40,
+    "rollout": 1024,
+    "gae": 0.95,
+    "lr": 0.0003,
+    "model_path": "agentic_scheduler/models/ppo_lw4_gae95_u40_r1024.pt",
+    "evaluated_steps": 49909,
+    "mean_reward": -0.692358442473344,
+    "feasible_action_rate": 0.3089222384740227
+  }
+}

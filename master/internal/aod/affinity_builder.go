@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"master/internal/db"
+	"master/internal/telemetry"
 )
 
 // BuildAffinityMatrix computes affinity scores for each (taskType, workerID) pair
@@ -25,13 +26,11 @@ import (
 func BuildAffinityMatrix(history []db.TaskHistory) map[string]map[string]float64 {
 	affinity := make(map[string]map[string]float64)
 
-	// Define the 6 standardized task types
+	// Define the supported task types.
 	taskTypes := []string{
 		"cpu-light",
 		"cpu-heavy",
 		"memory-heavy",
-		"gpu-heavy", // Updated from gpu-inference
-		"gpu-training",
 		"mixed",
 	}
 
@@ -108,22 +107,7 @@ func getAverageTau(taskType string, history []db.TaskHistory) float64 {
 
 // getDefaultTauForType returns default tau values per task type
 func getDefaultTauForType(taskType string) float64 {
-	switch taskType {
-	case "cpu-light":
-		return 5.0
-	case "cpu-heavy":
-		return 60.0
-	case "memory-heavy":
-		return 30.0
-	case "gpu-heavy":
-		return 45.0
-	case "gpu-training":
-		return 120.0
-	case "mixed":
-		return 20.0
-	default:
-		return 30.0
-	}
+	return telemetry.DefaultTauForTaskType(taskType)
 }
 
 // computeBaselineRuntime computes the average runtime for a task type across ALL workers.

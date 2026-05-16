@@ -24,12 +24,12 @@ CloudAI is a distributed computing platform for executing Docker-based workloads
 - **Docker Native** - Run any containerized workload
 - **REST & gRPC APIs** - Full programmatic access
 - **MongoDB Persistence** - Task history and results
-- **Auto-Registration** - Workers connect automatically
+- **Worker Registration Handshake** - Register workers from CLI, then workers self-report resources
 - **Task Scheduling** - Risk-aware Task Scheduling (RTS) with Round-Robin fallback
 - **Adaptive Optimization** - AOD module trains scheduling parameters using historical data
 - **Task Queuing** - Automatic queuing when resources unavailable
 - **Task Cancellation** - Graceful and forceful termination
-- **Resource Tracking** - CPU, Memory, GPU, Storage
+- **Resource Tracking** - CPU, Memory, Storage
 - **File Storage** - Secure file upload/download for task outputs
 - **JWT Authentication** - User registration and login
 
@@ -49,7 +49,7 @@ User Interface (CLI/API)
 **Components:**
 - **Master**: Task assignment, worker management, telemetry aggregation, AOD training (gRPC: 50051, HTTP: 8080)
 - **Worker**: Docker execution, heartbeat monitoring (Port 50052+)
-- **Web UI**: React-based dashboard for monitoring (Port 3000)
+- **Web UI**: React-based dashboard for monitoring (Port 3001)
 - **Database**: MongoDB for persistence
 
 **Communication:**
@@ -98,17 +98,24 @@ cd ui && npm install && cd ..
 # Terminal 1: Start MongoDB
 cd database && docker-compose up -d
 
-# Terminal 2: Start Master (includes Web UI on port 3000)
+# Terminal 2: Start Master (includes Web UI on port 3001)
 ./runMaster.sh
 
 # Terminal 3: Start Worker  
 ./runWorker.sh
 ```
 
+**⚙️ First time setup? See [WEBUI_SETUP.md](WEBUI_SETUP.md) for:**
+- Default login credentials (admin@localhost / ChangeMeAdmin123!)
+- How to customize admin user via .env
+- Port conflict troubleshooting
+- Running full campaign workflows with live monitoring
+
 ### Your First Task
 
 ```bash
-# In master CLI
+# In master CLI (use worker ID/address shown by runWorker.sh)
+master> register <worker_id> <worker_ip:port>
 master> workers                              # List workers
 master> task hello-world:latest              # Submit task (scheduler picks worker)
 master> monitor task-<id>                    # Watch execution
@@ -150,16 +157,14 @@ master> download task-<id> alice ./output         # Download files
 curl http://localhost:8080/telemetry | jq
 curl http://localhost:8080/workers | jq
 
-# REST API - Tasks (requires auth)
-curl http://localhost:8080/api/tasks \
-  -H "Authorization: Bearer <token>" | jq
+# REST API - Tasks
+curl http://localhost:8080/api/tasks | jq
 
 # WebSocket (real-time)
 wscat -c ws://localhost:8080/ws/telemetry
 
 # Submit Task via REST API
 curl -X POST http://localhost:8080/api/tasks \
-  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
     "docker_image": "ubuntu:latest",
@@ -177,15 +182,104 @@ curl -X POST http://localhost:8080/api/tasks \
 # Register new user
 curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"secure123"}'
+  -d '{"name":"Alice","email":"alice@example.com","password":"securepassword123"}'
 
 # Login (returns JWT token)
 curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"secure123"}'
+  -d '{"email":"alice@example.com","password":"securepassword123"}'
 ```
 
 **See [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md) for complete API reference**
+
+---
+
+## Docker Testbench (Heterogeneous Workers)
+
+A full automated testbench is available under [`testbench/`](testbench/README.md), including a master-driven workflow.
+
+### Master-driven test commands
+
+Interactive (inside `master>`):
+
+```bash
+test list
+test run <smoke|reliability|ui-smoke|evidence|full> [-profile <hetero-small|recovery-lab>] [-out <dir>] [-keep-env] [-ui-smoke] [-scheduler <current|RR|RTS>]
+test cleanup
+```
+
+Non-interactive:
+
+```bash
+./masterNode test list
+./masterNode test run <smoke|reliability|ui-smoke|evidence|full> [-profile <hetero-small|recovery-lab>] [-out <dir>] [-keep-env] [-ui-smoke] [-scheduler <current|RR|RTS>]
+./masterNode test cleanup
+```
+
+Default artifacts for `test run` land in `results/testbench/<timestamp>-<suite>/`.
+
+### Host-master topology
+
+Use the host-master testbench topology when the master runs on the host:
+
+- Compose stack: `testbench/docker-compose.host-master.yml`
+- Prometheus config: `testbench/observability/prometheus/prometheus.host-master.yml`
+- Host-routable worker registration:
+  `WORKER_SPECS=worker-small=host.docker.internal:55052,worker-medium=host.docker.internal:55053,worker-large=host.docker.internal:55054`
+
+Quick host-master run:
+
+```bash
+make testbench-host-up
+./runMaster.sh
+make testbench-host-register
+make testbench-host-suite
+```
+
+### One-command integration + benchmark automation
+
+Run the complete Docker-backed gate and evidence benchmark pipeline:
+
+```bash
+make testbench-integration
+```
+
+This command runs Go unit-test preflight plus `smoke`, `reliability`, `ui-smoke`, and `evidence` suites and stores artifacts in `results/testbench/<timestamp>-integration/`.
+
+CI equivalent: `.github/workflows/testbench-integration.yml` (manual dispatch + nightly schedule, artifact upload included).
+
+Detailed runbook: **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)**.
+
+### Evidence Benchmark Campaign
+
+Run a multi-scenario evidence benchmark across schedulers and failure modes:
+
+```bash
+make campaign              # Run smoke benchmark (heterogeneous-smoke workload)
+make campaign-full         # Run full campaign (all workloads + all scenarios)
+```
+
+The campaign exercises:
+- **Schedulers**: RR (Round-Robin), RTS (Risk-aware Task Scheduling), PPO (offline-trained + online learning)
+- **Scenarios**: baseline, burst, overload
+- **Observability**: Exports Prometheus metrics, task telemetry, and scheduler diagnostics to `results/campaign/`
+
+See [`docs/TESTBENCH_RUNBOOK.md`](docs/TESTBENCH_RUNBOOK.md) for campaign command-line options.
+
+## Recovery Semantics
+
+CloudAI tracks logical tasks separately from physical execution attempts, enabling automatic recovery when workers fail.
+
+- every worker assignment carries `attempt_id` and `attempt_no`
+- if a worker stops heartbeating, the active attempt is marked lost and the logical task is requeued automatically
+- late results from older attempts are recorded for audit but cannot overwrite the current task outcome
+
+Inspection endpoints:
+
+```bash
+curl http://localhost:8080/api/tasks/<task_id> | jq
+curl http://localhost:8080/api/tasks/<task_id>/attempts | jq
+```
 
 ---
 
@@ -194,6 +288,8 @@ curl -X POST http://localhost:8080/api/auth/login \
 - **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** - 5-minute setup guide
 - **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)** - Complete reference
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture
+- **[testbench/README.md](testbench/README.md)** - Docker performance testbench
+- **[docs/TESTBENCH_RUNBOOK.md](docs/TESTBENCH_RUNBOOK.md)** - Step-by-step testbench runbook
 - **[docs/EXAMPLE.md](docs/EXAMPLE.md)** - Usage examples
 
 ---

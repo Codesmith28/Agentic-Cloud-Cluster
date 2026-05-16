@@ -1,16 +1,14 @@
 package telemetry
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log"
-	"os/exec"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
+	workermetrics "worker/internal/metrics"
+	"worker/internal/system"
 	pb "worker/proto"
 
 	"github.com/shirou/gopsutil/v4/cpu"
@@ -75,17 +73,19 @@ func (m *Monitor) Stop() {
 	close(m.stopChan)
 }
 
-// AddTask adds a task to the running tasks list
-func (m *Monitor) AddTask(taskID string, cpuAlloc, memAlloc, gpuAlloc float64) {
+// AddTask adds a task attempt to the running tasks list.
+func (m *Monitor) AddTask(taskID, attemptID string, attemptNo int32, cpuAlloc, memAlloc float64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.runningTasks[taskID] = &pb.RunningTask{
 		TaskId:          taskID,
 		CpuAllocated:    cpuAlloc,
 		MemoryAllocated: memAlloc,
-		GpuAllocated:    gpuAlloc,
 		Status:          "running",
+		AttemptId:       attemptID,
+		AttemptNo:       attemptNo,
 	}
+	workermetrics.Get().SetRunningTasks(len(m.runningTasks))
 	log.Printf("Task %s added to monitoring (total tasks: %d)", taskID, len(m.runningTasks))
 }
 
@@ -94,7 +94,24 @@ func (m *Monitor) RemoveTask(taskID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.runningTasks, taskID)
+	workermetrics.Get().SetRunningTasks(len(m.runningTasks))
 	log.Printf("Task %s removed from monitoring (total tasks: %d)", taskID, len(m.runningTasks))
+}
+
+// GetRunningTasks returns a snapshot of currently tracked running task attempts.
+func (m *Monitor) GetRunningTasks() []*pb.RunningTask {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	tasks := make([]*pb.RunningTask, 0, len(m.runningTasks))
+	for _, task := range m.runningTasks {
+		if task == nil {
+			continue
+		}
+		taskCopy := *task
+		tasks = append(tasks, &taskCopy)
+	}
+	return tasks
 }
 
 // sendHeartbeat sends a heartbeat message to the master
@@ -122,7 +139,7 @@ func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 	client := pb.NewMasterWorkerClient(conn)
 
 	// Get current resource usage
-	cpuUsage, memUsage, gpuUsage := m.getResourceUsage()
+	cpuUsage, memUsage, storageUsage := m.getResourceUsage()
 
 	// Convert running tasks map to slice (with lock)
 	m.mu.RLock()
@@ -136,7 +153,7 @@ func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 		WorkerId:     m.workerID,
 		CpuUsage:     cpuUsage,
 		MemoryUsage:  memUsage,
-		GpuUsage:     gpuUsage,
+		StorageUsage: storageUsage,
 		RunningTasks: tasks,
 	}
 
@@ -146,53 +163,47 @@ func (m *Monitor) sendHeartbeat(ctx context.Context) error {
 	}
 
 	if ack.Success {
-		log.Printf("Heartbeat sent: CPU=%.1f%%, Memory=%.1f%%, GPU=%.1f%%, Tasks=%d",
-			cpuUsage, memUsage, gpuUsage, len(tasks))
+		workermetrics.Get().RecordHeartbeat(cpuUsage, memUsage, storageUsage)
+		log.Printf("Heartbeat sent: CPU=%.1f%%, Memory=%.1f%%, Storage=%.1f%%, Tasks=%d",
+			cpuUsage*100.0, memUsage*100.0, storageUsage*100.0, len(tasks))
 	}
 
 	return nil
 }
 
-// getResourceUsage returns actual CPU, memory, and GPU usage of the machine
-func (m *Monitor) getResourceUsage() (cpuPercent, memoryPercent, gpuPercent float64) {
+// getResourceUsage returns normalized usage fractions in [0.0, 1.0].
+func (m *Monitor) getResourceUsage() (cpuUsage, memoryUsage, storageUsage float64) {
 	// CPU usage over a short sample interval
 	cpuPercents, err := cpu.Percent(time.Second, false)
 	if err == nil && len(cpuPercents) > 0 {
-		cpuPercent = cpuPercents[0]
+		cpuUsage = clampUnitInterval(cpuPercents[0] / 100.0)
 	}
 
 	// Memory usage
 	vmStat, err := mem.VirtualMemory()
 	if err == nil {
-		memoryPercent = vmStat.UsedPercent
+		memoryUsage = clampUnitInterval(vmStat.UsedPercent / 100.0)
 	}
 
-	// GPU usage (NVIDIA only via nvidia-smi)
-	gpuPercent = m.getGPUUsage()
+	availableStorage, err := system.GetAvailableStorage()
+	if err == nil {
+		totalStorage, totalErr := system.GetSystemResources()
+		if totalErr == nil && totalStorage.TotalStorage > 0 {
+			storageUsage = clampUnitInterval(1.0 - (availableStorage / totalStorage.TotalStorage))
+		}
+	}
 
-	return cpuPercent, memoryPercent, gpuPercent
+	return cpuUsage, memoryUsage, storageUsage
 }
 
-// getGPUUsage returns GPU utilization percentage using nvidia-smi
-func (m *Monitor) getGPUUsage() float64 {
-	// Run nvidia-smi to get GPU utilization
-	cmd := exec.Command("bash", "-c",
-		`nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits | head -n 1`)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-
-	if err := cmd.Run(); err != nil {
-		// nvidia-smi not available or error - GPU not present
-		return 0.0
+func clampUnitInterval(value float64) float64 {
+	if value < 0 {
+		return 0
 	}
-
-	// Parse the output
-	output := strings.TrimSpace(out.String())
-	if gpuUtil, err := strconv.ParseFloat(output, 64); err == nil {
-		return gpuUtil
+	if value > 1 {
+		return 1
 	}
-
-	return 0.0
+	return value
 }
 
 // RegisterWorker registers the worker with the master

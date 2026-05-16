@@ -15,7 +15,7 @@ note right of W
     - total_cpu
     - total_memory
     - total_storage
-    - total_gpu
+    - total_storage
 end note
 
 M -> DB : Store worker info

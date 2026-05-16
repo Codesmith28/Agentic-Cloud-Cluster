@@ -1,0 +1,292 @@
+RUN_DIR=/Users/codesmith28/personal/Projects/acc/BTEP/results/ppo-e2e-20260409-230642
+-- PID status --
+35185 S    /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -m agentic_scheduler.server --grpc-addr 127.0.0.1:50061 --mongo-uri mongodb://cloudai:password@localhost:47017 --mongo-db cluster_db --model-path /Users/codesmith28/personal/Projects/acc/BTEP/results/ppo-e2e-20260409-230642/ppo_model.pt --online-updates true --log-level INFO
+35196 S    /Users/codesmith28/personal/Projects/acc/BTEP/master/masterNode
+35204 S    /Users/codesmith28/personal/Projects/acc/BTEP/worker/workerNode
+-- health --
+{"active_clients":0,"active_workers":1,"status":"healthy","time":1775756352,"workers":1}
+
+-- master log tail --
+2026/04/09 23:07:58 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:07:58 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/09 23:07:58 ✅ AOD training cycle completed successfully
+2026/04/09 23:08:28 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:08:36 📋 Task task-1775756316507928000 queued: Task submitted to queue for scheduling
+2026/04/09 23:08:36 📋 Task task-1775756316507928000 submitted and queued (position: 1)
+2026/04/09 23:08:36 📋 Task task-1775756316511411000 queued: Task submitted to queue for scheduling
+2026/04/09 23:08:36 📋 Task task-1775756316511411000 submitted and queued (position: 2)
+2026/04/09 23:08:36 📋 Task task-1775756316512903000 queued: Task submitted to queue for scheduling
+2026/04/09 23:08:36 📋 Task task-1775756316512903000 submitted and queued (position: 3)
+2026/04/09 23:08:36 http: panic serving 127.0.0.1:51225: runtime error: invalid memory address or nil pointer dereference
+goroutine 880 [running]:
+net/http.(*conn).serve.func1()
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:1907 +0xac
+panic({0x105c207c0?, 0x105df0f80?})
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/runtime/panic.go:860 +0x12c
+master/internal/http.(*TaskAPIHandler).HandleGetTask(0x7e3f0d6ccd20, {0x105d5fd60, 0x7e3f0d9c22d0}, 0x7e3f0d696000)
+	/Users/codesmith28/personal/Projects/acc/BTEP/master/internal/http/task_handler.go:314 +0xafc
+master/internal/http.(*TelemetryServer).RegisterTaskHandlers.func2({0x105d5fd60, 0x7e3f0d9c22d0}, 0x7e3f0d696000)
+	/Users/codesmith28/personal/Projects/acc/BTEP/master/internal/http/telemetry_server.go:493 +0x88
+net/http.HandlerFunc.ServeHTTP(0x7e3f0d90c180?, {0x105d5fd60?, 0x7e3f0d9c22d0?}, 0x10538cbc0?)
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:2286 +0x38
+net/http.(*ServeMux).ServeHTTP(0x7e3f0d8981e0?, {0x105d5fd60, 0x7e3f0d9c22d0}, 0x7e3f0d696000)
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:2828 +0x190
+master/internal/http.corsMiddleware.func1({0x105d5fd60, 0x7e3f0d9c22d0}, 0x7e3f0d696000)
+	/Users/codesmith28/personal/Projects/acc/BTEP/master/internal/http/telemetry_server.go:122 +0x36c
+net/http.HandlerFunc.ServeHTTP(0x0?, {0x105d5fd60?, 0x7e3f0d9c22d0?}, 0x7e3f0da5eb50?)
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:2286 +0x38
+net/http.serverHandler.ServeHTTP({0x7e3f0d8c6140?}, {0x105d5fd60?, 0x7e3f0d9c22d0?}, 0x1?)
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:3311 +0xb0
+net/http.(*conn).serve(0x7e3f0d7545a0, {0x105d61158, 0x7e3f0db2b680})
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:2073 +0x51c
+created by net/http.(*Server).Serve in goroutine 396
+	/opt/homebrew/Cellar/go/1.26.1/libexec/src/net/http/server.go:3464 +0x37c
+2026/04/09 23:08:38 ⚠️ PPO: SelectWorker RPC failed (rpc error: code = Unknown desc = Exception calling application: operands could not be broadcast together with shapes (15,) (14,) ), fallback -> RTS
+2026/04/09 23:08:38 ✓ RTS: Selected worker worker-ppo-e2e-1 for task task-1775756316507928000 (type=cpu-light, risk=0.33)
+2026/04/09 23:08:38 
+═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   📤 TASK ASSIGNED TO WORKER
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   Task ID:           task-1775756316507928000
+2026/04/09 23:08:38   Attempt:           #1 (att-task-1775756316507928000-1)
+2026/04/09 23:08:38   User ID:           ppo-e2e
+2026/04/09 23:08:38   Assigned Worker:   worker-ppo-e2e-1
+2026/04/09 23:08:38   Docker Image:      alpine:3.20
+2026/04/09 23:08:38 ───────────────────────────────────────────────────────
+2026/04/09 23:08:38   Resource Requirements:
+2026/04/09 23:08:38     • CPU Cores:     0.20 cores
+2026/04/09 23:08:38     • Memory:        0.10 GB
+2026/04/09 23:08:38     • Storage:       0.10 GB
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38 
+2026/04/09 23:08:38 ✓ Queue: Task task-1775756316507928000 successfully assigned to worker-ppo-e2e-1 after 0 attempts
+2026/04/09 23:08:38 ⚠️ PPO: SelectWorker RPC failed (rpc error: code = Unknown desc = Exception calling application: operands could not be broadcast together with shapes (15,) (14,) ), fallback -> RTS
+2026/04/09 23:08:38 ✓ RTS: Selected worker worker-ppo-e2e-1 for task task-1775756316511411000 (type=cpu-light, risk=0.33)
+2026/04/09 23:08:38 
+═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   📤 TASK ASSIGNED TO WORKER
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   Task ID:           task-1775756316511411000
+2026/04/09 23:08:38   Attempt:           #1 (att-task-1775756316511411000-1)
+2026/04/09 23:08:38   User ID:           ppo-e2e
+2026/04/09 23:08:38   Assigned Worker:   worker-ppo-e2e-1
+2026/04/09 23:08:38   Docker Image:      alpine:3.20
+2026/04/09 23:08:38 ───────────────────────────────────────────────────────
+2026/04/09 23:08:38   Resource Requirements:
+2026/04/09 23:08:38     • CPU Cores:     0.20 cores
+2026/04/09 23:08:38     • Memory:        0.10 GB
+2026/04/09 23:08:38     • Storage:       0.10 GB
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38 
+2026/04/09 23:08:38 ✓ Queue: Task task-1775756316511411000 successfully assigned to worker-ppo-e2e-1 after 0 attempts
+2026/04/09 23:08:38 ⚠️ PPO: SelectWorker RPC failed (rpc error: code = Unknown desc = Exception calling application: operands could not be broadcast together with shapes (15,) (14,) ), fallback -> RTS
+2026/04/09 23:08:38 ✓ RTS: Selected worker worker-ppo-e2e-1 for task task-1775756316512903000 (type=cpu-light, risk=0.33)
+2026/04/09 23:08:38 
+═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   📤 TASK ASSIGNED TO WORKER
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   Task ID:           task-1775756316512903000
+2026/04/09 23:08:38   Attempt:           #1 (att-task-1775756316512903000-1)
+2026/04/09 23:08:38   User ID:           ppo-e2e
+2026/04/09 23:08:38   Assigned Worker:   worker-ppo-e2e-1
+2026/04/09 23:08:38   Docker Image:      alpine:3.20
+2026/04/09 23:08:38 ───────────────────────────────────────────────────────
+2026/04/09 23:08:38   Resource Requirements:
+2026/04/09 23:08:38     • CPU Cores:     0.20 cores
+2026/04/09 23:08:38     • Memory:        0.10 GB
+2026/04/09 23:08:38     • Storage:       0.10 GB
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38 
+2026/04/09 23:08:38 ✓ Queue: Task task-1775756316512903000 successfully assigned to worker-ppo-e2e-1 after 0 attempts
+2026/04/09 23:08:42 📥 Task completion report received: task-1775756316511411000 from worker-ppo-e2e-1 [Status: success]
+2026/04/09 23:08:42   ✓ Released resources: CPU=0.20, Memory=0.10, Storage=0.10
+2026/04/09 23:08:42   ✓ Task status confirmed as 'completed' in database
+2026/04/09 23:08:42   ✓ Task result stored in RESULTS collection
+2026/04/09 23:08:42 ⚠️  Scheduler outcome report failed for task task-1775756316511411000: outcome rejected: no matching pending decision for task
+2026/04/09 23:08:42 📥 Task completion report received: task-1775756316507928000 from worker-ppo-e2e-1 [Status: success]
+2026/04/09 23:08:42   ✓ Released resources: CPU=0.20, Memory=0.10, Storage=0.10
+2026/04/09 23:08:42   ✓ Task status confirmed as 'completed' in database
+2026/04/09 23:08:42   ✓ Task result stored in RESULTS collection
+2026/04/09 23:08:42 ⚠️  Scheduler outcome report failed for task task-1775756316507928000: outcome rejected: no matching pending decision for task
+2026/04/09 23:08:43 📥 Task completion report received: task-1775756316512903000 from worker-ppo-e2e-1 [Status: success]
+2026/04/09 23:08:43   ✓ Released resources: CPU=0.20, Memory=0.10, Storage=0.10
+2026/04/09 23:08:43   ✓ Task status confirmed as 'completed' in database
+2026/04/09 23:08:43   ✓ Task result stored in RESULTS collection
+2026/04/09 23:08:43 ⚠️  Scheduler outcome report failed for task task-1775756316512903000: outcome rejected: no matching pending decision for task
+2026/04/09 23:08:58 ✓ RTS: Reloaded GA parameters from mongodb collection RTS_WEIGHTS
+2026/04/09 23:08:58 🧬 Starting AOD training cycle...
+2026/04/09 23:08:58 🧬 Starting AOD training cycle...
+2026/04/09 23:08:58 📊 Fetching task history from 2026-04-08T23:08:58+05:30 to 2026-04-09T23:08:58+05:30
+2026/04/09 23:08:58 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:08:58+05:30 and 2026-04-09T23:08:58+05:30
+2026/04/09 23:08:58 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:08:58 📊 Fetching worker stats from 2026-04-08T23:08:58+05:30 to 2026-04-09T23:08:58+05:30
+2026/04/09 23:08:58 🔍 DEBUG: Querying TASKS collection for completed_at between 2026-04-08T23:08:58+05:30 and 2026-04-09T23:08:58+05:30
+2026/04/09 23:08:58 🔍 DEBUG: Query returned 0 task history records
+2026/04/09 23:08:58 ✓ Retrieved 0 task history records and 0 worker stats
+2026/04/09 23:08:58 ⚠️  Insufficient data (0 tasks < 2 required), using default parameters
+2026/04/09 23:08:58 ✓ AOD parameters saved to /Users/codesmith28/personal/Projects/acc/BTEP/master/config/ga_output.json
+2026/04/09 23:08:58 ✓ AOD parameters saved to MongoDB collection RTS_WEIGHTS
+2026/04/09 23:08:58 ✅ AOD training cycle completed successfully
+-- worker log tail --
+2026/04/09 23:08:38     • CPU Cores:     0.20 cores
+2026/04/09 23:08:38     • Memory:        0.10 GB
+2026/04/09 23:08:38     • Storage:       0.10 GB
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   ✓ Task accepted - Starting execution...
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38 
+2026/04/09 23:08:38 Task task-1775756316507928000 added to monitoring (total tasks: 1)
+2026/04/09 23:08:38 [Task task-1775756316507928000] Starting execution...
+2026/04/09 23:08:38 [Task task-1775756316507928000] Pulling image: alpine:3.20
+2026/04/09 23:08:38  
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   📥 TASK RECEIVED FROM MASTER
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   Task ID:           task-1775756316511411000
+2026/04/09 23:08:38   Docker Image:      alpine:3.20
+2026/04/09 23:08:38   Command:           echo ppo-e2e-task-2
+2026/04/09 23:08:38   Target Worker:     worker-ppo-e2e-1
+2026/04/09 23:08:38 ───────────────────────────────────────────────────────
+2026/04/09 23:08:38   System Requirements:
+2026/04/09 23:08:38     • CPU Cores:     0.20 cores
+2026/04/09 23:08:38     • Memory:        0.10 GB
+2026/04/09 23:08:38     • Storage:       0.10 GB
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   ✓ Task accepted - Starting execution...
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38 
+2026/04/09 23:08:38 Task task-1775756316511411000 added to monitoring (total tasks: 2)
+2026/04/09 23:08:38 [Task task-1775756316511411000] Starting execution...
+2026/04/09 23:08:38 [Task task-1775756316511411000] Pulling image: alpine:3.20
+2026/04/09 23:08:38  
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   📥 TASK RECEIVED FROM MASTER
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   Task ID:           task-1775756316512903000
+2026/04/09 23:08:38   Docker Image:      alpine:3.20
+2026/04/09 23:08:38   Command:           echo ppo-e2e-task-3
+2026/04/09 23:08:38   Target Worker:     worker-ppo-e2e-1
+2026/04/09 23:08:38 ───────────────────────────────────────────────────────
+2026/04/09 23:08:38   System Requirements:
+2026/04/09 23:08:38     • CPU Cores:     0.20 cores
+2026/04/09 23:08:38     • Memory:        0.10 GB
+2026/04/09 23:08:38     • Storage:       0.10 GB
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38   ✓ Task accepted - Starting execution...
+2026/04/09 23:08:38 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:38 
+2026/04/09 23:08:38 Task task-1775756316512903000 added to monitoring (total tasks: 3)
+2026/04/09 23:08:38 [Task task-1775756316512903000] Starting execution...
+2026/04/09 23:08:38 [Task task-1775756316512903000] Pulling image: alpine:3.20
+2026/04/09 23:08:40 Heartbeat sent: CPU=10.4%, Memory=69.0%, Storage=75.4%, Tasks=3
+2026/04/09 23:08:42 [Task task-1775756316511411000] Creating container with resource limits (CPU: 0.20, Memory: 0.10GB)...
+2026/04/09 23:08:42 [Task task-1775756316511411000] ✓ Created secure output directory: /Users/codesmith28/.cloudai/outputs/task-1775756316511411000
+2026/04/09 23:08:42 [Task task-1775756316512903000] Creating container with resource limits (CPU: 0.20, Memory: 0.10GB)...
+2026/04/09 23:08:42 [Task task-1775756316512903000] ✓ Created secure output directory: /Users/codesmith28/.cloudai/outputs/task-1775756316512903000
+2026/04/09 23:08:42 [Task task-1775756316507928000] Creating container with resource limits (CPU: 0.20, Memory: 0.10GB)...
+2026/04/09 23:08:42 [Task task-1775756316507928000] ✓ Created secure output directory: /Users/codesmith28/.cloudai/outputs/task-1775756316507928000
+2026/04/09 23:08:42 [Task task-1775756316512903000] Starting container: e6e25d761aab
+2026/04/09 23:08:42 [Task task-1775756316511411000] Starting container: 83f9f10cefa2
+2026/04/09 23:08:42 [Task task-1775756316507928000] Starting container: f4804da4562d
+2026/04/09 23:08:42 [Task task-1775756316507928000] Waiting for completion...
+2026/04/09 23:08:42 [Task task-1775756316511411000] Waiting for completion...
+2026/04/09 23:08:42 [Task task-1775756316511411000] ✓ Completed successfully
+2026/04/09 23:08:42  
+2026/04/09 23:08:42 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:42   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/09 23:08:42 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:42   Task ID:           task-1775756316511411000
+2026/04/09 23:08:42   Docker Image:      alpine:3.20
+2026/04/09 23:08:42   Command:           echo ppo-e2e-task-2
+2026/04/09 23:08:42   Exit Code:         0
+2026/04/09 23:08:42 ───────────────────────────────────────────────────────
+2026/04/09 23:08:42   Resources Released:
+2026/04/09 23:08:42     • CPU Cores:     0.20 cores
+2026/04/09 23:08:42     • Memory:        0.10 GB
+2026/04/09 23:08:42 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:42 
+2026/04/09 23:08:42 Task task-1775756316511411000 removed from monitoring (total tasks: 2)
+2026/04/09 23:08:42 [Task task-1775756316507928000] ✓ Completed successfully
+2026/04/09 23:08:42  
+2026/04/09 23:08:42 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:42   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/09 23:08:42 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:42   Task ID:           task-1775756316507928000
+2026/04/09 23:08:42   Docker Image:      alpine:3.20
+2026/04/09 23:08:42   Command:           echo ppo-e2e-task-1
+2026/04/09 23:08:42   Exit Code:         0
+2026/04/09 23:08:42 ───────────────────────────────────────────────────────
+2026/04/09 23:08:42   Resources Released:
+2026/04/09 23:08:42     • CPU Cores:     0.20 cores
+2026/04/09 23:08:42     • Memory:        0.10 GB
+2026/04/09 23:08:42 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:42 
+2026/04/09 23:08:42 ✓ Task result reported: Task result received and processed
+2026/04/09 23:08:42 Task task-1775756316507928000 removed from monitoring (total tasks: 1)
+2026/04/09 23:08:42 ✓ Task result reported: Task result received and processed
+2026/04/09 23:08:43 [Task task-1775756316512903000] Waiting for completion...
+2026/04/09 23:08:43 [Task task-1775756316512903000] ✓ Completed successfully
+2026/04/09 23:08:43  
+2026/04/09 23:08:43 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:43   ✅ TASK COMPLETED SUCCESSFULLY
+2026/04/09 23:08:43 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:43   Task ID:           task-1775756316512903000
+2026/04/09 23:08:43   Docker Image:      alpine:3.20
+2026/04/09 23:08:43   Command:           echo ppo-e2e-task-3
+2026/04/09 23:08:43   Exit Code:         0
+2026/04/09 23:08:43 ───────────────────────────────────────────────────────
+2026/04/09 23:08:43   Resources Released:
+2026/04/09 23:08:43     • CPU Cores:     0.20 cores
+2026/04/09 23:08:43     • Memory:        0.10 GB
+2026/04/09 23:08:43 ═══════════════════════════════════════════════════════
+2026/04/09 23:08:43 
+2026/04/09 23:08:43 Task task-1775756316512903000 removed from monitoring (total tasks: 0)
+2026/04/09 23:08:43 ✓ Task result reported: Task result received and processed
+2026/04/09 23:08:45 Heartbeat sent: CPU=9.2%, Memory=69.1%, Storage=75.4%, Tasks=0
+2026/04/09 23:08:50 Heartbeat sent: CPU=9.8%, Memory=69.2%, Storage=75.4%, Tasks=0
+2026/04/09 23:08:55 Heartbeat sent: CPU=9.5%, Memory=69.1%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:00 Heartbeat sent: CPU=10.2%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:05 Heartbeat sent: CPU=9.4%, Memory=69.0%, Storage=75.4%, Tasks=0
+2026/04/09 23:09:10 Heartbeat sent: CPU=7.8%, Memory=68.7%, Storage=75.4%, Tasks=0
+-- ppo log tail --
+2026-04-09 23:06:56,016 [INFO] agentic_scheduler.persistence: Mongo scheduler model persistence initialized
+2026-04-09 23:06:56,552 [INFO] __main__: PPO scheduler service started on 127.0.0.1:50061
+2026-04-09 23:08:38,304 [ERROR] grpc._server: Exception calling application: operands could not be broadcast together with shapes (15,) (14,) 
+Traceback (most recent call last):
+  File "/Users/codesmith28/Library/Python/3.9/lib/python/site-packages/grpc/_server.py", line 608, in _call_behavior
+    response_or_iterator = behavior(argument, context)
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/server.py", line 58, in SelectWorker
+    worker_id, used_fallback, reason, model_version = self.core.select_worker(
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/service.py", line 117, in select_worker
+    action = choose_action(
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/model.py", line 192, in choose_action
+    state.normalizer.update(pairwise_rows)
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/model.py", line 34, in update
+    delta = row - self.mean
+ValueError: operands could not be broadcast together with shapes (15,) (14,) 
+2026-04-09 23:08:38,319 [ERROR] grpc._server: Exception calling application: operands could not be broadcast together with shapes (15,) (14,) 
+Traceback (most recent call last):
+  File "/Users/codesmith28/Library/Python/3.9/lib/python/site-packages/grpc/_server.py", line 608, in _call_behavior
+    response_or_iterator = behavior(argument, context)
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/server.py", line 58, in SelectWorker
+    worker_id, used_fallback, reason, model_version = self.core.select_worker(
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/service.py", line 117, in select_worker
+    action = choose_action(
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/model.py", line 192, in choose_action
+    state.normalizer.update(pairwise_rows)
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/model.py", line 34, in update
+    delta = row - self.mean
+ValueError: operands could not be broadcast together with shapes (15,) (14,) 
+2026-04-09 23:08:38,323 [ERROR] grpc._server: Exception calling application: operands could not be broadcast together with shapes (15,) (14,) 
+Traceback (most recent call last):
+  File "/Users/codesmith28/Library/Python/3.9/lib/python/site-packages/grpc/_server.py", line 608, in _call_behavior
+    response_or_iterator = behavior(argument, context)
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/server.py", line 58, in SelectWorker
+    worker_id, used_fallback, reason, model_version = self.core.select_worker(
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/service.py", line 117, in select_worker
+    action = choose_action(
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/model.py", line 192, in choose_action
+    state.normalizer.update(pairwise_rows)
+  File "/Users/codesmith28/personal/Projects/acc/BTEP/agentic_scheduler/model.py", line 34, in update
+    delta = row - self.mean
+ValueError: operands could not be broadcast together with shapes (15,) (14,) 

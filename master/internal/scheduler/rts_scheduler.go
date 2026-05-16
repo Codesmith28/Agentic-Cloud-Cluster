@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"log"
 	"math"
 	"sync"
@@ -23,9 +24,10 @@ type RTSScheduler struct {
 	telemetrySource TelemetrySource
 
 	// GA parameters (thread-safe)
-	params     *GAParams
-	paramsMu   sync.RWMutex
-	paramsPath string
+	params      *GAParams
+	paramsMu    sync.RWMutex
+	paramsPath  string
+	paramsStore GAParamsStore
 
 	// SLA multiplier (k factor)
 	slaMultiplier float64
@@ -41,6 +43,7 @@ func NewRTSScheduler(
 	tauStore telemetry.TauStore,
 	telemetrySource TelemetrySource,
 	paramsPath string,
+	paramsStore GAParamsStore,
 	slaMultiplier float64,
 ) *RTSScheduler {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -50,14 +53,16 @@ func NewRTSScheduler(
 		tauStore:        tauStore,
 		telemetrySource: telemetrySource,
 		paramsPath:      paramsPath,
+		paramsStore:     paramsStore,
 		slaMultiplier:   slaMultiplier,
 		ctx:             ctx,
 		cancel:          cancel,
 	}
 
-	// Load initial parameters (or defaults if file doesn't exist)
-	s.params = LoadGAParamsOrDefault(paramsPath)
-	log.Printf("✓ RTS Scheduler initialized with params from %s", paramsPath)
+	// Load initial parameters (MongoDB preferred, JSON/default fallback).
+	initialParams, source := s.loadGAParamsWithFallback()
+	s.params = initialParams
+	log.Printf("✓ RTS Scheduler initialized with params from %s", source)
 
 	// Start background params reloader
 	s.startParamsReloader()
@@ -111,7 +116,7 @@ func (s *RTSScheduler) SelectWorker(task *pb.Task, workers map[string]*WorkerInf
 		eHat := s.predictExecTime(taskView, workerView, params.Theta)
 
 		// Compute base risk (EDD §3.7)
-		baseRisk := s.computeBaseRisk(taskView, workerView, eHat, params.Risk.Alpha, params.Risk.Beta)
+		baseRisk := s.computeBaseRisk(taskView, workerView, now, eHat, params.Risk.Alpha, params.Risk.Beta)
 
 		// Compute final risk with affinity and penalty (EDD §3.8)
 		finalRisk := s.computeFinalRisk(baseRisk, taskView.Type, workerView.ID, params)
@@ -137,13 +142,11 @@ func (s *RTSScheduler) SelectWorker(task *pb.Task, workers map[string]*WorkerInf
 
 // buildTaskView constructs a TaskView from a protobuf Task
 func (s *RTSScheduler) buildTaskView(task *pb.Task, now time.Time) TaskView {
-	// Use NewTaskViewFromProto which handles task type inference
-	tau := s.tauStore.GetTau(task.TaskType)
-	if tau == 0 {
-		// If task type not set, infer it first
-		taskType := InferTaskType(task)
-		tau = s.tauStore.GetTau(taskType)
+	taskType := task.TaskType
+	if !ValidateTaskType(taskType) {
+		taskType = InferTaskType(task)
 	}
+	tau := s.tauStore.GetTau(taskType)
 
 	return NewTaskViewFromProto(task, now, tau, s.slaMultiplier)
 }
@@ -176,7 +179,6 @@ func (s *RTSScheduler) filterFeasible(task TaskView, workers []WorkerView) []Wor
 		// Check resource constraints
 		if worker.CPUAvail >= task.CPU &&
 			worker.MemAvail >= task.Mem &&
-			worker.GPUAvail >= task.GPU &&
 			worker.StorageAvail >= task.Storage {
 			feasible = append(feasible, worker)
 		}
@@ -186,7 +188,7 @@ func (s *RTSScheduler) filterFeasible(task TaskView, workers []WorkerView) []Wor
 }
 
 // predictExecTime predicts execution time for task on worker (EDD §3.5)
-// Formula: E_hat = tau * (1 + theta1*(C/C_avail) + theta2*(M/M_avail) + theta3*(G/G_avail) + theta4*L)
+// Formula: E_hat = tau * (1 + theta1*(C/C_avail) + theta2*(M/M_avail) + theta3*(S/S_avail) + theta4*L)
 func (s *RTSScheduler) predictExecTime(t TaskView, w WorkerView, theta Theta) float64 {
 	// Base runtime
 	eHat := t.Tau
@@ -207,19 +209,19 @@ func (s *RTSScheduler) predictExecTime(t TaskView, w WorkerView, theta Theta) fl
 		memRatio = 1.0
 	}
 
-	// GPU ratio term
-	gpuRatio := 0.0
-	if w.GPUAvail > 0 {
-		gpuRatio = t.GPU / w.GPUAvail
-	} else if t.GPU > 0 {
-		gpuRatio = 1.0
+	// Storage ratio term
+	storageRatio := 0.0
+	if w.StorageAvail > 0 {
+		storageRatio = t.Storage / w.StorageAvail
+	} else if t.Storage > 0 {
+		storageRatio = 1.0
 	}
 
 	// Load term
 	load := w.Load
 
 	// Apply formula
-	multiplier := 1.0 + theta.Theta1*cpuRatio + theta.Theta2*memRatio + theta.Theta3*gpuRatio + theta.Theta4*load
+	multiplier := 1.0 + theta.Theta1*cpuRatio + theta.Theta2*memRatio + theta.Theta3*storageRatio + theta.Theta4*load
 	eHat *= multiplier
 
 	// Ensure positive result
@@ -233,9 +235,13 @@ func (s *RTSScheduler) predictExecTime(t TaskView, w WorkerView, theta Theta) fl
 // computeBaseRisk computes base risk score (EDD §3.7)
 // Formula: R_base = alpha * delta + beta * L
 // where delta = max(0, f_hat - deadline)
-func (s *RTSScheduler) computeBaseRisk(t TaskView, w WorkerView, eHat float64, alpha, beta float64) float64 {
-	// Predicted finish time
-	fHat := t.ArrivalTime.Add(time.Duration(eHat * float64(time.Second)))
+func (s *RTSScheduler) computeBaseRisk(t TaskView, w WorkerView, now time.Time, eHat float64, alpha, beta float64) float64 {
+	// Predicted finish time should start from scheduling time (or arrival if in the future).
+	startTime := now
+	if startTime.Before(t.ArrivalTime) {
+		startTime = t.ArrivalTime
+	}
+	fHat := startTime.Add(time.Duration(eHat * float64(time.Second)))
 
 	// Deadline violation delta (in seconds)
 	delta := 0.0
@@ -283,6 +289,22 @@ func (s *RTSScheduler) getGAParamsSafe() *GAParams {
 	return s.params
 }
 
+// loadGAParamsWithFallback loads GA params from MongoDB if configured,
+// then falls back to JSON file/defaults.
+func (s *RTSScheduler) loadGAParamsWithFallback() (*GAParams, string) {
+	if s.paramsStore != nil {
+		params, err := s.paramsStore.LoadGAParams(context.Background())
+		if err == nil {
+			return params, "mongodb collection RTS_WEIGHTS"
+		}
+		if !errors.Is(err, ErrNoStoredGAParams) {
+			log.Printf("⚠️ RTS: failed to load GA params from MongoDB: %v", err)
+		}
+	}
+
+	return LoadGAParamsOrDefault(s.paramsPath), s.paramsPath
+}
+
 // startParamsReloader starts a background goroutine to reload GA parameters periodically
 func (s *RTSScheduler) startParamsReloader() {
 	go func() {
@@ -292,15 +314,15 @@ func (s *RTSScheduler) startParamsReloader() {
 		for {
 			select {
 			case <-ticker.C:
-				// Reload parameters from file
-				newParams := LoadGAParamsOrDefault(s.paramsPath)
+				// Reload parameters from MongoDB (preferred) or file fallback.
+				newParams, source := s.loadGAParamsWithFallback()
 
 				// Update with write lock
 				s.paramsMu.Lock()
 				s.params = newParams
 				s.paramsMu.Unlock()
 
-				log.Printf("✓ RTS: Reloaded GA parameters from %s", s.paramsPath)
+				log.Printf("✓ RTS: Reloaded GA parameters from %s", source)
 
 			case <-s.ctx.Done():
 				return

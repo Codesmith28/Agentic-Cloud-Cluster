@@ -1,0 +1,1794 @@
+{
+  "timestamp_utc": "2026-04-11T16:43:50.242092+00:00",
+  "workload": "testbench/workloads/heterogeneous-smoke.json",
+  "topology": {
+    "master_url": "http://localhost:8080",
+    "worker_count_expected": 3,
+    "worker_container_network_mode": "host"
+  },
+  "models": {
+    "rts": {
+      "scheduler_label": "RTS baseline",
+      "scheduler_algorithm": "RTS",
+      "model_path": null
+    },
+    "ppo_sweep_a_best": {
+      "scheduler_label": "PPO sweep A best",
+      "scheduler_algorithm": "PPO",
+      "model_path": "agentic_scheduler/models/ppo_optA_u140_r2048_e8_mb512_ent0010_seed84.pt"
+    },
+    "ppo_sweep_b_best": {
+      "scheduler_label": "PPO sweep B best",
+      "scheduler_algorithm": "PPO",
+      "model_path": "agentic_scheduler/models/ppo_optB_u220_r1024_e8_mb256_ent010_gae093_seed42.pt"
+    }
+  },
+  "sequence": [
+    "rts",
+    "ppo_sweep_a_best",
+    "ppo_sweep_b_best",
+    "rts",
+    "ppo_sweep_a_best",
+    "ppo_sweep_b_best",
+    "rts",
+    "ppo_sweep_a_best",
+    "ppo_sweep_b_best"
+  ],
+  "runs": [
+    {
+      "run_index": 1,
+      "sequence_position": 1,
+      "repetition_index": 1,
+      "scheduler_id": "rts",
+      "scheduler_label": "RTS baseline",
+      "scheduler_algorithm": "RTS",
+      "model_path": null,
+      "workload": "testbench/workloads/heterogeneous-smoke.json",
+      "summary_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-run01-rts-summary.json",
+      "master_log_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-logs/master-run-1-rts.log",
+      "task_ids": [
+        "task-1775925723713244652",
+        "task-1775925723715053700",
+        "task-1775925723716018511",
+        "task-1775925723716940543",
+        "task-1775925723717758305",
+        "task-1775925723718668646",
+        "task-1775925723719587625",
+        "task-1775925723720297347",
+        "task-1775925723721002863",
+        "task-1775925723721606396"
+      ],
+      "submitted": 10,
+      "completed": 10,
+      "failed": 0,
+      "cancelled": 0,
+      "success_rate": 1.0,
+      "duration_seconds": 8.065,
+      "mean_queue_wait_seconds": 4.0,
+      "p95_queue_wait_seconds": 4.0,
+      "mean_turnaround_seconds": 7.6,
+      "mean_attempts_per_task": 1.0,
+      "assignments_by_worker": {
+        "worker-small": 10
+      },
+      "assignment_balance_std": 0.0,
+      "assignment_max_share": 1.0,
+      "task_metrics": [
+        {
+          "task_id": "task-1775925723713244652",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925723,
+          "assigned_at": 1775925727,
+          "completed_at": 1775925730
+        },
+        {
+          "task_id": "task-1775925723715053700",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925723,
+          "assigned_at": 1775925727,
+          "completed_at": 1775925731
+        },
+        {
+          "task_id": "task-1775925723716018511",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925723,
+          "assigned_at": 1775925727,
+          "completed_at": 1775925730
+        },
+        {
+          "task_id": "task-1775925723716940543",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925723,
+          "assigned_at": 1775925727,
+          "completed_at": 1775925730
+        },
+        {
+          "task_id": "task-1775925723717758305",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925723,
+          "assigned_at": 1775925727,
+          "completed_at": 1775925731
+        },
+        {
+          "task_id": "task-1775925723718668646",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925723,
+          "assigned_at": 1775925727,
+          "completed_at": 1775925730
+        },
+        {
+          "task_id": "task-1775925723719587625",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925723,
+          "assigned_at": 1775925727,
+          "completed_at": 1775925731
+        },
+        {
+          "task_id": "task-1775925723720297347",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925723,
+          "assigned_at": 1775925727,
+          "completed_at": 1775925731
+        },
+        {
+          "task_id": "task-1775925723721002863",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925723,
+          "assigned_at": 1775925727,
+          "completed_at": 1775925731
+        },
+        {
+          "task_id": "task-1775925723721606396",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925723,
+          "assigned_at": 1775925727,
+          "completed_at": 1775925731
+        }
+      ]
+    },
+    {
+      "run_index": 2,
+      "sequence_position": 2,
+      "repetition_index": 1,
+      "scheduler_id": "ppo_sweep_a_best",
+      "scheduler_label": "PPO sweep A best",
+      "scheduler_algorithm": "PPO",
+      "model_path": "agentic_scheduler/models/ppo_optA_u140_r2048_e8_mb512_ent0010_seed84.pt",
+      "workload": "testbench/workloads/heterogeneous-smoke.json",
+      "summary_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-run02-ppo_sweep_a_best-summary.json",
+      "master_log_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-logs/master-run-2-ppo_sweep_a_best.log",
+      "task_ids": [
+        "task-1775925735061813307",
+        "task-1775925735063570288",
+        "task-1775925735064517174",
+        "task-1775925735065415743",
+        "task-1775925735066253053",
+        "task-1775925735067073257",
+        "task-1775925735067856422",
+        "task-1775925735068686625",
+        "task-1775925735069547845",
+        "task-1775925735070906853"
+      ],
+      "submitted": 10,
+      "completed": 10,
+      "failed": 0,
+      "cancelled": 0,
+      "success_rate": 1.0,
+      "duration_seconds": 8.072,
+      "mean_queue_wait_seconds": 4.0,
+      "p95_queue_wait_seconds": 4.0,
+      "mean_turnaround_seconds": 6.9,
+      "mean_attempts_per_task": 1.0,
+      "assignments_by_worker": {
+        "worker-large": 3,
+        "worker-medium": 3,
+        "worker-small": 4
+      },
+      "assignment_balance_std": 0.4714045207910317,
+      "assignment_max_share": 0.4,
+      "task_metrics": [
+        {
+          "task_id": "task-1775925735061813307",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925735,
+          "assigned_at": 1775925739,
+          "completed_at": 1775925742
+        },
+        {
+          "task_id": "task-1775925735063570288",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925735,
+          "assigned_at": 1775925739,
+          "completed_at": 1775925742
+        },
+        {
+          "task_id": "task-1775925735064517174",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 6.0,
+          "created_at": 1775925735,
+          "assigned_at": 1775925739,
+          "completed_at": 1775925741
+        },
+        {
+          "task_id": "task-1775925735065415743",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925735,
+          "assigned_at": 1775925739,
+          "completed_at": 1775925742
+        },
+        {
+          "task_id": "task-1775925735066253053",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925735,
+          "assigned_at": 1775925739,
+          "completed_at": 1775925742
+        },
+        {
+          "task_id": "task-1775925735067073257",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925735,
+          "assigned_at": 1775925739,
+          "completed_at": 1775925742
+        },
+        {
+          "task_id": "task-1775925735067856422",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925735,
+          "assigned_at": 1775925739,
+          "completed_at": 1775925742
+        },
+        {
+          "task_id": "task-1775925735068686625",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925735,
+          "assigned_at": 1775925739,
+          "completed_at": 1775925742
+        },
+        {
+          "task_id": "task-1775925735069547845",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925735,
+          "assigned_at": 1775925739,
+          "completed_at": 1775925742
+        },
+        {
+          "task_id": "task-1775925735070906853",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925735,
+          "assigned_at": 1775925739,
+          "completed_at": 1775925742
+        }
+      ]
+    },
+    {
+      "run_index": 3,
+      "sequence_position": 3,
+      "repetition_index": 1,
+      "scheduler_id": "ppo_sweep_b_best",
+      "scheduler_label": "PPO sweep B best",
+      "scheduler_algorithm": "PPO",
+      "model_path": "agentic_scheduler/models/ppo_optB_u220_r1024_e8_mb256_ent010_gae093_seed42.pt",
+      "workload": "testbench/workloads/heterogeneous-smoke.json",
+      "summary_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-run03-ppo_sweep_b_best-summary.json",
+      "master_log_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-logs/master-run-3-ppo_sweep_b_best.log",
+      "task_ids": [
+        "task-1775925746813346114",
+        "task-1775925746815205608",
+        "task-1775925746816514043",
+        "task-1775925746817531880",
+        "task-1775925746818215225",
+        "task-1775925746818780657",
+        "task-1775925746819342755",
+        "task-1775925746819854577",
+        "task-1775925746820377285",
+        "task-1775925746820864696"
+      ],
+      "submitted": 10,
+      "completed": 10,
+      "failed": 0,
+      "cancelled": 0,
+      "success_rate": 1.0,
+      "duration_seconds": 10.074,
+      "mean_queue_wait_seconds": 5.0,
+      "p95_queue_wait_seconds": 5.0,
+      "mean_turnaround_seconds": 8.0,
+      "mean_attempts_per_task": 1.0,
+      "assignments_by_worker": {
+        "worker-large": 10
+      },
+      "assignment_balance_std": 0.0,
+      "assignment_max_share": 1.0,
+      "task_metrics": [
+        {
+          "task_id": "task-1775925746813346114",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925746,
+          "assigned_at": 1775925751,
+          "completed_at": 1775925754
+        },
+        {
+          "task_id": "task-1775925746815205608",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925746,
+          "assigned_at": 1775925751,
+          "completed_at": 1775925754
+        },
+        {
+          "task_id": "task-1775925746816514043",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925746,
+          "assigned_at": 1775925751,
+          "completed_at": 1775925754
+        },
+        {
+          "task_id": "task-1775925746817531880",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925746,
+          "assigned_at": 1775925751,
+          "completed_at": 1775925754
+        },
+        {
+          "task_id": "task-1775925746818215225",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925746,
+          "assigned_at": 1775925751,
+          "completed_at": 1775925754
+        },
+        {
+          "task_id": "task-1775925746818780657",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925746,
+          "assigned_at": 1775925751,
+          "completed_at": 1775925754
+        },
+        {
+          "task_id": "task-1775925746819342755",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925746,
+          "assigned_at": 1775925751,
+          "completed_at": 1775925754
+        },
+        {
+          "task_id": "task-1775925746819854577",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925746,
+          "assigned_at": 1775925751,
+          "completed_at": 1775925754
+        },
+        {
+          "task_id": "task-1775925746820377285",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925746,
+          "assigned_at": 1775925751,
+          "completed_at": 1775925754
+        },
+        {
+          "task_id": "task-1775925746820864696",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925746,
+          "assigned_at": 1775925751,
+          "completed_at": 1775925754
+        }
+      ]
+    },
+    {
+      "run_index": 4,
+      "sequence_position": 4,
+      "repetition_index": 2,
+      "scheduler_id": "rts",
+      "scheduler_label": "RTS baseline",
+      "scheduler_algorithm": "RTS",
+      "model_path": null,
+      "workload": "testbench/workloads/heterogeneous-smoke.json",
+      "summary_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-run04-rts-summary.json",
+      "master_log_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-logs/master-run-4-rts.log",
+      "task_ids": [
+        "task-1775925758567301321",
+        "task-1775925758568703295",
+        "task-1775925758569787080",
+        "task-1775925758570901522",
+        "task-1775925758571869235",
+        "task-1775925758572824535",
+        "task-1775925758573702842",
+        "task-1775925758574494516",
+        "task-1775925758575265607",
+        "task-1775925758576001486"
+      ],
+      "submitted": 10,
+      "completed": 10,
+      "failed": 0,
+      "cancelled": 0,
+      "success_rate": 1.0,
+      "duration_seconds": 8.075,
+      "mean_queue_wait_seconds": 4.0,
+      "p95_queue_wait_seconds": 4.0,
+      "mean_turnaround_seconds": 7.2,
+      "mean_attempts_per_task": 1.0,
+      "assignments_by_worker": {
+        "worker-medium": 10
+      },
+      "assignment_balance_std": 0.0,
+      "assignment_max_share": 1.0,
+      "task_metrics": [
+        {
+          "task_id": "task-1775925758567301321",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925758,
+          "assigned_at": 1775925762,
+          "completed_at": 1775925765
+        },
+        {
+          "task_id": "task-1775925758568703295",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925758,
+          "assigned_at": 1775925762,
+          "completed_at": 1775925765
+        },
+        {
+          "task_id": "task-1775925758569787080",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925758,
+          "assigned_at": 1775925762,
+          "completed_at": 1775925765
+        },
+        {
+          "task_id": "task-1775925758570901522",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925758,
+          "assigned_at": 1775925762,
+          "completed_at": 1775925765
+        },
+        {
+          "task_id": "task-1775925758571869235",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925758,
+          "assigned_at": 1775925762,
+          "completed_at": 1775925765
+        },
+        {
+          "task_id": "task-1775925758572824535",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925758,
+          "assigned_at": 1775925762,
+          "completed_at": 1775925766
+        },
+        {
+          "task_id": "task-1775925758573702842",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925758,
+          "assigned_at": 1775925762,
+          "completed_at": 1775925765
+        },
+        {
+          "task_id": "task-1775925758574494516",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925758,
+          "assigned_at": 1775925762,
+          "completed_at": 1775925765
+        },
+        {
+          "task_id": "task-1775925758575265607",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925758,
+          "assigned_at": 1775925762,
+          "completed_at": 1775925765
+        },
+        {
+          "task_id": "task-1775925758576001486",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925758,
+          "assigned_at": 1775925762,
+          "completed_at": 1775925766
+        }
+      ]
+    },
+    {
+      "run_index": 5,
+      "sequence_position": 5,
+      "repetition_index": 2,
+      "scheduler_id": "ppo_sweep_a_best",
+      "scheduler_label": "PPO sweep A best",
+      "scheduler_algorithm": "PPO",
+      "model_path": "agentic_scheduler/models/ppo_optA_u140_r2048_e8_mb512_ent0010_seed84.pt",
+      "workload": "testbench/workloads/heterogeneous-smoke.json",
+      "summary_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-run05-ppo_sweep_a_best-summary.json",
+      "master_log_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-logs/master-run-5-ppo_sweep_a_best.log",
+      "task_ids": [
+        "task-1775925769923095407",
+        "task-1775925769924524398",
+        "task-1775925769925036381",
+        "task-1775925769925695316",
+        "task-1775925769926786458",
+        "task-1775925769927377027",
+        "task-1775925769927899254",
+        "task-1775925769928497486",
+        "task-1775925769929408422",
+        "task-1775925769930233127"
+      ],
+      "submitted": 10,
+      "completed": 10,
+      "failed": 0,
+      "cancelled": 0,
+      "success_rate": 1.0,
+      "duration_seconds": 10.079,
+      "mean_queue_wait_seconds": 5.0,
+      "p95_queue_wait_seconds": 5.0,
+      "mean_turnaround_seconds": 8.1,
+      "mean_attempts_per_task": 1.0,
+      "assignments_by_worker": {
+        "worker-large": 3,
+        "worker-medium": 3,
+        "worker-small": 4
+      },
+      "assignment_balance_std": 0.4714045207910317,
+      "assignment_max_share": 0.4,
+      "task_metrics": [
+        {
+          "task_id": "task-1775925769923095407",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925769,
+          "assigned_at": 1775925774,
+          "completed_at": 1775925777
+        },
+        {
+          "task_id": "task-1775925769924524398",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925769,
+          "assigned_at": 1775925774,
+          "completed_at": 1775925777
+        },
+        {
+          "task_id": "task-1775925769925036381",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925769,
+          "assigned_at": 1775925774,
+          "completed_at": 1775925777
+        },
+        {
+          "task_id": "task-1775925769925695316",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925769,
+          "assigned_at": 1775925774,
+          "completed_at": 1775925777
+        },
+        {
+          "task_id": "task-1775925769926786458",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925769,
+          "assigned_at": 1775925774,
+          "completed_at": 1775925777
+        },
+        {
+          "task_id": "task-1775925769927377027",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925769,
+          "assigned_at": 1775925774,
+          "completed_at": 1775925777
+        },
+        {
+          "task_id": "task-1775925769927899254",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925769,
+          "assigned_at": 1775925774,
+          "completed_at": 1775925777
+        },
+        {
+          "task_id": "task-1775925769928497486",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925769,
+          "assigned_at": 1775925774,
+          "completed_at": 1775925777
+        },
+        {
+          "task_id": "task-1775925769929408422",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925769,
+          "assigned_at": 1775925774,
+          "completed_at": 1775925777
+        },
+        {
+          "task_id": "task-1775925769930233127",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 9.0,
+          "created_at": 1775925769,
+          "assigned_at": 1775925774,
+          "completed_at": 1775925778
+        }
+      ]
+    },
+    {
+      "run_index": 6,
+      "sequence_position": 6,
+      "repetition_index": 2,
+      "scheduler_id": "ppo_sweep_b_best",
+      "scheduler_label": "PPO sweep B best",
+      "scheduler_algorithm": "PPO",
+      "model_path": "agentic_scheduler/models/ppo_optB_u220_r1024_e8_mb256_ent010_gae093_seed42.pt",
+      "workload": "testbench/workloads/heterogeneous-smoke.json",
+      "summary_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-run06-ppo_sweep_b_best-summary.json",
+      "master_log_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-logs/master-run-6-ppo_sweep_b_best.log",
+      "task_ids": [
+        "task-1775925783685156584",
+        "task-1775925783686441303",
+        "task-1775925783687121578",
+        "task-1775925783687651382",
+        "task-1775925783688410363",
+        "task-1775925783689016194",
+        "task-1775925783689712807",
+        "task-1775925783690470948",
+        "task-1775925783690993526",
+        "task-1775925783691520081"
+      ],
+      "submitted": 10,
+      "completed": 10,
+      "failed": 0,
+      "cancelled": 0,
+      "success_rate": 1.0,
+      "duration_seconds": 10.064,
+      "mean_queue_wait_seconds": 5.0,
+      "p95_queue_wait_seconds": 5.0,
+      "mean_turnaround_seconds": 7.8,
+      "mean_attempts_per_task": 1.0,
+      "assignments_by_worker": {
+        "worker-large": 10
+      },
+      "assignment_balance_std": 0.0,
+      "assignment_max_share": 1.0,
+      "task_metrics": [
+        {
+          "task_id": "task-1775925783685156584",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925783,
+          "assigned_at": 1775925788,
+          "completed_at": 1775925791
+        },
+        {
+          "task_id": "task-1775925783686441303",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925783,
+          "assigned_at": 1775925788,
+          "completed_at": 1775925791
+        },
+        {
+          "task_id": "task-1775925783687121578",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925783,
+          "assigned_at": 1775925788,
+          "completed_at": 1775925790
+        },
+        {
+          "task_id": "task-1775925783687651382",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925783,
+          "assigned_at": 1775925788,
+          "completed_at": 1775925791
+        },
+        {
+          "task_id": "task-1775925783688410363",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925783,
+          "assigned_at": 1775925788,
+          "completed_at": 1775925791
+        },
+        {
+          "task_id": "task-1775925783689016194",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925783,
+          "assigned_at": 1775925788,
+          "completed_at": 1775925791
+        },
+        {
+          "task_id": "task-1775925783689712807",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925783,
+          "assigned_at": 1775925788,
+          "completed_at": 1775925790
+        },
+        {
+          "task_id": "task-1775925783690470948",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925783,
+          "assigned_at": 1775925788,
+          "completed_at": 1775925791
+        },
+        {
+          "task_id": "task-1775925783690993526",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925783,
+          "assigned_at": 1775925788,
+          "completed_at": 1775925791
+        },
+        {
+          "task_id": "task-1775925783691520081",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925783,
+          "assigned_at": 1775925788,
+          "completed_at": 1775925791
+        }
+      ]
+    },
+    {
+      "run_index": 7,
+      "sequence_position": 7,
+      "repetition_index": 3,
+      "scheduler_id": "rts",
+      "scheduler_label": "RTS baseline",
+      "scheduler_algorithm": "RTS",
+      "model_path": null,
+      "workload": "testbench/workloads/heterogeneous-smoke.json",
+      "summary_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-run07-rts-summary.json",
+      "master_log_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-logs/master-run-7-rts.log",
+      "task_ids": [
+        "task-1775925795426497773",
+        "task-1775925795428055752",
+        "task-1775925795428707976",
+        "task-1775925795429335566",
+        "task-1775925795430396754",
+        "task-1775925795431491912",
+        "task-1775925795432480720",
+        "task-1775925795433376097",
+        "task-1775925795434202017",
+        "task-1775925795434996986"
+      ],
+      "submitted": 10,
+      "completed": 10,
+      "failed": 0,
+      "cancelled": 0,
+      "success_rate": 1.0,
+      "duration_seconds": 8.079,
+      "mean_queue_wait_seconds": 4.0,
+      "p95_queue_wait_seconds": 4.0,
+      "mean_turnaround_seconds": 7.3,
+      "mean_attempts_per_task": 1.0,
+      "assignments_by_worker": {
+        "worker-large": 10
+      },
+      "assignment_balance_std": 0.0,
+      "assignment_max_share": 1.0,
+      "task_metrics": [
+        {
+          "task_id": "task-1775925795426497773",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925795,
+          "assigned_at": 1775925799,
+          "completed_at": 1775925802
+        },
+        {
+          "task_id": "task-1775925795428055752",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925795,
+          "assigned_at": 1775925799,
+          "completed_at": 1775925803
+        },
+        {
+          "task_id": "task-1775925795428707976",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925795,
+          "assigned_at": 1775925799,
+          "completed_at": 1775925802
+        },
+        {
+          "task_id": "task-1775925795429335566",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925795,
+          "assigned_at": 1775925799,
+          "completed_at": 1775925802
+        },
+        {
+          "task_id": "task-1775925795430396754",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925795,
+          "assigned_at": 1775925799,
+          "completed_at": 1775925802
+        },
+        {
+          "task_id": "task-1775925795431491912",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925795,
+          "assigned_at": 1775925799,
+          "completed_at": 1775925803
+        },
+        {
+          "task_id": "task-1775925795432480720",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925795,
+          "assigned_at": 1775925799,
+          "completed_at": 1775925802
+        },
+        {
+          "task_id": "task-1775925795433376097",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925795,
+          "assigned_at": 1775925799,
+          "completed_at": 1775925802
+        },
+        {
+          "task_id": "task-1775925795434202017",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925795,
+          "assigned_at": 1775925799,
+          "completed_at": 1775925802
+        },
+        {
+          "task_id": "task-1775925795434996986",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925795,
+          "assigned_at": 1775925799,
+          "completed_at": 1775925803
+        }
+      ]
+    },
+    {
+      "run_index": 8,
+      "sequence_position": 8,
+      "repetition_index": 3,
+      "scheduler_id": "ppo_sweep_a_best",
+      "scheduler_label": "PPO sweep A best",
+      "scheduler_algorithm": "PPO",
+      "model_path": "agentic_scheduler/models/ppo_optA_u140_r2048_e8_mb512_ent0010_seed84.pt",
+      "workload": "testbench/workloads/heterogeneous-smoke.json",
+      "summary_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-run08-ppo_sweep_a_best-summary.json",
+      "master_log_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-logs/master-run-8-ppo_sweep_a_best.log",
+      "task_ids": [
+        "task-1775925806791162295",
+        "task-1775925806792715987",
+        "task-1775925806793564509",
+        "task-1775925806794287317",
+        "task-1775925806794961041",
+        "task-1775925806795510533",
+        "task-1775925806796051534",
+        "task-1775925806796570557",
+        "task-1775925806797072579",
+        "task-1775925806797594970"
+      ],
+      "submitted": 10,
+      "completed": 10,
+      "failed": 0,
+      "cancelled": 0,
+      "success_rate": 1.0,
+      "duration_seconds": 10.078,
+      "mean_queue_wait_seconds": 5.0,
+      "p95_queue_wait_seconds": 5.0,
+      "mean_turnaround_seconds": 8.2,
+      "mean_attempts_per_task": 1.0,
+      "assignments_by_worker": {
+        "worker-large": 3,
+        "worker-medium": 3,
+        "worker-small": 4
+      },
+      "assignment_balance_std": 0.4714045207910317,
+      "assignment_max_share": 0.4,
+      "task_metrics": [
+        {
+          "task_id": "task-1775925806791162295",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925806,
+          "assigned_at": 1775925811,
+          "completed_at": 1775925814
+        },
+        {
+          "task_id": "task-1775925806792715987",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 9.0,
+          "created_at": 1775925806,
+          "assigned_at": 1775925811,
+          "completed_at": 1775925815
+        },
+        {
+          "task_id": "task-1775925806793564509",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925806,
+          "assigned_at": 1775925811,
+          "completed_at": 1775925814
+        },
+        {
+          "task_id": "task-1775925806794287317",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925806,
+          "assigned_at": 1775925811,
+          "completed_at": 1775925814
+        },
+        {
+          "task_id": "task-1775925806794961041",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925806,
+          "assigned_at": 1775925811,
+          "completed_at": 1775925814
+        },
+        {
+          "task_id": "task-1775925806795510533",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925806,
+          "assigned_at": 1775925811,
+          "completed_at": 1775925814
+        },
+        {
+          "task_id": "task-1775925806796051534",
+          "status": "completed",
+          "assigned_worker": "worker-medium",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925806,
+          "assigned_at": 1775925811,
+          "completed_at": 1775925814
+        },
+        {
+          "task_id": "task-1775925806796570557",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925806,
+          "assigned_at": 1775925811,
+          "completed_at": 1775925814
+        },
+        {
+          "task_id": "task-1775925806797072579",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925806,
+          "assigned_at": 1775925811,
+          "completed_at": 1775925814
+        },
+        {
+          "task_id": "task-1775925806797594970",
+          "status": "completed",
+          "assigned_worker": "worker-small",
+          "attempt_count": 1,
+          "queue_wait_seconds": 5.0,
+          "turnaround_seconds": 9.0,
+          "created_at": 1775925806,
+          "assigned_at": 1775925811,
+          "completed_at": 1775925815
+        }
+      ]
+    },
+    {
+      "run_index": 9,
+      "sequence_position": 9,
+      "repetition_index": 3,
+      "scheduler_id": "ppo_sweep_b_best",
+      "scheduler_label": "PPO sweep B best",
+      "scheduler_algorithm": "PPO",
+      "model_path": "agentic_scheduler/models/ppo_optB_u220_r1024_e8_mb256_ent010_gae093_seed42.pt",
+      "workload": "testbench/workloads/heterogeneous-smoke.json",
+      "summary_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-run09-ppo_sweep_b_best-summary.json",
+      "master_log_file": "results/testbench/ppo-vs-rts-cluster-repeated-20260411T164201Z-logs/master-run-9-ppo_sweep_b_best.log",
+      "task_ids": [
+        "task-1775925820542162471",
+        "task-1775925820543728088",
+        "task-1775925820544543813",
+        "task-1775925820545174441",
+        "task-1775925820545774254",
+        "task-1775925820546357991",
+        "task-1775925820546907759",
+        "task-1775925820547466987",
+        "task-1775925820548484190",
+        "task-1775925820549065560"
+      ],
+      "submitted": 10,
+      "completed": 10,
+      "failed": 0,
+      "cancelled": 0,
+      "success_rate": 1.0,
+      "duration_seconds": 8.075,
+      "mean_queue_wait_seconds": 4.0,
+      "p95_queue_wait_seconds": 4.0,
+      "mean_turnaround_seconds": 7.3,
+      "mean_attempts_per_task": 1.0,
+      "assignments_by_worker": {
+        "worker-large": 10
+      },
+      "assignment_balance_std": 0.0,
+      "assignment_max_share": 1.0,
+      "task_metrics": [
+        {
+          "task_id": "task-1775925820542162471",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925820,
+          "assigned_at": 1775925824,
+          "completed_at": 1775925827
+        },
+        {
+          "task_id": "task-1775925820543728088",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925820,
+          "assigned_at": 1775925824,
+          "completed_at": 1775925828
+        },
+        {
+          "task_id": "task-1775925820544543813",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925820,
+          "assigned_at": 1775925824,
+          "completed_at": 1775925827
+        },
+        {
+          "task_id": "task-1775925820545174441",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925820,
+          "assigned_at": 1775925824,
+          "completed_at": 1775925827
+        },
+        {
+          "task_id": "task-1775925820545774254",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925820,
+          "assigned_at": 1775925824,
+          "completed_at": 1775925827
+        },
+        {
+          "task_id": "task-1775925820546357991",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925820,
+          "assigned_at": 1775925824,
+          "completed_at": 1775925828
+        },
+        {
+          "task_id": "task-1775925820546907759",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925820,
+          "assigned_at": 1775925824,
+          "completed_at": 1775925827
+        },
+        {
+          "task_id": "task-1775925820547466987",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925820,
+          "assigned_at": 1775925824,
+          "completed_at": 1775925827
+        },
+        {
+          "task_id": "task-1775925820548484190",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 7.0,
+          "created_at": 1775925820,
+          "assigned_at": 1775925824,
+          "completed_at": 1775925827
+        },
+        {
+          "task_id": "task-1775925820549065560",
+          "status": "completed",
+          "assigned_worker": "worker-large",
+          "attempt_count": 1,
+          "queue_wait_seconds": 4.0,
+          "turnaround_seconds": 8.0,
+          "created_at": 1775925820,
+          "assigned_at": 1775925824,
+          "completed_at": 1775925828
+        }
+      ]
+    }
+  ],
+  "aggregated": {
+    "rts": {
+      "scheduler_id": "rts",
+      "scheduler_label": "RTS baseline",
+      "scheduler_algorithm": "RTS",
+      "model_path": null,
+      "run_count": 3,
+      "totals": {
+        "submitted": 30,
+        "completed": 30,
+        "failed": 0,
+        "cancelled": 0
+      },
+      "metrics": {
+        "success_rate": {
+          "count": 3,
+          "mean": 1.0,
+          "median": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "duration_seconds": {
+          "count": 3,
+          "mean": 8.073,
+          "median": 8.075,
+          "std": 0.005887840577552255,
+          "min": 8.065,
+          "max": 8.079
+        },
+        "mean_queue_wait_seconds": {
+          "count": 3,
+          "mean": 4.0,
+          "median": 4.0,
+          "std": 0.0,
+          "min": 4.0,
+          "max": 4.0
+        },
+        "p95_queue_wait_seconds": {
+          "count": 3,
+          "mean": 4.0,
+          "median": 4.0,
+          "std": 0.0,
+          "min": 4.0,
+          "max": 4.0
+        },
+        "mean_turnaround_seconds": {
+          "count": 3,
+          "mean": 7.366666666666667,
+          "median": 7.3,
+          "std": 0.1699673171197593,
+          "min": 7.2,
+          "max": 7.6
+        },
+        "mean_attempts_per_task": {
+          "count": 3,
+          "mean": 1.0,
+          "median": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "assignment_balance_std": {
+          "count": 3,
+          "mean": 0.0,
+          "median": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "assignment_max_share": {
+          "count": 3,
+          "mean": 1.0,
+          "median": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        }
+      },
+      "assignments_by_worker_total": {
+        "worker-small": 10,
+        "worker-medium": 10,
+        "worker-large": 10
+      }
+    },
+    "ppo_sweep_a_best": {
+      "scheduler_id": "ppo_sweep_a_best",
+      "scheduler_label": "PPO sweep A best",
+      "scheduler_algorithm": "PPO",
+      "model_path": "agentic_scheduler/models/ppo_optA_u140_r2048_e8_mb512_ent0010_seed84.pt",
+      "run_count": 3,
+      "totals": {
+        "submitted": 30,
+        "completed": 30,
+        "failed": 0,
+        "cancelled": 0
+      },
+      "metrics": {
+        "success_rate": {
+          "count": 3,
+          "mean": 1.0,
+          "median": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "duration_seconds": {
+          "count": 3,
+          "mean": 9.409666666666666,
+          "median": 10.078,
+          "std": 0.9458732590692175,
+          "min": 8.072,
+          "max": 10.079
+        },
+        "mean_queue_wait_seconds": {
+          "count": 3,
+          "mean": 4.666666666666667,
+          "median": 5.0,
+          "std": 0.4714045207910317,
+          "min": 4.0,
+          "max": 5.0
+        },
+        "p95_queue_wait_seconds": {
+          "count": 3,
+          "mean": 4.666666666666667,
+          "median": 5.0,
+          "std": 0.4714045207910317,
+          "min": 4.0,
+          "max": 5.0
+        },
+        "mean_turnaround_seconds": {
+          "count": 3,
+          "mean": 7.733333333333333,
+          "median": 8.1,
+          "std": 0.5906681715556445,
+          "min": 6.9,
+          "max": 8.2
+        },
+        "mean_attempts_per_task": {
+          "count": 3,
+          "mean": 1.0,
+          "median": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "assignment_balance_std": {
+          "count": 3,
+          "mean": 0.4714045207910316,
+          "median": 0.4714045207910317,
+          "std": 0.0,
+          "min": 0.4714045207910317,
+          "max": 0.4714045207910317
+        },
+        "assignment_max_share": {
+          "count": 3,
+          "mean": 0.4000000000000001,
+          "median": 0.4,
+          "std": 0.0,
+          "min": 0.4,
+          "max": 0.4
+        }
+      },
+      "assignments_by_worker_total": {
+        "worker-large": 9,
+        "worker-medium": 9,
+        "worker-small": 12
+      }
+    },
+    "ppo_sweep_b_best": {
+      "scheduler_id": "ppo_sweep_b_best",
+      "scheduler_label": "PPO sweep B best",
+      "scheduler_algorithm": "PPO",
+      "model_path": "agentic_scheduler/models/ppo_optB_u220_r1024_e8_mb256_ent010_gae093_seed42.pt",
+      "run_count": 3,
+      "totals": {
+        "submitted": 30,
+        "completed": 30,
+        "failed": 0,
+        "cancelled": 0
+      },
+      "metrics": {
+        "success_rate": {
+          "count": 3,
+          "mean": 1.0,
+          "median": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "duration_seconds": {
+          "count": 3,
+          "mean": 9.404333333333334,
+          "median": 10.064,
+          "std": 0.9399894798465687,
+          "min": 8.075,
+          "max": 10.074
+        },
+        "mean_queue_wait_seconds": {
+          "count": 3,
+          "mean": 4.666666666666667,
+          "median": 5.0,
+          "std": 0.4714045207910317,
+          "min": 4.0,
+          "max": 5.0
+        },
+        "p95_queue_wait_seconds": {
+          "count": 3,
+          "mean": 4.666666666666667,
+          "median": 5.0,
+          "std": 0.4714045207910317,
+          "min": 4.0,
+          "max": 5.0
+        },
+        "mean_turnaround_seconds": {
+          "count": 3,
+          "mean": 7.7,
+          "median": 7.8,
+          "std": 0.29439202887759497,
+          "min": 7.3,
+          "max": 8.0
+        },
+        "mean_attempts_per_task": {
+          "count": 3,
+          "mean": 1.0,
+          "median": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "assignment_balance_std": {
+          "count": 3,
+          "mean": 0.0,
+          "median": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "assignment_max_share": {
+          "count": 3,
+          "mean": 1.0,
+          "median": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        }
+      },
+      "assignments_by_worker_total": {
+        "worker-large": 30
+      }
+    }
+  },
+  "primary_metric_definition": [
+    {
+      "metric": "success_rate",
+      "goal": "maximize"
+    },
+    {
+      "metric": "mean_turnaround_seconds",
+      "goal": "minimize"
+    },
+    {
+      "metric": "mean_queue_wait_seconds",
+      "goal": "minimize"
+    },
+    {
+      "metric": "duration_seconds",
+      "goal": "minimize"
+    }
+  ],
+  "ranking": [
+    {
+      "rank": 1,
+      "scheduler_id": "rts",
+      "scheduler_label": "RTS baseline",
+      "success_rate_mean": 1.0,
+      "mean_turnaround_seconds_mean": 7.366666666666667,
+      "mean_queue_wait_seconds_mean": 4.0,
+      "duration_seconds_mean": 8.073
+    },
+    {
+      "rank": 2,
+      "scheduler_id": "ppo_sweep_b_best",
+      "scheduler_label": "PPO sweep B best",
+      "success_rate_mean": 1.0,
+      "mean_turnaround_seconds_mean": 7.7,
+      "mean_queue_wait_seconds_mean": 4.666666666666667,
+      "duration_seconds_mean": 9.404333333333334
+    },
+    {
+      "rank": 3,
+      "scheduler_id": "ppo_sweep_a_best",
+      "scheduler_label": "PPO sweep A best",
+      "success_rate_mean": 1.0,
+      "mean_turnaround_seconds_mean": 7.733333333333333,
+      "mean_queue_wait_seconds_mean": 4.666666666666667,
+      "duration_seconds_mean": 9.409666666666666
+    }
+  ],
+  "winner": {
+    "rank": 1,
+    "scheduler_id": "rts",
+    "scheduler_label": "RTS baseline",
+    "success_rate_mean": 1.0,
+    "mean_turnaround_seconds_mean": 7.366666666666667,
+    "mean_queue_wait_seconds_mean": 4.0,
+    "duration_seconds_mean": 8.073
+  },
+  "comparisons_vs_rts": {
+    "ppo_sweep_a_best": {
+      "success_rate": {
+        "rts_mean": 1.0,
+        "candidate_mean": 1.0,
+        "delta": 0.0,
+        "delta_pct": 0.0
+      },
+      "duration_seconds": {
+        "rts_mean": 8.073,
+        "candidate_mean": 9.409666666666666,
+        "delta": 1.336666666666666,
+        "delta_pct": 16.557248441306402
+      },
+      "mean_queue_wait_seconds": {
+        "rts_mean": 4.0,
+        "candidate_mean": 4.666666666666667,
+        "delta": 0.666666666666667,
+        "delta_pct": 16.666666666666675
+      },
+      "p95_queue_wait_seconds": {
+        "rts_mean": 4.0,
+        "candidate_mean": 4.666666666666667,
+        "delta": 0.666666666666667,
+        "delta_pct": 16.666666666666675
+      },
+      "mean_turnaround_seconds": {
+        "rts_mean": 7.366666666666667,
+        "candidate_mean": 7.733333333333333,
+        "delta": 0.36666666666666625,
+        "delta_pct": 4.977375565610854
+      },
+      "assignment_max_share": {
+        "rts_mean": 1.0,
+        "candidate_mean": 0.4000000000000001,
+        "delta": -0.5999999999999999,
+        "delta_pct": -59.999999999999986
+      }
+    },
+    "ppo_sweep_b_best": {
+      "success_rate": {
+        "rts_mean": 1.0,
+        "candidate_mean": 1.0,
+        "delta": 0.0,
+        "delta_pct": 0.0
+      },
+      "duration_seconds": {
+        "rts_mean": 8.073,
+        "candidate_mean": 9.404333333333334,
+        "delta": 1.3313333333333333,
+        "delta_pct": 16.491184607126634
+      },
+      "mean_queue_wait_seconds": {
+        "rts_mean": 4.0,
+        "candidate_mean": 4.666666666666667,
+        "delta": 0.666666666666667,
+        "delta_pct": 16.666666666666675
+      },
+      "p95_queue_wait_seconds": {
+        "rts_mean": 4.0,
+        "candidate_mean": 4.666666666666667,
+        "delta": 0.666666666666667,
+        "delta_pct": 16.666666666666675
+      },
+      "mean_turnaround_seconds": {
+        "rts_mean": 7.366666666666667,
+        "candidate_mean": 7.7,
+        "delta": 0.33333333333333304,
+        "delta_pct": 4.52488687782805
+      },
+      "assignment_max_share": {
+        "rts_mean": 1.0,
+        "candidate_mean": 1.0,
+        "delta": 0.0,
+        "delta_pct": 0.0
+      }
+    }
+  },
+  "environment_restore": {
+    "rts_master_restored": true,
+    "restore_error": null
+  }
+}

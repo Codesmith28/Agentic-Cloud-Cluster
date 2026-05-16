@@ -19,7 +19,12 @@ var collections = []string{
 	"WORKER_REGISTRY",
 	"TASKS",
 	"ASSIGNMENTS",
+	"ATTEMPTS",
 	"RESULTS",
+	"SCHEDULER_MODELS",
+	"scheduler_models.files",
+	"scheduler_models.chunks",
+	"RTS_WEIGHTS",
 }
 
 // EnsureCollections connects to the MongoDB instance and makes sure the

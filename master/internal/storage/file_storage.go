@@ -40,8 +40,8 @@ type FileMetadata struct {
 
 // NewFileStorageService creates a new file storage service
 func NewFileStorageService(baseDir string) (*FileStorageService, error) {
-	// Create base directory if it doesn't exist
-	if err := os.MkdirAll(baseDir, 0755); err != nil {
+	// Create base directory if it doesn't exist with owner-only permissions
+	if err := os.MkdirAll(baseDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create storage directory: %w", err)
 	}
 
@@ -127,6 +127,11 @@ func (s *FileStorageService) ReceiveFileStream(stream pb.MasterWorker_UploadTask
 			if currentFile != nil {
 				currentFile.Close()
 				filesReceived++
+			}
+
+			// Validate file path to prevent directory traversal from workers
+			if strings.Contains(chunk.FilePath, "..") || filepath.IsAbs(chunk.FilePath) || strings.ContainsRune(chunk.FilePath, 0) {
+				return nil, fmt.Errorf("rejected unsafe file path from worker: %s", chunk.FilePath)
 			}
 
 			// Open new file

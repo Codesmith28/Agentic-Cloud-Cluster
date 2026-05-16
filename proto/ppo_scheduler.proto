@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package ppo;
+
+option go_package = "github.com/Codesmith28/CloudAI/proto/pb";
+
+import "master_worker.proto";
+
+service PPOScheduler {
+  // Health/readiness check for the Python PPO service.
+  rpc Ping(PingRequest) returns (PingResponse);
+
+  // Load (or initialize) a PPO model for a strict cluster fingerprint.
+  rpc LoadModelForFingerprint(LoadModelForFingerprintRequest)
+      returns (LoadModelForFingerprintResponse);
+
+  // Select the best worker for a task from the current candidate set.
+  rpc SelectWorker(SelectWorkerRequest) returns (SelectWorkerResponse);
+
+  // Report scheduling outcome/reward signals back to PPO.
+  rpc ReportOutcome(ReportOutcomeRequest) returns (ReportOutcomeResponse);
+}
+
+message PingRequest {}
+
+message PingResponse {
+  bool healthy = 1;
+  string message = 2;
+  string fingerprint_hash = 3;
+  string model_version = 4;
+}
+
+message CandidateWorker {
+  string worker_id = 1;
+  string worker_ip = 2;
+  bool is_active = 3;
+
+  double available_cpu = 4;
+  double available_memory = 5;
+  double available_storage = 6;
+
+  double total_cpu = 7;
+  double total_memory = 8;
+  double total_storage = 9;
+
+  double current_cpu_usage = 10;
+  double current_memory_usage = 11;
+}
+
+message SelectWorkerRequest {
+  cluster.Task task = 1;
+  repeated CandidateWorker workers = 2;
+  string cluster_fingerprint_hash = 3;
+  string cluster_fingerprint_payload = 4;
+  string fallback_scheduler = 5;
+}
+
+message SelectWorkerResponse {
+  string worker_id = 1;
+  bool used_fallback_policy = 2;
+  string reason = 3;
+  string model_version = 4;
+}
+
+message LoadModelForFingerprintRequest {
+  string scheduler_type = 1; // Expected value: "PPO"
+  string fingerprint_hash = 2;
+  string fingerprint_payload = 3;
+  string model_path = 4;
+  bool create_if_missing = 5;
+}
+
+message LoadModelForFingerprintResponse {
+  bool loaded = 1;
+  bool cold_start = 2;
+  string model_version = 3;
+  string message = 4;
+}
+
+message ReportOutcomeRequest {
+  string task_id = 1;
+  string worker_id = 2;
+  string status = 3; // success / failed / cancelled
+  double reward = 4;
+  double runtime_seconds = 5;
+  bool sla_success = 6;
+  string fingerprint_hash = 7;
+  string model_version = 8;
+  cluster.Task task = 9;
+}
+
+message ReportOutcomeResponse {
+  bool accepted = 1;
+  string message = 2;
+}

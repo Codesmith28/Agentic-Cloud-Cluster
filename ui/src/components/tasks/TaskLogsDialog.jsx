@@ -45,8 +45,11 @@ const TaskLogsDialog = ({ open, onClose, taskId }) => {
     setIsComplete(false);
     setTaskStatus('');
 
-    // Connect to WebSocket
-    const ws = new WebSocket(`ws://localhost:8080/ws/tasks/${taskId}/logs`);
+    // Connect to WebSocket using protocol-aware URL
+    const wsBase =
+      import.meta.env.VITE_WS_BASE_URL ||
+      `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
+    const ws = new WebSocket(`${wsBase.replace(/\/$/, '')}/ws/tasks/${taskId}/logs`);
     wsRef.current = ws;
 
     ws.onopen = () => {

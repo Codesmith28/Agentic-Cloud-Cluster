@@ -4,14 +4,20 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
+	"time"
 
 	"worker/internal/logstream"
+	workermetrics "worker/internal/metrics"
+	"worker/internal/system"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -19,6 +25,42 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-units"
 )
+
+const (
+	maxLogBytes = 10 * 1024 * 1024 // 10 MB cap for collected logs
+	maxPidsLimit = 512              // prevent fork bombs inside containers
+)
+
+// validTaskID matches alphanumeric, hyphens, and underscores only.
+var validTaskID = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_\-]{0,253}$`)
+
+// validDockerImage matches standard Docker image references (registry/repo:tag@digest).
+var validDockerImage = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._\-/]*(:[a-zA-Z0-9._\-]+)?(@sha256:[a-f0-9]{64})?$`)
+
+// ValidateTaskID checks that a task ID is safe for use in file paths and container names.
+func ValidateTaskID(taskID string) error {
+	if taskID == "" {
+		return fmt.Errorf("task ID must not be empty")
+	}
+	if !validTaskID.MatchString(taskID) {
+		return fmt.Errorf("task ID %q contains invalid characters", taskID)
+	}
+	if strings.Contains(taskID, "..") {
+		return fmt.Errorf("task ID %q must not contain '..'", taskID)
+	}
+	return nil
+}
+
+// ValidateDockerImage checks that a Docker image reference is well-formed.
+func ValidateDockerImage(img string) error {
+	if img == "" {
+		return fmt.Errorf("docker image must not be empty")
+	}
+	if !validDockerImage.MatchString(img) {
+		return fmt.Errorf("docker image %q is not a valid image reference", img)
+	}
+	return nil
+}
 
 // TaskExecutor handles Docker container execution
 type TaskExecutor struct {
@@ -37,6 +79,12 @@ type TaskResult struct {
 	Error          error
 	ResultLocation string   // Path to output directory on worker
 	OutputFiles    []string // List of output files relative to ResultLocation
+}
+
+type containerUsageSnapshot struct {
+	cpuSeconds      float64
+	memoryPeakBytes uint64
+	ioBytes         uint64
 }
 
 // getBaseOutputDir returns the base output directory, using CLOUDAI_OUTPUT_DIR env var if set
@@ -61,32 +109,53 @@ func NewTaskExecutor() (*TaskExecutor, error) {
 	}, nil
 }
 
-// ExecuteTask pulls and runs a Docker container for the task with resource constraints
-func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, command string, reqCPU, reqMemory, reqGPU float64) *TaskResult {
+// ExecuteTask pulls and runs a Docker container for the task with resource constraints.
+func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, command string, reqCPU, reqMemory float64, taskType string) *TaskResult {
 	result := &TaskResult{
 		TaskID: taskID,
 		Status: "failed",
 	}
 
+	// Validate inputs before proceeding
+	if err := ValidateTaskID(taskID); err != nil {
+		result.Error = fmt.Errorf("invalid task ID: %w", err)
+		result.Logs = fmt.Sprintf("Rejected: %v", err)
+		return result
+	}
+	if err := ValidateDockerImage(dockerImage); err != nil {
+		result.Error = fmt.Errorf("invalid docker image: %w", err)
+		result.Logs = fmt.Sprintf("Rejected: %v", err)
+		return result
+	}
+
+	executionStarted := time.Now()
+	workermetrics.Get().IncTaskStart(taskType)
+
 	log.Printf("[Task %s] Starting execution...", taskID)
 
 	// Pull the image
 	log.Printf("[Task %s] Pulling image: %s", taskID, dockerImage)
+	pullStarted := time.Now()
 	if err := e.pullImage(ctx, dockerImage); err != nil {
+		workermetrics.Get().IncDockerError("image_pull", taskType)
 		result.Error = fmt.Errorf("failed to pull image: %w", err)
 		result.Logs = fmt.Sprintf("Error pulling image: %v", err)
 		return result
 	}
+	workermetrics.Get().ObserveImagePull(taskType, pullStarted)
 
 	// Create container with resource limits
-	log.Printf("[Task %s] Creating container with resource limits (CPU: %.2f, Memory: %.2fGB, GPU: %.2f)...",
-		taskID, reqCPU, reqMemory, reqGPU)
-	containerID, err := e.createContainer(ctx, dockerImage, command, taskID, reqCPU, reqMemory, reqGPU)
+	log.Printf("[Task %s] Creating container with resource limits (CPU: %.2f, Memory: %.2fGB)...",
+		taskID, reqCPU, reqMemory)
+	createStarted := time.Now()
+	containerID, err := e.createContainer(ctx, dockerImage, command, taskID, reqCPU, reqMemory)
 	if err != nil {
+		workermetrics.Get().IncDockerError("container_create", taskType)
 		result.Error = fmt.Errorf("failed to create container: %w", err)
 		result.Logs = fmt.Sprintf("Error creating container: %v", err)
 		return result
 	}
+	workermetrics.Get().ObserveContainerCreate(taskType, createStarted)
 
 	// Store container mapping
 	e.mu.Lock()
@@ -106,6 +175,7 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 	// Start container
 	log.Printf("[Task %s] Starting container: %s", taskID, containerID[:12])
 	if err := e.dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
+		workermetrics.Get().IncDockerError("container_start", taskType)
 		result.Error = fmt.Errorf("failed to start container: %w", err)
 		result.Logs = fmt.Sprintf("Error starting container: %v", err)
 		return result
@@ -130,6 +200,7 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 	select {
 	case err := <-errCh:
 		if err != nil {
+			workermetrics.Get().IncDockerError("container_wait", taskType)
 			result.Error = fmt.Errorf("error waiting for container: %w", err)
 			result.Status = "failed"
 			return result
@@ -162,9 +233,14 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 		log.Println("  Resources Released:")
 		log.Printf("    • CPU Cores:     %.2f cores", reqCPU)
 		log.Printf("    • Memory:        %.2f GB", reqMemory)
-		log.Printf("    • GPU Cores:     %.2f cores", reqGPU)
 		log.Println("═══════════════════════════════════════════════════════")
 		log.Println("")
+	}
+	workermetrics.Get().ObserveTaskRuntime(taskType, result.Status, executionStarted)
+	if usage, err := e.collectContainerUsage(containerID); err != nil {
+		log.Printf("[Task %s] Warning: failed to collect container usage stats: %v", taskID, err)
+	} else {
+		workermetrics.Get().ObserveContainerUsage(taskType, usage.cpuSeconds, usage.memoryPeakBytes, usage.ioBytes)
 	}
 
 	// Collect output files
@@ -187,6 +263,12 @@ func (e *TaskExecutor) ExecuteTask(ctx context.Context, taskID, dockerImage, com
 func (e *TaskExecutor) pullImage(ctx context.Context, imageName string) error {
 	out, err := e.dockerClient.ImagePull(ctx, imageName, image.PullOptions{})
 	if err != nil {
+		// In offline/dev environments, allow execution to continue when the image
+		// is already present locally but registry pull is unavailable.
+		if _, _, inspectErr := e.dockerClient.ImageInspectWithRaw(ctx, imageName); inspectErr == nil {
+			log.Printf("⚠️  Image pull failed for %s; using local image instead: %v", imageName, err)
+			return nil
+		}
 		return err
 	}
 	defer out.Close()
@@ -196,8 +278,8 @@ func (e *TaskExecutor) pullImage(ctx context.Context, imageName string) error {
 	return err
 }
 
-// createContainer creates a Docker container with resource limits
-func (e *TaskExecutor) createContainer(ctx context.Context, image, command, taskID string, reqCPU, reqMemory, reqGPU float64) (string, error) {
+// createContainer creates a Docker container with resource limits.
+func (e *TaskExecutor) createContainer(ctx context.Context, image, command, taskID string, reqCPU, reqMemory float64) (string, error) {
 	// Prepare container config
 	containerConfig := &container.Config{
 		Image: image,
@@ -221,9 +303,16 @@ func (e *TaskExecutor) createContainer(ctx context.Context, image, command, task
 	}
 	log.Printf("[Task %s] ✓ Created secure output directory: %s", taskID, outputDir)
 
-	// Prepare host config with resource limits and volume mount
+	// Prepare host config with resource limits, volume mount, and security hardening
+	networkMode := system.ResolveWorkerContainerNetworkMode()
+	pidsLimit := int64(maxPidsLimit)
 	hostConfig := &container.HostConfig{
-		Resources: container.Resources{},
+		NetworkMode: container.NetworkMode(networkMode),
+		Resources: container.Resources{
+			PidsLimit: &pidsLimit,
+		},
+		SecurityOpt: []string{"no-new-privileges"},
+		ReadonlyRootfs: false, // tasks may need to write; /output is bind-mounted
 		Mounts: []mount.Mount{
 			{
 				Type:   mount.TypeBind,
@@ -231,6 +320,8 @@ func (e *TaskExecutor) createContainer(ctx context.Context, image, command, task
 				Target: "/output",
 			},
 		},
+		CapDrop: []string{"ALL"},
+		CapAdd:  []string{"CHOWN", "DAC_OVERRIDE", "FOWNER", "SETGID", "SETUID"},
 	}
 
 	// Set CPU limit (in nano CPUs: 1 CPU = 1e9 nano CPUs)
@@ -241,21 +332,6 @@ func (e *TaskExecutor) createContainer(ctx context.Context, image, command, task
 	// Set Memory limit (convert GB to bytes)
 	if reqMemory > 0 {
 		hostConfig.Resources.Memory = int64(reqMemory * units.GiB)
-	}
-
-	// Set GPU devices (if requested)
-	if reqGPU > 0 {
-		// Note: This is a simplified GPU allocation
-		// In production, you'd use nvidia-docker runtime and proper device requests
-		hostConfig.Runtime = "nvidia"
-		// For proper GPU support, you'd need:
-		// hostConfig.DeviceRequests = []container.DeviceRequest{
-		//     {
-		//         Count: int(reqGPU),
-		//         Capabilities: [][]string{{"gpu"}},
-		//     },
-		// }
-		log.Printf("[Task %s] GPU support requested but simplified implementation", taskID)
 	}
 
 	resp, err := e.dockerClient.ContainerCreate(
@@ -273,7 +349,7 @@ func (e *TaskExecutor) createContainer(ctx context.Context, image, command, task
 	return resp.ID, nil
 }
 
-// collectLogs streams container logs
+// collectLogs streams container logs with a size cap to prevent OOM.
 func (e *TaskExecutor) collectLogs(ctx context.Context, containerID string) (string, error) {
 	logReader, err := e.dockerClient.ContainerLogs(ctx, containerID, container.LogsOptions{
 		ShowStdout: true,
@@ -295,13 +371,18 @@ func (e *TaskExecutor) collectLogs(ctx context.Context, containerID string) (str
 		if len(line) > 8 {
 			line = line[8:]
 		}
+		if logBuffer.Len()+len(line)+1 > maxLogBytes {
+			logBuffer.WriteString("\n... [log output truncated at 10 MB] ...\n")
+			break
+		}
 		logBuffer.WriteString(line + "\n")
 	}
 
 	return logBuffer.String(), scanner.Err()
 }
 
-// collectOutputFiles collects all files from the output directory
+// collectOutputFiles collects all files from the output directory.
+// It validates that all files are within the expected directory to prevent traversal.
 func (e *TaskExecutor) collectOutputFiles(outputDir string) ([]string, error) {
 	var files []string
 
@@ -310,16 +391,28 @@ func (e *TaskExecutor) collectOutputFiles(outputDir string) ([]string, error) {
 		return files, nil // No output directory, return empty list
 	}
 
+	absOutputDir, err := filepath.Abs(outputDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve output directory: %w", err)
+	}
+
 	// Walk through directory and collect all file paths
-	err := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(absOutputDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(absPath, absOutputDir) {
+			return fmt.Errorf("path %q escapes output directory", path)
+		}
+
 		// Skip directories, only collect files
 		if !info.IsDir() {
-			// Get relative path from output directory
-			relPath, err := filepath.Rel(outputDir, path)
+			relPath, err := filepath.Rel(absOutputDir, absPath)
 			if err != nil {
 				return err
 			}
@@ -330,6 +423,62 @@ func (e *TaskExecutor) collectOutputFiles(outputDir string) ([]string, error) {
 	})
 
 	return files, err
+}
+
+func (e *TaskExecutor) collectContainerUsage(containerID string) (containerUsageSnapshot, error) {
+	snapshot := containerUsageSnapshot{}
+	statsCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	stats, err := e.fetchContainerStats(statsCtx, containerID)
+	if err != nil {
+		return snapshot, err
+	}
+
+	snapshot.cpuSeconds = float64(stats.CPUStats.CPUUsage.TotalUsage) / float64(time.Second)
+	if stats.MemoryStats.MaxUsage > 0 {
+		snapshot.memoryPeakBytes = stats.MemoryStats.MaxUsage
+	} else {
+		snapshot.memoryPeakBytes = stats.MemoryStats.Usage
+	}
+	snapshot.ioBytes = sumContainerIOBytes(stats.BlkioStats.IoServiceBytesRecursive)
+
+	return snapshot, nil
+}
+
+func (e *TaskExecutor) fetchContainerStats(ctx context.Context, containerID string) (container.StatsResponse, error) {
+	statsReader, err := e.dockerClient.ContainerStatsOneShot(ctx, containerID)
+	if err != nil {
+		statsReader, err = e.dockerClient.ContainerStats(ctx, containerID, false)
+		if err != nil {
+			return container.StatsResponse{}, err
+		}
+	}
+	defer statsReader.Body.Close()
+
+	var stats container.StatsResponse
+	if err := json.NewDecoder(statsReader.Body).Decode(&stats); err != nil {
+		return container.StatsResponse{}, err
+	}
+	return stats, nil
+}
+
+func sumContainerIOBytes(entries []container.BlkioStatEntry) uint64 {
+	var allOpsTotal uint64
+	var readWriteTotal uint64
+
+	for _, entry := range entries {
+		allOpsTotal += entry.Value
+		switch strings.ToLower(entry.Op) {
+		case "read", "write":
+			readWriteTotal += entry.Value
+		}
+	}
+
+	if readWriteTotal > 0 {
+		return readWriteTotal
+	}
+	return allOpsTotal
 }
 
 // cleanup removes the container

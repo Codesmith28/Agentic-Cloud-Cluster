@@ -25,7 +25,6 @@ const SubmitTask = () => {
     cpu_required: 1.0,
     memory_required: 2.0,
     storage_required: 5.0,
-    gpu_required: 0.0,
     tag: '', // NEW FIELD
     k_value: K_VALUE.DEFAULT, // NEW FIELD
   });
@@ -55,16 +54,26 @@ const SubmitTask = () => {
       setError('Docker image is required');
       return false;
     }
+    // Validate docker image name format to prevent injection
+    const dockerImagePattern = /^[a-zA-Z0-9][a-zA-Z0-9._\-/]*(?::[a-zA-Z0-9._\-]+)?$/;
+    if (!dockerImagePattern.test(formData.docker_image.trim())) {
+      setError('Invalid Docker image name format');
+      return false;
+    }
     if (!formData.tag) {
       setError('Task tag is required');
       return false;
     }
-    if (formData.cpu_required <= 0) {
-      setError('CPU must be greater than 0');
+    if (formData.cpu_required <= 0 || formData.cpu_required > 64) {
+      setError('CPU must be between 0.1 and 64');
       return false;
     }
-    if (formData.memory_required <= 0) {
-      setError('Memory must be greater than 0');
+    if (formData.memory_required <= 0 || formData.memory_required > 256) {
+      setError('Memory must be between 0.5 and 256');
+      return false;
+    }
+    if (formData.storage_required < 1 || formData.storage_required > 1000) {
+      setError('Storage must be between 1 and 1000');
       return false;
     }
     return true;
@@ -91,8 +100,7 @@ const SubmitTask = () => {
           cpu_required: 1.0,
           memory_required: 2.0,
           storage_required: 5.0,
-          gpu_required: 0.0,
-          tag: '',
+                tag: '',
           k_value: K_VALUE.DEFAULT,
         });
         setSuccess(false);
@@ -235,19 +243,6 @@ const SubmitTask = () => {
             />
           </Grid>
 
-          {/* GPU Required */}
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              type="number"
-              label="GPU Required (units)"
-              value={formData.gpu_required}
-              onChange={handleChange('gpu_required')}
-              inputProps={{ min: 0, max: 8, step: 0.5 }}
-              helperText="Number of GPUs needed"
-            />
-          </Grid>
-
           {/* Submit Button */}
           <Grid item xs={12}>
             <Button
@@ -274,7 +269,6 @@ const getTagColor = (tag) => {
     'cpu-heavy': '#ff9800',
     'memory-light': '#2196f3',
     'memory-heavy': '#f44336',
-    'gpu-training': '#9c27b0',
     'mixed': '#607d8b',
   };
   return colors[tag] || '#9e9e9e';
