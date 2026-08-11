@@ -2447,3 +2447,8 @@ For more information:
 - Contributing: See CONTRIBUTING.md (coming soon)
 
 **Happy distributed computing!**
+
+
+## License
+
+This project is licensed under the Apache License, Version 2.0. See the root [LICENSE](../LICENSE) and [NOTICE](../NOTICE) files for full details.

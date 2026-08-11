@@ -464,3 +464,10 @@ This architecture supports:
 - **File Management**: Secure per-user/per-task file upload/download
 - **Task Queuing**: Automatic queuing when no workers available
 - **Web Dashboard**: React-based UI for monitoring and management
+
+---
+
+## License
+
+This project is licensed under the Apache License, Version 2.0. See the root [LICENSE](LICENSE) and [NOTICE](NOTICE) files for full details.
+

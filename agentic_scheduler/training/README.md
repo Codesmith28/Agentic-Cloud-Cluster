@@ -107,3 +107,8 @@ When transitioning from the static offline dataset to live inference on the Go c
 The disparity between the two data sources is precisely why the `trace_loader.py` adapter exists. Before the neural network sees any data, the loader forces the exotic Alibaba values into the canonical `TraceCluster` and `TraceTask` formats, mathematically converting centi-cores to absolute cores, and normalizing budget fractions to GB estimates.
 
 Because the Reinforcement Learning agent only ever interacts with numerical feature arrays (`task_features`, `worker_features`) derived from this canonical structure, the Neural Network receives inputs that are already normalized against the absolute maximum capacity of the cluster. Consequently, the trained PPO model becomes completely agnostic to the source of the data. As long as the Go framework and the offline environment construct their feature arrays identically, the offline-trained model performs seamlessly during online inference.
+
+
+## License
+
+This project is licensed under the Apache License, Version 2.0. See the root [LICENSE](../LICENSE) and [NOTICE](../NOTICE) files for full details.

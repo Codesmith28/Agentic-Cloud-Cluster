@@ -80,3 +80,8 @@ sys.path.append('path/to/CloudAI/proto/py')
 import master_agent_pb2
 import master_agent_pb2_grpc
 ```
+
+
+## License
+
+This project is licensed under the Apache License, Version 2.0. See the root [LICENSE](../LICENSE) and [NOTICE](../NOTICE) files for full details.
