@@ -1858,8 +1858,3 @@ File fallback: config/ga_output.json (same structure)
 ---
 
 _Last updated: April 2026_
-
-
-## License
-
-This project is licensed under the Apache License, Version 2.0. See the root [LICENSE](../LICENSE) and [NOTICE](../NOTICE) files for full details.

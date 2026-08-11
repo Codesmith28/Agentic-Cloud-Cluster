@@ -102,8 +102,3 @@ go build -o workerNode .
 - Go 1.22+
 - Network reachability between master and worker
 - Registry access (unless image is already available locally)
-
-
-## License
-
-This project is licensed under the Apache License, Version 2.0. See the root [LICENSE](../LICENSE) and [NOTICE](../NOTICE) files for full details.

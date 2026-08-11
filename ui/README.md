@@ -198,9 +198,8 @@ WEBUI_PORT=3002 npm run dev
 ```
 
 ## License
- 
-This project is licensed under the Apache License, Version 2.0. See the root [LICENSE](../LICENSE) and [NOTICE](../NOTICE) files for full terms and attribution.
 
+Same as CloudAI project
 
 ## Contributing
 

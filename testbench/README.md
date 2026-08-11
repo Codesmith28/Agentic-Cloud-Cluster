@@ -124,8 +124,3 @@ testbench/scripts/run_suite.sh
 - `testbench/scripts/run_ui_smoke.py`: writes UI/auth smoke summary JSON to the `--output` path (used as `summary.json` by `run_suite.sh`)
 
 Detailed runbook: [`docs/TESTBENCH_RUNBOOK.md`](../docs/TESTBENCH_RUNBOOK.md)
-
-
-## License
-
-This project is licensed under the Apache License, Version 2.0. See the root [LICENSE](../LICENSE) and [NOTICE](../NOTICE) files for full details.

@@ -169,8 +169,3 @@ go build -o masterNode .
 - Go 1.22+
 - Network reachability between master and workers
 - MongoDB (optional but recommended for persistence)
-
-
-## License
-
-This project is licensed under the Apache License, Version 2.0. See the root [LICENSE](../LICENSE) and [NOTICE](../NOTICE) files for full details.

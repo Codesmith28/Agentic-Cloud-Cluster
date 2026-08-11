@@ -52,8 +52,3 @@ Add `--volumes` if you want to remove the `mongo_data` volume and all stored dat
 
 - If `docker compose up` fails, ensure no other process occupies port `27017` and that Docker is running.
 - Delete the volume for a clean start: `docker volume rm database_mongo_data` (replace with the actual volume name shown by `docker volume ls`).
-
-
-## License
-
-This project is licensed under the Apache License, Version 2.0. See the root [LICENSE](../LICENSE) and [NOTICE](../NOTICE) files for full details.

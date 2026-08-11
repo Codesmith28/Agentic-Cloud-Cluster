@@ -249,7 +249,3 @@ For detailed troubleshooting or additional setup info:
 - **Project Overview:** See root `README.md`
 - **Architecture:** See `docs/DOCUMENTATION.md`
 
-
-## License
-
-This project is licensed under the Apache License, Version 2.0. See the root [LICENSE](../LICENSE) and [NOTICE](../NOTICE) files for full details.
