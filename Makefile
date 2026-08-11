@@ -1,17 +1,3 @@
-# Copyright 2025-2026 Sarthak Siddhpura
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 .PHONY: help all proto master worker clean setup test test-unit test-unit-verbose testbench-up testbench-prepare-images testbench-register testbench-workload testbench-suite testbench-suite-smoke testbench-suite-reliability testbench-suite-ui-smoke testbench-suite-evidence testbench-suite-full testbench-integration testbench-down testbench-host-up testbench-host-register testbench-host-suite testbench-host-suite-smoke testbench-host-suite-reliability testbench-host-suite-ui-smoke testbench-host-suite-evidence testbench-host-suite-full testbench-host-down campaign campaign-full
 
 # Default target
