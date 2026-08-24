@@ -40,8 +40,6 @@ type WorkerDocument struct {
 
 // NewWorkerDB creates a new WorkerDB instance
 func NewWorkerDB(ctx context.Context, cfg *config.Config) (*WorkerDB, error) {
-	loadDotEnv()
-
 	if cfg.MongoDBUsername == "" || cfg.MongoDBPassword == "" {
 		return nil, errors.New("missing MongoDB credentials in environment")
 	}

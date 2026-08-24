@@ -167,18 +167,10 @@ def find_latest_checkpoint(checkpoint_dir: Path) -> Optional[Path]:
         except OSError:
             continue
         candidates.append((mtime, candidate.name, candidate))
-    # Also check legacy .pkl files for backward compatibility
-    for candidate in directory.glob("*.pkl"):
-        if not candidate.is_file():
-            continue
-        try:
-            mtime = candidate.stat().st_mtime_ns
-        except OSError:
-            continue
-        candidates.append((mtime, candidate.name, candidate))
     if not candidates:
         return None
     return max(candidates, key=lambda item: (item[0], item[1]))[2]
+
 
 
 def resolve_resume_path(args: argparse.Namespace) -> Optional[Path]:

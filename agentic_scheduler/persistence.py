@@ -5,7 +5,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
 
-from bson import ObjectId
 from pymongo import ASCENDING, DESCENDING, MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
@@ -225,12 +224,4 @@ class MongoSchedulerModelStore:
             LOGGER.warning("Failed to activate existing checkpoint: %s", exc)
             return False
 
-
-def coerce_object_id(value) -> Optional[ObjectId]:
-    if isinstance(value, ObjectId):
-        return value
-    try:
-        return ObjectId(str(value))
-    except Exception:  # pylint: disable=broad-except
-        return None
 

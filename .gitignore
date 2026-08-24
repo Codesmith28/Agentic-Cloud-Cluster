@@ -1,11 +1,45 @@
-.vscode
-.env
-planner_py/venv
-node_modules
-venv
-test
-master/config/ga_output.json
+# ═══════════════════════════════════════════════════════════
+# Agentic Cloud Cluster — .gitignore
+# ═══════════════════════════════════════════════════════════
+
+# Compiled Go binaries
+masterNode
+workerNode
+master/master
 master/masterNode
 worker/workerNode
-agentic_scheduler/data
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.python-version
+
+# Model artifacts (EXCEPT ppo_latest.pt which is tracked)
+agentic_scheduler/models/*.pt
+!agentic_scheduler/models/ppo_latest.pt
+agentic_scheduler/models/archive/
+agentic_scheduler/results/checkpoints/
+agentic_scheduler/data/
+
+# Results (generated at runtime)
+results/
+
+# IDE & OS
+.vscode/
+.zed/
+.DS_Store
+
+# Environment files
+.env
+master/.env
+
+# Generated / runtime
+master/config/ga_output.json
 *.tar.gz
+*.log
+
+# Node
+node_modules/
+ui/dist/

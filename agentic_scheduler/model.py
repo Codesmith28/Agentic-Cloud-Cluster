@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import io
 import time
 from dataclasses import dataclass
@@ -14,7 +13,6 @@ from torch.distributions import Categorical
 
 from .features import TASK_FEATURE_DIM, WORKER_FEATURE_DIM
 
-LOGGER = logging.getLogger(__name__)
 
 
 class RunningNormalizer:

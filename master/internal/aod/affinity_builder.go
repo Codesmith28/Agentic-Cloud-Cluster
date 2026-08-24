@@ -112,20 +112,6 @@ func getDefaultTauForType(taskType string) float64 {
 
 // computeBaselineRuntime computes the average runtime for a task type across ALL workers.
 // This serves as the reference point for computing speed ratios.
-func computeBaselineRuntime(taskType string, history []db.TaskHistory) float64 {
-	filtered := filterHistoryByType(history, taskType)
-	if len(filtered) == 0 {
-		return 0.0
-	}
-
-	totalRuntime := 0.0
-	for _, record := range filtered {
-		totalRuntime += record.ActualRuntime
-	}
-
-	return totalRuntime / float64(len(filtered))
-}
-
 // computeWorkerAvgRuntime computes the average runtime for a specific (taskType, workerID) pair.
 func computeWorkerAvgRuntime(taskType, workerID string, history []db.TaskHistory) float64 {
 	filtered := filterHistory(history, taskType, workerID)

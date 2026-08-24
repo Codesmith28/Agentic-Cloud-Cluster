@@ -37,8 +37,6 @@ type UserDB struct {
 
 // NewUserDB creates a new UserDB instance
 func NewUserDB(ctx context.Context, cfg *config.Config) (*UserDB, error) {
-	loadDotEnv()
-
 	if cfg.MongoDBUsername == "" || cfg.MongoDBPassword == "" {
 		return nil, errors.New("missing MongoDB credentials in environment")
 	}

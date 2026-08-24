@@ -18,11 +18,6 @@ protoc --go_out=./pb --go_opt=paths=source_relative \
     --go-grpc_out=./pb --go-grpc_opt=paths=source_relative \
     master_worker.proto
 
-echo "-> Generating Go code for master_agent.proto (Master side -> Go)..."
-protoc --go_out=./pb --go_opt=paths=source_relative \
-    --go-grpc_out=./pb --go-grpc_opt=paths=source_relative \
-    master_agent.proto
-
 echo "-> Generating Go code for ppo_scheduler.proto (Master <-> Python PPO)..."
 protoc --go_out=./pb --go_opt=paths=source_relative \
     --go-grpc_out=./pb --go-grpc_opt=paths=source_relative \
@@ -41,13 +36,6 @@ python3 -m grpc_tools.protoc \
     --proto_path=. \
     master_worker.proto
 
-echo "-> Generating Python code for master_agent.proto (Agent side -> Python)..."
-python3 -m grpc_tools.protoc \
-    --python_out=./py \
-    --grpc_python_out=./py \
-    --proto_path=. \
-    master_agent.proto
-
 echo "-> Generating Python code for ppo_scheduler.proto (PPO side -> Python)..."
 python3 -m grpc_tools.protoc \
     --python_out=./py \
@@ -64,13 +52,11 @@ echo "-> Fixing Python imports for package compatibility..."
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
     sed -i '' 's/^import master_worker_pb2/from . import master_worker_pb2/g' ./py/master_worker_pb2_grpc.py
-    sed -i '' 's/^import master_agent_pb2/from . import master_agent_pb2/g' ./py/master_agent_pb2_grpc.py
     sed -i '' 's/^import ppo_scheduler_pb2/from . import ppo_scheduler_pb2/g' ./py/ppo_scheduler_pb2_grpc.py
     sed -i '' 's/^import master_worker_pb2 as/from . import master_worker_pb2 as/g' ./py/ppo_scheduler_pb2.py
 else
     # Linux
     sed -i 's/^import master_worker_pb2/from . import master_worker_pb2/g' ./py/master_worker_pb2_grpc.py
-    sed -i 's/^import master_agent_pb2/from . import master_agent_pb2/g' ./py/master_agent_pb2_grpc.py
     sed -i 's/^import ppo_scheduler_pb2/from . import ppo_scheduler_pb2/g' ./py/ppo_scheduler_pb2_grpc.py
     sed -i 's/^import master_worker_pb2 as/from . import master_worker_pb2 as/g' ./py/ppo_scheduler_pb2.py
 fi
