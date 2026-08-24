@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joho/godotenv"
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/envutil"
 )
 
 type commandRequest struct {
@@ -786,7 +786,7 @@ func loadRepoDotEnv(repoRoot string) map[string]string {
 	if strings.TrimSpace(repoRoot) == "" {
 		return nil
 	}
-	values, err := godotenv.Read(filepath.Join(repoRoot, ".env"))
+	values, err := envutil.ReadDotEnv(filepath.Join(repoRoot, ".env"))
 	if err != nil {
 		return nil
 	}

@@ -4,21 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
 	"go.mongodb.org/mongo-driver/bson"
 )
-
-var collections = []string{
-	"USERS",
-	"WORKER_REGISTRY",
-	"TASKS",
-	"ASSIGNMENTS",
-	"ATTEMPTS",
-	"RESULTS",
-	"SCHEDULER_MODELS",
-	"scheduler_models.files",
-	"scheduler_models.chunks",
-	"RTS_WEIGHTS",
-}
 
 // EnsureCollections ensures that all collections required by the master node exist.
 func EnsureCollections(ctx context.Context, store *MongoStore) error {
@@ -38,7 +26,7 @@ func EnsureCollections(ctx context.Context, store *MongoStore) error {
 		existingSet[name] = struct{}{}
 	}
 
-	for _, name := range collections {
+	for _, name := range constants.AllRequiredCollections {
 		if _, ok := existingSet[name]; ok {
 			continue
 		}

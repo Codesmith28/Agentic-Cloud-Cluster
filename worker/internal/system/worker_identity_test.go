@@ -5,12 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
 )
 
 func TestResolveWorkerIDPersistsInitialIdentity(t *testing.T) {
 	stateDir := t.TempDir()
-	t.Setenv(workerStateDirEnvVar, stateDir)
-	t.Setenv(workerIDEnvVar, "")
+	t.Setenv(constants.EnvWorkerStateDir, stateDir)
+	t.Setenv(constants.EnvWorkerID, "")
 
 	first, err := ResolveWorkerID("worker-host-a")
 	if err != nil {
@@ -40,8 +42,8 @@ func TestResolveWorkerIDPersistsInitialIdentity(t *testing.T) {
 
 func TestResolveWorkerIDUsesEnvOverride(t *testing.T) {
 	stateDir := t.TempDir()
-	t.Setenv(workerStateDirEnvVar, stateDir)
-	t.Setenv(workerIDEnvVar, "custom-worker-id")
+	t.Setenv(constants.EnvWorkerStateDir, stateDir)
+	t.Setenv(constants.EnvWorkerID, "custom-worker-id")
 
 	id, err := ResolveWorkerID("worker-host")
 	if err != nil {

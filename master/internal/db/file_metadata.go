@@ -1,6 +1,8 @@
 package db
 
 import (
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
+
 	"context"
 	"log"
 	"time"
@@ -28,7 +30,7 @@ type FileMetadataDB struct {
 
 // NewFileMetadataDB creates a new FileMetadataDB instance from MongoStore
 func NewFileMetadataDB(store *MongoStore) *FileMetadataDB {
-	collection := store.Collection("FILE_METADATA")
+	collection := store.Collection(constants.CollectionFileMetadata)
 
 	// Create indexes
 	indexes := []mongo.IndexModel{

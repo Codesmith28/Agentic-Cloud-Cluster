@@ -1,6 +1,8 @@
 package db
 
 import (
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
+
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -16,7 +18,7 @@ import (
 )
 
 const (
-	schedulerModelsCollection = "SCHEDULER_MODELS"
+	schedulerModelsCollection = constants.CollectionSchedulerModels
 	schedulerModelsBucketName = "scheduler_models"
 )
 

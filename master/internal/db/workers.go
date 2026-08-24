@@ -1,6 +1,8 @@
 package db
 
 import (
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
+
 	"context"
 	"fmt"
 	"time"
@@ -37,7 +39,7 @@ type WorkerDocument struct {
 // NewWorkerDB creates a new WorkerDB instance from MongoStore
 func NewWorkerDB(store *MongoStore) *WorkerDB {
 	return &WorkerDB{
-		collection: store.Collection("WORKER_REGISTRY"),
+		collection: store.Collection(constants.CollectionWorkers),
 	}
 }
 

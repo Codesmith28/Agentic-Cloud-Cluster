@@ -17,3 +17,9 @@ func LoadDotEnv() {
 	}
 	log.Println("No .env file found, using environment variables")
 }
+
+// ReadDotEnv reads a specific .env file into a map.
+func ReadDotEnv(path string) (map[string]string, error) {
+	return godotenv.Read(path)
+}
+

@@ -8,11 +8,10 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
-	"time"
 
-	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/envutil"
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
+	"worker/internal/config"
 	workermetrics "worker/internal/metrics"
 	"worker/internal/server"
 	"worker/internal/system"
@@ -42,21 +41,8 @@ func (a *App) Run() {
 	log.Println("  Agentic Cloud Cluster Worker Node - Starting...")
 	log.Println("═══════════════════════════════════════════════════════")
 
-	// Determine output base directory
-	outputBaseDir := envutil.GetEnv("AGENTIC_OUTPUT_DIR", envutil.GetEnv("CLOUDAI_OUTPUT_DIR", "/var/agentic-cloud-cluster/outputs"))
-	if err := os.MkdirAll(outputBaseDir, 0700); err != nil {
-		homeDir, _ := os.UserHomeDir()
-		outputBaseDir = filepath.Join(homeDir, ".agentic-cloud-cluster", "outputs")
-		if err := os.MkdirAll(outputBaseDir, 0700); err != nil {
-			log.Fatalf("Failed to create output directory %s: %v", outputBaseDir, err)
-		}
-		log.Printf("⚠️  Using user directory (no root access): %s", outputBaseDir)
-	} else {
-		log.Printf("✓ Output directory ready (secure): %s", outputBaseDir)
-	}
-
-	os.Setenv("CLOUDAI_OUTPUT_DIR", outputBaseDir)
-	os.Setenv("AGENTIC_OUTPUT_DIR", outputBaseDir)
+	// Load typed configuration
+	cfg := config.LoadConfig()
 
 	// Collect system information
 	sysInfo, err := system.CollectSystemInfo()
@@ -64,26 +50,34 @@ func (a *App) Run() {
 		log.Fatalf("Failed to collect system information: %v", err)
 	}
 
-	defaultPort := 50052
-	availablePort, err := system.ResolveWorkerPort(defaultPort)
+	availablePort, err := system.ResolveWorkerPort(cfg.DefaultPort)
 	if err != nil {
 		log.Fatalf("Failed to resolve worker port: %v", err)
 	}
 	sysInfo.SetWorkerPort(availablePort)
 
 	workerIP := sysInfo.GetWorkerAddress()
+	if cfg.WorkerIP != "" {
+		workerIP = cfg.WorkerIP
+	}
 	workerBindIP := system.ResolveWorkerBindIP(workerIP)
 	workerPort := sysInfo.GetWorkerPort()
-	metricsPort, err := system.ResolveWorkerMetricsPort(9101)
+	metricsPort, err := system.ResolveWorkerMetricsPort(cfg.DefaultMetricsPort)
 	if err != nil {
 		log.Fatalf("Failed to resolve worker metrics port: %v", err)
 	}
-	workerID, err := system.ResolveWorkerID(sysInfo.Hostname)
-	if err != nil {
-		log.Printf("⚠️  Failed to resolve persistent worker ID: %v", err)
-		workerID = sysInfo.Hostname
-		if workerID == "" {
-			workerID = "worker-unknown"
+
+	var workerID string
+	if cfg.WorkerID != "" {
+		workerID = cfg.WorkerID
+	} else {
+		workerID, err = system.ResolveWorkerID(sysInfo.Hostname)
+		if err != nil {
+			log.Printf("⚠️  Failed to resolve persistent worker ID: %v", err)
+			workerID = sysInfo.Hostname
+			if workerID == "" {
+				workerID = "worker-unknown"
+			}
 		}
 	}
 
@@ -106,7 +100,7 @@ func (a *App) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	monitor := telemetry.NewMonitor(workerID, 5*time.Second)
+	monitor := telemetry.NewMonitor(workerID, constants.DefaultHeartbeatInterval)
 	go monitor.Start(ctx)
 	workermetrics.Get()
 
@@ -120,44 +114,31 @@ func (a *App) Run() {
 		}
 	}()
 
+	grpcServer := grpc.NewServer()
 	workerServer, err := server.NewWorkerServer(workerID, monitor)
 	if err != nil {
 		log.Fatalf("Failed to create worker server: %v", err)
 	}
-	defer workerServer.Close()
+	pb.RegisterMasterWorkerServer(grpcServer, workerServer)
 
-	workerAddress := net.JoinHostPort(workerBindIP, fmt.Sprintf("%d", availablePort))
-	lis, err := net.Listen("tcp", workerAddress)
+	listener, err := net.Listen("tcp", workerBindIP+workerPort)
 	if err != nil {
-		log.Fatalf("Failed to listen on %s: %v", workerAddress, err)
+		log.Fatalf("Failed to listen on %s%s: %v", workerBindIP, workerPort, err)
 	}
 
-	grpcServer := grpc.NewServer(
-		grpc.MaxRecvMsgSize(4 * 1024 * 1024),
-	)
-	pb.RegisterMasterWorkerServer(grpcServer, workerServer)
+	go func() {
+		log.Printf("✓ Worker gRPC server listening on %s%s", workerBindIP, workerPort)
+		if err := grpcServer.Serve(listener); err != nil {
+			log.Fatalf("Failed to serve: %v", err)
+		}
+	}()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
 
-	go func() {
-		<-sigChan
-		fmt.Println("\n╔═══════════════════════════════════════════════════════")
-		fmt.Println("║  Shutdown signal received - gracefully shutting down...")
-		fmt.Println("╚═══════════════════════════════════════════════════════")
-
-		workerServer.Shutdown()
-		monitor.Stop()
-		grpcServer.GracefulStop()
-		cancel()
-	}()
-
-	log.Printf("✓ Worker %s started successfully", workerID)
-	log.Printf("✓ gRPC server listening on %s", workerAddress)
-	log.Println("✓ Ready to receive master registration...")
-	log.Println("✓ Waiting for tasks...")
-
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
-	}
+	log.Println("\nShutdown signal received, gracefully terminating...")
+	grpcServer.GracefulStop()
+	cancel()
+	log.Println("✓ Worker shutdown complete.")
 }

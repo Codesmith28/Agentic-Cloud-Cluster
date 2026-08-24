@@ -12,6 +12,8 @@ from pymongo.errors import PyMongoError
 from gridfs import GridFSBucket
 
 
+from agentic_scheduler.constants import COLLECTION_SCHEDULER_MODELS
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -39,7 +41,7 @@ class MongoSchedulerModelStore:
             self.client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2500)
             self.client.admin.command("ping")
             self.db = self.client[mongo_db]
-            self.collection = self.db["SCHEDULER_MODELS"]
+            self.collection = self.db[COLLECTION_SCHEDULER_MODELS]
             self.bucket = GridFSBucket(self.db, bucket_name="scheduler_models")
             self._ensure_indexes()
             LOGGER.info("Mongo scheduler model persistence initialized")

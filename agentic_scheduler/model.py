@@ -11,7 +11,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-from .features import TASK_FEATURE_DIM, WORKER_FEATURE_DIM
+from agentic_scheduler.constants import (
+    TASK_FEATURE_DIM,
+    WORKER_FEATURE_DIM,
+    MASK_VALUE,
+)
 
 
 

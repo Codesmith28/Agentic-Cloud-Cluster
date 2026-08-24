@@ -5,15 +5,11 @@ from typing import Iterable, List
 
 import numpy as np
 
-TASK_TYPE_TO_ID = {
-    "cpu-light": 0,
-    "cpu-heavy": 1,
-    "memory-heavy": 2,
-    "mixed": 3,
-}
-
-TASK_FEATURE_DIM = 5
-WORKER_FEATURE_DIM = 9
+from agentic_scheduler.constants import (
+    TASK_FEATURE_DIM,
+    WORKER_FEATURE_DIM,
+    TASK_TYPE_TO_ID,
+)
 
 
 def _safe_div(numerator: float, denominator: float) -> float:

@@ -1,6 +1,8 @@
 package db
 
 import (
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
+
 	"context"
 	"fmt"
 	"time"
@@ -29,7 +31,7 @@ type AssignmentDB struct {
 // NewAssignmentDB creates a new AssignmentDB instance from MongoStore
 func NewAssignmentDB(store *MongoStore) *AssignmentDB {
 	return &AssignmentDB{
-		collection: store.Collection("ASSIGNMENTS"),
+		collection: store.Collection(constants.CollectionAssignments),
 	}
 }
 

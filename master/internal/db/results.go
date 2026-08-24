@@ -1,6 +1,8 @@
 package db
 
 import (
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
+
 	"context"
 	"log"
 	"time"
@@ -28,7 +30,7 @@ type ResultDB struct {
 // NewResultDB creates a new ResultDB instance from MongoStore
 func NewResultDB(store *MongoStore) *ResultDB {
 	return &ResultDB{
-		collection: store.Collection("RESULTS"),
+		collection: store.Collection(constants.CollectionResults),
 	}
 }
 

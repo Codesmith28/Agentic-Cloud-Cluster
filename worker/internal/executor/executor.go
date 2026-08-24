@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/envutil"
 	"worker/internal/logstream"
 	workermetrics "worker/internal/metrics"
 	"worker/internal/system"
@@ -27,8 +29,8 @@ import (
 )
 
 const (
-	maxLogBytes = 10 * 1024 * 1024 // 10 MB cap for collected logs
-	maxPidsLimit = 512              // prevent fork bombs inside containers
+	maxLogBytes  = 10 * 1024 * 1024 // 10 MB cap for collected logs
+	maxPidsLimit = constants.DefaultContainerPIDLimit
 )
 
 // validTaskID matches alphanumeric, hyphens, and underscores only.
@@ -87,15 +89,9 @@ type containerUsageSnapshot struct {
 	ioBytes         uint64
 }
 
-// getBaseOutputDir returns the base output directory, using AGENTIC_OUTPUT_DIR or CLOUDAI_OUTPUT_DIR env var if set
+// getBaseOutputDir returns the base output directory using configured environment variables or default.
 func getBaseOutputDir() string {
-	if dir := os.Getenv("AGENTIC_OUTPUT_DIR"); dir != "" {
-		return dir
-	}
-	if dir := os.Getenv("CLOUDAI_OUTPUT_DIR"); dir != "" {
-		return dir
-	}
-	return "/var/agentic-cloud-cluster/outputs"
+	return envutil.GetEnv(constants.EnvOutputDir, envutil.GetEnv(constants.EnvLegacyOutputDir, constants.DefaultOutputDir))
 }
 
 // NewTaskExecutor creates a new task executor

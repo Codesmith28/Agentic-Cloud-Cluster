@@ -1,6 +1,8 @@
 package db
 
 import (
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
+
 	"context"
 	"fmt"
 	"log"
@@ -61,9 +63,9 @@ type HistoryDB struct {
 func NewHistoryDB(store *MongoStore) *HistoryDB {
 	database := store.Database()
 	return &HistoryDB{
-		tasksCollection:   database.Collection("TASKS"),
-		assignCollection:  database.Collection("ASSIGNMENTS"),
-		resultsCollection: database.Collection("RESULTS"),
+		tasksCollection:   database.Collection(constants.CollectionTasks),
+		assignCollection:  database.Collection(constants.CollectionAssignments),
+		resultsCollection: database.Collection(constants.CollectionResults),
 	}
 }
 

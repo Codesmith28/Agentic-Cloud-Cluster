@@ -17,10 +17,12 @@ from .model import PPOState, build_fresh_state, choose_action, ppo_update
 from .persistence import MongoSchedulerModelStore
 
 
+from agentic_scheduler.constants import DEFAULT_MODEL_DIR, DEFAULT_LATEST_MODEL
+
 LOGGER = logging.getLogger(__name__)
 MODEL_PATH_SENTINELS = {"latest", "auto"}
 MODEL_FILE_EXTENSIONS = {".pt"}
-DEFAULT_MODEL_DIR = Path(__file__).resolve().parent / "models"
+DEFAULT_MODEL_DIR = Path(DEFAULT_MODEL_DIR) if isinstance(DEFAULT_MODEL_DIR, str) else DEFAULT_MODEL_DIR
 _MAX_REPLAY_BUFFER = 4096
 _MAX_PENDING_DECISIONS = 8192
 

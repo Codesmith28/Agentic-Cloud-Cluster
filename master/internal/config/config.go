@@ -2,11 +2,10 @@ package config
 
 import (
 	"log"
-	"os"
-	"strconv"
 	"strings"
 
-	"github.com/joho/godotenv"
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/envutil"
 )
 
 // Config holds all configuration for the master node
@@ -36,7 +35,7 @@ type Config struct {
 
 // LoadConfig loads configuration from environment variables and .env file
 func LoadConfig() *Config {
-	loadDotEnv()
+	envutil.LoadDotEnv()
 
 	// Port allocation scheme:
 	//   50050  PPO scheduler gRPC  (colocated with master)
@@ -44,42 +43,44 @@ func LoadConfig() *Config {
 	//   50052+ Worker gRPC         (auto-increment per host)
 	//   8080   Master HTTP API
 	//   9101+  Worker metrics
-	username := getEnv("MONGODB_USERNAME", getEnv("MONGO_USER", ""))
-	password := getEnv("MONGODB_PASSWORD", getEnv("MONGO_PASSWORD", ""))
-	host := getEnv("MONGODB_HOST", getEnv("MONGO_HOST", "localhost:27017"))
-	database := getEnv("MONGODB_DATABASE", getEnv("MONGO_DATABASE", "cluster_db"))
-	port := getEnv("GRPC_PORT", ":50051")
-	httpPort := getEnv("HTTP_PORT", ":8080") // Default HTTP port for telemetry API
-	gaParamsPath := getEnv("SCHED_GA_PARAMS_PATH", "config/ga_output.json")
-	schedulerAlgo := getEnv("SCHED_ALGO", "RTS")
-	ppoAddr := getEnv("PPO_GRPC_ADDR", "127.0.0.1:50050")
-	ppoRequestTimeout := getEnvInt("PPO_REQUEST_TIMEOUT_MS", 1500)
-	ppoAutostart := getEnvBool("PPO_AUTOSTART", true)
-	ppoModelPath := getEnv("PPO_MODEL_PATH", "latest")
-	ppoDeploymentMode := normalizePPODeploymentMode(getEnv("PPO_DEPLOYMENT_MODE", "active"))
-	ppoOnlineUpdates := getEnvBool("PPO_ONLINE_UPDATES_ENABLED", true)
-	headless := getEnvBool("AGENTIC_HEADLESS", getEnvBool("CLOUDAI_HEADLESS", false))
-	uiMode := strings.ToLower(strings.TrimSpace(getEnv("AGENTIC_UI_MODE", getEnv("CLOUDAI_UI_MODE", "cli"))))
+	username := envutil.GetEnv(constants.EnvMongoDBUsername, envutil.GetEnv(constants.EnvLegacyMongoUser, ""))
+	password := envutil.GetEnv(constants.EnvMongoDBPassword, envutil.GetEnv(constants.EnvLegacyMongoPass, ""))
+	host := envutil.GetEnv(constants.EnvMongoDBHost, envutil.GetEnv(constants.EnvLegacyMongoHost, constants.DefaultMongoHost))
+	database := envutil.GetEnv(constants.EnvMongoDBDatabase, envutil.GetEnv(constants.EnvLegacyMongoDB, constants.DefaultMongoDatabase))
+	port := envutil.GetEnv(constants.EnvGRPCPort, constants.DefaultGRPCPort)
+	httpPort := envutil.GetEnv(constants.EnvHTTPPort, constants.DefaultHTTPPort)
+	gaParamsPath := envutil.GetEnv(constants.EnvGAParamsPath, constants.DefaultGAParamsPath)
+	schedulerAlgo := envutil.GetEnv(constants.EnvSchedulerAlgo, constants.DefaultSchedulerAlgo)
+	ppoAddr := envutil.GetEnv(constants.EnvPPOGRPCAddr, constants.DefaultPPOGRPCAddr)
+	ppoRequestTimeout := envutil.GetEnvInt(constants.EnvPPORequestTimeoutMS, constants.DefaultPPORequestTimeoutMS)
+	ppoAutostart := envutil.GetEnvBool(constants.EnvPPOAutostart, true)
+	ppoModelPath := envutil.GetEnv(constants.EnvPPOModelPath, constants.DefaultPPOModelPath)
+	ppoDeploymentMode := normalizePPODeploymentMode(envutil.GetEnv(constants.EnvPPODeploymentMode, constants.DefaultPPODeploymentMode))
+	ppoOnlineUpdates := envutil.GetEnvBool(constants.EnvPPOOnlineUpdates, true)
+	headless := envutil.GetEnvBool(constants.EnvAgenticHeadless, envutil.GetEnvBool(constants.EnvLegacyHeadless, false))
+	uiMode := strings.ToLower(strings.TrimSpace(envutil.GetEnv(constants.EnvAgenticUIMode, envutil.GetEnv(constants.EnvLegacyUIMode, constants.DefaultUIMode))))
 	if uiMode != "cli" && uiMode != "tui" {
 		log.Printf("⚠️  Invalid UI mode %q, using default 'cli'", uiMode)
-		uiMode = "cli"
+		uiMode = constants.DefaultUIMode
 	}
-	masterBindAddr := strings.TrimSpace(getEnv("MASTER_BIND_ADDR", ""))
-	masterAdvAddr := strings.TrimSpace(getEnv("MASTER_ADVERTISE_ADDR", ""))
+	masterBindAddr := strings.TrimSpace(envutil.GetEnv(constants.EnvMasterBindAddr, ""))
+	masterAdvAddr := strings.TrimSpace(envutil.GetEnv(constants.EnvMasterAdvAddr, ""))
 
 	// Load SLA multiplier with validation
-	slaMultiplier := getEnvFloat("SCHED_SLA_MULTIPLIER", 2.0)
-	if slaMultiplier < 1.5 || slaMultiplier > 2.5 {
-		log.Printf("⚠️  Invalid SLA multiplier %.2f from env, using default 2.0", slaMultiplier)
-		slaMultiplier = 2.0
+	slaMultiplier := envutil.GetEnvFloat(constants.EnvSLAMultiplier, constants.DefaultSLAMultiplier)
+	if slaMultiplier < constants.DefaultMinSLAMultiplier || slaMultiplier > constants.DefaultMaxSLAMultiplier {
+		log.Printf("⚠️  Invalid SLA multiplier %.2f from env, using default %.1f", slaMultiplier, constants.DefaultSLAMultiplier)
+		slaMultiplier = constants.DefaultSLAMultiplier
 	}
 	if ppoRequestTimeout <= 0 {
-		log.Printf("⚠️  Invalid PPO request timeout %dms from env, using default 1500ms", ppoRequestTimeout)
-		ppoRequestTimeout = 1500
+		log.Printf("⚠️  Invalid PPO request timeout %dms from env, using default %dms", ppoRequestTimeout, constants.DefaultPPORequestTimeoutMS)
+		ppoRequestTimeout = constants.DefaultPPORequestTimeoutMS
 	}
 
 	var mongoURI string
-	if username != "" && password != "" {
+	if explicitURI := envutil.GetEnv(constants.EnvMongoDBURI, ""); explicitURI != "" {
+		mongoURI = explicitURI
+	} else if username != "" && password != "" {
 		mongoURI = "mongodb://" + username + ":" + password + "@" + host
 	} else {
 		mongoURI = "mongodb://" + host
@@ -124,57 +125,6 @@ func (c *Config) ResolveUIMode(flagMode string) string {
 		log.Printf("⚠️  Invalid --mode value %q, falling back to config", flagMode)
 	}
 	return c.UIMode
-}
-
-// loadDotEnv loads environment variables from .env file
-func loadDotEnv() {
-	paths := []string{".env", "../.env", "../../.env"}
-	for _, path := range paths {
-		if err := godotenv.Load(path); err == nil {
-			log.Printf("Loaded .env from %s", path)
-			return
-		}
-	}
-	log.Println("No .env file found, using environment variables")
-}
-
-// getEnv gets an environment variable with a fallback value
-func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
-}
-
-// getEnvFloat gets a float environment variable with a fallback value
-func getEnvFloat(key string, fallback float64) float64 {
-	if value := os.Getenv(key); value != "" {
-		if parsed, err := strconv.ParseFloat(value, 64); err == nil {
-			return parsed
-		}
-		log.Printf("⚠️  Invalid float value for %s: %s, using fallback %.2f", key, value, fallback)
-	}
-	return fallback
-}
-
-func getEnvInt(key string, fallback int) int {
-	if value := os.Getenv(key); value != "" {
-		if parsed, err := strconv.Atoi(value); err == nil {
-			return parsed
-		}
-		log.Printf("⚠️  Invalid int value for %s: %s, using fallback %d", key, value, fallback)
-	}
-	return fallback
-}
-
-func getEnvBool(key string, fallback bool) bool {
-	if value := os.Getenv(key); value != "" {
-		if parsed, err := strconv.ParseBool(value); err == nil {
-			return parsed
-		}
-		log.Printf("⚠️  Invalid bool value for %s: %s, using fallback %t", key, value, fallback)
-	}
-	return fallback
 }
 
 func normalizePPODeploymentMode(value string) string {

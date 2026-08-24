@@ -146,12 +146,24 @@ def _parse_bool(value: str) -> bool:
     raise argparse.ArgumentTypeError(f"Invalid boolean value: {value}")
 
 
+from agentic_scheduler.constants import (
+    DEFAULT_GRPC_ADDR,
+    DEFAULT_MONGO_DB,
+    DEFAULT_LATEST_MODEL,
+    ENV_PPO_GRPC_ADDR,
+    ENV_MONGODB_URI,
+    ENV_MONGODB_DATABASE,
+    ENV_PPO_MODEL_PATH,
+    ENV_PPO_ONLINE_UPDATES,
+)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="PPO scheduler gRPC service")
-    parser.add_argument("--grpc-addr", default=os.getenv("PPO_GRPC_ADDR", "127.0.0.1:50050"))
-    parser.add_argument("--mongo-uri", default=os.getenv("MONGODB_URI", ""))
-    parser.add_argument("--mongo-db", default=os.getenv("MONGODB_DATABASE", "cluster_db"))
-    parser.add_argument("--model-path", default=os.getenv("PPO_MODEL_PATH", "latest"))
+    parser.add_argument("--grpc-addr", default=os.getenv(ENV_PPO_GRPC_ADDR, DEFAULT_GRPC_ADDR))
+    parser.add_argument("--mongo-uri", default=os.getenv(ENV_MONGODB_URI, ""))
+    parser.add_argument("--mongo-db", default=os.getenv(ENV_MONGODB_DATABASE, DEFAULT_MONGO_DB))
+    parser.add_argument("--model-path", default=os.getenv(ENV_PPO_MODEL_PATH, DEFAULT_LATEST_MODEL))
     parser.add_argument("--learning-rate", type=float, default=float(os.getenv("PPO_LEARNING_RATE", "0.0003")))
     parser.add_argument("--update-batch-size", type=int, default=int(os.getenv("PPO_UPDATE_BATCH_SIZE", "32")))
     parser.add_argument(
@@ -162,7 +174,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--online-updates",
         type=_parse_bool,
-        default=_parse_bool(os.getenv("PPO_ONLINE_UPDATES_ENABLED", "true")),
+        default=_parse_bool(os.getenv(ENV_PPO_ONLINE_UPDATES, "true")),
     )
     parser.add_argument(
         "--prefer-gpu",

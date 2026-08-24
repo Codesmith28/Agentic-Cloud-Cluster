@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -17,13 +18,17 @@ type MongoStore struct {
 
 // NewMongoStore establishes a single pooled connection to MongoDB.
 func NewMongoStore(ctx context.Context, uri, dbName string) (*MongoStore, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, constants.DefaultDBTimeout)
 	defer cancel()
+
+	if dbName == "" {
+		dbName = constants.DefaultMongoDatabase
+	}
 
 	client, err := mongo.Connect(ctx, options.Client().
 		ApplyURI(uri).
-		SetMaxPoolSize(50).
-		SetMinPoolSize(5).
+		SetMaxPoolSize(constants.DefaultMaxPoolSize).
+		SetMinPoolSize(constants.DefaultMinPoolSize).
 		SetServerSelectionTimeout(5*time.Second))
 	if err != nil {
 		return nil, fmt.Errorf("connect mongo: %w", err)

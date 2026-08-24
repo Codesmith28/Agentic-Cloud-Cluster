@@ -1,6 +1,8 @@
 package db
 
 import (
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
+
 	"context"
 	"fmt"
 	"time"
@@ -46,7 +48,7 @@ type AttemptDB struct {
 // NewAttemptDB creates a new AttemptDB instance from MongoStore
 func NewAttemptDB(store *MongoStore) *AttemptDB {
 	return &AttemptDB{
-		collection: store.Collection("ATTEMPTS"),
+		collection: store.Collection(constants.CollectionAttempts),
 	}
 }
 

@@ -7,13 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/envutil"
 )
 
-const (
-	workerIDEnvVar       = "WORKER_ID"
-	workerStateDirEnvVar = "CLOUDAI_WORKER_STATE_DIR"
-	workerIDFileName     = "worker_id"
-)
+const workerIDFileName = "worker_id"
 
 // ResolveWorkerID returns a stable worker identity that survives restarts and endpoint changes.
 //
@@ -23,7 +22,7 @@ const (
 // 3. Current hostname (persisted for future runs)
 // 4. Randomly generated fallback ID (persisted)
 func ResolveWorkerID(hostname string) (string, error) {
-	if override := strings.TrimSpace(os.Getenv(workerIDEnvVar)); override != "" {
+	if override := strings.TrimSpace(envutil.GetEnv(constants.EnvWorkerID, "")); override != "" {
 		return override, nil
 	}
 
@@ -61,10 +60,7 @@ func ResolveWorkerID(hostname string) (string, error) {
 }
 
 func resolveWorkerStateDir() (string, error) {
-	if override := strings.TrimSpace(os.Getenv("AGENTIC_WORKER_STATE_DIR")); override != "" {
-		return override, nil
-	}
-	if override := strings.TrimSpace(os.Getenv(workerStateDirEnvVar)); override != "" {
+	if override := strings.TrimSpace(envutil.GetEnv(constants.EnvWorkerStateDir, envutil.GetEnv(constants.EnvLegacyWorkerStateDir, ""))); override != "" {
 		return override, nil
 	}
 
@@ -73,7 +69,6 @@ func resolveWorkerStateDir() (string, error) {
 		return "", err
 	}
 
-	// Check if legacy dir exists
 	legacyDir := filepath.Join(homeDir, ".cloudai", "worker")
 	if _, err := os.Stat(legacyDir); err == nil {
 		return legacyDir, nil

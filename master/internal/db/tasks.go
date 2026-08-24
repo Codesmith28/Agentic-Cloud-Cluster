@@ -1,6 +1,8 @@
 package db
 
 import (
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/constants"
+
 	"context"
 	"fmt"
 	"time"
@@ -50,7 +52,7 @@ type TaskDB struct {
 // NewTaskDB creates a new TaskDB instance from MongoStore
 func NewTaskDB(store *MongoStore) *TaskDB {
 	return &TaskDB{
-		collection: store.Collection("TASKS"),
+		collection: store.Collection(constants.CollectionTasks),
 	}
 }
 
