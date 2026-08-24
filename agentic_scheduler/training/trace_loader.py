@@ -872,7 +872,7 @@ def load_trace(
         return load_alibaba_trace(trace_path, max_tasks=max_tasks)
     elif source in ("google", "google-2019"):
         return load_google_trace(trace_path, max_tasks=max_tasks)
-    elif source in ("cloudai", "cloudai-history"):
+    elif source in ("agentic", "agentic-history", "cloudai", "cloudai-history"):
         return load_cloudai_trace(
             trace_path=trace_path,
             max_tasks=max_tasks,
