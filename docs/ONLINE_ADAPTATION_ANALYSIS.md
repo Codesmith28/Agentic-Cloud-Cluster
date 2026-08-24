@@ -179,7 +179,7 @@ Both PPO runs excelled here:
 ```bash
 # Deploy with frozen policy (predictable)
 export PPO_ONLINE_UPDATES_ENABLED=false
-./execute-tests.sh --comprehensive
+./scripts/testing/execute_tests.sh --comprehensive
 
 # After 1 week of stable production:
 export PPO_ONLINE_UPDATES_ENABLED=true

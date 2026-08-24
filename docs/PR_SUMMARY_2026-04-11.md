@@ -25,7 +25,7 @@
 - Tuned trace replay/training surfaces for Alibaba trace-based workflows (`agentic_scheduler/training/trace_loader.py`, `agentic_scheduler/training/trace_replay_env.py`).
 - Added multiple PPO checkpoint variants and optimization artifacts (`agentic_scheduler/models/*`).
 - Published optimization documentation and consolidated reporting (`docs/PPO_PERFORMANCE_OPTIMIZATION.md`, `docs/PPO_OPTIMIZATION_CONSOLIDATED_REPORT_2026-04-11.md`, updates to `docs/PPO_TRACE_REPLAY.md`).
-- Updated runtime/config glue in master/worker paths and startup scripts (`master/internal/config/config.go`, `runMaster.sh`, `worker/internal/system/runtime_config*.go`, `worker/internal/executor/executor.go`), plus UI API/build updates (`ui/src/api/client.js`, `ui/vite.config.js`, `ui/dist/*`).
+- Updated runtime/config glue in master/worker paths and startup scripts (`master/internal/config/config.go`, `scripts/master/run.sh`, `worker/internal/system/runtime_config*.go`, `worker/internal/executor/executor.go`), plus UI API/build updates (`ui/src/api/client.js`, `ui/vite.config.js`, `ui/dist/*`).
 - Added repeated PPO-vs-RTS benchmark runs and logs under `results/`, including optimized repeated-run evidence.
 
 ## PR links

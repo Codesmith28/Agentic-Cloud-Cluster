@@ -28,7 +28,7 @@ docker-compose up -d
 ```bash
 cd /path/to/Agentic Cloud Cluster
 source venv/bin/activate  # Activate Python venv
-./runMaster.sh
+./scripts/master/run.sh
 ```
 
 Expected output:
@@ -46,7 +46,7 @@ master>
 **Terminal 2:**
 ```bash
 cd /path/to/Agentic Cloud Cluster
-./runWorker.sh
+./scripts/worker/run.sh
 ```
 
 Expected output:

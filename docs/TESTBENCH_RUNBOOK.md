@@ -82,7 +82,7 @@ Custom format accepted by `register_workers.sh`:
 Start master on host (example):
 
 ```bash
-./runMaster.sh
+./scripts/master/run.sh
 ```
 
 Teardown:

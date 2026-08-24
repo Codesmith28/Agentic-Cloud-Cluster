@@ -36,7 +36,7 @@
 	campaign campaign-full campaign-final campaign-comprehensive \
 	campaign-prereqs \
 	model-promote model-promote-dry model-archive-list \
-	deploy benchmark
+	deploy benchmark reset reset-soft reset-keep-dind test-ppo test-ppo-fast test-ppo-full
 
 # ---------------------------------------------------------------------------
 # Variables (override with env or make VAR=value)
@@ -64,68 +64,61 @@ help:
 	@echo "  make proto              Generate gRPC code from .proto files"
 	@echo "  make master             Build master binary only"
 	@echo "  make worker             Build worker binary only"
-	@echo "  make clean              Remove binaries, generated code, venv"
+	@echo "  make clean              Remove build artifacts, proto stubs, and venv"
 	@echo ""
-	@echo "Quality:"
-	@echo "  make check              Compile-check both Go modules (no binary output)"
-	@echo "  make vet                Run go vet on master + worker"
-	@echo "  make fmt                Run gofmt on master + worker"
+	@echo "Quality & Testing:"
+	@echo "  make check              Type-check / compile check Go packages without building"
+	@echo "  make vet                Run go vet across all packages"
+	@echo "  make fmt                Check Go formatting (gofmt)"
+	@echo "  make test               Check local toolchain (Go, Docker, protoc, Python)"
+	@echo "  make test-unit          Run all unit tests across pkg/, master/, and worker/"
+	@echo "  make test-unit-verbose  Run unit tests with verbose output"
+	@echo "  make test-python        Run Python unit test suite"
 	@echo ""
-	@echo "Tests:"
-	@echo "  make test               Verify toolchain (go, docker, protoc)"
-	@echo "  make test-unit          Run Go unit tests"
-	@echo "  make test-unit-verbose  Run Go unit tests with verbose output"
+	@echo "Python / PPO Scheduler:"
+	@echo "  make venv               Create Python virtual environment"
+	@echo "  make pip-install        Install requirements.txt into venv"
+	@echo "  make ppo-server         Run PPO gRPC service directly (standalone)"
 	@echo ""
-	@echo "Python / PPO:"
-	@echo "  make venv               Create Python virtualenv"
-	@echo "  make pip-install        Install Python deps into venv"
-	@echo "  make ppo-server         Start PPO gRPC server (venv)"
+	@echo "Runtime Services (local):"
+	@echo "  make db-up              Start MongoDB container (localhost:27017)"
+	@echo "  make db-down            Stop MongoDB container"
+	@echo "  make run-master         Start master node (RTS scheduler, interactive CLI)"
+	@echo "  make run-master-ppo     Start master node with PPO scheduler"
+	@echo "  make run-worker         Start a worker node (auto-detects port/IP)"
 	@echo ""
-	@echo "Database:"
-	@echo "  make db-up              Start MongoDB (docker compose)"
-	@echo "  make db-down            Stop MongoDB"
+	@echo "Testbench (multi-worker Docker cluster):"
+	@echo "  make testbench-up       Start full testbench (master + 3 workers + DinD + obs)"
+	@echo "  make testbench-host-up  Start host-master stack (3 workers + DinD + obs, no master)"
+	@echo "  make testbench-down     Tear down testbench"
+	@echo "  make testbench-host-down Tear down host-master stack"
+	@echo "  make testbench-register Register workers with running master"
+	@echo "  make testbench-prepare-images  Build & load deterministic workflow image"
 	@echo ""
-	@echo "Run:"
-	@echo "  make run-master         Build + start master (RTS scheduler)"
-	@echo "  make run-master-ppo     Build + start master (PPO scheduler)"
-	@echo "  make run-worker         Build + start worker"
+	@echo "Testbench Suites:"
+	@echo "  make testbench-suite-smoke       Run smoke test suite"
+	@echo "  make testbench-suite-reliability Run reliability / fault injection suite"
+	@echo "  make testbench-suite-ui-smoke    Run UI integration smoke suite"
+	@echo "  make testbench-suite-evidence    Run evidence generation suite"
+	@echo "  make testbench-suite-full        Run all suites end-to-end"
+	@echo "  make testbench-integration       Run full integration pipeline"
 	@echo ""
-	@echo "Testbench (Docker workers):"
-	@echo "  make testbench-up                Start full Docker stack (master + workers)"
-	@echo "  make testbench-host-up           Start worker-only Docker stack"
-	@echo "  make testbench-down              Tear down full Docker stack"
-	@echo "  make testbench-host-down         Tear down worker-only Docker stack"
-	@echo "  make testbench-prepare-images    Build workflow images into worker DinD"
-	@echo "  make testbench-register          Register workers (full stack)"
-	@echo "  make testbench-host-register     Register workers (host-master topology)"
-	@echo "  make testbench-workload          Prepare images + submit default workload"
-	@echo "  make testbench-suite SUITE_NAME=smoke   Run test suite"
-	@echo "  make testbench-host-suite SUITE_NAME=smoke  Run suite (host-master)"
-	@echo "  make testbench-integration       Full integration + benchmark"
-	@echo ""
-	@echo "Campaigns (requires running master; workers auto-start/register in host-master mode):"
-	@echo "  make campaign           Evidence benchmark (smoke workload)"
-	@echo "  make campaign-full      Full benchmark (all workloads + scenarios)"
-	@echo "  make campaign-final     HEAVY final evaluation (50 tasks × 3 × 3 schedulers)"
-	@echo ""
-	@echo "Cluster Reset:"
-	@echo "  make reset              Full clean-slate reset (stops all, wipes all volumes)"
-	@echo "  make reset-soft         Stop services only (keep data)"
-	@echo "  make reset-keep-dind    Reset but keep Docker-in-Docker layers (faster restart)"
-	@echo ""
-	@echo "PPO Testing (clean-slate, new model + resource-contention workload):"
-	@echo "  make test-ppo           Full PPO test (all scenarios)"
-	@echo "  make test-ppo-fast      Fast PPO test (baseline only, ~10 min)"
-	@echo "  make test-ppo-full      Comprehensive PPO test (all workloads)"
+	@echo "Evaluation Campaigns:"
+	@echo "  make campaign           Run smoke campaign (heterogeneous-smoke workload)"
+	@echo "  make campaign-full      Run full campaign (smoke + deterministic-full)"
+	@echo "  make campaign-final     Run final heavy evaluation (stress-heavy workload)"
+	@echo "  make campaign-comprehensive Run comprehensive 4-workload evaluation"
 	@echo ""
 	@echo "Model Management:"
 	@echo "  make model-promote      Promote latest trained model (archives old)"
 	@echo "  make model-promote-dry  Dry-run promotion preview"
 	@echo "  make model-archive-list List archived model versions"
 	@echo ""
-	@echo "Pipelines:"
+	@echo "Pipelines & Testing:"
 	@echo "  make deploy             Build → promote model → benchmark"
-	@echo "  make benchmark          Run execute-tests.sh end-to-end"
+	@echo "  make benchmark          Run execute_tests.sh end-to-end"
+	@echo "  make test-ppo           Run clean-slate PPO benchmark"
+	@echo "  make reset              Full clean-slate cluster reset"
 
 # ===========================================================================
 # Build
@@ -154,8 +147,8 @@ setup: deps proto
 
 deps:
 	@echo "📦 Installing system and tool dependencies..."
-	chmod +x scripts/install_deps.sh
-	./scripts/install_deps.sh
+	chmod +x scripts/tools/install_deps.sh
+	./scripts/tools/install_deps.sh
 
 master:
 	@echo "🏗️  Building master node..."
@@ -271,15 +264,15 @@ db-down:
 
 run-master: master
 	@echo "🚀 Starting master node (RTS scheduler)..."
-	./runMaster.sh
+	./scripts/master/run.sh
 
 run-master-ppo: master
 	@echo "🚀 Starting master node (PPO scheduler)..."
-	./runMaster.sh --ppo
+	./scripts/master/run.sh --ppo
 
 run-worker: worker
 	@echo "🚀 Starting worker node..."
-	./runWorker.sh
+	./scripts/worker/run.sh
 
 # ===========================================================================
 # Testbench – Docker stacks
@@ -397,10 +390,10 @@ campaign-comprehensive: campaign-prereqs
 # ===========================================================================
 
 model-promote:
-	@scripts/model_promote.sh $(MODEL_PATH)
+	@scripts/tools/model_promote.sh $(MODEL_PATH)
 
 model-promote-dry:
-	@scripts/model_promote.sh --dry-run $(MODEL_PATH)
+	@scripts/tools/model_promote.sh --dry-run $(MODEL_PATH)
 
 model-archive-list:
 	@echo "Archived models:"
@@ -421,28 +414,28 @@ model-archive-list:
 deploy: build model-promote benchmark
 
 benchmark:
-	@./execute-tests.sh
+	@./scripts/testing/execute_tests.sh
 
 test-ppo:
 	@echo "🤖 Running clean-slate PPO benchmark (all scenarios, resource-contention workload)..."
-	@./run-ppo-test.sh
+	@./scripts/testing/run_ppo_test.sh
 
 test-ppo-fast:
 	@echo "🤖 Running fast PPO baseline benchmark (single scenario)..."
-	@./run-ppo-test.sh --fast
+	@./scripts/testing/run_ppo_test.sh --fast
 
 test-ppo-full:
 	@echo "🤖 Running comprehensive PPO benchmark (all workloads)..."
-	@./run-ppo-test.sh --workloads resource-contention-ppo,heterogeneous-smoke,deterministic-full
+	@./scripts/testing/run_ppo_test.sh --workloads resource-contention-ppo,heterogeneous-smoke,deterministic-full
 
 reset:
 	@echo "🧹 Full clean-slate cluster reset (all volumes wiped)..."
-	@./reset-cluster.sh --yes
+	@./scripts/cluster/reset.sh --yes
 
 reset-soft:
 	@echo "🛑 Soft reset — stopping services, keeping data..."
-	@./reset-cluster.sh --soft --yes
+	@./scripts/cluster/reset.sh --soft --yes
 
 reset-keep-dind:
 	@echo "🧹 Cluster reset keeping Docker-in-Docker layers..."
-	@./reset-cluster.sh --keep-dind --yes
+	@./scripts/cluster/reset.sh --keep-dind --yes

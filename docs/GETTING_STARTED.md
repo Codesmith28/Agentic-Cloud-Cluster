@@ -15,8 +15,8 @@ make all
 
 # 3. Start services (in separate terminals)
 cd database && docker-compose up -d                     # Terminal 1
-./runMaster.sh                                          # Terminal 2 (includes Web UI)
-./runWorker.sh                                          # Terminal 3
+./scripts/master/run.sh                                          # Terminal 2 (includes Web UI)
+./scripts/worker/run.sh                                          # Terminal 3
 
 # 4. Use it!
 # In master CLI:
@@ -155,7 +155,7 @@ mongodb            docker-entrypoint.sh mongod   Up      0.0.0.0:27017->27017/tc
 
 ```bash
 # Use the convenience script (also starts Web UI)
-./runMaster.sh
+./scripts/master/run.sh
 
 # Or run manually:
 cd master && ./masterNode
@@ -180,7 +180,7 @@ master>
 
 ```bash
 # Use the convenience script
-./runWorker.sh
+./scripts/worker/run.sh
 
 # Or run manually:
 cd worker && ./workerNode
@@ -368,7 +368,7 @@ master> download task-123 alice ./output-dir
 
 ## Web Dashboard
 
-The Web UI is available at **http://localhost:3001** when using `./runMaster.sh` (or `http://localhost:$WEBUI_PORT` if overridden).
+The Web UI is available at **http://localhost:3001** when using `./scripts/master/run.sh` (or `http://localhost:$WEBUI_PORT` if overridden).
 
 Features:
 - **Dashboard**: Real-time cluster overview

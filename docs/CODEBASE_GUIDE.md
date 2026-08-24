@@ -41,55 +41,80 @@ The project is structured according to **Clean Architecture** and **Domain-Drive
 
 ---
 
-## 2. Go Workspace Layout (`go.work`)
+## 2. Directory Layout & Module Structure
 
-The Go codebase is managed as a unified Go workspace:
-
-1. **`pkg/`** (`github.com/Codesmith28/Agentic-Cloud-Cluster/pkg`):
-   - `domain/`: Pure data models (`Task`, `Worker`, `Assignment`, `TaskAttempt`, `TaskResult`).
-   - `ports/`: Standard interfaces for schedulers, repositories, and metric sinks.
-   - `envutil/`: Clean helpers for typed environment variable loading.
-
-2. **`master/`**:
-   - `main.go`: Minimal entrypoint forwarding to `internal/app`.
-   - `internal/app/`: Application bootstrap, signal handling, and subsystem orchestration.
-   - `internal/db/`: `MongoStore` with single connection pool powering all collections.
-   - `internal/server/`: Modular server components (`grpc_handlers.go`, `worker_manager.go`, `task_manager.go`, `queue_processor.go`).
-   - `internal/controlplane/`: Focused CLI command dispatchers.
-   - `internal/benchmark/`: Simulation, profiles, and artifact generation.
-
-3. **`worker/`**:
-   - `main.go`: Minimal entrypoint.
-   - `internal/app/`: Worker lifecycle and graceful shutdown.
-   - `internal/executor/`: Docker container executor with memory/CPU limits and safety checks.
-   - `internal/server/`: gRPC server handling task assignments and cancellations.
-   - `internal/telemetry/`: Heartbeat and node health reporter.
-   - `internal/logstream/`: Non-blocking log broadcaster.
-
----
-
-## 3. Python PPO Reinforcement Learning Policy (`agentic_scheduler/`)
-
-- **`model.py`**: Contains `PPOActorCritic` neural network architecture.
-- **`features.py`**: State representation (5-dim task vector, 9-dim worker feature matrix).
-- **`service.py`**: Inference engine, action masking, and online replay buffer updates.
-- **`train_ppo.py`**: Offline and trace replay training runner.
-- **`tests/test_scheduler.py`**: Native unit test suite verifying neural network layers, serialization, and model loading.
-
----
-
-## 4. Verification & Testing
-
-### Go Tests
-```bash
-# Run all master, worker, and pkg tests
-(cd pkg && go test -v ./...)
-(cd master && go test -v ./...)
-(cd worker && go test -v ./...)
+```text
+Agentic-Cloud-Cluster/
+├── go.work                          # Go multi-module workspace
+├── Makefile                         # Unified make build & orchestration targets
+├── pkg/                             # Shared Foundation Module
+│   ├── domain/                      # Pure Business Entities (Task, Worker, Assignment, Attempt, Result)
+│   ├── ports/                       # Interface Contracts (Scheduler, Repositories, TelemetrySink)
+│   └── envutil/                     # Type-safe environment helpers
+├── master/                          # Master Node Service
+│   ├── main.go                      # Minimal binary entrypoint
+│   └── internal/
+│       ├── app/                     # Application lifecycle & bootstrap orchestration
+│       ├── db/                      # MongoStore connection pool & collection repositories
+│       ├── server/                  # gRPC handlers, WorkerManager, TaskManager, QueueProcessor
+│       ├── controlplane/            # Modular CLI command executors (cluster, task, file, benchmark)
+│       ├── scheduler/               # Schedulers (Round-Robin, RTS, PPO client)
+│       ├── benchmark/               # Benchmark simulation engine, profiles & reporting
+│       ├── storage/                 # Secure file storage & RBAC
+│       ├── telemetry/               # Telemetry monitor & WebSocket streaming
+│       ├── http/                    # REST API & static dashboard server
+│       ├── cli/                     # Interactive Readline CLI
+│       └── tui/                     # BubbleTea Terminal Dashboard
+├── worker/                          # Worker Node Service
+│   ├── main.go                      # Minimal binary entrypoint
+│   └── internal/
+│       ├── app/                     # Worker application lifecycle & shutdown hooks
+│       ├── server/                  # gRPC server (MasterWorkerServer implementation)
+│       ├── executor/                # Docker task execution engine with resource limits
+│       ├── telemetry/               # Heartbeat transmitter & system load monitor
+│       ├── logstream/               # Multiplexed live log broadcaster
+│       └── system/                  # Hardware resource probing & persistent worker identity
+├── agentic_scheduler/               # Python Reinforcement Learning Policy
+│   ├── __main__.py                  # PPO gRPC service daemon
+│   ├── model.py                     # PyTorch Actor-Critic neural network architecture
+│   ├── features.py                  # Feature encoding (task dim 5, worker dim 9)
+│   ├── service.py                   # PPO core inference & online replay buffer
+│   ├── persistence.py               # MongoDB GridFS model checkpoint persistence
+│   ├── train_ppo.py                 # Offline and trace replay training runner
+│   └── tests/                       # Unit test suite
+├── proto/                           # Protocol Buffer definitions (master_worker.proto, ppo_scheduler.proto)
+├── scripts/                         # Organized Automation & Run Scripts
+│   ├── _common.sh                   # Shared shell helpers & color formatters
+│   ├── master/run.sh                # Master node launch script
+│   ├── worker/run.sh                # Worker node launch script
+│   ├── cluster/reset.sh             # Full cluster state wipe & reset
+│   ├── testing/execute_tests.sh     # Host-master campaign runner
+│   ├── testing/run_ppo_test.sh      # Clean-slate PPO benchmark runner
+│   └── tools/                       # Dependencies, model promotion & reporting tools
+├── docs/                            # Documentation
+│   ├── CODEBASE_GUIDE.md            # This guide
+│   ├── DOCUMENTATION.md             # Complete system reference
+│   ├── USER_MANUAL.md               # User operational manual
+│   ├── diagrams/                    # System diagrams and sequence flows
+│   └── academic/                    # Academic papers, presentations & reports
+├── ui/                              # Web UI React Dashboard
+└── testbench/                       # Multi-worker simulation and validation testbench
 ```
 
-### Python Tests
+---
+
+## 3. Verification & Testing
+
 ```bash
+# Run all Go unit tests
+make test-unit
+
 # Run Python scheduler tests
-python3 -m unittest discover -s agentic_scheduler/tests/ -v
+make test-python
+
+# Compile check & vet
+make check && make vet
+
+# Build master & worker binaries
+make build
 ```

@@ -120,8 +120,8 @@ BTEP/
 │   ├── workloads/       # Workload definitions
 │   └── observability/   # Prometheus + Grafana
 ├── Makefile             # Build & test targets
-├── runMaster.sh         # Master startup script
-└── runWorker.sh         # Worker startup script
+├── scripts/master/run.sh         # Master startup script
+└── scripts/worker/run.sh         # Worker startup script
 ```
 
 ---
@@ -153,7 +153,7 @@ cd Agentic-Cloud-Cluster
 # 2. Install all dependencies
 make install-deps
 # Or manually:
-bash scripts/install_deps.sh
+bash scripts/tools/install_deps.sh
 
 # 3. Start MongoDB
 cd database && docker compose up -d && cd ..
@@ -167,11 +167,11 @@ make build-master
 make build-worker
 
 # 6. Start the master
-./runMaster.sh
+./scripts/master/run.sh
 # Or: cd master && go run main.go --mode cli
 
 # 7. Start a worker (in another terminal)
-./runWorker.sh
+./scripts/worker/run.sh
 # Or: cd worker && go run main.go
 
 # 8. (Optional) Start the Web UI
@@ -338,7 +338,7 @@ This generates:
 ### Option A: Shell Script
 
 ```bash
-./runMaster.sh
+./scripts/master/run.sh
 ```
 
 ### Option B: Direct Go Command
@@ -381,7 +381,7 @@ make build-master
 ### Option A: Shell Script
 
 ```bash
-./runWorker.sh
+./scripts/worker/run.sh
 ```
 
 ### Option B: Direct Go Command

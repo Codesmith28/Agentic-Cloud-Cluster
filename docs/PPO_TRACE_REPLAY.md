@@ -305,7 +305,7 @@ PPO is queried, but the fallback scheduler's decision is used for dispatch.
 ```bash
 export PPO_DEPLOYMENT_MODE=shadow
 export SCHED_ALGO=PPO
-./runMaster.sh
+./scripts/master/run.sh
 ```
 
 In shadow mode:
@@ -319,7 +319,7 @@ PPO makes scheduling decisions. RPC/validation failures fall back to RTS (which 
 ```bash
 export PPO_DEPLOYMENT_MODE=active
 export SCHED_ALGO=PPO
-./runMaster.sh
+./scripts/master/run.sh
 ```
 
 In active mode:
@@ -334,7 +334,7 @@ PPO gRPC is bypassed; fallback scheduler is always used.
 ```bash
 export PPO_DEPLOYMENT_MODE=fallback
 export SCHED_ALGO=PPO
-./runMaster.sh
+./scripts/master/run.sh
 ```
 
 In fallback mode:
@@ -350,7 +350,7 @@ When `PPO_ONLINE_UPDATES_ENABLED=true`, PPO can accept task outcomes and run onl
 export PPO_ONLINE_UPDATES_ENABLED=true
 export PPO_GRPC_ADDR=127.0.0.1:50050
 export PPO_REQUEST_TIMEOUT_MS=1500
-./runMaster.sh
+./scripts/master/run.sh
 ```
 
 Configuration:

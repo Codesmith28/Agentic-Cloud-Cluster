@@ -187,7 +187,7 @@ of earlier (partial) runs.
 | 7 | `master_server.go` | `taskResourceCache` missing — resources not freed on completion without DB | Workers filled up after ~10 tasks |
 | 8 | `task_handler.go` | `GET /api/tasks` returned 503 without DB | Campaign drain logic could not see tasks |
 | 9 | `docker-compose.host-master.yml` | MongoDB bound to `0.0.0.0:27017`; VS Code extension held port | Docker compose failed to start |
-| 10 | `execute-tests.sh` | No auto-teardown; required manual `--teardown` between runs | Human intervention needed every run |
+| 10 | `scripts/testing/execute_tests.sh` | No auto-teardown; required manual `--teardown` between runs | Human intervention needed every run |
 | 11 | `main.go` | PPO gRPC dialled before Python service was listening | PPO fell back to RTS immediately |
 | 12 | `worker/main.go` | `--healthcheck` flag not implemented | Docker marked workers "unhealthy" |
 
@@ -316,13 +316,13 @@ cd agentic_scheduler
 python -m agentic_scheduler.train_offline
 
 # Promote trained model
-./scripts/model_promote.sh
+./scripts/tools/model_promote.sh
 
 # Run smoke test (single workload, ~5 min)
-./execute-tests.sh
+./scripts/testing/execute_tests.sh
 
 # Run comprehensive benchmark (4 workloads × 3 schedulers × 3 scenarios)
-./execute-tests.sh --comprehensive
+./scripts/testing/execute_tests.sh --comprehensive
 
 # Results are saved to:
 # results/campaign-YYYYMMDD-HHMMSS/YYYYMMDD-HHMMSS/

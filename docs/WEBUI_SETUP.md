@@ -7,7 +7,7 @@ This document provides essential information for setting up and accessing the Ag
 ### 1. Start Master Node (with UI)
 ```bash
 cd /Users/codesmith28/personal/Projects/acc/BTEP
-./runMaster.sh --ppo
+./scripts/master/run.sh --ppo
 ```
 
 The script will:
@@ -70,12 +70,12 @@ lsof -ti:3001 | xargs kill -9
 
 Then start master again:
 ```bash
-./runMaster.sh --ppo
+./scripts/master/run.sh --ppo
 ```
 
 **Alternative:** Use a different port:
 ```bash
-WEBUI_PORT=3002 ./runMaster.sh --ppo
+WEBUI_PORT=3002 ./scripts/master/run.sh --ppo
 ```
 
 ### Login Not Working
@@ -136,7 +136,7 @@ make testbench-host-up
 
 ### 2. Start Master (new terminal)
 ```bash
-./runMaster.sh --ppo
+./scripts/master/run.sh --ppo
 ```
 Watch for: `✓ Frontend started on port 3001`
 
@@ -230,9 +230,9 @@ WEBUI_PORT=3001
 
 | Task | Command |
 |------|---------|
-| Start master + UI | `./runMaster.sh --ppo` |
-| Use custom UI port | `WEBUI_PORT=3002 ./runMaster.sh` |
-| Reset admin password | `WEBUI_ADMIN_RESET_PASSWORD=true ./runMaster.sh` |
+| Start master + UI | `./scripts/master/run.sh --ppo` |
+| Use custom UI port | `WEBUI_PORT=3002 ./scripts/master/run.sh` |
+| Reset admin password | `WEBUI_ADMIN_RESET_PASSWORD=true ./scripts/master/run.sh` |
 | Start testbench stack | `make testbench-host-up` |
 | Run campaign | `make campaign-full` |
 | Stop testbench | `make testbench-host-down` |

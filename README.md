@@ -96,16 +96,18 @@ cd ui && npm install && cd ..
 
 ```bash
 # Terminal 1: Start MongoDB
-cd database && docker-compose up -d
+make db-up
 
 # Terminal 2: Start Master (includes Web UI on port 3001)
-./runMaster.sh
+make run-master
+# Or directly: ./scripts/master/run.sh
 
 # Terminal 3: Start Worker  
-./runWorker.sh
+make run-worker
+# Or directly: ./scripts/worker/run.sh
 ```
 
-**⚙️ First time setup? See [WEBUI_SETUP.md](WEBUI_SETUP.md) for:**
+**⚙️ First time setup? See [docs/WEBUI_SETUP.md](docs/WEBUI_SETUP.md) for:**
 - Default login credentials (admin@localhost / ChangeMeAdmin123!)
 - How to customize admin user via .env
 - Port conflict troubleshooting
@@ -114,7 +116,7 @@ cd database && docker-compose up -d
 ### Your First Task
 
 ```bash
-# In master CLI (use worker ID/address shown by runWorker.sh)
+# In master CLI (use worker ID/address shown by scripts/worker/run.sh)
 master> register <worker_id> <worker_ip:port>
 master> workers                              # List workers
 master> task hello-world:latest              # Submit task (scheduler picks worker)
@@ -231,7 +233,7 @@ Quick host-master run:
 
 ```bash
 make testbench-host-up
-./runMaster.sh
+./scripts/master/run.sh
 make testbench-host-register
 make testbench-host-suite
 ```

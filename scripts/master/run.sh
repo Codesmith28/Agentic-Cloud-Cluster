@@ -1,26 +1,15 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# =============================================================================
+# Agentic Cloud Cluster — Master Node Launcher
+# =============================================================================
 set -euo pipefail
 
-# Usage: ./runMaster.sh [cli|tui] [--ppo]
-#
-# This script builds and launches the master node with optional PPO scheduling.
-# Workers on other machines connect via gRPC on :50051.
-#
-# Options:
-#   cli|tui     UI mode (default: cli)
-#   --ppo       Enable PPO scheduler (loads latest trained model)
-#
-# Quick start:
-#   ./runMaster.sh              # Start with RTS scheduler
-#   ./runMaster.sh --ppo        # Start with PPO scheduler
-#   ./runMaster.sh tui --ppo    # TUI mode + PPO
-#
-# Then on worker machines:
-#   ./runWorker.sh
-#   # Use the displayed address to register:
-#   curl -X POST http://<master-ip>:8080/api/workers \
-#     -H 'Content-Type: application/json' \
-#     -d '{"worker_id":"worker-1","worker_ip":"<worker-ip>:50052"}'
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+# Source shared helpers
+# shellcheck source=../_common.sh
+source "${SCRIPT_DIR}/../_common.sh"
 
 UI_MODE="cli"
 ENABLE_PPO=false
@@ -53,13 +42,11 @@ UI_PORT="${WEBUI_PORT:-3001}"
 
 # ── MongoDB ──────────────────────────────────────────────────────────────────
 if ! docker ps 2>/dev/null | grep -q mongo; then
-    echo "Starting MongoDB..."
-    if [[ -f database/docker-compose.yml ]]; then
-        # Set MONGO_PASSWORD if not already set (required by database compose)
+    log "Starting MongoDB..."
+    if [[ -f "${REPO_ROOT}/database/docker-compose.yml" ]]; then
         export MONGO_PASSWORD="${MONGO_PASSWORD:-agentic-cluster-pass}"
-        docker compose -f database/docker-compose.yml up -d
-        echo "✓ MongoDB started"
-        # Wait for healthy
+        docker compose -f "${REPO_ROOT}/database/docker-compose.yml" up -d
+        ok "MongoDB started"
         echo -n "  Waiting for MongoDB..."
         for i in $(seq 1 30); do
             if docker exec agentic-mongo mongosh --quiet --eval "db.runCommand({ping:1}).ok" 2>/dev/null | grep -q 1; then
@@ -76,11 +63,10 @@ if ! docker ps 2>/dev/null | grep -q mongo; then
             sleep 1
         done
     else
-        echo "⚠️  Warning: MongoDB not running and database/docker-compose.yml not found."
-        echo "   Start MongoDB manually for persistent storage."
+        warn "MongoDB not running and database/docker-compose.yml not found."
     fi
 else
-    echo "✓ MongoDB already running"
+    ok "MongoDB already running"
 fi
 echo ""
 
@@ -100,74 +86,67 @@ if [[ "${ENABLE_PPO}" == "true" ]]; then
     echo ""
 fi
 
-# ── Cleanup trap (registered before any background processes) ─────────────────
+# ── Cleanup trap ──────────────────────────────────────────────────────────────
 UI_PID=""
 UI_PGID=""
 
 cleanup() {
     echo ""
-    echo "Shutting down..."
+    log "Shutting down..."
 
-    # Kill the entire UI process group (deferred-launcher subshell + npm + vite)
     if [[ -n "${UI_PGID:-}" && "${UI_PGID}" != "0" ]]; then
         kill -- "-${UI_PGID}" 2>/dev/null || true
     fi
     [[ -n "${UI_PID:-}" ]] && kill "${UI_PID}" 2>/dev/null || true
     [[ -n "${UI_PID:-}" ]] && wait "${UI_PID}" 2>/dev/null || true
 
-    # Force-kill any surviving vite/npm/node processes
     SURVIVORS="$(pgrep -f "vite\|npm.*dev\|node.*vite" 2>/dev/null || true)"
     [[ -n "$SURVIVORS" ]] && echo "$SURVIVORS" | xargs kill -9 2>/dev/null || true
 
-    # Free PPO and UI ports (master and gRPC ports belong to masterNode, which cleans up itself)
     for _PORT in 50050 "${UI_PORT}"; do
         _PID="$(lsof -ti :"${_PORT}" -sTCP:LISTEN 2>/dev/null || true)"
         [[ -n "$_PID" ]] && kill -9 "$_PID" 2>/dev/null || true
     done
 
-    echo "✓ Shutdown complete"
+    ok "Shutdown complete"
 }
 
 trap cleanup EXIT INT TERM
 
 # ── Build ─────────────────────────────────────────────────────────────────────
-make master
+make -C "${REPO_ROOT}" master
 
-if [ ! -f "master/masterNode" ]; then
-    echo "Error: masterNode binary not found. Please run 'make master' first."
-    exit 1
+if [ ! -f "${REPO_ROOT}/master/masterNode" ]; then
+    die "masterNode binary not found. Please run 'make master' first."
 fi
 
-# ── UI port check (interactive — must happen before master takes over stdin) ───
+# ── UI port check ─────────────────────────────────────────────────────────────
 if lsof -Pi :"$UI_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
     EXISTING_PID=$(lsof -t -i :"$UI_PORT" 2>/dev/null | head -1)
-    echo "⚠️  Port $UI_PORT is already in use (PID: $EXISTING_PID)"
+    warn "Port $UI_PORT is already in use (PID: $EXISTING_PID)"
     read -p "Kill existing process? (y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         kill -9 "$EXISTING_PID" 2>/dev/null || true
         sleep 1
-        echo "✓ Killed existing process on port $UI_PORT"
+        ok "Killed existing process on port $UI_PORT"
     else
-        echo "Using alternative port..."
+        log "Using alternative port..."
         UI_PORT=$((UI_PORT + 1))
         while lsof -Pi :"$UI_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; do
             UI_PORT=$((UI_PORT + 1))
         done
-        echo "  Will use port $UI_PORT instead"
+        log "Will use port $UI_PORT instead"
     fi
 fi
 
-# ── Deferred Vite launcher — polls :8080, starts npm only once master is ready ─
-# This eliminates ECONNREFUSED proxy spam. Runs in background; master stays
-# foreground so it retains stdin for the interactive CLI.
-REPO_ROOT="$(pwd)"
+# ── Deferred Vite launcher ───────────────────────────────────────────────────
 (
     _W=0
     while ! lsof -Pi :8080 -sTCP:LISTEN -t >/dev/null 2>&1; do
         sleep 0.5
         _W=$((_W + 1))
-        [[ $_W -ge 120 ]] && break  # 60 s hard timeout
+        [[ $_W -ge 120 ]] && break
     done
     cd "${REPO_ROOT}/ui" || exit 1
     exec npm run dev -- --port "${UI_PORT}" --strictPort
@@ -175,7 +154,7 @@ REPO_ROOT="$(pwd)"
 UI_PID=$!
 UI_PGID=$(ps -o pgid= -p "$UI_PID" 2>/dev/null | tr -d ' ') || UI_PGID=""
 
-# ── Start master in foreground (owns stdin for interactive CLI) ───────────────
+# ── Start master in foreground ────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Starting Master Node..."
@@ -185,12 +164,6 @@ echo "Scheduler:    ${SCHED_ALGO:-RTS}"
 echo "Web UI:       http://localhost:${UI_PORT} (starts once master is ready)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "To register workers from other machines:"
-echo "  curl -X POST http://$(hostname -I 2>/dev/null | awk '{print $1}' || echo '<master-ip>'):8080/api/workers \\"
-echo "    -H 'Content-Type: application/json' \\"
-echo "    -d '{\"worker_id\":\"worker-1\",\"worker_ip\":\"<worker-ip>:50052\"}'"
-echo ""
 
-cd master
+cd "${REPO_ROOT}/master"
 ./masterNode --mode "$UI_MODE"
-# masterNode exiting (normally or via signal) triggers the EXIT trap → cleanup

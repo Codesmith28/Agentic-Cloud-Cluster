@@ -590,7 +590,7 @@ docker-compose up -d
 cd master
 ./masterNode
 # Or using the convenience script:
-# ./runMaster.sh
+# ./scripts/master/run.sh
 ```
 
 Expected output:
@@ -614,7 +614,7 @@ master>
 cd worker
 ./workerNode
 # Or using the convenience script:
-# ./runWorker.sh
+# ./scripts/worker/run.sh
 ```
 
 Register the worker in the master CLI using the worker ID and reachable address printed by the worker process:
@@ -1770,8 +1770,8 @@ Agentic Cloud Cluster/
 │
 ├── Makefile                # Build automation
 ├── requirements.txt        # Python dependencies
-├── runMaster.sh            # Master startup script
-├── runWorker.sh            # Worker startup script
+├── scripts/master/run.sh            # Master startup script
+├── scripts/worker/run.sh            # Worker startup script
 └── README.md               # Project README
 ```
 
@@ -1861,8 +1861,8 @@ cd worker && go test ./... -v
 
 ```bash
 # Start all components
-./runMaster.sh &
-./runWorker.sh &
+./scripts/master/run.sh &
+./scripts/worker/run.sh &
 
 # Run test tasks
 # In master CLI:
@@ -1921,7 +1921,7 @@ db.TASKS.find().sort({created_at: -1}).limit(5)
 
 2. Verify worker registration:
    ```bash
-   # Register worker with the address printed by runWorker.sh
+   # Register worker with the address printed by scripts/worker/run.sh
    master> register <worker_id> <worker_ip:port>
    ```
 

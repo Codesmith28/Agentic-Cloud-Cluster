@@ -88,7 +88,21 @@ Agentic-Cloud-Cluster/
 │   ├── persistence.py               # MongoDB GridFS model checkpoint persistence
 │   ├── train_ppo.py                 # Offline and trace replay training runner
 │   └── tests/                       # Unit test suite
-├── proto/                           # Protocol Buffer definitions (master_worker.proto)
+├── proto/                           # Protocol Buffer definitions (master_worker.proto, ppo_scheduler.proto)
+├── scripts/                         # Organized Automation & Run Scripts
+│   ├── _common.sh                   # Shared shell helpers & color formatters
+│   ├── master/run.sh                # Master node launch script
+│   ├── worker/run.sh                # Worker node launch script
+│   ├── cluster/reset.sh             # Full cluster state wipe & reset
+│   ├── testing/execute_tests.sh     # Host-master campaign runner
+│   ├── testing/run_ppo_test.sh      # Clean-slate PPO benchmark runner
+│   └── tools/                       # Dependencies, model promotion & reporting tools
+├── docs/                            # Documentation
+│   ├── CODEBASE_GUIDE.md            # Developer guide & onboarding
+│   ├── DOCUMENTATION.md             # Complete system reference
+│   ├── USER_MANUAL.md               # User operational manual
+│   ├── diagrams/                    # System diagrams and sequence flows
+│   └── academic/                    # Academic papers, presentations & reports
 ├── ui/                              # Web UI React Dashboard
 └── testbench/                       # Multi-worker simulation and validation testbench
 ```

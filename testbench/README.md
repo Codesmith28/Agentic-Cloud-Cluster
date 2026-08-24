@@ -38,7 +38,7 @@ Defaults:
 
 ```bash
 make testbench-host-up
-./runMaster.sh
+./scripts/master/run.sh
 make testbench-host-register
 make testbench-host-suite-smoke
 ```

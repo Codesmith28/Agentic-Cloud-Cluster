@@ -17,9 +17,9 @@ set -euo pipefail
 #     CHANGELOG.md             ← human-readable log of promotions
 #
 # Usage:
-#   ./scripts/model_promote.sh                          # auto-detect latest from results/
-#   ./scripts/model_promote.sh path/to/checkpoint.pt    # promote a specific file
-#   ./scripts/model_promote.sh --dry-run                # preview without changes
+#   ./scripts/tools/model_promote.sh                          # auto-detect latest from results/
+#   ./scripts/tools/model_promote.sh path/to/checkpoint.pt    # promote a specific file
+#   ./scripts/tools/model_promote.sh --dry-run                # preview without changes
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
