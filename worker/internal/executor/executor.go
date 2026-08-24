@@ -87,12 +87,15 @@ type containerUsageSnapshot struct {
 	ioBytes         uint64
 }
 
-// getBaseOutputDir returns the base output directory, using CLOUDAI_OUTPUT_DIR env var if set
+// getBaseOutputDir returns the base output directory, using AGENTIC_OUTPUT_DIR or CLOUDAI_OUTPUT_DIR env var if set
 func getBaseOutputDir() string {
+	if dir := os.Getenv("AGENTIC_OUTPUT_DIR"); dir != "" {
+		return dir
+	}
 	if dir := os.Getenv("CLOUDAI_OUTPUT_DIR"); dir != "" {
 		return dir
 	}
-	return "/var/cloudai/outputs"
+	return "/var/agentic-cloud-cluster/outputs"
 }
 
 // NewTaskExecutor creates a new task executor

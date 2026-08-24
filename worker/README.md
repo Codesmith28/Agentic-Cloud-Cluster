@@ -1,4 +1,4 @@
-# CloudAI Worker Node
+# Agentic Cloud Cluster Worker Node
 
 Distributed task executor with Docker-backed task runtime and gRPC integration.
 

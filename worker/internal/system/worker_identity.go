@@ -61,6 +61,9 @@ func ResolveWorkerID(hostname string) (string, error) {
 }
 
 func resolveWorkerStateDir() (string, error) {
+	if override := strings.TrimSpace(os.Getenv("AGENTIC_WORKER_STATE_DIR")); override != "" {
+		return override, nil
+	}
 	if override := strings.TrimSpace(os.Getenv(workerStateDirEnvVar)); override != "" {
 		return override, nil
 	}
@@ -70,7 +73,13 @@ func resolveWorkerStateDir() (string, error) {
 		return "", err
 	}
 
-	return filepath.Join(homeDir, ".cloudai", "worker"), nil
+	// Check if legacy dir exists
+	legacyDir := filepath.Join(homeDir, ".cloudai", "worker")
+	if _, err := os.Stat(legacyDir); err == nil {
+		return legacyDir, nil
+	}
+
+	return filepath.Join(homeDir, ".agentic-cloud-cluster", "worker"), nil
 }
 
 func generateWorkerID() (string, error) {

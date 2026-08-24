@@ -5,6 +5,7 @@ go 1.24.0
 toolchain go1.24.9
 
 require (
+	github.com/Codesmith28/Agentic-Cloud-Cluster/pkg v0.0.0
 	github.com/docker/docker v28.5.1+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/google/uuid v1.6.0
@@ -13,6 +14,8 @@ require (
 	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
 )
+
+replace github.com/Codesmith28/Agentic-Cloud-Cluster/pkg => ../pkg
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
