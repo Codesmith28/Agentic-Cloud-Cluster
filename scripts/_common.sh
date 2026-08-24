@@ -24,8 +24,12 @@ die()  { err "$*"; exit 1; }
 
 # Python executable resolver
 resolve_python() {
-  if [[ -f "${REPO_ROOT}/venv/bin/python3" ]]; then
+  if [[ -n "${PYTHON:-}" && -x "${PYTHON}" ]]; then
+    echo "${PYTHON}"
+  elif [[ -x "${REPO_ROOT}/venv/bin/python3" ]]; then
     echo "${REPO_ROOT}/venv/bin/python3"
+  elif [[ -x "${REPO_ROOT}/../Agentic-Cloud-Cluster/venv/bin/python3" ]]; then
+    echo "${REPO_ROOT}/../Agentic-Cloud-Cluster/venv/bin/python3"
   elif command -v python3 >/dev/null 2>&1; then
     command -v python3
   else

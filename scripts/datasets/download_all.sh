@@ -26,11 +26,11 @@ log "1/3 Staging Microsoft Azure Public Dataset..."
 
 # 2. Stage Alibaba Cluster Trace Dataset
 log "2/3 Staging Alibaba Cluster Trace Dataset..."
-"${PYTHON}" scripts/datasets/download_alibaba.py --count 10000
+"${PYTHON}" scripts/datasets/download_alibaba.py
 
 # 3. Stage Google ClusterData 2019 Dataset
 log "3/3 Staging Google ClusterData 2019 Dataset..."
-"${PYTHON}" scripts/datasets/download_google.py --count 10000
+"${PYTHON}" scripts/datasets/download_google.py
 
 ok "All production datasets staged into testbench/data/raw/ (git-ignored)!"
 log "Available mapped datasets for benchmarking:"
