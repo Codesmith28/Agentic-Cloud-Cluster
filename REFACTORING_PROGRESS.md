@@ -1,9 +1,8 @@
 # Refactoring Progress & Checkpoint Tracker
 
-**Last Updated**: 2026-08-24 09:10:00 IST
-**Current Phase**: Complete Refactor Ready for Review
+**Last Updated**: 2026-08-24 09:54:00 IST
 **Branch**: `refactor/major-overhaul` (Worktree: `/home/codesmith28/Projects/Agentic-Cloud-Cluster-Refactor`)
-**Status**: COMPLETED & VERIFIED
+**Status**: COMPLETED & VERIFIED (End-to-End)
 
 ## Summary of Completed Phases
 
@@ -46,10 +45,26 @@
 - Verified all unit and integration tests across Go (`make test-unit`) and Python (`make test-python`).
 - Verified `make check` and `make vet` with 0 warnings/errors.
 
-### Phase 6: Project Naming Standardization & CloudAI Purge
+### Phase 6: Project Naming Standardization & CloudAI Purge (`7005abf`)
 - Replaced all user-facing, configuration, UI, and documentation references from "CloudAI" to **Agentic Cloud Cluster**.
 - Updated Prometheus metric namespaces to `agentic` (with backward compatibility in query tools).
 - Updated UI headers, login/register pages, title tags, and package definitions.
 - Renamed Grafana dashboards to `agentic-*`.
 - Untracked all stale runtime result files and compiled binaries from git.
-- Full verification pass: `make test-unit`, `make test-python`, `make check`, `make vet`, and `make build`.
+
+### Phase 7: Root-Level Reorganization & Structural Decoupling (`ae25860`)
+- **Scripts Hierarchy in `scripts/`**:
+  - `scripts/_common.sh`: Common helpers, color formatting, python resolver.
+  - `scripts/master/run.sh`: Master node launcher (replaces root `runMaster.sh`).
+  - `scripts/worker/run.sh`: Worker node launcher (replaces root `runWorker.sh`).
+  - `scripts/cluster/reset.sh`: Clean-slate cluster reset (replaces root `reset-cluster.sh`).
+  - `scripts/testing/execute_tests.sh`: Testbench campaign runner (replaces root `execute-tests.sh`).
+  - `scripts/testing/run_ppo_test.sh`: PPO clean-slate benchmark (replaces root `run-ppo-test.sh`).
+  - `scripts/tools/`: Helper tools for dependencies, model promotion, and report generation.
+- **Academic Assets in `docs/academic/`**:
+  - Moved `papers/`, `powerpoint/`, `final_BTEP_report/`, `defense.md`, `defense-2.md`, and `btep_report.zip` into `docs/academic/`.
+- **Diagrams Consolidated in `docs/diagrams/`**:
+  - Consolidated root `diagrams/` and `docs/Diagrams/` into a single `docs/diagrams/` repository.
+- **Root Directory Fully Debloated**:
+  - Clean root containing only project specs, build orchestration (`Makefile`, `go.work`), and module directories.
+- **Verification**: `make test-unit`, `make test-python`, `make check`, `make vet`, `make build` all PASS (100%).
