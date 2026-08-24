@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Light UI smoke checks for CloudAI."""
+"""Light UI smoke checks for Agentic Cloud Cluster."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ class CheckResult:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run light CloudAI UI smoke checks")
+    parser = argparse.ArgumentParser(description="Run light Agentic Cloud Cluster UI smoke checks")
     parser.add_argument("--master-url", default="http://localhost:8080", help="Master API URL")
     parser.add_argument("--ui-url", default="http://localhost:3000", help="UI base URL")
     parser.add_argument("--output", required=True, type=pathlib.Path, help="Output summary JSON path")

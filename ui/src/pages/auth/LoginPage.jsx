@@ -69,7 +69,7 @@ const LoginPage = () => {
           }}
         >
           <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ mb: 3 }}>
-            CloudAI Login
+            Agentic Cloud Cluster Login
           </Typography>
 
           {(error || authError) && (

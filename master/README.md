@@ -1,6 +1,6 @@
-# CloudAI Master Node
+# Agentic Cloud Cluster Master Node
 
-Central coordinator for CloudAI distributed execution.
+Central coordinator for Agentic Cloud Cluster distributed execution.
 
 ## Features
 
@@ -50,7 +50,7 @@ Master Node
 ### Headless mode (no interactive CLI)
 
 ```bash
-CLOUDAI_HEADLESS=true ./masterNode
+AGENTIC_HEADLESS=true ./masterNode
 ```
 
 ### Non-interactive test workflow mode
@@ -154,7 +154,7 @@ If a worker is not pre-registered, `RegisterWorker` is rejected.
 - Worker reconnection/inactivity checks run every **5 seconds**.
 - Workers are marked inactive after **~30s** without heartbeat.
 - Heartbeat usage values are normalized in worker RPCs and displayed as percentages in logs/telemetry.
-- File base directory is initialized at startup (`/var/cloudai/files`, fallback `~/.cloudai/files`).
+- File base directory is initialized at startup (`/var/agentic/files`, fallback `~/.agentic/files`).
 
 ## Build
 

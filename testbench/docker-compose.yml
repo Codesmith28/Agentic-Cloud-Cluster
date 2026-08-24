@@ -5,12 +5,12 @@ services:
     ports:
       - "127.0.0.1:27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-cloudai}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-agentic}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-testbench}
     volumes:
       - mongo-data:/data/db
     networks:
-      - cloudai
+      - agentic
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
       interval: 5s
@@ -30,24 +30,24 @@ services:
         condition: service_healthy
     environment:
       MONGODB_HOST: mongo:27017
-      MONGODB_USERNAME: ${MONGO_USERNAME:-cloudai}
+      MONGODB_USERNAME: ${MONGO_USERNAME:-agentic}
       MONGODB_PASSWORD: ${MONGO_PASSWORD:-testbench}
       MONGODB_DATABASE: cluster_db
       GRPC_PORT: ":50051"
       HTTP_PORT: ":8080"
-      CLOUDAI_HEADLESS: "true"
+      AGENTIC_HEADLESS: "true"
       SCHED_ALGO: RTS
       PPO_AUTOSTART: "false"
-      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+      AGENTIC_WORKFLOW_IMAGE_TAG: "${AGENTIC_WORKFLOW_IMAGE_TAG:-agentic/workflow-deterministic:v1}"
     ports:
       - "50051:50051"
       - "8080:8080"
     tmpfs:
       - /tmp:noexec,nosuid,size=64m
     volumes:
-      - master-files:/var/cloudai/files
+      - master-files:/var/agentic/files
     networks:
-      - cloudai
+      - agentic
 
   prometheus:
     image: prom/prometheus:v3.5.0
@@ -65,7 +65,7 @@ services:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     networks:
-      - cloudai
+      - agentic
 
   grafana:
     image: grafana/grafana:12.1.1
@@ -85,7 +85,7 @@ services:
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     networks:
-      - cloudai
+      - agentic
 
   worker-small-dind:
     image: docker:27.3-dind
@@ -100,9 +100,9 @@ services:
     pids_limit: 512
     volumes:
       - worker-small-docker:/var/lib/docker
-      - worker-small-outputs:/var/cloudai/outputs
+      - worker-small-outputs:/var/agentic/outputs
     networks:
-      - cloudai
+      - agentic
     healthcheck:
       test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
       interval: 5s
@@ -132,14 +132,14 @@ services:
       WORKER_TOTAL_MEMORY_GB: "1.5"
       WORKER_TOTAL_STORAGE_GB: "20"
       DOCKER_HOST: tcp://worker-small-dind:2375
-      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+      AGENTIC_WORKFLOW_IMAGE_TAG: "${AGENTIC_WORKFLOW_IMAGE_TAG:-agentic/workflow-deterministic:v1}"
     tmpfs:
       - /tmp:noexec,nosuid,size=64m
     volumes:
-      - worker-small-state:/var/lib/cloudai/worker
-      - worker-small-outputs:/var/cloudai/outputs
+      - worker-small-state:/var/lib/agentic/worker
+      - worker-small-outputs:/var/agentic/outputs
     networks:
-      - cloudai
+      - agentic
 
   worker-medium-dind:
     image: docker:27.3-dind
@@ -154,9 +154,9 @@ services:
     pids_limit: 768
     volumes:
       - worker-medium-docker:/var/lib/docker
-      - worker-medium-outputs:/var/cloudai/outputs
+      - worker-medium-outputs:/var/agentic/outputs
     networks:
-      - cloudai
+      - agentic
     healthcheck:
       test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
       interval: 5s
@@ -186,14 +186,14 @@ services:
       WORKER_TOTAL_MEMORY_GB: "3"
       WORKER_TOTAL_STORAGE_GB: "40"
       DOCKER_HOST: tcp://worker-medium-dind:2375
-      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+      AGENTIC_WORKFLOW_IMAGE_TAG: "${AGENTIC_WORKFLOW_IMAGE_TAG:-agentic/workflow-deterministic:v1}"
     tmpfs:
       - /tmp:noexec,nosuid,size=64m
     volumes:
-      - worker-medium-state:/var/lib/cloudai/worker
-      - worker-medium-outputs:/var/cloudai/outputs
+      - worker-medium-state:/var/lib/agentic/worker
+      - worker-medium-outputs:/var/agentic/outputs
     networks:
-      - cloudai
+      - agentic
 
   worker-large-dind:
     image: docker:27.3-dind
@@ -208,9 +208,9 @@ services:
     pids_limit: 1024
     volumes:
       - worker-large-docker:/var/lib/docker
-      - worker-large-outputs:/var/cloudai/outputs
+      - worker-large-outputs:/var/agentic/outputs
     networks:
-      - cloudai
+      - agentic
     healthcheck:
       test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
       interval: 5s
@@ -240,17 +240,17 @@ services:
       WORKER_TOTAL_MEMORY_GB: "5"
       WORKER_TOTAL_STORAGE_GB: "80"
       DOCKER_HOST: tcp://worker-large-dind:2375
-      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+      AGENTIC_WORKFLOW_IMAGE_TAG: "${AGENTIC_WORKFLOW_IMAGE_TAG:-agentic/workflow-deterministic:v1}"
     tmpfs:
       - /tmp:noexec,nosuid,size=64m
     volumes:
-      - worker-large-state:/var/lib/cloudai/worker
-      - worker-large-outputs:/var/cloudai/outputs
+      - worker-large-state:/var/lib/agentic/worker
+      - worker-large-outputs:/var/agentic/outputs
     networks:
-      - cloudai
+      - agentic
 
 networks:
-  cloudai:
+  agentic:
     driver: bridge
 
 volumes:

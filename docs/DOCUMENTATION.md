@@ -1,8 +1,8 @@
-# CloudAI - Comprehensive Documentation
+# Agentic Cloud Cluster - Comprehensive Documentation
 
 **Version:** 2.1  
 **Last Updated:** November 26, 2025  
-**Authors:** CloudAI Development Team
+**Authors:** Agentic Cloud Cluster Development Team
 
 ---
 
@@ -26,9 +26,9 @@
 
 ## 1. Introduction
 
-### 1.1 What is CloudAI?
+### 1.1 What is Agentic Cloud Cluster?
 
-CloudAI is a distributed computing platform designed for orchestrating Docker-based task execution across a cluster of worker nodes. Built with **Go** for high performance, it provides a robust, scalable foundation for distributed workload processing.
+Agentic Cloud Cluster is a distributed computing platform designed for orchestrating Docker-based task execution across a cluster of worker nodes. Built with **Go** for high performance, it provides a robust, scalable foundation for distributed workload processing.
 
 ### 1.2 Key Capabilities
 
@@ -528,7 +528,7 @@ docker-compose ps
 
 - **Host:** localhost
 - **Port:** 27017
-- **Database:** cloudai
+- **Database:** agentic-cloud-cluster
 - **Collections:** TASKS, WORKER_REGISTRY, RESULTS, FILE_METADATA, USERS
 
 ### 5.4 Configuration
@@ -596,7 +596,7 @@ cd master
 Expected output:
 ```
 ═══════════════════════════════════════════════════════
-  CloudAI Master Node - Interactive CLI
+  Agentic Cloud Cluster Master Node - Interactive CLI
 ═══════════════════════════════════════════════════════
 ✓ Master node started successfully
 ✓ gRPC server listening on 192.168.1.10:50051
@@ -1628,7 +1628,7 @@ Stores task execution results and logs.
   worker_id: "worker-1",            // Worker that executed
   status: "success",                // success|failure
   logs: "...",                      // Execution logs
-  result_location: "/var/cloudai/outputs/task-xxx", // Output directory
+  result_location: "/var/agentic-cloud-cluster/outputs/task-xxx", // Output directory
   output_files: ["result.json", "model.bin"],       // Output file list
   completed_at: ISODate("..."),     // Completion timestamp
 }
@@ -1694,7 +1694,7 @@ Stores metadata for uploaded task output files.
 ### 10.1 Project Structure
 
 ```
-CloudAI/
+Agentic Cloud Cluster/
 ├── proto/                  # gRPC protocol definitions
 │   ├── master_worker.proto # Master ↔ Worker communication
 │   ├── master_agent.proto  # Master ↔ AI Agent (future)
@@ -2053,11 +2053,11 @@ db.TASKS.find().sort({created_at: -1}).limit(5)
 
 **Master logs location:**
 - Console output (stdout)
-- Future: `/var/log/cloudai/master.log`
+- Future: `/var/log/agentic-cloud-cluster/master.log`
 
 **Worker logs location:**
 - Console output (stdout)
-- Future: `/var/log/cloudai/worker.log`
+- Future: `/var/log/agentic-cloud-cluster/worker.log`
 
 **Enable debug logging:**
 
@@ -2225,7 +2225,7 @@ TLS_KEY_FILE=/path/to/key.pem
 
 **Current Implementation:**
 
-CloudAI includes JWT-based authentication:
+Agentic Cloud Cluster includes JWT-based authentication:
 
 - **User registration:** `/api/auth/register`
 - **User login:** `/api/auth/login`
@@ -2359,7 +2359,7 @@ func validateTask(task *Task) error {
 | `HTTP_PORT` | `:8080` | HTTP/WebSocket server port | Implemented |
 | `JWT_SECRET` | auto-generated at startup | Secret for JWT signing | Implemented |
 | `LOG_LEVEL` | `info` | Logging level (debug/info/warn/error) | Implemented |
-| `CLOUDAI_HEADLESS` | `false` | Run master without interactive CLI | Implemented |
+| `AGENTIC_HEADLESS` | `false` | Run master without interactive CLI | Implemented |
 | `TLS_ENABLED` | - | Enable TLS for gRPC | Planned |
 | `TLS_CERT_FILE` | - | TLS certificate file path | Planned |
 | `TLS_KEY_FILE` | - | TLS private key file path | Planned |
@@ -2376,7 +2376,7 @@ func validateTask(task *Task) error {
 | `WORKER_TOTAL_MEMORY_GB` | detected memory | Override reported memory (GB) | Implemented |
 | `WORKER_TOTAL_STORAGE_GB` | detected storage | Override reported storage (GB) | Implemented |
 | `WORKER_CONTAINER_NETWORK_MODE` | `bridge` | Docker network mode (bridge/host/none) | Implemented |
-| `CLOUDAI_OUTPUT_DIR` | `/var/cloudai/outputs` | Task output directory | Implemented |
+| `AGENTIC_OUTPUT_DIR` | `/var/agentic-cloud-cluster/outputs` | Task output directory | Implemented |
 
 ---
 
@@ -2439,10 +2439,10 @@ A: Use MongoDB backup tools: `mongodump -d cluster_db -o backup/`
 
 ## Conclusion
 
-CloudAI provides a comprehensive, production-ready platform for distributed task execution. With AI-powered scheduling, real-time monitoring, and robust architecture, it's suitable for a wide range of use cases from research computing to production workloads.
+Agentic Cloud Cluster provides a comprehensive, production-ready platform for distributed task execution. With AI-powered scheduling, real-time monitoring, and robust architecture, it's suitable for a wide range of use cases from research computing to production workloads.
 
 For more information:
-- GitHub: [Codesmith28/CloudAI](https://github.com/Codesmith28/CloudAI)
+- GitHub: [Codesmith28/Agentic Cloud Cluster](https://github.com/Codesmith28/Agentic Cloud Cluster)
 - Issues: Use GitHub Issues for bug reports and feature requests
 - Contributing: See CONTRIBUTING.md (coming soon)
 

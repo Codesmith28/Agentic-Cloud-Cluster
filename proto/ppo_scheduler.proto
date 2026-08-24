@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ppo;
 
-option go_package = "github.com/Codesmith28/CloudAI/proto/pb";
+option go_package = "github.com/Codesmith28/Agentic-Cloud-Cluster/proto/pb";
 
 import "master_worker.proto";
 

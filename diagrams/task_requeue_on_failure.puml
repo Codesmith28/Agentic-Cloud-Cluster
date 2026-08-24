@@ -1,7 +1,7 @@
 @startuml
 
 ' ══════════════════════════════════════════════════════════════════════════════
-'  CloudAI — Worker Failure & Task Requeue Sequence
+'  Agentic Cloud Cluster — Worker Failure & Task Requeue Sequence
 '  Designed for 16:9 slides · Same visual language as main lifecycle diagram
 ' ══════════════════════════════════════════════════════════════════════════════
 
@@ -40,7 +40,7 @@ skinparam note {
     FontColor #1E293B
 }
 
-title <size:36><b>CloudAI — Worker Failure & Task Requeue</b></size>\n<size:18><color:#475569>Heartbeat timeout  ·  Recovery  ·  Re-scheduling  ·  Late results</color></size>\n
+title <size:36><b>Agentic Cloud Cluster — Worker Failure & Task Requeue</b></size>\n<size:18><color:#475569>Heartbeat timeout  ·  Recovery  ·  Re-scheduling  ·  Late results</color></size>\n
 
 participant "    Master Node    " as M #B6D4F7
 participant "    PPO Service    " as P #D4C8F5

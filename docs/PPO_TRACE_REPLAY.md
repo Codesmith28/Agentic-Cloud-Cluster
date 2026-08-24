@@ -4,7 +4,7 @@ This document describes the trace replay CLI options and PPO training with real 
 
 ## Overview
 
-The CloudAI system includes a trace replay environment for training PPO scheduling agents on realistic cluster data. The `TraceReplayEnv` replays recorded task arrivals and resource requirements in chronological order, allowing the PPO agent to learn from real workload patterns.
+The Agentic Cloud Cluster system includes a trace replay environment for training PPO scheduling agents on realistic cluster data. The `TraceReplayEnv` replays recorded task arrivals and resource requirements in chronological order, allowing the PPO agent to learn from real workload patterns.
 
 ## Trace Replay Environment
 
@@ -18,8 +18,8 @@ from agentic_scheduler.training.trace_loader import load_trace
 
 # Load trace data
 trace = load_trace(
-    trace_path="path/to/cloudai/replay",
-    source="cloudai",
+    trace_path="path/to/agentic-cloud-cluster/replay",
+    source="agentic-cloud-cluster",
     max_tasks=5000,
     trace_window="imported",
     trace_window_start="2024-01-01T00:00:00Z",
@@ -50,20 +50,20 @@ When loading traces for replay:
 # No window filtering (default)
 trace_window = ""  # or omitted
 
-# Filter by time bounds (CloudAI trace source)
+# Filter by time bounds (Agentic Cloud Cluster trace source)
 # Accepted formats: Unix epoch or ISO-8601
 trace_window_start = "2024-01-01T00:00:00Z"
 trace_window_end = "2024-01-01T06:00:00Z"
 
-# Filter by trace label (CloudAI trace source)
+# Filter by trace label (Agentic Cloud Cluster trace source)
 # Exact match against record.trace_window when labels are present
 trace_window = "imported"
 ```
 
 Behavior details from `trace_loader.py`:
 
-- `--trace-window`, `--trace-window-start`, and `--trace-window-end` are applied for `--trace-source cloudai`.
-- `--trace-window` is an exact label match when CloudAI records carry a `trace_window` field.
+- `--trace-window`, `--trace-window-start`, and `--trace-window-end` are applied for `--trace-source agentic-cloud-cluster`.
+- `--trace-window` is an exact label match when Agentic Cloud Cluster records carry a `trace_window` field.
 - `--trace-window-start` / `--trace-window-end` filter by record arrival/submission timestamps.
 - For `alibaba` and `google` sources, these window flags are currently ignored.
 
@@ -71,7 +71,7 @@ Behavior details from `trace_loader.py`:
 
 ```bash
 python3 -m agentic_scheduler.train_ppo \
-  --trace-source cloudai \
+  --trace-source agentic-cloud-cluster \
   --mongo-uri "mongodb://localhost:27017" \
   --mongo-db cluster_db \
   --num-workers 4 \
@@ -278,7 +278,7 @@ Mongo checkpointing is optional and requires `--mongo-uri` plus `--fingerprint-h
 
 ```bash
 python3 -m agentic_scheduler.train_ppo \
-  --trace-source cloudai \
+  --trace-source agentic-cloud-cluster \
   --mongo-uri "mongodb://localhost:27017" \
   --mongo-db cluster_db \
   --fingerprint-hash "cluster-fp-123" \
@@ -419,12 +419,12 @@ python3 -m agentic_scheduler.train_ppo --help
 | `--mongo-checkpoint-every` | `0` | Persist active Mongo checkpoint every N updates (`<=0` disables) |
 | `--mongo-save-final` / `--no-mongo-save-final` | `true` | Enable/disable final Mongo checkpoint persistence |
 | `--resume-mongo` | `false` | Resume from active Mongo checkpoint if no local resume is used |
-| `--trace-source` | `""` | Trace source: `alibaba`, `google`, `cloudai`, or empty for synthetic |
-| `--trace-path` | `""` | Path to trace data (optional for `cloudai` when `--mongo-uri` is set) |
+| `--trace-source` | `""` | Trace source: `alibaba`, `google`, `agentic-cloud-cluster`, or empty for synthetic |
+| `--trace-path` | `""` | Path to trace data (optional for `agentic-cloud-cluster` when `--mongo-uri` is set) |
 | `--max-trace-tasks` | `5000` | Maximum tasks loaded from trace |
-| `--trace-window` | `` | CloudAI trace-window label filter (exact match when labels exist) |
-| `--trace-window-start` | `` | CloudAI window start (Unix epoch or ISO 8601) |
-| `--trace-window-end` | `` | CloudAI window end (Unix epoch or ISO 8601) |
+| `--trace-window` | `` | Agentic Cloud Cluster trace-window label filter (exact match when labels exist) |
+| `--trace-window-start` | `` | Agentic Cloud Cluster window start (Unix epoch or ISO 8601) |
+| `--trace-window-end` | `` | Agentic Cloud Cluster window end (Unix epoch or ISO 8601) |
 
 ## Metrics and Monitoring
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Evidence benchmark campaign runner.
 
-Orchestrates a multi-scenario benchmark campaign that exercises the CloudAI
+Orchestrates a multi-scenario benchmark campaign that exercises the Agentic Cloud Cluster
 cluster across different scheduler algorithms, workload profiles, and failure
 injection scenarios.  Produces a consolidated evidence report suitable for
 academic submissions and project evaluation.
@@ -32,7 +32,7 @@ from shared_polling import poll_task_completion, request_json, TERMINAL_STATUSES
 
 SCHEDULERS = ["RR", "RTS", "PPO"]
 WORKLOADS = ["heterogeneous-smoke", "steady-cpu", "steady-mixed", "memory-pressure", "bursty", "long-tail", "resource-contention-ppo"]
-DEFAULT_WORKFLOW_IMAGE = "cloudai/workflow-deterministic:v1"
+DEFAULT_WORKFLOW_IMAGE = "agentic/workflow-deterministic:v1"
 
 
 # ---------------------------------------------------------------------------
@@ -289,7 +289,7 @@ def resolve_workflow_image(task: Dict[str, Any]) -> str:
         return str(task["docker_image"]).strip()
 
     if task.get("workflow") or task.get("workflow_params") or task.get("workflow_profile"):
-        return os.environ.get("CLOUDAI_WORKFLOW_IMAGE_TAG", DEFAULT_WORKFLOW_IMAGE)
+        return os.environ.get("AGENTIC_WORKFLOW_IMAGE_TAG", os.environ.get("CLOUDAI_WORKFLOW_IMAGE_TAG", DEFAULT_WORKFLOW_IMAGE))
 
     raise ValueError("task missing docker_image")
 
@@ -539,7 +539,7 @@ def generate_report(results: List[ScenarioResult], started_at: float) -> Campaig
 def write_markdown_report(report: CampaignReport, output_path: pathlib.Path) -> None:
     """Write a Markdown evidence report with paper comparison."""
     lines = [
-        "# CloudAI Evidence Benchmark Campaign Report",
+        "# Agentic Cloud Cluster Evidence Benchmark Campaign Report",
         "",
         f"**Started**: {report.started_at}",
         f"**Finished**: {report.finished_at}",
@@ -727,7 +727,7 @@ def write_html_report(report: CampaignReport, output_path: pathlib.Path) -> None
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>CloudAI Campaign Report</title>
+  <title>Agentic Cloud Cluster Campaign Report</title>
   <style>
     body {{ font-family: Arial, sans-serif; margin: 24px; }}
     table {{ border-collapse: collapse; width: 100%; margin-bottom: 24px; }}
@@ -736,7 +736,7 @@ def write_html_report(report: CampaignReport, output_path: pathlib.Path) -> None
   </style>
 </head>
 <body>
-  <h1>CloudAI Evidence Benchmark Campaign Report</h1>
+  <h1>Agentic Cloud Cluster Evidence Benchmark Campaign Report</h1>
   <p><strong>Started:</strong> {report.started_at}</p>
   <p><strong>Finished:</strong> {report.finished_at}</p>
   <p><strong>Duration:</strong> {report.total_duration_seconds}s</p>
@@ -888,7 +888,7 @@ def write_task_attempt_timeline(master_url: str, results: List[ScenarioResult], 
 # ---------------------------------------------------------------------------
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run CloudAI evidence benchmark campaign")
+    parser = argparse.ArgumentParser(description="Run Agentic Cloud Cluster evidence benchmark campaign")
     parser.add_argument("--master-url", default="http://localhost:8080", help="Master API URL")
     parser.add_argument("--prometheus-url", default="http://localhost:9090", help="Prometheus API URL")
     parser.add_argument(

@@ -18,7 +18,7 @@ type Config struct {
 	MongoDBDatabase string
 	HTTPPort        string // HTTP port for telemetry API
 	Headless        bool   // Run without interactive CLI (for containerized/testbench mode)
-	UIMode          string // "cli" (default) or "tui" - resolved from --mode flag or CLOUDAI_UI_MODE env
+	UIMode          string // "cli" (default) or "tui" - resolved from --mode flag or AGENTIC_UI_MODE env
 	MasterBindAddr  string // Optional gRPC bind address override
 	MasterAdvAddr   string // Optional gRPC advertise address override
 

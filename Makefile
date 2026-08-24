@@ -1,5 +1,5 @@
 # ===========================================================================
-# CloudAI – Agentic Cloud Cluster Build System
+# Agentic Cloud Cluster Build System
 # ===========================================================================
 #
 # Port allocation scheme:
@@ -22,7 +22,7 @@
 
 .PHONY: help build all proto master worker clean setup deps \
 	check vet fmt \
-	test test-unit test-unit-verbose \
+	test test-unit test-unit-verbose test-python \
 	venv pip-install \
 	db-up db-down \
 	run-master run-master-ppo run-worker ppo-server \
@@ -55,7 +55,7 @@ MASTER_URL    ?= http://localhost:8080
 # ---------------------------------------------------------------------------
 
 help:
-	@echo "CloudAI Build System"
+	@echo "Agentic Cloud Cluster Build System"
 	@echo ""
 	@echo "Build & Setup:"
 	@echo "  make setup              One-time setup (deps + proto + symlinks + go mod tidy)"

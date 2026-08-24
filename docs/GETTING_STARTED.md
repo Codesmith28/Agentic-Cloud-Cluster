@@ -1,6 +1,6 @@
-# CloudAI - Getting Started Guide
+# Agentic Cloud Cluster - Getting Started Guide
 
-**Quick guide to get CloudAI up and running in 5 minutes.**
+**Quick guide to get Agentic Cloud Cluster up and running in 5 minutes.**
 
 ---
 
@@ -83,8 +83,8 @@ export PATH=$PATH:$(go env GOPATH)/bin
 ### Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/Codesmith28/CloudAI.git
-cd CloudAI
+git clone https://github.com/Codesmith28/Agentic Cloud Cluster.git
+cd Agentic Cloud Cluster
 ```
 
 ### Step 2: Set Up Python Environment
@@ -164,7 +164,7 @@ cd master && ./masterNode
 Expected output:
 ```
 ═══════════════════════════════════════════════════════
-  CloudAI Master Node - Interactive CLI
+  Agentic Cloud Cluster Master Node - Interactive CLI
 ═══════════════════════════════════════════════════════
 ✓ Master node started successfully
 ✓ gRPC server listening on 192.168.1.10:50051

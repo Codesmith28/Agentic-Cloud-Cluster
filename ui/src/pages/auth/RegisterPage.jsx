@@ -89,7 +89,7 @@ const RegisterPage = () => {
           }}
         >
           <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ mb: 3 }}>
-            CloudAI Register
+            Agentic Cloud Cluster Register
           </Typography>
 
           {(error || authError) && (

@@ -1,6 +1,6 @@
 # Web UI Setup & Login Guide
 
-This document provides essential information for setting up and accessing the CloudAI Web UI.
+This document provides essential information for setting up and accessing the Agentic Cloud Cluster Web UI.
 
 ## Quick Start
 
@@ -178,9 +178,9 @@ Grafana is available when using the testbench stack.
 1. Navigate to Grafana URL above
 2. Login with credentials above
 3. Click **Dashboards** → select:
-   - **CloudAI Overview** — key metrics, queue depth, task success rate
-   - **CloudAI Scheduler & Queue** — scheduling latency, throughput
-   - **CloudAI Worker Runtime** — execution performance, resource usage
+   - **Agentic Cloud Cluster Overview** — key metrics, queue depth, task success rate
+   - **Agentic Cloud Cluster Scheduler & Queue** — scheduling latency, throughput
+   - **Agentic Cloud Cluster Worker Runtime** — execution performance, resource usage
 
 ---
 

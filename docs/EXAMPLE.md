@@ -1,4 +1,4 @@
-# CloudAI - Usage Examples
+# Agentic Cloud Cluster - Usage Examples
 
 **Quick examples for testing task sending and receiving functionality.**
 
@@ -26,7 +26,7 @@ docker-compose up -d
 
 **Terminal 1:**
 ```bash
-cd /path/to/CloudAI
+cd /path/to/Agentic Cloud Cluster
 source venv/bin/activate  # Activate Python venv
 ./runMaster.sh
 ```
@@ -45,7 +45,7 @@ master>
 
 **Terminal 2:**
 ```bash
-cd /path/to/CloudAI
+cd /path/to/Agentic Cloud Cluster
 ./runWorker.sh
 ```
 

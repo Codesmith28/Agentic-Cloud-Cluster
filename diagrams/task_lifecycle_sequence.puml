@@ -1,7 +1,7 @@
 @startuml
 
 ' ══════════════════════════════════════════════════════════════════════════════
-'  CloudAI Task Lifecycle — Presentation Sequence Diagram
+'  Agentic Cloud Cluster Task Lifecycle — Presentation Sequence Diagram
 '  Designed for 16:9 slides · Clean · Large fonts · Minimal clutter
 ' ══════════════════════════════════════════════════════════════════════════════
 
@@ -40,7 +40,7 @@ skinparam note {
     FontColor #1E293B
 }
 
-title <size:36><b>CloudAI — Task Lifecycle</b></size>\n<size:18><color:#475569>Master Node  ·  PPO Scheduler  ·  Worker Node</color></size>\n
+title <size:36><b>Agentic Cloud Cluster — Task Lifecycle</b></size>\n<size:18><color:#475569>Master Node  ·  PPO Scheduler  ·  Worker Node</color></size>\n
 
 actor "      User      " as U
 participant "    Master Node    " as M #B6D4F7

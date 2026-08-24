@@ -3,7 +3,7 @@
   "description": "Heavy stress workload (50 tasks) with diverse resource profiles for scheduler differentiation. CPU-light (15), CPU-heavy (15), memory-heavy (10), mixed (10). Varying iteration counts and memory sizes create heterogeneous runtimes that reward intelligent scheduling.",
   "tasks": [
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -18,7 +18,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -33,7 +33,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -48,7 +48,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -63,7 +63,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -78,7 +78,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -93,7 +93,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -108,7 +108,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -123,7 +123,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -138,7 +138,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -153,7 +153,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -168,7 +168,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -183,7 +183,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -198,7 +198,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -213,7 +213,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-light",
         "args": {
@@ -228,7 +228,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -243,7 +243,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -258,7 +258,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -273,7 +273,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -288,7 +288,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -303,7 +303,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -318,7 +318,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -333,7 +333,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -348,7 +348,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -363,7 +363,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -378,7 +378,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -393,7 +393,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -408,7 +408,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -423,7 +423,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -438,7 +438,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "cpu-heavy",
         "args": {
@@ -453,7 +453,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "memory-heavy",
         "args": {
@@ -469,7 +469,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "memory-heavy",
         "args": {
@@ -485,7 +485,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "memory-heavy",
         "args": {
@@ -501,7 +501,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "memory-heavy",
         "args": {
@@ -517,7 +517,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "memory-heavy",
         "args": {
@@ -533,7 +533,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "memory-heavy",
         "args": {
@@ -549,7 +549,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "memory-heavy",
         "args": {
@@ -565,7 +565,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "memory-heavy",
         "args": {
@@ -581,7 +581,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "memory-heavy",
         "args": {
@@ -597,7 +597,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "memory-heavy",
         "args": {
@@ -613,7 +613,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "mixed",
         "args": {
@@ -630,7 +630,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "mixed",
         "args": {
@@ -647,7 +647,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "mixed",
         "args": {
@@ -664,7 +664,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "mixed",
         "args": {
@@ -681,7 +681,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "mixed",
         "args": {
@@ -698,7 +698,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "mixed",
         "args": {
@@ -715,7 +715,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "mixed",
         "args": {
@@ -732,7 +732,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "mixed",
         "args": {
@@ -749,7 +749,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "mixed",
         "args": {
@@ -766,7 +766,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "mixed",
         "args": {

@@ -34,8 +34,8 @@ MASTER_BIN="master/masterNode"
 
 # Ensure GF_ADMIN_PASSWORD is always set (required by docker-compose, even for teardown)
 export GF_ADMIN_PASSWORD="${GF_ADMIN_PASSWORD:-password}"
-export MONGO_PASSWORD="${MONGO_PASSWORD:-cloudai-stress-test}"
-export MONGO_USERNAME="${MONGO_USERNAME:-cloudai}"
+export MONGO_PASSWORD="${MONGO_PASSWORD:-agentic-cluster-pass}"
+export MONGO_USERNAME="${MONGO_USERNAME:-agentic}"
 
 # ── Parse arguments ─────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do

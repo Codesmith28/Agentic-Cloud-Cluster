@@ -520,7 +520,7 @@ class PPOServiceCore:
     def _build_lineage_metadata(self, reason: str) -> Dict[str, str]:
         if reason == "online-update":
             model_source = "online-adaptation"
-            training_corpus = "cloudai-live-outcomes"
+            training_corpus = "agentic-live-outcomes"
             trace_window = "live"
         elif reason == "import-local":
             model_source = "local-checkpoint"
@@ -533,14 +533,14 @@ class PPOServiceCore:
         elif reason == "shutdown":
             model_source = "service-shutdown"
             if self.online_updates_enabled:
-                training_corpus = "cloudai-live-outcomes"
+                training_corpus = "agentic-live-outcomes"
                 trace_window = "live"
             else:
                 training_corpus = "offline-seed"
                 trace_window = "imported"
         else:
             model_source = "service-update"
-            training_corpus = "cloudai-live-outcomes"
+            training_corpus = "agentic-live-outcomes"
             trace_window = "live"
 
         return {

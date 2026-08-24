@@ -1,7 +1,7 @@
 @startuml
 
 ' ══════════════════════════════════════════════════════════════════════════════
-'  CloudAI — PPO Scheduling Decision Cycle
+'  Agentic Cloud Cluster — PPO Scheduling Decision Cycle
 '  Designed for 16:9 slides · Same visual language as lifecycle diagrams
 ' ══════════════════════════════════════════════════════════════════════════════
 
@@ -40,7 +40,7 @@ skinparam note {
     FontColor #1E293B
 }
 
-title <size:36><b>CloudAI — PPO Scheduling Decision Cycle</b></size>\n<size:18><color:#475569>Observe · Decide · Execute · Learn</color></size>\n
+title <size:36><b>Agentic Cloud Cluster — PPO Scheduling Decision Cycle</b></size>\n<size:18><color:#475569>Observe · Decide · Execute · Learn</color></size>\n
 
 participant "    Master Node    " as M #B6D4F7
 participant "    PPO Service    " as P #D4C8F5

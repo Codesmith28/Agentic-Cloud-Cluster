@@ -8,7 +8,7 @@ set -euo pipefail
 # After starting, use the displayed worker details to register it with the master.
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  CloudAI Worker Node - Launch Script"
+echo "  Agentic Cloud Cluster Worker Node - Launch Script"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 

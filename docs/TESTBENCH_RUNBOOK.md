@@ -1,4 +1,4 @@
-# CloudAI Testbench Runbook
+# Agentic Cloud Cluster Testbench Runbook
 
 Practical reference for the implemented master-driven test workflow and suite runners.
 

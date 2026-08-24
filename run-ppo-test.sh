@@ -153,14 +153,15 @@ log "Building master binary..."
 make master -C "${REPO_ROOT}" >/dev/null 2>&1 || { make master -C "${REPO_ROOT}"; }
 ok "Master built"
 
-log "Starting master in headless mode (CLOUDAI_HEADLESS=true, PPO enabled)..."
+log "Starting master in headless mode (AGENTIC_HEADLESS=true, PPO enabled)..."
+AGENTIC_HEADLESS=true \
 CLOUDAI_HEADLESS=true \
 SCHED_ALGO=PPO \
 PPO_AUTOSTART=true \
 PPO_MODEL_PATH=latest \
 PPO_DEPLOYMENT_MODE=active \
 PPO_ONLINE_UPDATES_ENABLED=true \
-MONGODB_URI="mongodb://cloudai:cloudai-stress-test@localhost:27018/cluster_db?authSource=admin" \
+MONGODB_URI="mongodb://${MONGO_USERNAME:-agentic}:${MONGO_PASSWORD:-agentic-cluster-pass}@localhost:27018/cluster_db?authSource=admin" \
   "${REPO_ROOT}/master/masterNode" --mode headless \
   >> "${REPO_ROOT}/run-ppo-test-master.log" 2>&1 &
 MASTER_BG_PID=$!

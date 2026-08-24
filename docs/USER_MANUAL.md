@@ -1,4 +1,4 @@
-# CloudAI — Comprehensive User Manual
+# Agentic Cloud Cluster — Comprehensive User Manual
 
 > **Agentic Cloud Cluster**: A distributed task scheduling platform with intelligent, ML-driven schedulers, real-time monitoring, and a modern web UI.
 
@@ -31,7 +31,7 @@
 
 ## 1. Overview
 
-CloudAI is a distributed task scheduling system that orchestrates Docker-based workloads across a cluster of worker nodes. It features:
+Agentic Cloud Cluster is a distributed task scheduling system that orchestrates Docker-based workloads across a cluster of worker nodes. It features:
 
 - **Master Node** — Central control plane with CLI, TUI, HTTP API, and gRPC server
 - **Worker Nodes** — Execute Docker containers with resource isolation and telemetry
@@ -232,7 +232,7 @@ The master auto-creates these collections on startup:
 
 ```
 MONGODB_URI=mongodb://admin:password@localhost:27017
-MONGODB_DATABASE=cloudai
+MONGODB_DATABASE=agentic-cloud-cluster
 ```
 
 ---
@@ -308,9 +308,9 @@ This generates:
 #### UI & Runtime
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CLOUDAI_UI_MODE` | `cli` | Startup mode: `cli` or `tui` |
-| `CLOUDAI_HEADLESS` | `false` | `true` disables CLI (for containerized mode) |
-| `CLOUDAI_FILES_DIR` | `/var/cloudai/files` | File storage base directory |
+| `AGENTIC_UI_MODE` | `cli` | Startup mode: `cli` or `tui` |
+| `AGENTIC_HEADLESS` | `false` | `true` disables CLI (for containerized mode) |
+| `AGENTIC_FILES_DIR` | `/var/agentic-cloud-cluster/files` | File storage base directory |
 | `ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:3001` | CORS allowed origins |
 
 ### Worker Node
@@ -364,7 +364,7 @@ make build-master
 ### Startup Sequence
 
 1. Load `.env` configuration
-2. Initialize file storage (`/var/cloudai/files` or `~/.cloudai/files`)
+2. Initialize file storage (`/var/agentic-cloud-cluster/files` or `~/.agentic-cloud-cluster/files`)
 3. Collect system hardware info
 4. Connect to MongoDB and ensure collections exist
 5. Initialize database handlers (Workers, Tasks, Assignments, Attempts, Results, Files, Users)
@@ -459,7 +459,7 @@ python -m agentic_scheduler --port 50050
 | `--port` | `50050` | gRPC listen port |
 | `--host` | `127.0.0.1` | Bind address |
 | `--mongo-uri` | `mongodb://localhost:27017` | MongoDB connection |
-| `--mongo-db` | `cloudai` | Database name |
+| `--mongo-db` | `agentic-cloud-cluster` | Database name |
 | `--model-path` | `latest` | Model file or `latest` to load from MongoDB |
 | `--device` | `auto` | Compute device: `cpu`, `cuda`, or `auto` |
 | `--log-level` | `INFO` | Logging level |
@@ -514,7 +514,7 @@ python -m agentic_scheduler.train_ppo \
   --rollout-steps 256 \
   --updates 500 \
   --output models/ppo_trained.pt \
-  --trace-source cloudai \
+  --trace-source agentic-cloud-cluster \
   --mongo-uri mongodb://localhost:27017
 ```
 
@@ -526,7 +526,7 @@ python -m agentic_scheduler.train_ppo \
 | `--rollout-steps` | `256` | Steps per rollout |
 | `--updates` | `500` | Number of PPO updates |
 | `--output` | `models/ppo_model.pt` | Output model path |
-| `--trace-source` | `synthetic` | Source: `synthetic`, `cloudai`, `alibaba`, `google` |
+| `--trace-source` | `synthetic` | Source: `synthetic`, `agentic-cloud-cluster`, `alibaba`, `google` |
 | `--mongo-uri` | `mongodb://localhost:27017` | MongoDB for trace loading |
 | `--lr` | `3e-4` | Learning rate |
 | `--gamma` | `0.99` | Discount factor |
@@ -674,7 +674,7 @@ Start TUI mode:
 ```bash
 go run main.go --mode tui
 # Or:
-export CLOUDAI_UI_MODE=tui
+export AGENTIC_UI_MODE=tui
 go run main.go
 ```
 
@@ -1076,10 +1076,10 @@ cd ../master && go run main.go --mode cli
 
 | Service | Image | Ports | Resources |
 |---------|-------|-------|-----------|
-| `master` | `cloudai/master` | `8080`, `50051` | — |
-| `worker-small` | `cloudai/worker` | `9101` | 1 CPU, 1.5 GB |
-| `worker-medium` | `cloudai/worker` | `9101` | 2 CPU, 3 GB |
-| `worker-large` | `cloudai/worker` | `9101` | 3 CPU, 5 GB |
+| `master` | `agentic-cloud-cluster/master` | `8080`, `50051` | — |
+| `worker-small` | `agentic-cloud-cluster/worker` | `9101` | 1 CPU, 1.5 GB |
+| `worker-medium` | `agentic-cloud-cluster/worker` | `9101` | 2 CPU, 3 GB |
+| `worker-large` | `agentic-cloud-cluster/worker` | `9101` | 3 CPU, 5 GB |
 | `mongo` | `mongo:7` | `127.0.0.1:27017` | — |
 | `prometheus` | `prom/prometheus` | `9090` | — |
 | `grafana` | `grafana/grafana` | `3000` | — |
@@ -1190,33 +1190,33 @@ Prometheus scrapes metrics from:
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `cloudai_master_queue_depth` | Gauge | — | Current scheduling queue size |
-| `cloudai_master_tasks_enqueued_total` | Counter | `reason` | Tasks added to queue |
-| `cloudai_master_tasks_dequeued_total` | Counter | `outcome` | Tasks removed from queue |
-| `cloudai_master_scheduling_latency_seconds` | Histogram | `scheduler` | Worker selection time |
-| `cloudai_master_task_queue_wait_seconds` | Histogram | `scheduler`, `task_type` | Time in queue |
-| `cloudai_master_scheduler_selections_total` | Counter | `scheduler`, `task_type`, `worker_id` | Selection counts |
-| `cloudai_master_task_terminal_total` | Counter | `status`, `task_type` | Tasks reaching terminal state |
-| `cloudai_master_worker_timeouts_total` | Counter | `worker_id` | Heartbeat timeouts |
-| `cloudai_master_task_requeues_total` | Counter | `failure_reason`, `task_type` | Recovery requeues |
-| `cloudai_master_stale_results_total` | Counter | `reason` | Late/stale results ignored |
-| `cloudai_master_recovery_duration_seconds` | Histogram | `failure_reason` | Recovery time |
+| `agentic_master_queue_depth` | Gauge | — | Current scheduling queue size |
+| `agentic_master_tasks_enqueued_total` | Counter | `reason` | Tasks added to queue |
+| `agentic_master_tasks_dequeued_total` | Counter | `outcome` | Tasks removed from queue |
+| `agentic_master_scheduling_latency_seconds` | Histogram | `scheduler` | Worker selection time |
+| `agentic_master_task_queue_wait_seconds` | Histogram | `scheduler`, `task_type` | Time in queue |
+| `agentic_master_scheduler_selections_total` | Counter | `scheduler`, `task_type`, `worker_id` | Selection counts |
+| `agentic_master_task_terminal_total` | Counter | `status`, `task_type` | Tasks reaching terminal state |
+| `agentic_master_worker_timeouts_total` | Counter | `worker_id` | Heartbeat timeouts |
+| `agentic_master_task_requeues_total` | Counter | `failure_reason`, `task_type` | Recovery requeues |
+| `agentic_master_stale_results_total` | Counter | `reason` | Late/stale results ignored |
+| `agentic_master_recovery_duration_seconds` | Histogram | `failure_reason` | Recovery time |
 
 #### Worker Metrics
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `cloudai_worker_last_heartbeat_unix` | Gauge | — | Last heartbeat timestamp |
-| `cloudai_worker_running_tasks` | Gauge | — | Current running task count |
-| `cloudai_worker_resource_usage_ratio` | Gauge | `resource` | CPU/memory/storage ratio |
-| `cloudai_worker_task_image_pull_seconds` | Histogram | `task_type` | Image pull duration |
-| `cloudai_worker_task_container_create_seconds` | Histogram | `task_type` | Container creation time |
-| `cloudai_worker_task_runtime_seconds` | Histogram | `task_type`, `status` | Task execution time |
-| `cloudai_worker_container_cpu_seconds_total` | Counter | `task_type` | Cumulative CPU usage |
-| `cloudai_worker_container_memory_peak_bytes` | Histogram | `task_type` | Peak memory usage |
-| `cloudai_worker_container_io_bytes_total` | Counter | `task_type` | I/O bytes consumed |
-| `cloudai_worker_docker_errors_total` | Counter | `stage`, `task_type` | Docker errors by stage |
-| `cloudai_worker_task_starts_total` | Counter | `task_type` | Task attempt starts |
+| `agentic_worker_last_heartbeat_unix` | Gauge | — | Last heartbeat timestamp |
+| `agentic_worker_running_tasks` | Gauge | — | Current running task count |
+| `agentic_worker_resource_usage_ratio` | Gauge | `resource` | CPU/memory/storage ratio |
+| `agentic_worker_task_image_pull_seconds` | Histogram | `task_type` | Image pull duration |
+| `agentic_worker_task_container_create_seconds` | Histogram | `task_type` | Container creation time |
+| `agentic_worker_task_runtime_seconds` | Histogram | `task_type`, `status` | Task execution time |
+| `agentic_worker_container_cpu_seconds_total` | Counter | `task_type` | Cumulative CPU usage |
+| `agentic_worker_container_memory_peak_bytes` | Histogram | `task_type` | Peak memory usage |
+| `agentic_worker_container_io_bytes_total` | Counter | `task_type` | I/O bytes consumed |
+| `agentic_worker_docker_errors_total` | Counter | `stage`, `task_type` | Docker errors by stage |
+| `agentic_worker_task_starts_total` | Counter | `task_type` | Task attempt starts |
 
 ### Grafana
 
@@ -1224,7 +1224,7 @@ Prometheus scrapes metrics from:
 
 Three dashboards are provisioned automatically:
 
-#### Dashboard 1: CloudAI Overview
+#### Dashboard 1: Agentic Cloud Cluster Overview
 
 **At-a-glance stats:**
 - Current Queue Depth
@@ -1242,7 +1242,7 @@ Three dashboards are provisioned automatically:
 
 **Template variables:** `$scheduler`, `$task_type` for filtering
 
-#### Dashboard 2: CloudAI Scheduler & Queue
+#### Dashboard 2: Agentic Cloud Cluster Scheduler & Queue
 
 **Stats:** P50 scheduling latency, P95 scheduling latency, P99 queue wait
 
@@ -1256,7 +1256,7 @@ Three dashboards are provisioned automatically:
 - Terminal task states (stacked by status)
 - Benchmark flow counters
 
-#### Dashboard 3: CloudAI Worker Runtime
+#### Dashboard 3: Agentic Cloud Cluster Worker Runtime
 
 **Stats:** Total task starts, avg task runtime, Docker error rate
 
@@ -1441,7 +1441,7 @@ This section traces the end-to-end lifecycle of data through the system, from ra
                      │                  DATA SOURCES                          │
                      │                                                         │
                      │  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐  │
-                     │  │ Alibaba  │  │ Google   │  │ CloudAI Live Cluster │  │
+                     │  │ Alibaba  │  │ Google   │  │ Agentic Cloud Cluster Live Cluster │  │
                      │  │ Traces   │  │ Traces   │  │ (MongoDB history)    │  │
                      │  └────┬─────┘  └────┬─────┘  └──────────┬───────────┘  │
                      └───────┼─────────────┼───────────────────┼──────────────┘
@@ -1510,7 +1510,7 @@ Used to train the PPO model before deployment.
   - Memory: Normalized fraction — multiplied by 32 GB for approximate absolute value
   - Task types: Auto-classified from CPU/memory ratio using `_classify_task_type()`
 
-**CloudAI Own History** (`trace_loader.load_cloudai_trace`):
+**Agentic Cloud Cluster Own History** (`trace_loader.load_agentic_trace`):
 - **Source**: The system's own MongoDB (`TASKS`, `ATTEMPTS`, `RESULTS` collections)
 - **Loading**: Directly from MongoDB via `mongo_uri` or from exported JSON/CSV files
 - **Fields**: `task_id`, `req_cpu`, `req_memory`, `req_storage`, `runtime_seconds`, `task_type`, `sla_multiplier`, `queue_wait_seconds`, `sla_success`, `failure_reason`
@@ -1559,7 +1559,7 @@ class TraceTask:
 class TraceCluster:
     workers: List[Dict]       # [{worker_id, total_cpu, total_memory, total_storage}]
     tasks: List[TraceTask]    # chronologically sorted
-    source: str               # alibaba-v2018 | google-2019 | cloudai-history
+    source: str               # alibaba-v2018 | google-2019 | agentic-cloud-cluster-history
 ```
 
 Processing steps:

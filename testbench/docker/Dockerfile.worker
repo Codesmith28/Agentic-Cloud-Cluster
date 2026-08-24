@@ -2,10 +2,8 @@ FROM golang:1.24.9 AS builder
 
 WORKDIR /src
 
-# Prime module cache first.
-COPY worker/go.mod worker/go.sum ./worker/
-RUN cd /src/worker && go mod download
-
+COPY go.work go.work.sum ./
+COPY pkg ./pkg
 COPY proto ./proto
 COPY worker ./worker
 
@@ -24,14 +22,16 @@ COPY --from=builder /out/workerNode /app/workerNode
 
 ENV WORKER_PORT=50052
 ENV WORKER_BIND_IP=0.0.0.0
-ENV CLOUDAI_WORKER_STATE_DIR=/var/lib/cloudai/worker
-ENV CLOUDAI_OUTPUT_DIR=/var/cloudai/outputs
+ENV AGENTIC_WORKER_STATE_DIR=/var/lib/agentic/worker
+ENV CLOUDAI_WORKER_STATE_DIR=/var/lib/agentic/worker
+ENV AGENTIC_OUTPUT_DIR=/var/agentic/outputs
+ENV CLOUDAI_OUTPUT_DIR=/var/agentic/outputs
 
-RUN adduser --disabled-password --gecos "" cloudai && \
-    mkdir -p /var/lib/cloudai/worker /var/cloudai/outputs && \
-    chown -R cloudai:cloudai /app /var/lib/cloudai/worker /var/cloudai/outputs
+RUN adduser --disabled-password --gecos "" agentic && \
+    mkdir -p /var/lib/agentic/worker /var/agentic/outputs /var/lib/cloudai/worker /var/cloudai/outputs && \
+    chown -R agentic:agentic /app /var/lib/agentic/worker /var/agentic/outputs /var/lib/cloudai/worker /var/cloudai/outputs
 
-USER cloudai
+USER agentic
 
 EXPOSE 50052
 

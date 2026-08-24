@@ -2,10 +2,8 @@ FROM golang:1.24.9 AS builder
 
 WORKDIR /src
 
-# Prime module cache first.
-COPY master/go.mod master/go.sum ./master/
-RUN cd /src/master && go mod download
-
+COPY go.work go.work.sum ./
+COPY pkg ./pkg
 COPY proto ./proto
 COPY master ./master
 
@@ -23,18 +21,20 @@ WORKDIR /app
 COPY --from=builder /out/masterNode /app/masterNode
 COPY master/config /app/config
 
+ENV AGENTIC_HEADLESS=true
 ENV CLOUDAI_HEADLESS=true
 ENV SCHED_ALGO=RTS
 ENV PPO_AUTOSTART=false
 ENV GRPC_PORT=:50051
 ENV HTTP_PORT=:8080
-ENV CLOUDAI_FILES_DIR=/var/cloudai/files
+ENV AGENTIC_FILES_DIR=/var/agentic/files
+ENV CLOUDAI_FILES_DIR=/var/agentic/files
 
-RUN adduser --disabled-password --gecos "" cloudai && \
-    mkdir -p /var/cloudai/files && \
-    chown -R cloudai:cloudai /app /var/cloudai/files
+RUN adduser --disabled-password --gecos "" agentic && \
+    mkdir -p /var/agentic/files /var/cloudai/files && \
+    chown -R agentic:agentic /app /var/agentic/files /var/cloudai/files
 
-USER cloudai
+USER agentic
 
 EXPOSE 50051 8080
 

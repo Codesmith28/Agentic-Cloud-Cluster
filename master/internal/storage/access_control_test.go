@@ -9,7 +9,7 @@ import (
 
 func TestAccessControl(t *testing.T) {
 	// Create temp directory for testing
-	tmpDir, err := os.MkdirTemp("", "cloudai-test-*")
+	tmpDir, err := os.MkdirTemp("", "agentic-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestAccessControl(t *testing.T) {
 
 func TestAccessControlWithActualStorage(t *testing.T) {
 	// Create temp directory
-	tmpDir, err := os.MkdirTemp("", "cloudai-test-*")
+	tmpDir, err := os.MkdirTemp("", "agentic-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

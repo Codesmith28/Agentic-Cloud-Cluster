@@ -3,7 +3,7 @@
 skinparam componentStyle rectangle
 skinparam defaultTextAlignment center
 
-title CloudAI System - High-Level Architecture
+title Agentic Cloud Cluster System - High-Level Architecture
 
 rectangle "User Interfaces" as UI {
     component "CLI Tool\n(Interactive)" as CLI

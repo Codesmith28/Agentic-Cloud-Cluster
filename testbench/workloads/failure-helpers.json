@@ -3,7 +3,7 @@
   "description": "Deterministic helper workload for failure-path validation (non-zero exits, startup delays, and hang behavior).",
   "tasks": [
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "exit-nonzero",
         "args": {
@@ -18,7 +18,7 @@
       "k_value": 2.0
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "slow-start",
         "args": {
@@ -35,7 +35,7 @@
       "arrival_delay_sec": 1
     },
     {
-      "docker_image": "cloudai/workflow-deterministic:v1",
+      "docker_image": "agentic/workflow-deterministic:v1",
       "workflow": {
         "profile": "hang",
         "args": {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Submit a workload to CloudAI and wait for completion."""
+"""Submit a workload to Agentic Cloud Cluster and wait for completion."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import time
 from typing import Any
 
 from shared_polling import TERMINAL_STATUSES, poll_task_completion, request_json
-DEFAULT_WORKFLOW_IMAGE = "cloudai/workflow-deterministic:v1"
+DEFAULT_WORKFLOW_IMAGE = "agentic/workflow-deterministic:v1"
 
 
 def default_workload_path() -> pathlib.Path:
@@ -29,7 +29,7 @@ def resolve_workflow_image(task: dict[str, Any]) -> str:
         return str(task["docker_image"]).strip()
 
     if task.get("workflow") or task.get("workflow_params") or task.get("workflow_profile"):
-        return os.environ.get("CLOUDAI_WORKFLOW_IMAGE_TAG", DEFAULT_WORKFLOW_IMAGE)
+        return os.environ.get("AGENTIC_WORKFLOW_IMAGE_TAG", os.environ.get("CLOUDAI_WORKFLOW_IMAGE_TAG", DEFAULT_WORKFLOW_IMAGE))
 
     raise ValueError("task missing docker_image")
 
@@ -189,7 +189,7 @@ def write_summary(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run CloudAI workload and wait for completion")
+    parser = argparse.ArgumentParser(description="Run Agentic Cloud Cluster workload and wait for completion")
     parser.add_argument(
         "--master-url",
         default="http://localhost:8080",

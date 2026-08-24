@@ -1,6 +1,6 @@
 FROM python:3.12-alpine3.20
 
-WORKDIR /opt/cloudai
+WORKDIR /opt/agentic
 
 COPY workflow.py /usr/local/bin/workflow
 RUN chmod +x /usr/local/bin/workflow

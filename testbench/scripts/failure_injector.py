@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inject controlled failures into the CloudAI testbench stack."""
+"""Inject controlled failures into the Agentic Cloud Cluster testbench stack."""
 
 from __future__ import annotations
 

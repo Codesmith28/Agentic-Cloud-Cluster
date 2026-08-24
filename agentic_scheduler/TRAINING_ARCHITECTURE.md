@@ -557,9 +557,9 @@ trace covers 8 days of a 4,000-machine cluster.
 - **Task types:** auto-classified via `_classify_task_type(cpu, memory)` since
   Google traces don't include our canonical type labels
 
-### 4.4 CloudAI Own History
+### 4.4 Agentic Cloud Cluster Own History
 
-**Function:** `load_cloudai_trace(trace_path, max_tasks, mongo_uri, ...)`
+**Function:** `load_cloudai_trace(trace_path, max_tasks, mongo_uri, ...)` (alias: `source="agentic"`)
 
 **Data sources (in order of preference):**
 1. **MongoDB** (when `mongo_uri` is provided):
@@ -567,10 +567,10 @@ trace covers 8 days of a 4,000-machine cluster.
    - `RESULTS` collection — SLA success, status, completion timestamps
    - `WORKER_REGISTRY` collection — machine specifications
 2. **File fallback** (when `trace_path` is provided):
-   - Searches for: `cloudai_trace.{json,jsonl,csv}`, `history.{json,jsonl,csv}`, `tasks.{json,jsonl,csv}`
+   - Searches for: `agentic_trace.{json,jsonl,csv}`, `cloudai_trace.{json,jsonl,csv}`, `history.{json,jsonl,csv}`, `tasks.{json,jsonl,csv}`
    - Worker data from: `workers.json`, `worker_registry.json`, `machine_meta.csv`
 
-**Field precedence** — CloudAI data uses multiple fallback field names to handle
+**Field precedence** — Cluster data uses multiple fallback field names to handle
 different schema versions:
 ```
 task_id:        task_id → id

@@ -2,17 +2,17 @@ version: '3.8'
 services:
   mongodb:
     image: mongo:7.0
-    container_name: cloudai-mongo
+    container_name: agentic-mongo
     restart: always
     ports:
       - "127.0.0.1:27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-cloudai}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-agentic}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?Set MONGO_PASSWORD in .env}
     volumes:
       - mongo_data:/data/db
     networks:
-      - cloudai-db
+      - agentic-db
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
       interval: 10s
@@ -21,7 +21,7 @@ services:
       start_period: 10s
 
 networks:
-  cloudai-db:
+  agentic-db:
     driver: bridge
 
 volumes:

@@ -1,6 +1,6 @@
-# CloudAI MongoDB Service
+# Agentic Cloud Cluster MongoDB Service
 
-This directory hosts a Docker Compose setup that provisions a MongoDB instance for local CloudAI development and testing.
+This directory hosts a Docker Compose setup that provisions a MongoDB instance for local Agentic Cloud Cluster development and testing.
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ This directory hosts a Docker Compose setup that provisions a MongoDB instance f
 docker compose up -d
 ```
 
-This launches the container named `cloudai-mongo` and creates a persistent Docker volume called `mongo_data` so data survives container restarts.
+This launches the container named `agentic-mongo` and creates a persistent Docker volume called `mongo_data` so data survives container restarts.
 
 ## Verify the container
 
@@ -25,12 +25,12 @@ Expect the `mongodb` service to show a `running` state.
 
 ## Connect to MongoDB
 
-- Connection string: `mongodb://cloudai:cloudai_secret@localhost:27017`
+- Connection string: `mongodb://agentic:agentic-cluster-pass@localhost:27017`
 - MongoDB shell (requires `mongosh`):
   ```bash
-  mongosh "mongodb://cloudai:cloudai_secret@localhost:27017"
+  mongosh "mongodb://agentic:agentic-cluster-pass@localhost:27017"
   ```
-  The shell authenticates with the `cloudai` root user configured in Compose.
+  The shell authenticates with the `agentic` root user configured in Compose.
 
 ## Logs
 

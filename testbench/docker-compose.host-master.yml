@@ -5,12 +5,12 @@ services:
     ports:
       - "127.0.0.1:27018:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-cloudai}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-cloudai-stress-test}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-agentic}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-agentic-cluster-pass}
     volumes:
       - mongo-data:/data/db
     networks:
-      - cloudai
+      - agentic
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
       interval: 5s
@@ -33,7 +33,7 @@ services:
       - ./observability/prometheus/prometheus.host-master.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     networks:
-      - cloudai
+      - agentic
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -55,7 +55,7 @@ services:
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     networks:
-      - cloudai
+      - agentic
 
   worker-small-dind:
     image: docker:27.3-dind
@@ -70,9 +70,9 @@ services:
     pids_limit: 512
     volumes:
       - worker-small-docker:/var/lib/docker
-      - worker-small-outputs:/var/cloudai/outputs
+      - worker-small-outputs:/var/agentic/outputs
     networks:
-      - cloudai
+      - agentic
     healthcheck:
       test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
       interval: 5s
@@ -97,15 +97,15 @@ services:
       WORKER_TOTAL_MEMORY_GB: "1.5"
       WORKER_TOTAL_STORAGE_GB: "20"
       DOCKER_HOST: tcp://worker-small-dind:2375
-      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+      AGENTIC_WORKFLOW_IMAGE_TAG: "${AGENTIC_WORKFLOW_IMAGE_TAG:-agentic/workflow-deterministic:v1}"
     ports:
       - "55052:50052"
       - "19101:9101"
     volumes:
-      - worker-small-state:/var/lib/cloudai/worker
-      - worker-small-outputs:/var/cloudai/outputs
+      - worker-small-state:/var/lib/agentic/worker
+      - worker-small-outputs:/var/agentic/outputs
     networks:
-      - cloudai
+      - agentic
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -122,9 +122,9 @@ services:
     pids_limit: 768
     volumes:
       - worker-medium-docker:/var/lib/docker
-      - worker-medium-outputs:/var/cloudai/outputs
+      - worker-medium-outputs:/var/agentic/outputs
     networks:
-      - cloudai
+      - agentic
     healthcheck:
       test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
       interval: 5s
@@ -149,15 +149,15 @@ services:
       WORKER_TOTAL_MEMORY_GB: "3"
       WORKER_TOTAL_STORAGE_GB: "40"
       DOCKER_HOST: tcp://worker-medium-dind:2375
-      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+      AGENTIC_WORKFLOW_IMAGE_TAG: "${AGENTIC_WORKFLOW_IMAGE_TAG:-agentic/workflow-deterministic:v1}"
     ports:
       - "55053:50052"
       - "19102:9101"
     volumes:
-      - worker-medium-state:/var/lib/cloudai/worker
-      - worker-medium-outputs:/var/cloudai/outputs
+      - worker-medium-state:/var/lib/agentic/worker
+      - worker-medium-outputs:/var/agentic/outputs
     networks:
-      - cloudai
+      - agentic
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -174,9 +174,9 @@ services:
     pids_limit: 1024
     volumes:
       - worker-large-docker:/var/lib/docker
-      - worker-large-outputs:/var/cloudai/outputs
+      - worker-large-outputs:/var/agentic/outputs
     networks:
-      - cloudai
+      - agentic
     healthcheck:
       test: ["CMD", "docker", "--host=tcp://127.0.0.1:2375", "info"]
       interval: 5s
@@ -201,20 +201,20 @@ services:
       WORKER_TOTAL_MEMORY_GB: "5"
       WORKER_TOTAL_STORAGE_GB: "80"
       DOCKER_HOST: tcp://worker-large-dind:2375
-      CLOUDAI_WORKFLOW_IMAGE_TAG: "${CLOUDAI_WORKFLOW_IMAGE_TAG:-cloudai/workflow-deterministic:v1}"
+      AGENTIC_WORKFLOW_IMAGE_TAG: "${AGENTIC_WORKFLOW_IMAGE_TAG:-agentic/workflow-deterministic:v1}"
     ports:
       - "55054:50052"
       - "19103:9101"
     volumes:
-      - worker-large-state:/var/lib/cloudai/worker
-      - worker-large-outputs:/var/cloudai/outputs
+      - worker-large-state:/var/lib/agentic/worker
+      - worker-large-outputs:/var/agentic/outputs
     networks:
-      - cloudai
+      - agentic
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
 networks:
-  cloudai:
+  agentic:
     driver: bridge
 
 volumes:

@@ -18,7 +18,7 @@ const Navbar = ({ onMenuClick }) => {
         
         <CloudIcon sx={{ mr: 1 }} />
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          CloudAI - Distributed Task Scheduler
+          Agentic Cloud Cluster - Distributed Task Scheduler
         </Typography>
         
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>

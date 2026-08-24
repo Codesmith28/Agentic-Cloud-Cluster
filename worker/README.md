@@ -60,7 +60,7 @@ It then waits for master registration (`MasterRegister`) before sending heartbea
 | Variable | Default | Notes |
 | --- | --- | --- |
 | `WORKER_ID` | persisted hostname/ID | Stable identity override |
-| `CLOUDAI_WORKER_STATE_DIR` | `~/.cloudai/worker` | Stores persisted worker ID |
+| `AGENTIC_WORKER_STATE_DIR` | `~/.agentic-cloud-cluster/worker` | Stores persisted worker ID |
 | `WORKER_PORT` | first free from `50052` | Worker gRPC port |
 | `WORKER_BIND_IP` | detected worker IP | gRPC bind address |
 | `WORKER_METRICS_PORT` | `9101` | Prometheus endpoint port (`/metrics`) |
@@ -74,7 +74,7 @@ It then waits for master registration (`MasterRegister`) before sending heartbea
 - Each task runs in a dedicated container with CPU/memory limits from task request.
 - Host output directory is mounted to container `/output` and collected after completion.
 - Task container network mode is selected via `WORKER_CONTAINER_NETWORK_MODE`.
-- Worker output base directory is initialized to `/var/cloudai/outputs` (fallback `~/.cloudai/outputs`).
+- Worker output base directory is initialized to `/var/agentic-cloud-cluster/outputs` (fallback `~/.agentic-cloud-cluster/outputs`).
 
 ## Monitoring
 

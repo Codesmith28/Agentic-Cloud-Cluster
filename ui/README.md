@@ -1,6 +1,6 @@
-# CloudAI Frontend UI
+# Agentic Cloud Cluster Frontend UI
 
-Beautiful React-based web interface for the CloudAI distributed task scheduler.
+Beautiful React-based web interface for the Agentic Cloud Cluster distributed task scheduler.
 
 ## Features
 
@@ -181,7 +181,7 @@ ui/
 ## Troubleshooting
 
 ### Backend Connection Failed
-- Ensure CloudAI master is running on port 8080
+- Ensure Agentic Cloud Cluster master is running on port 8080
 - Check CORS settings in master node
 - Verify `.env` configuration
 
@@ -199,8 +199,8 @@ WEBUI_PORT=3002 npm run dev
 
 ## License
 
-Same as CloudAI project
+Same as Agentic Cloud Cluster project
 
 ## Contributing
 
-See main CloudAI repository for contribution guidelines
+See main Agentic Cloud Cluster repository for contribution guidelines

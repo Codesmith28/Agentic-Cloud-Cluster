@@ -40,7 +40,7 @@ for arg in "$@"; do
             echo "  PPO_MODEL_PATH      Path to .pt model (default: auto-detect latest)"
             echo "  PPO_AUTOSTART       Auto-start Python gRPC service (default: true)"
             echo "  MONGODB_HOST        MongoDB host (default: localhost:27017)"
-            echo "  MONGODB_USERNAME    MongoDB user (default: cloudai)"
+            echo "  MONGODB_USERNAME    MongoDB user (default: agentic)"
             echo "  MONGODB_PASSWORD    MongoDB password (default: from .env)"
             echo "  WEBUI_PORT          Frontend dev port (default: 3001)"
             exit 0
@@ -48,7 +48,7 @@ for arg in "$@"; do
     esac
 done
 
-echo "Starting Master Node (mode: ${UI_MODE})"
+echo "Starting Agentic Cloud Cluster Master Node (mode: ${UI_MODE})"
 UI_PORT="${WEBUI_PORT:-3001}"
 
 # ── MongoDB ──────────────────────────────────────────────────────────────────
@@ -56,12 +56,16 @@ if ! docker ps 2>/dev/null | grep -q mongo; then
     echo "Starting MongoDB..."
     if [[ -f database/docker-compose.yml ]]; then
         # Set MONGO_PASSWORD if not already set (required by database compose)
-        export MONGO_PASSWORD="${MONGO_PASSWORD:-cloudai-stress-test}"
+        export MONGO_PASSWORD="${MONGO_PASSWORD:-agentic-cluster-pass}"
         docker compose -f database/docker-compose.yml up -d
         echo "✓ MongoDB started"
         # Wait for healthy
         echo -n "  Waiting for MongoDB..."
         for i in $(seq 1 30); do
+            if docker exec agentic-mongo mongosh --quiet --eval "db.runCommand({ping:1}).ok" 2>/dev/null | grep -q 1; then
+                echo " ready"
+                break
+            fi
             if docker exec cloudai-mongo mongosh --quiet --eval "db.runCommand({ping:1}).ok" 2>/dev/null | grep -q 1; then
                 echo " ready"
                 break

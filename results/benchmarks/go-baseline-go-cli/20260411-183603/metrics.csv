@@ -1,3 +1,0 @@
-profile,scheduler,total_tasks,completed_tasks,unschedulable_tasks,sla_success_rate_pct,avg_queue_wait_sec,p95_queue_wait_sec,avg_runtime_sec,makespan_sec,throughput_tasks_per_min,cpu_utilization_pct,memory_utilization_pct,worker_balance_score,avg_decision_ms,p95_decision_ms
-steady,RTS,92,92,0,100.000,0.000,0.000,11.453,361.635,15.264,9.026,7.888,0.766,0.004837,0.006000
-steady,Round-Robin,92,92,0,100.000,0.000,0.000,12.447,363.117,15.202,9.753,9.194,1.000,0.004522,0.003000

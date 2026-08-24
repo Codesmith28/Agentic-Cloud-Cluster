@@ -436,6 +436,9 @@ def _load_cloudai_records_from_path(trace_path: Path) -> Tuple[List[Dict], List[
         return _load_structured_records(trace_path), []
 
     task_candidates = [
+        trace_path / "agentic_trace.json",
+        trace_path / "agentic_trace.jsonl",
+        trace_path / "agentic_trace.csv",
         trace_path / "cloudai_trace.json",
         trace_path / "cloudai_trace.jsonl",
         trace_path / "cloudai_trace.csv",
@@ -583,7 +586,7 @@ def _filter_cloudai_records(
 
 
 def _build_cloudai_task(record: Dict, idx: int, workers_by_id: Dict[str, Dict]) -> Optional[TraceTask]:
-    task_id = str(record.get("task_id", record.get("id", f"cloudai-{idx}"))).strip() or f"cloudai-{idx}"
+    task_id = str(record.get("task_id", record.get("id", f"agentic-{idx}"))).strip() or f"agentic-{idx}"
 
     arrival_time = _safe_timestamp(
         record.get("submitted_at", record.get("arrival_time", record.get("created_at", record.get("time", idx)))),
@@ -883,4 +886,7 @@ def load_trace(
             trace_window_end=trace_window_end,
         )
     else:
-        raise ValueError(f"Unknown trace source: {source!r}. Use 'alibaba', 'google', or 'cloudai'.")
+        raise ValueError(f"Unknown trace source: {source!r}. Use 'alibaba', 'google', or 'agentic'.")
+
+
+load_agentic_trace = load_cloudai_trace

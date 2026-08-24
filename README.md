@@ -74,8 +74,8 @@ User Interface (CLI/API)
 
 ```bash
 # Clone repository
-git clone https://github.com/Codesmith28/CloudAI.git
-cd CloudAI
+git clone https://github.com/Codesmith28/Agentic-Cloud-Cluster.git
+cd Agentic-Cloud-Cluster
 
 # Set up Python virtual environment (for future agent extensibility)
 python3 -m venv venv
@@ -268,7 +268,7 @@ See [`docs/TESTBENCH_RUNBOOK.md`](docs/TESTBENCH_RUNBOOK.md) for campaign comman
 
 ## Recovery Semantics
 
-CloudAI tracks logical tasks separately from physical execution attempts, enabling automatic recovery when workers fail.
+Agentic Cloud Cluster tracks logical tasks separately from physical execution attempts, enabling automatic recovery when workers fail.
 
 - every worker assignment carries `attempt_id` and `attempt_no`
 - if a worker stops heartbeating, the active attempt is marked lost and the logical task is requeued automatically

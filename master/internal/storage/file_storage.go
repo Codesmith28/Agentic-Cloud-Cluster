@@ -15,7 +15,7 @@ import (
 
 // FileStorageService handles file uploads and storage organization
 type FileStorageService struct {
-	baseDir       string // Base directory for all file storage (e.g., /var/cloudai/files)
+	baseDir       string // Base directory for all file storage (e.g., /var/agentic/files)
 	accessControl *AccessControl
 	mu            sync.RWMutex
 }

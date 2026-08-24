@@ -9,17 +9,23 @@ import (
 	"strconv"
 )
 
-// SetFileOwnership changes ownership of files to match the CloudAI user
+// SetFileOwnership changes ownership of files to match the Agentic Cloud Cluster user
 // This requires the master process to run as root or with CAP_CHOWN capability
-func (s *FileStorageService) SetFileOwnership(path string, cloudaiUserID string) error {
-	// Map CloudAI user_id to OS user
-	osUsername := fmt.Sprintf("cloudai-%s", cloudaiUserID)
+func (s *FileStorageService) SetFileOwnership(path string, userID string) error {
+	// Map user_id to OS user
+	osUsername := fmt.Sprintf("agentic-%s", userID)
 
 	// Look up OS user
 	osUser, err := user.Lookup(osUsername)
 	if err != nil {
-		// OS user doesn't exist - skip ownership change
-		// Files will remain owned by process user
+		// Try legacy username format
+		legacyUsername := fmt.Sprintf("cloudai-%s", userID)
+		if legacyUser, legacyErr := user.Lookup(legacyUsername); legacyErr == nil {
+			osUser = legacyUser
+			err = nil
+		}
+	}
+	if err != nil {
 		return fmt.Errorf("OS user %s not found: %w", osUsername, err)
 	}
 
