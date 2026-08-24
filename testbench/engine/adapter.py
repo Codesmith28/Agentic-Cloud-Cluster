@@ -96,21 +96,12 @@ class DatasetAdapter:
             raise FileNotFoundError(f"Dataset file not found: {path}")
 
         records: List[Dict[str, Any]] = []
-        if path.suffix == ".csv":
-            records = self._read_csv(path)
-        elif path.suffix in (".json",):
+        if path.suffix in (".json",):
             records = self._read_json(path)
         elif path.suffix in (".jsonl", ".ndjson"):
-            records = self._read_jsonl(path)
+            records = self._read_jsonl(path, max_records)
         else:
-            # Attempt CSV then JSON fallback
-            try:
-                records = self._read_csv(path)
-            except Exception:
-                records = self._read_json(path)
-
-        if max_records and max_records > 0:
-            records = records[:max_records]
+            records = self._read_csv(path, max_records)
 
         canonical_tasks: List[CanonicalTask] = []
         for idx, row in enumerate(records):
@@ -121,12 +112,34 @@ class DatasetAdapter:
         LOGGER.info("Ingested %d canonical tasks from %s", len(canonical_tasks), path.name)
         return canonical_tasks
 
-    def _read_csv(self, path: Path) -> List[Dict[str, Any]]:
+    def _read_csv(self, path: Path, max_records: Optional[int] = None) -> List[Dict[str, Any]]:
+        import gzip
+        is_gz = path.name.endswith(".gz")
+        open_fn = gzip.open if is_gz else open
+
         records = []
-        with open(path, mode="r", encoding="utf-8-sig") as f:
+        with open_fn(path, mode="rt", encoding="utf-8-sig", errors="ignore") as f:
             reader = csv.DictReader(f)
+            # If no header was present (e.g. raw Azure trace with numeric rows)
+            if reader.fieldnames and all(col.replace(".", "").isdigit() for col in reader.fieldnames if col):
+                # Fallback to Azure schema headers
+                azure_headers = [
+                    "vmid", "subscriptionid", "deploymentid", "vmcreated", "vmdeleted",
+                    "maxcpu", "avgcpu", "p95maxcpu", "vmcategory", "vmcorecountbucket", "vmmemorybucket"
+                ]
+                f.seek(0)
+                raw_reader = csv.reader(f)
+                for row in raw_reader:
+                    if len(row) >= 11:
+                        records.append(dict(zip(azure_headers, row[:11])))
+                        if max_records and len(records) >= max_records:
+                            break
+                return records
+
             for row in reader:
                 records.append(dict(row))
+                if max_records and len(records) >= max_records:
+                    break
         return records
 
     def _read_json(self, path: Path) -> List[Dict[str, Any]]:
