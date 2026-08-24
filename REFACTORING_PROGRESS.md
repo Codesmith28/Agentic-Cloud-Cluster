@@ -36,7 +36,7 @@
 ### Phase 4: Python Model Decoupling & Clean Up (`2e55f65`)
 - Created native Python unittest test suite (`agentic_scheduler/tests/test_scheduler.py`).
 - Verified `PPOActorCritic` neural network forward pass, action masking (`-1e4`), state serialization, and `ppo_latest.pt` checkpoint loading.
-- Cleaned trace replay adapters supporting `agentic` alias alongside `alibaba`, `google`, and `cloudai`.
+- Cleaned trace replay adapters supporting `agentic` alias alongside `alibaba`, `google`, and `agentic`.
 
 ### Phase 5: Documentation, Codebase Skill & Verification (`0c4ac0c`)
 - Created codebase skill at `.gemini/skills/agentic-cloud-cluster/SKILL.md`.
@@ -45,8 +45,8 @@
 - Verified all unit and integration tests across Go (`make test-unit`) and Python (`make test-python`).
 - Verified `make check` and `make vet` with 0 warnings/errors.
 
-### Phase 6: Project Naming Standardization & CloudAI Purge (`7005abf`)
-- Replaced all user-facing, configuration, UI, and documentation references from "CloudAI" to **Agentic Cloud Cluster**.
+### Phase 6: Project Naming Standardization & Legacy Naming Purge (`7005abf`)
+- Replaced all user-facing, configuration, UI, and documentation references to **Agentic Cloud Cluster**.
 - Updated Prometheus metric namespaces to `agentic` (with backward compatibility in query tools).
 - Updated UI headers, login/register pages, title tags, and package definitions.
 - Renamed Grafana dashboards to `agentic-*`.

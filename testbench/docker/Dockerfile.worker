@@ -23,13 +23,11 @@ COPY --from=builder /out/workerNode /app/workerNode
 ENV WORKER_PORT=50052
 ENV WORKER_BIND_IP=0.0.0.0
 ENV AGENTIC_WORKER_STATE_DIR=/var/lib/agentic/worker
-ENV CLOUDAI_WORKER_STATE_DIR=/var/lib/agentic/worker
 ENV AGENTIC_OUTPUT_DIR=/var/agentic/outputs
-ENV CLOUDAI_OUTPUT_DIR=/var/agentic/outputs
 
 RUN adduser --disabled-password --gecos "" agentic && \
-    mkdir -p /var/lib/agentic/worker /var/agentic/outputs /var/lib/cloudai/worker /var/cloudai/outputs && \
-    chown -R agentic:agentic /app /var/lib/agentic/worker /var/agentic/outputs /var/lib/cloudai/worker /var/cloudai/outputs
+    mkdir -p /var/lib/agentic/worker /var/agentic/outputs && \
+    chown -R agentic:agentic /app /var/lib/agentic/worker /var/agentic/outputs
 
 USER agentic
 

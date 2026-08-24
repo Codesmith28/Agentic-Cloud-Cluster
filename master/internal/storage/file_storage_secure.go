@@ -18,14 +18,6 @@ func (s *FileStorageService) SetFileOwnership(path string, userID string) error 
 	// Look up OS user
 	osUser, err := user.Lookup(osUsername)
 	if err != nil {
-		// Try legacy username format
-		legacyUsername := fmt.Sprintf("cloudai-%s", userID)
-		if legacyUser, legacyErr := user.Lookup(legacyUsername); legacyErr == nil {
-			osUser = legacyUser
-			err = nil
-		}
-	}
-	if err != nil {
 		return fmt.Errorf("OS user %s not found: %w", osUsername, err)
 	}
 

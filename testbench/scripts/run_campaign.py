@@ -289,7 +289,7 @@ def resolve_workflow_image(task: Dict[str, Any]) -> str:
         return str(task["docker_image"]).strip()
 
     if task.get("workflow") or task.get("workflow_params") or task.get("workflow_profile"):
-        return os.environ.get("AGENTIC_WORKFLOW_IMAGE_TAG", os.environ.get("CLOUDAI_WORKFLOW_IMAGE_TAG", DEFAULT_WORKFLOW_IMAGE))
+        return os.environ.get("AGENTIC_WORKFLOW_IMAGE_TAG", os.environ.get("AGENTIC_WORKFLOW_IMAGE_TAG", DEFAULT_WORKFLOW_IMAGE))
 
     raise ValueError("task missing docker_image")
 

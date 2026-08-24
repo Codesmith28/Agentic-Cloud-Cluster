@@ -23,7 +23,7 @@ type Config struct {
 func LoadConfig() *Config {
 	envutil.LoadDotEnv()
 
-	outputDir := envutil.GetEnv(constants.EnvOutputDir, envutil.GetEnv(constants.EnvLegacyOutputDir, constants.DefaultOutputDir))
+	outputDir := envutil.GetEnv(constants.EnvOutputDir, constants.DefaultOutputDir)
 	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		homeDir, _ := os.UserHomeDir()
 		outputDir = filepath.Join(homeDir, ".agentic-cloud-cluster", "outputs")
@@ -35,7 +35,7 @@ func LoadConfig() *Config {
 		log.Printf("✓ Output directory ready (secure): %s", outputDir)
 	}
 
-	stateDir := envutil.GetEnv(constants.EnvWorkerStateDir, envutil.GetEnv(constants.EnvLegacyWorkerStateDir, constants.DefaultWorkerStateDir))
+	stateDir := envutil.GetEnv(constants.EnvWorkerStateDir, constants.DefaultWorkerStateDir)
 
 	return &Config{
 		WorkerID:           envutil.GetEnv(constants.EnvWorkerID, ""),

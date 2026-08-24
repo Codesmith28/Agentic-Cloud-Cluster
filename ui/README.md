@@ -43,7 +43,7 @@ Adjustable in 0.1 increments using a slider.
 ## Prerequisites
 
 - Node.js 18+ and npm
-- CloudAI backend running on `http://localhost:8080`
+- Agentic Cloud Cluster backend running on `http://localhost:8080`
 
 ## Installation
 

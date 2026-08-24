@@ -57,8 +57,8 @@ func LoadConfig() *Config {
 	ppoModelPath := envutil.GetEnv(constants.EnvPPOModelPath, constants.DefaultPPOModelPath)
 	ppoDeploymentMode := normalizePPODeploymentMode(envutil.GetEnv(constants.EnvPPODeploymentMode, constants.DefaultPPODeploymentMode))
 	ppoOnlineUpdates := envutil.GetEnvBool(constants.EnvPPOOnlineUpdates, true)
-	headless := envutil.GetEnvBool(constants.EnvAgenticHeadless, envutil.GetEnvBool(constants.EnvLegacyHeadless, false))
-	uiMode := strings.ToLower(strings.TrimSpace(envutil.GetEnv(constants.EnvAgenticUIMode, envutil.GetEnv(constants.EnvLegacyUIMode, constants.DefaultUIMode))))
+	headless := envutil.GetEnvBool(constants.EnvAgenticHeadless, false)
+	uiMode := strings.ToLower(strings.TrimSpace(envutil.GetEnv(constants.EnvAgenticUIMode, constants.DefaultUIMode)))
 	if uiMode != "cli" && uiMode != "tui" {
 		log.Printf("⚠️  Invalid UI mode %q, using default 'cli'", uiMode)
 		uiMode = constants.DefaultUIMode

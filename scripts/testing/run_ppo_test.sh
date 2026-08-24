@@ -130,7 +130,6 @@ ok "Master built"
 
 log "Starting master in headless mode (AGENTIC_HEADLESS=true, PPO enabled)..."
 AGENTIC_HEADLESS=true \
-CLOUDAI_HEADLESS=true \
 SCHED_ALGO=PPO \
 PPO_AUTOSTART=true \
 PPO_MODEL_PATH=latest \

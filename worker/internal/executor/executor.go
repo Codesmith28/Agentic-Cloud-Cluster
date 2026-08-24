@@ -91,7 +91,7 @@ type containerUsageSnapshot struct {
 
 // getBaseOutputDir returns the base output directory using configured environment variables or default.
 func getBaseOutputDir() string {
-	return envutil.GetEnv(constants.EnvOutputDir, envutil.GetEnv(constants.EnvLegacyOutputDir, constants.DefaultOutputDir))
+	return envutil.GetEnv(constants.EnvOutputDir, constants.DefaultOutputDir)
 }
 
 // NewTaskExecutor creates a new task executor

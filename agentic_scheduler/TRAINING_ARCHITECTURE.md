@@ -88,7 +88,7 @@ We chose **Proximal Policy Optimization** (Schulman et al., 2017) for three reas
  └────────────────────────────────────────────────────────┘
 ```
 
-1. **Train offline** on historical cluster traces (Alibaba, Google, or own CloudAI
+1. **Train offline** on historical cluster traces (Alibaba, Google, or own Agentic Cloud Cluster
    history) inside a safe simulator (`TraceReplayEnv`). The agent makes millions
    of mistakes without affecting real users.
 2. **Deploy the checkpoint** to the live gRPC service. The model operates with
@@ -559,7 +559,7 @@ trace covers 8 days of a 4,000-machine cluster.
 
 ### 4.4 Agentic Cloud Cluster Own History
 
-**Function:** `load_cloudai_trace(trace_path, max_tasks, mongo_uri, ...)` (alias: `source="agentic"`)
+**Function:** `load_agentic_trace(trace_path, max_tasks, mongo_uri, ...)` (alias: `source="agentic"`)
 
 **Data sources (in order of preference):**
 1. **MongoDB** (when `mongo_uri` is provided):
@@ -567,7 +567,7 @@ trace covers 8 days of a 4,000-machine cluster.
    - `RESULTS` collection — SLA success, status, completion timestamps
    - `WORKER_REGISTRY` collection — machine specifications
 2. **File fallback** (when `trace_path` is provided):
-   - Searches for: `agentic_trace.{json,jsonl,csv}`, `cloudai_trace.{json,jsonl,csv}`, `history.{json,jsonl,csv}`, `tasks.{json,jsonl,csv}`
+   - Searches for: `agentic_trace.{json,jsonl,csv}`, `agentic_trace.{json,jsonl,csv}`, `history.{json,jsonl,csv}`, `tasks.{json,jsonl,csv}`
    - Worker data from: `workers.json`, `worker_registry.json`, `machine_meta.csv`
 
 **Field precedence** — Cluster data uses multiple fallback field names to handle
@@ -584,7 +584,7 @@ requeue_count:  recovery_count → requeue_count
 
 ### 4.5 Task Type Classification Heuristic
 
-When trace data doesn't include task types (Google, some CloudAI records), the
+When trace data doesn't include task types (Google, some Agentic records), the
 `_classify_task_type(req_cpu, req_memory)` function auto-classifies:
 
 ```
@@ -607,7 +607,7 @@ Every loader applies `_normalise_tasks()`:
 ### 4.7 Unified Loader
 
 ```python
-load_trace(trace_path, source="alibaba"|"google"|"cloudai", max_tasks=5000, ...)
+load_trace(trace_path, source="alibaba"|"google"|"agentic", max_tasks=5000, ...)
 → TraceCluster
 ```
 
@@ -811,7 +811,7 @@ rollout_model.load_state_dict({k: v.cpu() for k, v in state.model.state_dict().i
 
 | Argument | Default | Description |
 |---|---|---|
-| `--trace-source` | "" | `alibaba`, `google`, `cloudai`, or empty for synthetic |
+| `--trace-source` | "" | `alibaba`, `google`, `agentic`, or empty for synthetic |
 | `--trace-path` | "" | Path to trace data directory |
 | `--max-trace-tasks` | 5000 | Max tasks to load from trace |
 | `--trace-window` | "" | Optional trace window label |
@@ -1653,7 +1653,7 @@ On graceful shutdown (SIGINT/SIGTERM), the service:
 
 **Task data** is a 5-dimensional feature vector: `[req_cpu, req_memory, req_storage, sla_multiplier, task_type_scalar]`. Worker data is 9-dimensional (see §3.2). Together they form a 14-dimensional pairwise input per worker.
 
-**Trace data** comes from three sources (Alibaba CSV, Google JSON, CloudAI MongoDB/files). All are normalized into the `TraceTask` dataclass (§4.1) which captures arrival time, resource requests, runtime, SLA parameters, queue metrics, and outcome data.
+**Trace data** comes from three sources (Alibaba CSV, Google JSON, Agentic Cloud Cluster MongoDB/files). All are normalized into the `TraceTask` dataclass (§4.1) which captures arrival time, resource requests, runtime, SLA parameters, queue metrics, and outcome data.
 
 ### Q: "How do we use the data?"
 
@@ -1675,7 +1675,7 @@ The philosophy is **sim-to-real transfer**: train offline on historical traces w
 
 **Alibaba data** is used for **offline bootstrap training**. The `load_alibaba_trace()` function reads `batch_task.csv` and `machine_meta.csv`, normalizes CPU (centi-cores → cores) and memory (fraction → GB), maps 12 task types to 4 canonical types, and produces a `TraceCluster` that `TraceReplayEnv` replays.
 
-**Our own CloudAI data** serves dual purpose: (1) offline training via `load_cloudai_trace()` reading from MongoDB `TASKS` + `RESULTS` collections, and (2) online learning where live task outcomes continuously update the model through the replay buffer.
+**Our own Agentic Cloud Cluster data** serves dual purpose: (1) offline training via `load_agentic_trace()` reading from MongoDB `TASKS` + `RESULTS` collections, and (2) online learning where live task outcomes continuously update the model through the replay buffer.
 
 ### Q: "How do we perform online and offline training?"
 
@@ -1685,7 +1685,7 @@ The philosophy is **sim-to-real transfer**: train offline on historical traces w
 
 ### Q: "What are traces and replays?"
 
-**Traces** are historical records of cluster workloads — when tasks arrived, what resources they needed, how long they ran, whether they met SLA targets. We support three trace formats: Alibaba cluster-trace-v2018 (8 days, 4000+ machines, CSV), Google ClusterData2019 (JSON), and our own CloudAI history (MongoDB/files).
+**Traces** are historical records of cluster workloads — when tasks arrived, what resources they needed, how long they ran, whether they met SLA targets. We support three trace formats: Alibaba cluster-trace-v2018 (8 days, 4000+ machines, CSV), Google ClusterData2019 (JSON), and our own Agentic Cloud Cluster history (MongoDB/files).
 
 **Replays** are the process of feeding these traces into `TraceReplayEnv`, which presents them to the RL agent in chronological order as if they were happening in real time. The agent makes scheduling decisions, the environment simulates resource consumption and decay, and the reward signal teaches the agent optimal placement strategies.
 

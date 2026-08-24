@@ -323,7 +323,7 @@ func startHeadlessTestMaster(projectRoot string, scheduler string, cfg *config.C
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{}, os.Environ()...)
-	cmd.Env = append(cmd.Env, "AGENTIC_HEADLESS=true", "CLOUDAI_HEADLESS=true")
+	cmd.Env = append(cmd.Env, "AGENTIC_HEADLESS=true")
 
 	if scheduler != "" && scheduler != "current" {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("SCHED_ALGO=%s", strings.ToUpper(scheduler)))

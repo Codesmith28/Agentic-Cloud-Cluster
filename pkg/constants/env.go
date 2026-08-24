@@ -9,9 +9,7 @@ const (
 	EnvMasterAdvAddr   = "MASTER_ADVERTISE_ADDR"
 	EnvMasterURL       = "MASTER_URL"
 	EnvAgenticHeadless = "AGENTIC_HEADLESS"
-	EnvLegacyHeadless  = "CLOUDAI_HEADLESS"
 	EnvAgenticUIMode   = "AGENTIC_UI_MODE"
-	EnvLegacyUIMode    = "CLOUDAI_UI_MODE"
 	EnvWebUIPort       = "WEBUI_PORT"
 
 	// MongoDB Configuration
@@ -42,16 +40,13 @@ const (
 	EnvWorkerIP             = "WORKER_IP"
 	EnvWorkerPort           = "WORKER_PORT"
 	EnvWorkerStateDir       = "AGENTIC_WORKER_STATE_DIR"
-	EnvLegacyWorkerStateDir = "WORKER_STATE_DIR"
 	EnvOutputDir            = "AGENTIC_OUTPUT_DIR"
-	EnvLegacyOutputDir      = "CLOUDAI_OUTPUT_DIR"
 	EnvHeartbeatIntervalSec = "HEARTBEAT_INTERVAL_SEC"
 	EnvWorkerTimeoutSec     = "WORKER_TIMEOUT_SEC"
 
 	// Storage & Security
-	EnvFilesDir       = "AGENTIC_FILES_DIR"
-	EnvLegacyFilesDir = "CLOUDAI_FILES_DIR"
-	EnvJWTSecret      = "JWT_SECRET"
-	EnvAdminUser      = "ADMIN_USER"
-	EnvAdminPassword  = "ADMIN_PASSWORD"
+	EnvFilesDir      = "AGENTIC_FILES_DIR"
+	EnvJWTSecret     = "JWT_SECRET"
+	EnvAdminUser     = "ADMIN_USER"
+	EnvAdminPassword = "ADMIN_PASSWORD"
 )

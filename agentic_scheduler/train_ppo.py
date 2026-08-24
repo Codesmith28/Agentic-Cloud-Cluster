@@ -82,14 +82,14 @@ def parse_args() -> argparse.Namespace:
         help="Resume from active Mongo checkpoint when local resume is not used",
     )
     # Trace replay options
-    parser.add_argument("--trace-source", default="", choices=["", "alibaba", "google", "agentic", "cloudai"],
+    parser.add_argument("--trace-source", default="", choices=["", "alibaba", "google", "agentic"],
                         help="Use real cluster trace instead of synthetic env")
     parser.add_argument("--trace-path", default="",
-                        help="Path to trace data directory (optional for agentic/cloudai when mongo-uri is set)")
+                        help="Path to trace data directory (optional for agentic when mongo-uri is set)")
     parser.add_argument("--max-trace-tasks", type=int, default=5000,
                         help="Maximum tasks to load from trace")
     parser.add_argument("--trace-window", default="",
-                        help="Optional trace window label (used by cloudai replay lineage/filter)")
+                        help="Optional trace window label (used by agentic replay lineage/filter)")
     parser.add_argument("--trace-window-start", default="",
                         help="Optional trace window start timestamp (unix or ISO-8601)")
     parser.add_argument("--trace-window-end", default="",
@@ -387,7 +387,7 @@ def main() -> None:
     if args.trace_source:
         if args.trace_source in {"alibaba", "google"} and not args.trace_path:
             raise ValueError(f"--trace-path is required for trace source {args.trace_source}")
-        if args.trace_source in {"agentic", "cloudai"} and not args.trace_path and not args.mongo_uri:
+        if args.trace_source in {"agentic", "agentic"} and not args.trace_path and not args.mongo_uri:
             raise ValueError(f"--trace-source {args.trace_source} requires --trace-path or --mongo-uri")
 
         trace_path = args.trace_path or ""

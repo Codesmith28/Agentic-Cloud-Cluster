@@ -174,13 +174,10 @@ if (cleared === 0) { print("  (already empty)"); }
 }
 
 # Standalone database MongoDB (port 27017 — used by master runner)
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -q -E "agentic-mongo|cloudai-mongo"; then
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q -E "agentic-mongo"; then
   _clear_mongo_runtime \
     "mongodb://agentic:agentic-cluster-pass@localhost:27017/cluster_db?authSource=admin" \
-    "standalone MongoDB :27017" || \
-  _clear_mongo_runtime \
-    "mongodb://cloudai:cloudai-stress-test@localhost:27017/cluster_db?authSource=admin" \
-    "standalone MongoDB :27017 (legacy)"
+    "standalone MongoDB :27017"
 else
   skip "Standalone MongoDB not running — skipping collection clear"
 fi
@@ -189,10 +186,7 @@ fi
 if docker ps --format '{{.Ports}}' 2>/dev/null | grep -q "27018"; then
   _clear_mongo_runtime \
     "mongodb://agentic:agentic-cluster-pass@localhost:27018/cluster_db?authSource=admin" \
-    "testbench MongoDB :27018" || \
-  _clear_mongo_runtime \
-    "mongodb://cloudai:cloudai-stress-test@localhost:27018/cluster_db?authSource=admin" \
-    "testbench MongoDB :27018 (legacy)"
+    "testbench MongoDB :27018"
 else
   skip "Testbench MongoDB not running — skipping collection clear"
 fi
@@ -243,7 +237,6 @@ else
   STANDALONE_VOLUMES=(
     "database_mongo_data"
     "agentic_mongo_data"
-    "cloudai_mongo_data"
     "mongo-data"
   )
 

@@ -5,12 +5,11 @@ This directory contains the repo-owned benchmark workflow image used by the test
 ## Image tag
 
 - Primary tag: `agentic/workflow-deterministic:v1`
-- Legacy alias tag: `cloudai/workflow-deterministic:v1`
 
 ## Build locally
 
 ```bash
-docker build -t agentic/workflow-deterministic:v1 -t cloudai/workflow-deterministic:v1 testbench/workflow-image
+docker build testbench/workflow-image
 ```
 
 ## Prepare DinD workers

@@ -80,7 +80,6 @@ func (a *App) Run() {
 		log.Printf("✓ File storage directory ready (secure): %s", fileStorageBaseDir)
 	}
 
-	os.Setenv("CLOUDAI_FILES_DIR", fileStorageBaseDir)
 	os.Setenv("AGENTIC_FILES_DIR", fileStorageBaseDir)
 
 	// Collect system information

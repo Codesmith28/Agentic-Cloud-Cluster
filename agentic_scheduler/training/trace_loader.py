@@ -1,4 +1,4 @@
-"""Trace data loaders for CloudAI history, Alibaba cluster-trace-v2018, and Google ClusterData2019.
+"""Trace data loaders for Agentic Cloud Cluster history, Alibaba cluster-trace-v2018, and Google ClusterData2019.
 
 Each loader reads CSV/JSON trace files and produces a list of ``TraceTask``
 records sorted by arrival time, suitable for replay in ``TraceReplayEnv``.
@@ -351,10 +351,10 @@ def load_google_trace(
 
 
 # ---------------------------------------------------------------------------
-# CloudAI replay/history adapter
+# Agentic Cloud Cluster replay/history adapter
 # ---------------------------------------------------------------------------
 
-def load_cloudai_trace(
+def load_agentic_trace(
     trace_path: str | Path = "",
     max_tasks: int = 5000,
     mongo_uri: str = "",
@@ -367,9 +367,9 @@ def load_cloudai_trace(
     workers: List[Dict]
 
     if trace_path:
-        records, workers = _load_cloudai_records_from_path(Path(trace_path))
+        records, workers = _load_agentic_records_from_path(Path(trace_path))
     elif mongo_uri:
-        records, workers = _load_cloudai_records_from_mongo(
+        records, workers = _load_agentic_records_from_mongo(
             mongo_uri=mongo_uri,
             mongo_db=mongo_db,
             max_tasks=max_tasks,
@@ -378,32 +378,32 @@ def load_cloudai_trace(
             trace_window_end=trace_window_end,
         )
     else:
-        raise ValueError("CloudAI trace source requires either trace_path or mongo_uri")
+        raise ValueError("Agentic trace source requires either trace_path or mongo_uri")
 
     if not records:
-        raise ValueError("No CloudAI trace records found")
+        raise ValueError("No Agentic trace records found")
 
-    filtered_records = _filter_cloudai_records(
+    filtered_records = _filter_agentic_records(
         records,
         trace_window=trace_window,
         trace_window_start=trace_window_start,
         trace_window_end=trace_window_end,
     )
     if not filtered_records:
-        raise ValueError("CloudAI trace window selection produced zero records")
+        raise ValueError("Agentic trace window selection produced zero records")
 
     resolved_workers = workers if workers else _default_workers()
     workers_by_id = {str(w.get("worker_id", "")): w for w in resolved_workers}
 
     tasks: List[TraceTask] = []
     for idx, record in enumerate(filtered_records):
-        task = _build_cloudai_task(record, idx, workers_by_id)
+        task = _build_agentic_task(record, idx, workers_by_id)
         if task is not None:
             tasks.append(task)
 
     tasks, raw_start, raw_end = _normalise_tasks(tasks, max_tasks)
     if not tasks:
-        raise ValueError("CloudAI adapter produced no valid trace tasks")
+        raise ValueError("Agentic adapter produced no valid trace tasks")
 
     observed_window = ""
     for record in filtered_records:
@@ -416,8 +416,8 @@ def load_cloudai_trace(
     return TraceCluster(
         workers=resolved_workers,
         tasks=tasks,
-        source="cloudai-history",
-        description=f"CloudAI replay trace ({len(tasks)} tasks, {len(resolved_workers)} workers)",
+        source="agentic-history",
+        description=f"Agentic Cloud Cluster replay trace ({len(tasks)} tasks, {len(resolved_workers)} workers)",
         trace_window=window_label,
         metadata={
             "trace_window": window_label,
@@ -428,9 +428,9 @@ def load_cloudai_trace(
     )
 
 
-def _load_cloudai_records_from_path(trace_path: Path) -> Tuple[List[Dict], List[Dict]]:
+def _load_agentic_records_from_path(trace_path: Path) -> Tuple[List[Dict], List[Dict]]:
     if not trace_path.exists():
-        raise FileNotFoundError(f"CloudAI trace path not found: {trace_path}")
+        raise FileNotFoundError(f"Agentic trace path not found: {trace_path}")
 
     if trace_path.is_file():
         return _load_structured_records(trace_path), []
@@ -439,9 +439,9 @@ def _load_cloudai_records_from_path(trace_path: Path) -> Tuple[List[Dict], List[
         trace_path / "agentic_trace.json",
         trace_path / "agentic_trace.jsonl",
         trace_path / "agentic_trace.csv",
-        trace_path / "cloudai_trace.json",
-        trace_path / "cloudai_trace.jsonl",
-        trace_path / "cloudai_trace.csv",
+        trace_path / "agentic_trace.json",
+        trace_path / "agentic_trace.jsonl",
+        trace_path / "agentic_trace.csv",
         trace_path / "history.json",
         trace_path / "history.jsonl",
         trace_path / "history.csv",
@@ -484,11 +484,11 @@ def _load_cloudai_records_from_path(trace_path: Path) -> Tuple[List[Dict], List[
                 break
 
     workers = [_normalise_worker_record(row, idx) for idx, row in enumerate(worker_records)]
-    LOGGER.info("Loaded %d CloudAI records from %s", len(task_records), trace_path)
+    LOGGER.info("Loaded %d Agentic records from %s", len(task_records), trace_path)
     return task_records, workers
 
 
-def _load_cloudai_records_from_mongo(
+def _load_agentic_records_from_mongo(
     mongo_uri: str,
     mongo_db: str,
     max_tasks: int,
@@ -550,13 +550,13 @@ def _load_cloudai_records_from_mongo(
             ).limit(256)
         )
         workers = [_normalise_worker_record(doc, idx) for idx, doc in enumerate(worker_docs)]
-        LOGGER.info("Loaded %d CloudAI records from Mongo (db=%s)", len(records), mongo_db)
+        LOGGER.info("Loaded %d Agentic records from Mongo (db=%s)", len(records), mongo_db)
         return records, workers
     finally:
         client.close()
 
 
-def _filter_cloudai_records(
+def _filter_agentic_records(
     records: Sequence[Dict],
     trace_window: str,
     trace_window_start: str,
@@ -585,7 +585,7 @@ def _filter_cloudai_records(
     return filtered
 
 
-def _build_cloudai_task(record: Dict, idx: int, workers_by_id: Dict[str, Dict]) -> Optional[TraceTask]:
+def _build_agentic_task(record: Dict, idx: int, workers_by_id: Dict[str, Dict]) -> Optional[TraceTask]:
     task_id = str(record.get("task_id", record.get("id", f"agentic-{idx}"))).strip() or f"agentic-{idx}"
 
     arrival_time = _safe_timestamp(
@@ -866,7 +866,7 @@ def load_trace(
     trace_path:
         Directory containing trace files.
     source:
-        One of ``"alibaba"``, ``"google"``, or ``"cloudai"``.
+        One of ``"alibaba"``, ``"google"``, or ``"agentic"``.
     max_tasks:
         Maximum number of tasks to keep.
     """
@@ -875,8 +875,8 @@ def load_trace(
         return load_alibaba_trace(trace_path, max_tasks=max_tasks)
     elif source in ("google", "google-2019"):
         return load_google_trace(trace_path, max_tasks=max_tasks)
-    elif source in ("agentic", "agentic-history", "cloudai", "cloudai-history"):
-        return load_cloudai_trace(
+    elif source in ("agentic", "agentic-history", "agentic", "agentic-history"):
+        return load_agentic_trace(
             trace_path=trace_path,
             max_tasks=max_tasks,
             mongo_uri=mongo_uri,
@@ -889,4 +889,4 @@ def load_trace(
         raise ValueError(f"Unknown trace source: {source!r}. Use 'alibaba', 'google', or 'agentic'.")
 
 
-load_agentic_trace = load_cloudai_trace
+load_agentic_trace = load_agentic_trace

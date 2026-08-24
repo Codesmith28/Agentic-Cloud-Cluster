@@ -53,10 +53,6 @@ if ! docker ps 2>/dev/null | grep -q mongo; then
                 echo " ready"
                 break
             fi
-            if docker exec cloudai-mongo mongosh --quiet --eval "db.runCommand({ping:1}).ok" 2>/dev/null | grep -q 1; then
-                echo " ready"
-                break
-            fi
             if [[ $i -eq 30 ]]; then
                 echo " timeout (continuing anyway)"
             fi

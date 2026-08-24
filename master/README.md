@@ -109,7 +109,7 @@ If a worker is not pre-registered, `RegisterWorker` is rejected.
 | --- | --- | --- |
 | `GRPC_PORT` | `:50051` | gRPC listen port suffix/address |
 | `HTTP_PORT` | `:8080` | HTTP API/telemetry port |
-| `CLOUDAI_HEADLESS` | `false` | Disable interactive CLI |
+| `AGENTIC_HEADLESS` | `false` | Disable interactive CLI |
 | `MASTER_BIND_ADDR` | auto | gRPC bind address override |
 | `MASTER_ADVERTISE_ADDR` | auto | Address advertised to workers |
 

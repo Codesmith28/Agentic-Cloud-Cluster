@@ -22,17 +22,15 @@ COPY --from=builder /out/masterNode /app/masterNode
 COPY master/config /app/config
 
 ENV AGENTIC_HEADLESS=true
-ENV CLOUDAI_HEADLESS=true
 ENV SCHED_ALGO=RTS
 ENV PPO_AUTOSTART=false
 ENV GRPC_PORT=:50051
 ENV HTTP_PORT=:8080
 ENV AGENTIC_FILES_DIR=/var/agentic/files
-ENV CLOUDAI_FILES_DIR=/var/agentic/files
 
 RUN adduser --disabled-password --gecos "" agentic && \
-    mkdir -p /var/agentic/files /var/cloudai/files && \
-    chown -R agentic:agentic /app /var/agentic/files /var/cloudai/files
+    mkdir -p /var/agentic/files && \
+    chown -R agentic:agentic /app /var/agentic/files
 
 USER agentic
 

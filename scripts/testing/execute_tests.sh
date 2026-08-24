@@ -162,7 +162,6 @@ ok "Deterministic workflow image ready."
 # ── Step 5: Launch Host-Master Node ──────────────────────────────────────────
 log "Starting host-master node with PPO scheduler..."
 AGENTIC_HEADLESS=true \
-CLOUDAI_HEADLESS=true \
 SCHED_ALGO=PPO \
 PPO_AUTOSTART=true \
 PPO_MODEL_PATH=latest \
