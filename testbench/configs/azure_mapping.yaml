@@ -1,0 +1,39 @@
+# =============================================================================
+# Agentic Cloud Cluster — Microsoft Azure Public Dataset (vmtable) Mapping
+# =============================================================================
+fields:
+  task_id: "vmid"
+  req_cpu: "vmcorecountbucket"
+  req_memory: "vmmemorybucket"
+  duration_seconds: "lifetime"
+  arrival_offset_sec: "vmcreated"
+  task_type: "vmcategory"
+
+transforms:
+  req_cpu:
+    scale: 1.0         # Cores
+    min_val: 0.5
+    max_val: 8.0
+    default: 1.0
+  req_memory:
+    scale: 1.0         # Memory GB
+    min_val: 0.5
+    max_val: 16.0
+    default: 1.0
+  duration_seconds:
+    scale: 0.05        # Scale lifetime seconds to benchmark duration
+    min_val: 2.0
+    max_val: 45.0
+    default: 5.0
+  arrival_offset_sec:
+    scale: 0.01        # Scale timestamps
+    default: 0.0
+
+defaults:
+  req_cpu: 1.0
+  req_memory: 1.0
+  req_storage: 1.0
+  duration_seconds: 5.0
+  sla_multiplier: 2.0
+  task_type: "mixed"
+  docker_image: "agentic/workflow-deterministic:v1"

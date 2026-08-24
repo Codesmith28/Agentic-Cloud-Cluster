@@ -129,11 +129,11 @@ class ClusterOrchestrator:
             "agentic",
             "--trace-path",
             str(temp_trace),
-            "--output-path",
+            "--output",
             str(model_output_path),
-            "--epochs",
+            "--updates",
             str(epochs),
-            "--update-batch-size",
+            "--minibatch-size",
             str(batch_size),
         ]
 

@@ -43,3 +43,14 @@ master/config/ga_output.json
 # Node
 node_modules/
 ui/dist/
+
+# Datasets and raw traces (downloaded locally)
+testbench/data/raw/
+testbench/data/*.tar.gz
+testbench/data/*.tar.xz
+testbench/data/*.zip
+testbench/data/*.parquet
+testbench/data/alibaba_*
+testbench/data/google_*
+testbench/data/azure_*
+data/
