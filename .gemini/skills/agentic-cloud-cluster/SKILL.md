@@ -23,11 +23,13 @@ Agentic-Cloud-Cluster/
 ├── pkg/                     # Shared Go foundation (Zero dependency on master/worker)
 │   ├── domain/              # Pure domain entities (Task, Worker, Assignment, etc.)
 │   ├── ports/               # Domain interfaces (Scheduler, Repositories, Reporter)
+│   ├── constants/           # Centralized string constants (env keys, defaults, collections, metrics)
 │   └── envutil/             # Centralized environment variable utilities
 ├── master/                  # Master Node Coordinator
 │   ├── main.go              # Minimal entrypoint (~15 lines)
 │   └── internal/
 │       ├── app/             # Application lifecycle, bootstrap & signal handling
+│       ├── config/          # Master configuration struct & env loaders
 │       ├── controlplane/    # Modular CLI & admin command handlers (cluster, task, file, bench)
 │       ├── db/              # MongoStore & collection-specific repositories
 │       ├── scheduler/       # Round-Robin, RTS, & PPO Scheduler implementations
@@ -42,6 +44,7 @@ Agentic-Cloud-Cluster/
 │   ├── main.go              # Minimal entrypoint (~10 lines)
 │   └── internal/
 │       ├── app/             # Worker application lifecycle & bootstrap
+│       ├── config/          # Worker configuration struct & env loaders
 │       ├── server/          # gRPC server implementing MasterWorkerServer
 │       ├── executor/        # Docker container runtime & task runner
 │       ├── telemetry/       # Heartbeat reporter & status monitor
@@ -49,6 +52,7 @@ Agentic-Cloud-Cluster/
 │       └── system/          # Hardware resource detection & persistent identity
 ├── agentic_scheduler/       # Python Reinforcement Learning Policy (PPO)
 │   ├── __main__.py          # PPO gRPC daemon entrypoint
+│   ├── constants.py         # Feature dimensions, gRPC ports, model defaults
 │   ├── model.py             # PyTorch Actor-Critic neural network architecture
 │   ├── features.py          # State/action feature vector transformations
 │   ├── service.py           # Core PPO scheduling service with replay buffer

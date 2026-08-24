@@ -50,11 +50,13 @@ Agentic-Cloud-Cluster/
 ├── pkg/                             # Shared Foundation Module
 │   ├── domain/                      # Pure Business Entities (Task, Worker, Assignment, Attempt, Result)
 │   ├── ports/                       # Interface Contracts (Scheduler, Repositories, TelemetrySink)
+│   ├── constants/                   # Centralized string constants (env keys, defaults, collections, metrics)
 │   └── envutil/                     # Type-safe environment helpers
 ├── master/                          # Master Node Service
 │   ├── main.go                      # Minimal binary entrypoint
 │   └── internal/
 │       ├── app/                     # Application lifecycle & bootstrap orchestration
+│       ├── config/                  # Master configuration struct & env loaders
 │       ├── db/                      # MongoStore connection pool & collection repositories
 │       ├── server/                  # gRPC handlers, WorkerManager, TaskManager, QueueProcessor
 │       ├── controlplane/            # Modular CLI command executors (cluster, task, file, benchmark)
@@ -69,6 +71,7 @@ Agentic-Cloud-Cluster/
 │   ├── main.go                      # Minimal binary entrypoint
 │   └── internal/
 │       ├── app/                     # Worker application lifecycle & shutdown hooks
+│       ├── config/                  # Worker configuration struct & env loaders
 │       ├── server/                  # gRPC server (MasterWorkerServer implementation)
 │       ├── executor/                # Docker task execution engine with resource limits
 │       ├── telemetry/               # Heartbeat transmitter & system load monitor
@@ -76,6 +79,7 @@ Agentic-Cloud-Cluster/
 │       └── system/                  # Hardware resource probing & persistent worker identity
 ├── agentic_scheduler/               # Python Reinforcement Learning Policy
 │   ├── __main__.py                  # PPO gRPC service daemon
+│   ├── constants.py                 # Feature dimensions, gRPC ports, model defaults
 │   ├── model.py                     # PyTorch Actor-Critic neural network architecture
 │   ├── features.py                  # Feature encoding (task dim 5, worker dim 9)
 │   ├── service.py                   # PPO core inference & online replay buffer
