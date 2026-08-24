@@ -1,0 +1,58 @@
+# =============================================================================
+# Agentic Cloud Cluster — Default Dataset Schema Mapping
+# =============================================================================
+# This configuration maps columns from an arbitrary CSV/JSON/JSONL dataset to
+# the CanonicalTask attributes used by the testing engine.
+
+# 1. Field Name Mapping (Canonical Task Attribute -> Dataset Column Name)
+fields:
+  task_id: "task_id"
+  req_cpu: "req_cpu"
+  req_memory: "req_memory"
+  req_storage: "req_storage"
+  duration_seconds: "duration_seconds"
+  arrival_offset_sec: "arrival_offset_sec"
+  sla_multiplier: "sla_multiplier"
+  task_type: "task_type"
+  docker_image: "docker_image"
+
+# 2. Value Transformations (Applied linearly: result = (value * scale) + offset)
+transforms:
+  req_cpu:
+    scale: 1.0
+    min_val: 0.1
+    max_val: 8.0
+    default: 1.0
+  req_memory:
+    scale: 1.0
+    min_val: 0.1
+    max_val: 16.0
+    default: 0.5
+  req_storage:
+    scale: 1.0
+    min_val: 0.5
+    max_val: 50.0
+    default: 1.0
+  duration_seconds:
+    scale: 1.0
+    min_val: 1.0
+    max_val: 300.0
+    default: 5.0
+  arrival_offset_sec:
+    scale: 1.0
+    default: 0.0
+  sla_multiplier:
+    scale: 1.0
+    min_val: 1.5
+    max_val: 2.5
+    default: 2.0
+
+# 3. Fallback Defaults (Used when a field is missing from a dataset row)
+defaults:
+  req_cpu: 1.0
+  req_memory: 0.5
+  req_storage: 1.0
+  duration_seconds: 5.0
+  sla_multiplier: 2.0
+  task_type: "mixed"
+  docker_image: "agentic/workflow-deterministic:v1"

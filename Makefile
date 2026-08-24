@@ -222,6 +222,11 @@ test-python:
 	$(PYTHON) -m unittest discover -s agentic_scheduler/tests/ -v
 	@echo "✅ Python unit tests passed"
 
+test-engine:
+	@echo "🧪 Running Testbench Engine unit tests..."
+	$(PYTHON) -m unittest discover -s testbench/engine/tests/ -v
+	@echo "✅ Testbench Engine unit tests passed"
+
 # ===========================================================================
 # Python / PPO
 # ===========================================================================
@@ -309,50 +314,23 @@ testbench-workload: testbench-prepare-images
 	@python3 testbench/scripts/run_workload.py
 
 # ===========================================================================
-# Testbench – Suites
+# Testbench – Streamlined Dataset-Driven Benchmark Suites
 # ===========================================================================
 
-testbench-suite:
-	@SUITE_NAME=$${SUITE_NAME:-smoke} testbench/scripts/run_suite.sh
+testbench-benchmark:
+	@$(PYTHON) testbench/runner.py --profile all
 
-testbench-suite-smoke:
-	@$(MAKE) testbench-suite SUITE_NAME=smoke
+testbench-benchmark-default:
+	@$(PYTHON) testbench/runner.py --profile default
 
-testbench-suite-reliability:
-	@$(MAKE) testbench-suite SUITE_NAME=reliability
+testbench-benchmark-bursty:
+	@$(PYTHON) testbench/runner.py --profile bursty
 
-testbench-suite-ui-smoke:
-	@$(MAKE) testbench-suite SUITE_NAME=ui-smoke
+testbench-benchmark-tail:
+	@$(PYTHON) testbench/runner.py --profile long-tail
 
-testbench-suite-evidence:
-	@$(MAKE) testbench-suite SUITE_NAME=evidence
-
-testbench-suite-full:
-	@$(MAKE) testbench-suite SUITE_NAME=full
-
-testbench-integration:
-	@testbench/scripts/run_integration.sh
-
-testbench-host-suite:
-	@COMPOSE_FILE=$(COMPOSE_HOST) \
-	WORKER_SPECS=$(WORKER_SPECS) \
-	SUITE_NAME=$${SUITE_NAME:-smoke} \
-	testbench/scripts/run_suite.sh
-
-testbench-host-suite-smoke:
-	@$(MAKE) testbench-host-suite SUITE_NAME=smoke
-
-testbench-host-suite-reliability:
-	@$(MAKE) testbench-host-suite SUITE_NAME=reliability
-
-testbench-host-suite-ui-smoke:
-	@$(MAKE) testbench-host-suite SUITE_NAME=ui-smoke
-
-testbench-host-suite-evidence:
-	@$(MAKE) testbench-host-suite SUITE_NAME=evidence
-
-testbench-host-suite-full:
-	@$(MAKE) testbench-host-suite SUITE_NAME=full
+testbench-dry-run:
+	@$(PYTHON) testbench/runner.py --profile all --mock-dry-run
 
 # ===========================================================================
 # Campaigns

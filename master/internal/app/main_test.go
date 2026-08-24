@@ -7,25 +7,22 @@ import (
 	"master/internal/system"
 )
 
-func TestParseNonInteractiveTestRunOptionsAcceptsSchedulerVariants(t *testing.T) {
-	opts, err := parseNonInteractiveTestRunOptions([]string{"-scheduler", "RTS", "-keep-env", "-ui-smoke"})
-	if err != nil {
-		t.Fatalf("parseNonInteractiveTestRunOptions returned error: %v", err)
-	}
-	if opts.Scheduler != "rts" {
-		t.Fatalf("expected scheduler rts, got %q", opts.Scheduler)
-	}
-	if !opts.KeepEnvironment {
-		t.Fatalf("expected KeepEnvironment=true")
-	}
-	if !opts.EnableUISmoke {
-		t.Fatalf("expected EnableUISmoke=true")
-	}
-}
+func TestRunTestCommandUsageAndList(t *testing.T) {
+	cfg := &config.Config{}
 
-func TestParseNonInteractiveTestRunOptionsRejectsInvalidScheduler(t *testing.T) {
-	if _, err := parseNonInteractiveTestRunOptions([]string{"-scheduler", "PPO"}); err == nil {
-		t.Fatal("expected error for unsupported scheduler")
+	// Empty args should return usage exit code 2
+	if code := RunTestCommand(cfg, []string{}); code != 2 {
+		t.Fatalf("expected exit code 2 for empty args, got %d", code)
+	}
+
+	// 'list' subcommand should return exit code 0
+	if code := RunTestCommand(cfg, []string{"list"}); code != 0 {
+		t.Fatalf("expected exit code 0 for 'list', got %d", code)
+	}
+
+	// Invalid profile should return exit code 2
+	if code := RunTestCommand(cfg, []string{"run", "invalid-profile"}); code != 2 {
+		t.Fatalf("expected exit code 2 for invalid profile, got %d", code)
 	}
 }
 

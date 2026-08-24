@@ -1,0 +1,45 @@
+# =============================================================================
+# Agentic Cloud Cluster — Alibaba Cluster Trace v2018 Schema Mapping
+# =============================================================================
+fields:
+  task_id: "task_name"
+  req_cpu: "plan_cpu"
+  req_memory: "plan_mem"
+  req_storage: "plan_gpu"
+  duration_seconds: "duration"
+  arrival_offset_sec: "start_time"
+  task_type: "job_name"
+
+transforms:
+  req_cpu:
+    scale: 0.01        # Alibaba plan_cpu is typically 100 per core -> 0.01 converts to cores
+    min_val: 0.2
+    max_val: 4.0
+    default: 1.0
+  req_memory:
+    scale: 0.01        # Normalized memory [0-100] -> scale to [0-4] GB
+    min_val: 0.25
+    max_val: 8.0
+    default: 0.5
+  req_storage:
+    scale: 1.0
+    min_val: 1.0
+    max_val: 10.0
+    default: 1.0
+  duration_seconds:
+    scale: 0.1         # Trace duration in seconds -> scaled to benchmark runtime
+    min_val: 2.0
+    max_val: 60.0
+    default: 5.0
+  arrival_offset_sec:
+    scale: 0.05        # Scale trace timestamps to benchmark arrival intervals
+    default: 0.0
+
+defaults:
+  req_cpu: 1.0
+  req_memory: 0.5
+  req_storage: 1.0
+  duration_seconds: 5.0
+  sla_multiplier: 2.0
+  task_type: "mixed"
+  docker_image: "agentic/workflow-deterministic:v1"

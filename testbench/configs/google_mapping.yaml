@@ -1,0 +1,38 @@
+# =============================================================================
+# Agentic Cloud Cluster — Google ClusterData 2019 Schema Mapping
+# =============================================================================
+fields:
+  task_id: "job_id"
+  req_cpu: "resource_request_cpu"
+  req_memory: "resource_request_memory"
+  duration_seconds: "runtime"
+  arrival_offset_sec: "time"
+
+transforms:
+  req_cpu:
+    scale: 4.0         # Google resource_request is normalized to max machine [0-1] -> scale to cores
+    min_val: 0.2
+    max_val: 4.0
+    default: 1.0
+  req_memory:
+    scale: 8.0         # Normalized memory [0-1] -> scale to GB
+    min_val: 0.25
+    max_val: 8.0
+    default: 0.5
+  duration_seconds:
+    scale: 0.05
+    min_val: 2.0
+    max_val: 45.0
+    default: 5.0
+  arrival_offset_sec:
+    scale: 0.01
+    default: 0.0
+
+defaults:
+  req_cpu: 1.0
+  req_memory: 0.5
+  req_storage: 1.0
+  duration_seconds: 5.0
+  sla_multiplier: 2.0
+  task_type: "mixed"
+  docker_image: "agentic/workflow-deterministic:v1"
