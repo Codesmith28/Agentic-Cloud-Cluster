@@ -6,12 +6,10 @@ import (
 	"log"
 	"time"
 
-	"master/internal/config"
 	"master/internal/telemetry"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // TaskHistory represents enriched historical task execution data
@@ -54,38 +52,23 @@ type WorkerStats struct {
 
 // HistoryDB handles historical telemetry data operations
 type HistoryDB struct {
-	client            *mongo.Client
 	tasksCollection   *mongo.Collection
 	assignCollection  *mongo.Collection
 	resultsCollection *mongo.Collection
 }
 
-// NewHistoryDB creates a new HistoryDB instance
-func NewHistoryDB(ctx context.Context, cfg *config.Config) (*HistoryDB, error) {
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoDBURI))
-	if err != nil {
-		return nil, fmt.Errorf("connect to mongodb: %w", err)
-	}
-
-	if err := client.Ping(ctx, nil); err != nil {
-		return nil, fmt.Errorf("ping mongodb: %w", err)
-	}
-
-	database := client.Database(cfg.MongoDBDatabase)
-
+// NewHistoryDB creates a new HistoryDB instance from MongoStore
+func NewHistoryDB(store *MongoStore) *HistoryDB {
+	database := store.Database()
 	return &HistoryDB{
-		client:            client,
 		tasksCollection:   database.Collection("TASKS"),
 		assignCollection:  database.Collection("ASSIGNMENTS"),
 		resultsCollection: database.Collection("RESULTS"),
-	}, nil
+	}
 }
 
-// Close closes the database connection
+// Close closes the database connection (no-op; managed by MongoStore)
 func (db *HistoryDB) Close(ctx context.Context) error {
-	if db.client != nil {
-		return db.client.Disconnect(ctx)
-	}
 	return nil
 }
 

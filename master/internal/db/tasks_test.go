@@ -15,7 +15,6 @@ func TestUpdateTaskMetadata(t *testing.T) {
 
 	mt.Run("success", func(mt *mtest.T) {
 		taskDB := &TaskDB{
-			client:     mt.Client,
 			collection: mt.Coll,
 		}
 
@@ -33,7 +32,6 @@ func TestUpdateTaskMetadata(t *testing.T) {
 
 	mt.Run("task not found", func(mt *mtest.T) {
 		taskDB := &TaskDB{
-			client:     mt.Client,
 			collection: mt.Coll,
 		}
 

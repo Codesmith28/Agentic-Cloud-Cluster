@@ -2,20 +2,16 @@ package db
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
-	"master/internal/config"
 	pb "master/proto"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type WorkerDB struct {
-	client     *mongo.Client
 	collection *mongo.Collection
 }
 
@@ -38,36 +34,15 @@ type WorkerDocument struct {
 	UpdatedAt        time.Time `bson:"updated_at"`
 }
 
-// NewWorkerDB creates a new WorkerDB instance
-func NewWorkerDB(ctx context.Context, cfg *config.Config) (*WorkerDB, error) {
-	if cfg.MongoDBUsername == "" || cfg.MongoDBPassword == "" {
-		return nil, errors.New("missing MongoDB credentials in environment")
-	}
-
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoDBURI).SetServerSelectionTimeout(5*time.Second))
-	if err != nil {
-		return nil, fmt.Errorf("connect mongo: %w", err)
-	}
-
-	if err := client.Ping(ctx, nil); err != nil {
-		client.Disconnect(context.Background())
-		return nil, fmt.Errorf("ping mongo: %w", err)
-	}
-
-	database := client.Database(cfg.MongoDBDatabase)
-	collection := database.Collection("WORKER_REGISTRY")
-
+// NewWorkerDB creates a new WorkerDB instance from MongoStore
+func NewWorkerDB(store *MongoStore) *WorkerDB {
 	return &WorkerDB{
-		client:     client,
-		collection: collection,
-	}, nil
+		collection: store.Collection("WORKER_REGISTRY"),
+	}
 }
 
-// Close closes the database connection
+// Close closes the database connection (no-op; managed by MongoStore)
 func (db *WorkerDB) Close(ctx context.Context) error {
-	if db.client != nil {
-		return db.client.Disconnect(ctx)
-	}
 	return nil
 }
 

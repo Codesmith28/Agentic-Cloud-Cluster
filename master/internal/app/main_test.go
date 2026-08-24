@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"testing"
@@ -56,13 +56,5 @@ func TestResolveMasterAddressesOverrides(t *testing.T) {
 	}
 	if advertise != "master.example:50052" {
 		t.Fatalf("unexpected advertise address: %q", advertise)
-	}
-}
-
-func TestRunNonInteractiveTestCommandRejectsUnknownSuite(t *testing.T) {
-	cfg := &config.Config{GRPCPort: ":50051", HTTPPort: ":8080", SchedulerAlgo: "RTS"}
-	code := runNonInteractiveTestCommand(cfg, []string{"run", "unknown-suite"})
-	if code != 2 {
-		t.Fatalf("expected exit code 2 for unsupported suite, got %d", code)
 	}
 }

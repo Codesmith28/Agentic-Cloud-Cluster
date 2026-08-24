@@ -106,7 +106,7 @@ func (c *CLI) Run() {
 
 func (c *CLI) printBanner() {
 	fmt.Println("═══════════════════════════════════════════════════════")
-	fmt.Println("  CloudAI Master Node - Interactive CLI")
+	fmt.Println("  Agentic Cloud Cluster Master Node - Interactive CLI")
 	fmt.Println("═══════════════════════════════════════════════════════")
 	fmt.Println("Type 'help' for available commands")
 }

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"master/internal/config"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -25,27 +23,14 @@ type Assignment struct {
 
 // AssignmentDB handles assignment-related database operations
 type AssignmentDB struct {
-	client     *mongo.Client
 	collection *mongo.Collection
 }
 
-// NewAssignmentDB creates a new AssignmentDB instance
-func NewAssignmentDB(ctx context.Context, cfg *config.Config) (*AssignmentDB, error) {
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoDBURI))
-	if err != nil {
-		return nil, fmt.Errorf("connect to mongodb: %w", err)
-	}
-
-	if err := client.Ping(ctx, nil); err != nil {
-		return nil, fmt.Errorf("ping mongodb: %w", err)
-	}
-
-	collection := client.Database(cfg.MongoDBDatabase).Collection("ASSIGNMENTS")
-
+// NewAssignmentDB creates a new AssignmentDB instance from MongoStore
+func NewAssignmentDB(store *MongoStore) *AssignmentDB {
 	return &AssignmentDB{
-		client:     client,
-		collection: collection,
-	}, nil
+		collection: store.Collection("ASSIGNMENTS"),
+	}
 }
 
 // CreateAssignment inserts a new assignment into the database
@@ -135,10 +120,7 @@ func (db *AssignmentDB) ListAllAssignments(ctx context.Context) ([]*Assignment, 
 	return assignments, nil
 }
 
-// Close closes the database connection
+// Close closes the database connection (no-op; managed by MongoStore)
 func (db *AssignmentDB) Close(ctx context.Context) error {
-	if db.client != nil {
-		return db.client.Disconnect(ctx)
-	}
 	return nil
 }

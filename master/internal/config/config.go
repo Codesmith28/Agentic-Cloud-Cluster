@@ -58,8 +58,8 @@ func LoadConfig() *Config {
 	ppoModelPath := getEnv("PPO_MODEL_PATH", "latest")
 	ppoDeploymentMode := normalizePPODeploymentMode(getEnv("PPO_DEPLOYMENT_MODE", "active"))
 	ppoOnlineUpdates := getEnvBool("PPO_ONLINE_UPDATES_ENABLED", true)
-	headless := getEnvBool("CLOUDAI_HEADLESS", false)
-	uiMode := strings.ToLower(strings.TrimSpace(getEnv("CLOUDAI_UI_MODE", "cli")))
+	headless := getEnvBool("AGENTIC_HEADLESS", getEnvBool("CLOUDAI_HEADLESS", false))
+	uiMode := strings.ToLower(strings.TrimSpace(getEnv("AGENTIC_UI_MODE", getEnv("CLOUDAI_UI_MODE", "cli"))))
 	if uiMode != "cli" && uiMode != "tui" {
 		log.Printf("⚠️  Invalid UI mode %q, using default 'cli'", uiMode)
 		uiMode = "cli"

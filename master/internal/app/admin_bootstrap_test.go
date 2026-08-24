@@ -1,6 +1,10 @@
-package main
+package app
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/envutil"
+)
 
 func TestLoadWebUIAdminBootstrapConfigDefaults(t *testing.T) {
 	t.Setenv("WEBUI_ADMIN_NAME", "")
@@ -46,7 +50,7 @@ func TestLoadWebUIAdminBootstrapConfigOverrides(t *testing.T) {
 
 func TestGetBoolEnvWithDefaultInvalidValue(t *testing.T) {
 	t.Setenv("WEBUI_ADMIN_RESET_PASSWORD", "not-a-bool")
-	if got := getBoolEnvWithDefault("WEBUI_ADMIN_RESET_PASSWORD", true); !got {
+	if got := envutil.GetEnvBool("WEBUI_ADMIN_RESET_PASSWORD", true); !got {
 		t.Fatalf("expected fallback value true")
 	}
 }

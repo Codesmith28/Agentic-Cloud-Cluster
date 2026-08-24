@@ -2,15 +2,9 @@ package db
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"time"
-
-	"master/internal/config"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var collections = []string{
@@ -26,25 +20,13 @@ var collections = []string{
 	"RTS_WEIGHTS",
 }
 
-// EnsureCollections connects to the MongoDB instance and makes sure the
-// collections required by the masternode exist. Idempotent-safe so repeat calls
-// are inexpensive and harmless.
-func EnsureCollections(ctx context.Context, cfg *config.Config) error {
-	if cfg.MongoDBUsername == "" || cfg.MongoDBPassword == "" {
-		return errors.New("missing MongoDB credentials in environment")
+// EnsureCollections ensures that all collections required by the master node exist.
+func EnsureCollections(ctx context.Context, store *MongoStore) error {
+	if store == nil || store.Database() == nil {
+		return fmt.Errorf("mongo store is nil or uninitialized")
 	}
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoDBURI).SetServerSelectionTimeout(5*time.Second))
-	if err != nil {
-		return fmt.Errorf("connect mongo: %w", err)
-	}
-	defer func() { _ = client.Disconnect(context.Background()) }()
-
-	if err := client.Ping(ctx, nil); err != nil {
-		return fmt.Errorf("ping mongo: %w", err)
-	}
-
-	database := client.Database(cfg.MongoDBDatabase)
+	database := store.Database()
 
 	existing, err := database.ListCollectionNames(ctx, bson.D{})
 	if err != nil {
@@ -67,4 +49,3 @@ func EnsureCollections(ctx context.Context, cfg *config.Config) error {
 
 	return nil
 }
-

@@ -1,12 +1,11 @@
-package main
+package app
 
 import (
 	"errors"
 	"log"
-	"os"
-	"strconv"
 	"strings"
 
+	"github.com/Codesmith28/Agentic-Cloud-Cluster/pkg/envutil"
 	"master/internal/db"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -59,7 +58,7 @@ func bootstrapDefaultWebUIAdmin(userDB *db.UserDB) error {
 			return err
 		}
 
-		log.Printf("✓ Reset password for existing Web UI admin user %s (WEBUI_ADMIN_RESET_PASSWORD=true)", cfg.Email)
+		log.Printf("✓ Web UI admin user password reset for %s", cfg.Email)
 		return nil
 	}
 
@@ -68,55 +67,23 @@ func bootstrapDefaultWebUIAdmin(userDB *db.UserDB) error {
 	}
 
 	if err := userDB.CreateUser(cfg.Name, cfg.Email, cfg.Password); err != nil {
-		if errors.Is(err, db.ErrUserAlreadyExists) {
-			log.Printf("✓ Web UI admin user already exists for %s", cfg.Email)
-			return nil
-		}
 		return err
 	}
 
-	log.Printf("✓ Bootstrapped default Web UI admin user: %s", cfg.Email)
-	if cfg.Password == defaultWebUIAdminPassword {
-		log.Printf("⚠️  WEBUI_ADMIN_PASSWORD not set; default admin password is in use. Change it in .env for non-local environments.")
-	}
-
+	log.Printf("✓ Default Web UI admin user bootstrapped for %s", cfg.Email)
 	return nil
 }
 
 func loadWebUIAdminBootstrapConfig() webUIAdminBootstrapConfig {
-	name := strings.TrimSpace(os.Getenv("WEBUI_ADMIN_NAME"))
-	if name == "" {
-		name = defaultWebUIAdminName
-	}
-
-	email := strings.TrimSpace(os.Getenv("WEBUI_ADMIN_EMAIL"))
-	if email == "" {
-		email = defaultWebUIAdminEmail
-	}
-
-	password := os.Getenv("WEBUI_ADMIN_PASSWORD")
-	if strings.TrimSpace(password) == "" {
-		password = defaultWebUIAdminPassword
-	}
+	name := strings.TrimSpace(envutil.GetEnv("WEBUI_ADMIN_NAME", defaultWebUIAdminName))
+	email := strings.TrimSpace(envutil.GetEnv("WEBUI_ADMIN_EMAIL", defaultWebUIAdminEmail))
+	password := strings.TrimSpace(envutil.GetEnv("WEBUI_ADMIN_PASSWORD", defaultWebUIAdminPassword))
+	resetPassword := envutil.GetEnvBool("WEBUI_ADMIN_RESET_PASSWORD", false)
 
 	return webUIAdminBootstrapConfig{
 		Name:          name,
 		Email:         email,
 		Password:      password,
-		ResetPassword: getBoolEnvWithDefault("WEBUI_ADMIN_RESET_PASSWORD", false),
+		ResetPassword: resetPassword,
 	}
-}
-
-func getBoolEnvWithDefault(key string, fallback bool) bool {
-	value := strings.TrimSpace(os.Getenv(key))
-	if value == "" {
-		return fallback
-	}
-
-	parsed, err := strconv.ParseBool(value)
-	if err != nil {
-		log.Printf("⚠️  Invalid bool value for %s: %s, using fallback %t", key, value, fallback)
-		return fallback
-	}
-	return parsed
 }

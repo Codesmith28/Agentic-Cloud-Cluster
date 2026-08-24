@@ -2,11 +2,8 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
-
-	"master/internal/config"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -26,24 +23,12 @@ type FileMetadata struct {
 
 // FileMetadataDB handles file metadata operations
 type FileMetadataDB struct {
-	client     *mongo.Client
 	collection *mongo.Collection
 }
 
-// NewFileMetadataDB creates a new FileMetadataDB instance
-func NewFileMetadataDB(ctx context.Context, cfg *config.Config) (*FileMetadataDB, error) {
-	clientOptions := options.Client().ApplyURI(cfg.MongoDBURI)
-	client, err := mongo.Connect(ctx, clientOptions)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to MongoDB: %w", err)
-	}
-
-	// Ping the database
-	if err := client.Ping(ctx, nil); err != nil {
-		return nil, fmt.Errorf("failed to ping MongoDB: %w", err)
-	}
-
-	collection := client.Database(cfg.MongoDBDatabase).Collection("FILE_METADATA")
+// NewFileMetadataDB creates a new FileMetadataDB instance from MongoStore
+func NewFileMetadataDB(store *MongoStore) *FileMetadataDB {
+	collection := store.Collection("FILE_METADATA")
 
 	// Create indexes
 	indexes := []mongo.IndexModel{
@@ -65,20 +50,19 @@ func NewFileMetadataDB(ctx context.Context, cfg *config.Config) (*FileMetadataDB
 		},
 	}
 
-	_, err = collection.Indexes().CreateMany(ctx, indexes)
+	_, err := collection.Indexes().CreateMany(context.Background(), indexes)
 	if err != nil {
 		log.Printf("Warning: failed to create indexes: %v", err)
 	}
 
 	return &FileMetadataDB{
-		client:     client,
 		collection: collection,
-	}, nil
+	}
 }
 
-// Close closes the database connection
+// Close closes the database connection (no-op; managed by MongoStore)
 func (db *FileMetadataDB) Close(ctx context.Context) error {
-	return db.client.Disconnect(ctx)
+	return nil
 }
 
 // CreateFileMetadata stores file metadata

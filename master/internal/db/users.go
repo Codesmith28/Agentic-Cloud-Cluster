@@ -3,14 +3,10 @@ package db
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
-
-	"master/internal/config"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -31,40 +27,18 @@ type User struct {
 
 // UserDB handles user database operations
 type UserDB struct {
-	client     *mongo.Client
 	collection *mongo.Collection
 }
 
-// NewUserDB creates a new UserDB instance
-func NewUserDB(ctx context.Context, cfg *config.Config) (*UserDB, error) {
-	if cfg.MongoDBUsername == "" || cfg.MongoDBPassword == "" {
-		return nil, errors.New("missing MongoDB credentials in environment")
-	}
-
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoDBURI).SetServerSelectionTimeout(5*time.Second))
-	if err != nil {
-		return nil, fmt.Errorf("connect mongo: %w", err)
-	}
-
-	if err := client.Ping(ctx, nil); err != nil {
-		client.Disconnect(context.Background())
-		return nil, fmt.Errorf("ping mongo: %w", err)
-	}
-
-	database := client.Database(cfg.MongoDBDatabase)
-	collection := database.Collection("USERS")
-
+// NewUserDB creates a new UserDB instance from MongoStore
+func NewUserDB(store *MongoStore) *UserDB {
 	return &UserDB{
-		client:     client,
-		collection: collection,
-	}, nil
+		collection: store.Collection("USERS"),
+	}
 }
 
-// Close closes the database connection
+// Close closes the database connection (no-op; managed by MongoStore)
 func (db *UserDB) Close(ctx context.Context) error {
-	if db.client != nil {
-		return db.client.Disconnect(ctx)
-	}
 	return nil
 }
 

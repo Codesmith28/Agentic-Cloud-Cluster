@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"time"
 
-	"master/internal/config"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -40,46 +38,28 @@ type SchedulerModelMetadata struct {
 }
 
 type SchedulerModelDB struct {
-	client     *mongo.Client
-	database   *mongo.Database
 	collection *mongo.Collection
 	bucket     *gridfs.Bucket
 }
 
-func NewSchedulerModelDB(ctx context.Context, cfg *config.Config) (*SchedulerModelDB, error) {
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoDBURI).SetServerSelectionTimeout(5*time.Second))
-	if err != nil {
-		return nil, fmt.Errorf("connect mongo: %w", err)
-	}
-	if err := client.Ping(ctx, nil); err != nil {
-		_ = client.Disconnect(context.Background())
-		return nil, fmt.Errorf("ping mongo: %w", err)
-	}
-
-	database := client.Database(cfg.MongoDBDatabase)
+func NewSchedulerModelDB(store *MongoStore) (*SchedulerModelDB, error) {
+	database := store.Database()
 	bucket, err := gridfs.NewBucket(database, options.GridFSBucket().SetName(schedulerModelsBucketName))
 	if err != nil {
-		_ = client.Disconnect(context.Background())
 		return nil, fmt.Errorf("create scheduler models bucket: %w", err)
 	}
 
 	db := &SchedulerModelDB{
-		client:     client,
-		database:   database,
 		collection: database.Collection(schedulerModelsCollection),
 		bucket:     bucket,
 	}
-	if err := db.ensureIndexes(ctx); err != nil {
-		_ = client.Disconnect(context.Background())
+	if err := db.ensureIndexes(context.Background()); err != nil {
 		return nil, err
 	}
 	return db, nil
 }
 
 func (db *SchedulerModelDB) Close(ctx context.Context) error {
-	if db.client != nil {
-		return db.client.Disconnect(ctx)
-	}
 	return nil
 }
 

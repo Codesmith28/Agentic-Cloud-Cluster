@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"master/internal/config"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Task represents a task in the database
@@ -47,27 +44,14 @@ type Task struct {
 
 // TaskDB handles task-related database operations
 type TaskDB struct {
-	client     *mongo.Client
 	collection *mongo.Collection
 }
 
-// NewTaskDB creates a new TaskDB instance
-func NewTaskDB(ctx context.Context, cfg *config.Config) (*TaskDB, error) {
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoDBURI))
-	if err != nil {
-		return nil, fmt.Errorf("connect to mongodb: %w", err)
-	}
-
-	if err := client.Ping(ctx, nil); err != nil {
-		return nil, fmt.Errorf("ping mongodb: %w", err)
-	}
-
-	collection := client.Database(cfg.MongoDBDatabase).Collection("TASKS")
-
+// NewTaskDB creates a new TaskDB instance from MongoStore
+func NewTaskDB(store *MongoStore) *TaskDB {
 	return &TaskDB{
-		client:     client,
-		collection: collection,
-	}, nil
+		collection: store.Collection("TASKS"),
+	}
 }
 
 // CreateTask inserts a new task into the database
@@ -331,10 +315,7 @@ func (db *TaskDB) UpdateTaskWithSLA(ctx context.Context, taskID string, deadline
 	return nil
 }
 
-// Close closes the database connection
+// Close closes the database connection (no-op; managed by MongoStore)
 func (db *TaskDB) Close(ctx context.Context) error {
-	if db.client != nil {
-		return db.client.Disconnect(ctx)
-	}
 	return nil
 }

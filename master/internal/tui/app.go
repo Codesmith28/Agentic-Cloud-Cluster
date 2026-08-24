@@ -374,7 +374,7 @@ func (m Model) View() string {
 
 // renderStatusRail renders the top status bar.
 func (m Model) renderStatusRail() string {
-	left := statusRailStyle.Render("☁ CloudAI Master")
+	left := statusRailStyle.Render("☁ Agentic Cloud Cluster Master")
 
 	status := ""
 	if m.loading {
