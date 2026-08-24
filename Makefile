@@ -182,19 +182,21 @@ clean:
 
 check:
 	@echo "🔍 Compile-checking Go code..."
+	cd pkg && go build ./...
 	cd master && go build -o /dev/null ./...
 	cd worker && go build -o /dev/null ./...
 	@echo "✅ Compile check passed"
 
 vet:
 	@echo "🔍 Running go vet..."
+	cd pkg && go vet ./...
 	cd master && go vet ./...
 	cd worker && go vet ./...
 	@echo "✅ Vet passed"
 
 fmt:
 	@echo "🔍 Running gofmt..."
-	@gofmt -l master/ worker/ | tee /dev/stderr | (! read) && echo "✅ All files formatted" || echo "⚠️  Files above need formatting (run: gofmt -w master/ worker/)"
+	@gofmt -l pkg/ master/ worker/ | tee /dev/stderr | (! read) && echo "✅ All files formatted" || echo "⚠️  Files above need formatting (run: gofmt -w pkg/ master/ worker/)"
 
 # ===========================================================================
 # Tests
@@ -210,15 +212,22 @@ test:
 
 test-unit:
 	@echo "🧪 Running Go unit tests..."
+	cd pkg && go test ./... -count=1 -timeout 120s
 	cd master && go test ./... -count=1 -timeout 120s
 	cd worker && go test ./... -count=1 -timeout 120s
 	@echo "✅ All unit tests passed"
 
 test-unit-verbose:
 	@echo "🧪 Running Go unit tests (verbose)..."
+	cd pkg && go test ./... -v -count=1 -timeout 120s
 	cd master && go test ./... -v -count=1 -timeout 120s
 	cd worker && go test ./... -v -count=1 -timeout 120s
 	@echo "✅ All unit tests passed"
+
+test-python:
+	@echo "🐍 Running Python unit tests..."
+	$(PYTHON) -m unittest discover -s agentic_scheduler/tests/ -v
+	@echo "✅ Python unit tests passed"
 
 # ===========================================================================
 # Python / PPO

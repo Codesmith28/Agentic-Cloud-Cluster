@@ -14,6 +14,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/proto"
 )
 
 func taskIsTerminal(status string) bool {
@@ -427,7 +428,7 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 	}
 	attemptID := nextAttemptID(task.TaskId, attemptNo)
 
-	taskToAssign := *task
+	taskToAssign := proto.Clone(task).(*pb.Task)
 	taskToAssign.AttemptId = attemptID
 	taskToAssign.AttemptNo = attemptNo
 
@@ -565,7 +566,7 @@ func (s *MasterServer) assignTaskToWorker(ctx context.Context, task *pb.Task, wo
 	defer conn.Close()
 
 	client := pb.NewMasterWorkerClient(conn)
-	ack, err := client.AssignTask(ctx, &taskToAssign)
+	ack, err := client.AssignTask(ctx, taskToAssign)
 	if err != nil {
 		if s.attemptDB != nil && attemptCreated {
 			_ = s.attemptDB.MarkAttemptLost(ctx, attemptID, "assignment_failed")

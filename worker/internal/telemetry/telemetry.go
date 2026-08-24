@@ -15,6 +15,7 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/proto"
 )
 
 // Monitor handles telemetry and heartbeat reporting
@@ -108,8 +109,8 @@ func (m *Monitor) GetRunningTasks() []*pb.RunningTask {
 		if task == nil {
 			continue
 		}
-		taskCopy := *task
-		tasks = append(tasks, &taskCopy)
+		taskCopy := proto.Clone(task).(*pb.RunningTask)
+		tasks = append(tasks, taskCopy)
 	}
 	return tasks
 }

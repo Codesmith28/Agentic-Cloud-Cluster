@@ -1,8 +1,8 @@
-# CloudAI - Distributed Task Execution System
+# Agentic Cloud Cluster - Distributed Task Execution & AI Scheduling
 
-**Orchestrate Docker-based tasks across worker nodes with real-time monitoring and a web dashboard.**
+**Orchestrate Docker-based tasks across heterogeneous worker nodes with real-time telemetry, Reinforcement Learning (PPO) scheduling, and web dashboard.**
 
-[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![Docker](https://img.shields.io/badge/Docker-Required-2496ED?style=flat&logo=docker)](https://docker.com)
 [![MongoDB](https://img.shields.io/badge/MongoDB-7.0+-47A248?style=flat&logo=mongodb)](https://mongodb.com)
 
@@ -10,9 +10,9 @@
 
 ## Overview
 
-CloudAI is a distributed computing platform for executing Docker-based workloads across a cluster of worker nodes. Built with **Go** for high performance.
+**Agentic Cloud Cluster** is a distributed systems platform for executing containerized workloads across a cluster of worker nodes. Built with **Go** for high throughput systems orchestration and **PyTorch** for reinforcement learning task placement policies.
 
-**[Complete Documentation](docs/DOCUMENTATION.md)** | **[Getting Started Guide](docs/GETTING_STARTED.md)** 
+**[Developer Codebase Guide](docs/CODEBASE_GUIDE.md)** | **[Architecture Details](docs/ARCHITECTURE.md)** | **[Getting Started Guide](docs/GETTING_STARTED.md)** 
 
 ---
 
