@@ -85,24 +85,27 @@ graph LR
 ## 4. Execution Commands
 
 ```bash
-# 1. Download sample trace into git-ignored directory
-mkdir -p testbench/data/raw
-curl -sSL https://raw.githubusercontent.com/alibaba/clusterdata/master/cluster-trace-v2018/sample/batch_task.csv \
-  -o testbench/data/raw/alibaba_batch_task.csv
+# 1. Download & stage all full datasets (Azure 2.69M VMs & Alibaba 300k tasks)
+./scripts/datasets/download_all.sh
+# or: make dataset-all
 
-# 2. Run End-to-End Split -> Train -> 3-Profile Benchmark on Alibaba Trace
+# 2. Run End-to-End Benchmark on Full Alibaba Trace (300,000 tasks)
 python3 testbench/runner.py \
   --dataset testbench/data/raw/alibaba_batch_task.csv \
   --mapping testbench/configs/alibaba_mapping.yaml \
+  --max-tasks 5000 \
   --profile all \
   --train-ratio 0.8 \
   --seed 42 \
   --output-dir results/benchmarks/alibaba_run
 
-# 3. Dry-Run Validation on any custom trace
+# 3. Run End-to-End Benchmark on Full Microsoft Azure Dataset (2,695,548 tasks)
 python3 testbench/runner.py \
-  --dataset testbench/data/raw/alibaba_batch_task.csv \
-  --mapping testbench/configs/alibaba_mapping.yaml \
+  --dataset testbench/data/raw/azure_vmtable_full.csv.gz \
+  --mapping testbench/configs/azure_mapping.yaml \
+  --max-tasks 5000 \
   --profile all \
-  --mock-dry-run
+  --train-ratio 0.8 \
+  --seed 42 \
+  --output-dir results/benchmarks/azure_run
 ```

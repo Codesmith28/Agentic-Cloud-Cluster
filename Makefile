@@ -376,9 +376,6 @@ dataset-azure:
 dataset-alibaba:
 	@$(PYTHON) scripts/datasets/download_alibaba.py
 
-dataset-google:
-	@$(PYTHON) scripts/datasets/download_google.py
-
 # ===========================================================================
 # Model management
 # ===========================================================================
