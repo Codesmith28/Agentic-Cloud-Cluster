@@ -364,6 +364,22 @@ campaign-comprehensive: campaign-prereqs
 		--timeout 900
 
 # ===========================================================================
+# Datasets & Staging (Local / Git-Ignored)
+# ===========================================================================
+
+dataset-all:
+	@./scripts/datasets/download_all.sh
+
+dataset-azure:
+	@$(PYTHON) scripts/datasets/download_azure.py
+
+dataset-alibaba:
+	@$(PYTHON) scripts/datasets/download_alibaba.py
+
+dataset-google:
+	@$(PYTHON) scripts/datasets/download_google.py
+
+# ===========================================================================
 # Model management
 # ===========================================================================
 
