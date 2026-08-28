@@ -228,6 +228,8 @@ def load_alibaba_trace(
                 task_type=task_type,
                 sla_multiplier=2.0,
             ))
+            if max_tasks > 0 and len(tasks) >= max_tasks * 3:
+                break
 
     tasks, raw_start, raw_end = _normalise_tasks(tasks, max_tasks)
 
